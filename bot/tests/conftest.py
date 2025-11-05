@@ -185,6 +185,22 @@ def pytest_configure(config):  # type: ignore
     )
 
 
+def pytest_sessionstart(session):  # type: ignore
+    """
+    Delete test database file before each test session.
+
+    This ensures mutmut's multiple test passes (stats, clean, forced fail)
+    don't share database state even though they run in the same process.
+    """
+    import os
+    import tempfile
+
+    # Get the test database filename (same logic as settings.py)
+    db_file = os.path.join(tempfile.gettempdir(), f"test_wccomps_{os.getpid()}.db")
+    if os.path.exists(db_file):
+        os.remove(db_file)
+
+
 @pytest.fixture(scope="function")
 def db(transactional_db):  # type: ignore
     """
