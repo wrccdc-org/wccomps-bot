@@ -1,0 +1,1 @@
+"""WCComps Discord Bot package."""

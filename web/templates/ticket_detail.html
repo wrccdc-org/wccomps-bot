@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket {{ ticket.ticket_number }} - WCComps{% endblock %}
+
+{% block home_url %}{% url 'team_tickets' %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1>Ticket {{ ticket.ticket_number }}</h1>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ team.team_name }}</p>
+    </div>
+
+    <div class="module">
+        <div class="toolbar">
+            <a href="{% url 'team_tickets' %}" class="historylink">Back to Tickets</a>
+        </div>
+
+        <!-- Ticket Details -->
+        <fieldset class="module aligned">
+            <h2>Ticket Information</h2>
+
+            <div class="form-row">
+                <div>
+                    <label>Ticket Number:</label>
+                    <div class="readonly">{{ ticket.ticket_number }}</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Category:</label>
+                    <div class="readonly">{{ category_name }}</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Status:</label>
+                    <div class="readonly">{{ status_display }}</div>
+                </div>
+            </div>
+
+            {% if ticket.assigned_to_discord_username %}
+            <div class="form-row">
+                <div>
+                    <label>Assigned To:</label>
+                    <div class="readonly">{{ ticket.assigned_to_discord_username }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-row">
+                <div>
+                    <label>Description:</label>
+                    <div class="readonly">{{ ticket.description }}</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Created:</label>
+                    <div class="readonly">{{ ticket.created_at|date:"Y-m-d H:i:s" }} UTC</div>
+                </div>
+            </div>
+
+            {% if ticket.resolved_at %}
+            <div class="form-row">
+                <div>
+                    <label>Resolved:</label>
+                    <div class="readonly">{{ ticket.resolved_at|date:"Y-m-d H:i:s" }} UTC</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ticket.resolution_notes %}
+            <div class="form-row">
+                <div>
+                    <label>Resolution Notes:</label>
+                    <div class="readonly">{{ ticket.resolution_notes }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </fieldset>
+
+        <!-- Comments -->
+        <fieldset class="module">
+            <h2>Comments</h2>
+            {% if comments %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Author</th>
+                        <th>Comment</th>
+                        <th>Posted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comment in comments %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ comment.author_name }}</td>
+                        <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
+                        <td>{{ comment.posted_at|date:"Y-m-d H:i:s" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 30px;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No comments yet</strong></div>
+                <div style="color: #999; font-size: 12px;">Comments from the ticket thread will appear here</div>
+            </div>
+            {% endif %}
+
+            <!-- Add Comment Form -->
+            {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom: 10px;">Add Comment</h3>
+                <form method="POST" action="{% url 'ticket_comment' ticket.id %}">
+                    {% csrf_token %}
+                    <textarea name="comment" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace;" placeholder="Type your comment here..."></textarea>
+                    <button type="submit" class="button" style="margin-top: 10px; background: #417690; color: white;">Post Comment</button>
+                </form>
+            </div>
+            {% endif %}
+        </fieldset>
+
+        <!-- Cancel ticket option -->
+        {% if ticket.status == 'open' %}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <form method="POST" action="{% url 'ticket_cancel' ticket.id %}" onsubmit="return confirm('Are you sure you want to cancel this ticket?');">
+                {% csrf_token %}
+                <button type="submit" class="button" style="background: #ba2121; color: white;">
+                    Cancel Ticket
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

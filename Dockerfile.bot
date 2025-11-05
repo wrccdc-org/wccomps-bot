@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy project files
+COPY pyproject.toml .
+COPY uv.lock* .
+
+# Install dependencies using uv
+RUN uv sync --frozen --no-dev
+
+# Copy bot application code
+COPY main.py ./main.py
+COPY bot/ ./bot/
+COPY web/core/ ./web/core/
+COPY web/wccomps/ ./web/wccomps/
+COPY web/manage.py ./web/manage.py
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/web
+ENV DJANGO_SETTINGS_MODULE=wccomps.settings
+
+WORKDIR /app
+
+# Run the bot
+CMD ["uv", "run", "main.py"]

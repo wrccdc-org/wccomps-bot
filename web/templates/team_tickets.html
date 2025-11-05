@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tickets - {{ team.team_name }}{% endblock %}
+
+{% block home_url %}{% url 'team_tickets' %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1>{{ team.team_name }} - Tickets</h1>
+    </div>
+
+    <div class="module" id="changelist">
+        <div class="toolbar">
+            <a href="{% url 'create_ticket' %}" class="addlink">Create New Ticket</a>
+        </div>
+
+        <div class="toolbar" style="margin-top: 10px;">
+            <form method="GET" id="filter-form" role="search" aria-label="Filter tickets">
+                <label for="id_status">Status:</label>
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                    <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+                <a href="{% url 'team_tickets' %}" class="button" style="color: white; margin-left: 10px;">Clear</a>
+            </form>
+        </div>
+
+        <div class="results">
+            <table id="result_list" role="grid" aria-label="Your tickets">
+                <thead>
+                    <tr role="row">
+                        <th scope="col" role="columnheader">
+                            <div class="text">Ticket</div>
+                        </th>
+                        <th scope="col" role="columnheader">
+                            <div class="text">Category</div>
+                        </th>
+                        <th scope="col" role="columnheader">
+                            <div class="text">Status</div>
+                        </th>
+                        <th scope="col" role="columnheader">
+                            <div class="text">Created</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in tickets %}
+                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
+                        <th class="field-ticket_number" role="gridcell">
+                            <a href="{% url 'ticket_detail' item.ticket.id %}">
+                                {{ item.ticket.ticket_number }}
+                            </a>
+                        </th>
+                        <td class="field-category" role="gridcell">{{ item.category_name }}</td>
+                        <td class="field-status" role="gridcell">
+                            <span class="status-badge status-{{ item.ticket.status }}" role="status" aria-label="Status: {{ item.status_display }}">{{ item.status_display }}</span>
+                        </td>
+                        <td class="field-created" role="gridcell">{{ item.ticket.created_at|timesince }} ago</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 40px;">
+                            <div style="color: #666; font-size: 16px; margin-bottom: 10px;">
+                                {% if status_filter != 'all' %}
+                                    <strong>No tickets match your filter</strong>
+                                {% else %}
+                                    <strong>No tickets yet</strong>
+                                {% endif %}
+                            </div>
+                            <div style="color: #999; font-size: 13px;">
+                                {% if status_filter != 'all' %}
+                                    Try <a href="{% url 'team_tickets' %}">clearing the filter</a> or <a href="{% url 'create_ticket' %}">create a new ticket</a>
+                                {% else %}
+                                    <a href="{% url 'create_ticket' %}">Create your first ticket</a> to get started!
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if tickets %}
+        <p class="paginator">
+            {{ tickets|length }} ticket(s)
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filter-form');
+    const statusSelect = document.getElementById('id_status');
+
+    // Auto-submit on status change
+    statusSelect.addEventListener('change', () => filterForm.submit());
+});
+</script>
+{% endblock %}

@@ -1,0 +1,328 @@
+"""Tests for ticket creation and resolution workflows."""
+
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
+import discord
+import pytest
+from core.models import DiscordTask, Team, Ticket
+from bot.discord_queue import DiscordQueueProcessor
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestTicketCreationWorkflow:
+    """Test ticket creation via web UI and Discord queue."""
+
+    async def test_web_ui_creates_discord_task(self, db: Any) -> None:
+        """Test that creating ticket via web UI queues DiscordTask."""
+        team = await Team.objects.acreate(
+            team_number=35,
+            team_name="Test Team",
+            discord_category_id=3001,
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T035-001",
+            team=team,
+            category="box-reset",
+            title="Box Reset",
+            description="Reset my box",
+            status="open",
+        )
+
+        task = await DiscordTask.objects.acreate(
+            task_type="ticket_created_web",
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+                "category": "box-reset",
+                "title": "Box Reset",
+                "created_by": "test_user",
+            },
+            status="pending",
+        )
+
+        assert task.task_type == "ticket_created_web"
+        assert task.payload["ticket_id"] == ticket.id
+        assert task.status == "pending"
+
+    async def test_queue_processor_creates_thread(self) -> None:
+        """Test that queue processor creates Discord thread for ticket."""
+        team = await Team.objects.acreate(
+            team_number=36,
+            team_name="Test Team 2",
+            discord_category_id=3002,
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T036-001",
+            team=team,
+            category="box-reset",
+            title="Box Reset",
+            description="Need help",
+            status="open",
+        )
+
+        task = await DiscordTask.objects.acreate(
+            task_type="ticket_created_web",
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+            },
+            status="pending",
+        )
+
+        bot = AsyncMock(spec=discord.Client)
+        category = MagicMock(spec=discord.CategoryChannel)
+        category.id = 3002
+        category.name = "Team 36"
+
+        text_channel = MagicMock(spec=discord.TextChannel)
+        text_channel.name = "general-chat"
+        text_channel.create_thread = AsyncMock()
+
+        thread = MagicMock(spec=discord.Thread)
+        thread.id = 9001
+        thread.add_user = AsyncMock()
+        thread.send = AsyncMock()
+        text_channel.create_thread.return_value = thread
+
+        category.channels = [text_channel]
+        bot.get_channel.return_value = category
+
+        with patch(
+            "bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock
+        ):
+            processor = DiscordQueueProcessor(bot)
+            await processor._handle_ticket_created_web(task)
+
+        text_channel.create_thread.assert_called_once()
+        call_args = text_channel.create_thread.call_args
+        assert "T036-001" in call_args.kwargs["name"]
+        assert "Team 36" in call_args.kwargs["name"]
+
+        await ticket.arefresh_from_db()
+        assert ticket.discord_thread_id == 9001
+        assert ticket.discord_channel_id == 3002
+
+    async def test_queue_processor_idempotent_thread_creation(self) -> None:
+        """Test that queue processor doesn't recreate thread if already exists."""
+        team = await Team.objects.acreate(
+            team_number=37,
+            team_name="Test Team 3",
+            discord_category_id=3003,
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T037-001",
+            team=team,
+            category="box-reset",
+            title="Box Reset",
+            description="Help",
+            status="open",
+            discord_thread_id=9999,
+        )
+
+        task = await DiscordTask.objects.acreate(
+            task_type="ticket_created_web",
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+            },
+            status="pending",
+        )
+
+        bot = AsyncMock(spec=discord.Client)
+
+        with patch(
+            "bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock
+        ) as mock_dashboard:
+            processor = DiscordQueueProcessor(bot)
+            await processor._handle_ticket_created_web(task)
+
+            mock_dashboard.assert_called_once()
+
+        bot.get_channel.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestTicketResolutionWorkflow:
+    """Test ticket resolution via admin commands."""
+
+    async def test_ticket_resolution_updates_status(
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test that resolving ticket updates status and timestamps."""
+        from bot.cogs.admin_linking import AdminLinkingCog
+
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        team = await Team.objects.acreate(
+            team_number=38,
+            team_name="Test Team Resolve",
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T038-001",
+            team=team,
+            category="scoring-service-check",
+            title="Service Check",
+            description="Check my service",
+            status="claimed",
+            assigned_to_discord_id=123456789,
+            assigned_to_discord_username="volunteer1",
+        )
+
+        with patch(
+            "bot.cogs.admin_linking.update_ticket_dashboard", new_callable=AsyncMock
+        ):
+            cog = AdminLinkingCog(mock_bot)
+            await cog.admin_ticket_resolve.callback(
+                cog,
+                mock_interaction,
+                ticket_id=ticket.id,
+                notes="Fixed the issue",
+                points=5,
+            )
+
+        await ticket.arefresh_from_db()
+
+        assert ticket.status == "resolved"
+        assert ticket.resolved_at is not None
+        assert ticket.resolved_by_discord_id == mock_admin_user._discord_id
+        assert ticket.resolution_notes == "Fixed the issue"
+        assert ticket.points_charged == 10
+
+    async def test_ticket_resolution_creates_history_log(
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test that resolving ticket creates history entry."""
+        from bot.cogs.admin_linking import AdminLinkingCog
+        from core.models import TicketHistory
+
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        team = await Team.objects.acreate(
+            team_number=39,
+            team_name="Test Team Audit",
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T039-001",
+            team=team,
+            category="other",
+            title="General Issue",
+            description="Problem",
+            status="open",
+        )
+
+        with patch(
+            "bot.cogs.admin_linking.update_ticket_dashboard", new_callable=AsyncMock
+        ):
+            cog = AdminLinkingCog(mock_bot)
+            await cog.admin_ticket_resolve.callback(
+                cog,
+                mock_interaction,
+                ticket_id=ticket.id,
+                notes="All fixed",
+                points=10,
+            )
+
+        history_entries = [
+            h
+            async for h in TicketHistory.objects.filter(
+                ticket=ticket, action="resolved"
+            )
+        ]
+        assert len(history_entries) >= 1
+
+        history = history_entries[-1]
+        assert history.action == "resolved"
+        assert history.details["notes"] == "All fixed"
+        assert history.details["point_penalty"] == 0
+
+    async def test_ticket_resolution_calls_dashboard_update(
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test that resolving ticket calls dashboard update."""
+        from bot.cogs.admin_linking import AdminLinkingCog
+
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        team = await Team.objects.acreate(
+            team_number=40,
+            team_name="Test Team Dashboard",
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T040-001",
+            team=team,
+            category="box-reset",
+            title="Reset",
+            description="Reset",
+            status="open",
+        )
+
+        with patch(
+            "bot.cogs.admin_linking.update_ticket_dashboard", new_callable=AsyncMock
+        ) as mock_dashboard:
+            cog = AdminLinkingCog(mock_bot)
+            await cog.admin_ticket_resolve.callback(
+                cog,
+                mock_interaction,
+                ticket_id=ticket.id,
+                notes="Done",
+                points=0,
+            )
+
+            mock_dashboard.assert_called_once()
+            call_args = mock_dashboard.call_args
+            assert call_args[0][1] == ticket
+
+    async def test_cannot_resolve_already_resolved_ticket(
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test that already resolved tickets cannot be re-resolved."""
+        from bot.cogs.admin_linking import AdminLinkingCog
+        from django.utils import timezone
+
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        team = await Team.objects.acreate(
+            team_number=41,
+            team_name="Test Team Double Resolve",
+            max_members=5,
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T041-001",
+            team=team,
+            category="box-reset",
+            title="Reset",
+            description="Reset",
+            status="resolved",
+            resolved_at=timezone.now(),
+            resolved_by_discord_id=999999,
+        )
+
+        cog = AdminLinkingCog(mock_bot)
+        await cog.admin_ticket_resolve.callback(
+            cog,
+            mock_interaction,
+            ticket_id=ticket.id,
+            notes="Try again",
+            points=5,
+        )
+
+        mock_interaction.response.send_message.assert_called_once()
+        call_args = mock_interaction.response.send_message.call_args
+        assert "already resolved" in call_args.args[0].lower()

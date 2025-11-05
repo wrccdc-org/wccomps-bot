@@ -1,0 +1,425 @@
+"""Discord channel and role management using Django ORM."""
+
+import discord
+import logging
+import re
+from typing import Optional, Tuple
+from django.conf import settings
+from core.models import Team
+
+logger = logging.getLogger(__name__)
+
+
+class DiscordManager:
+    """Manages Discord roles and channels for teams."""
+
+    def __init__(self, guild: discord.Guild):
+        self.guild = guild
+
+    async def setup_team_infrastructure(
+        self, team_number: int
+    ) -> Tuple[Optional[discord.Role], Optional[discord.CategoryChannel]]:
+        """
+        Set up Discord infrastructure for a team (idempotent with self-healing).
+
+        Creates role and category if they don't exist.
+        Repairs if partially created (e.g., role exists but category deleted).
+        Updates database with latest Discord IDs.
+        """
+        team = await Team.objects.filter(team_number=team_number).afirst()
+        if not team:
+            logger.error(f"Team {team_number} not found in database")
+            return None, None
+
+        # Create or get role (self-healing: recreates if deleted)
+        role = await self._create_or_get_role(team_number)
+        if not role:
+            return None, None
+
+        # Create or get category (self-healing: recreates if deleted)
+        category = await self._create_team_category(team_number, role)
+
+        # Update database with Discord IDs (self-healing: updates after recreation)
+        if category:
+            team.discord_role_id = role.id
+            team.discord_category_id = category.id
+            await team.asave()
+            logger.info(f"Set up infrastructure for {team.team_name}")
+        elif role:
+            team.discord_role_id = role.id
+            await team.asave()
+            logger.warning(f"Only role created for {team.team_name}, category failed")
+        elif category:
+            team.discord_category_id = category.id
+            await team.asave()
+            logger.warning(f"Only category created for {team.team_name}, role failed")
+
+        return role, category
+
+    async def _create_or_get_role(self, team_number: int) -> Optional[discord.Role]:
+        """Create or get existing team role with format 'Team XX'."""
+        role_name = f"Team {team_number:02d}"
+
+        # Check if role already exists (check both with and without zero-padding)
+        role = discord.utils.get(self.guild.roles, name=role_name)
+        if not role:
+            alt_role_name = f"Team {team_number}"
+            role = discord.utils.get(self.guild.roles, name=alt_role_name)
+
+        if role:
+            logger.info(f"Role {role.name} already exists")
+            return role
+
+        # Get Team 01 role to copy color
+        template_role = discord.utils.get(self.guild.roles, name="Team 01")
+        role_color = template_role.color if template_role else discord.Color.default()
+
+        # Find position: insert after the closest existing team number
+        team_roles = []
+        for r in self.guild.roles:
+            match = re.match(r"^Team (\d+)$", r.name)
+            if match:
+                team_roles.append((int(match.group(1)), r))
+
+        # Sort by team number descending
+        team_roles.sort(key=lambda x: x[0], reverse=True)
+
+        # Find the role to insert after (closest lower number)
+        position = None
+        for num, r in team_roles:
+            if num < team_number:
+                position = r.position
+                break
+
+        # Create new role
+        try:
+            role = await self.guild.create_role(
+                name=role_name,
+                color=role_color,
+                mentionable=True,
+                reason="WCComps team role",
+            )
+
+            # Move to correct position
+            if position is not None:
+                await role.edit(position=position + 1)
+                logger.info(f"Created role {role_name} at position {position + 1}")
+            elif team_roles:
+                # No lower-numbered role found, but other team roles exist
+                # Position before the lowest-numbered team role
+                lowest_role = team_roles[-1][1]
+                await role.edit(position=lowest_role.position)
+                logger.info(f"Created role {role_name} before {lowest_role.name}")
+            else:
+                logger.info(f"Created role {role_name}")
+
+            return role
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to create role {role_name}")
+            return None
+
+    async def _create_team_category(
+        self, team_number: int, role: discord.Role
+    ) -> Optional[discord.CategoryChannel]:
+        """Create code-defined team category with channels (idempotent)."""
+        category_name = f"team {team_number:02d}"
+
+        # Check if category already exists (self-healing: returns existing)
+        existing_category = discord.utils.get(self.guild.categories, name=category_name)
+        if not existing_category:
+            alt_category_name = f"team {team_number}"
+            existing_category = discord.utils.get(
+                self.guild.categories, name=alt_category_name
+            )
+
+        if existing_category:
+            logger.info(f"Category {existing_category.name} already exists")
+            return existing_category
+
+        try:
+            # Copy permission overwrites
+            overwrites: dict[discord.Role, discord.PermissionOverwrite] = {}
+
+            # Get specific roles by name
+            white_team = discord.utils.get(self.guild.roles, name="White Team")
+            observers = discord.utils.get(self.guild.roles, name="WRCCDC Observers")
+            orange_team = discord.utils.get(self.guild.roles, name="Orange Team")
+            room_judge = discord.utils.get(self.guild.roles, name="WRCCDC Room Judge")
+            operations_team = discord.utils.get(
+                self.guild.roles, name="WRCCDC Operations Team"
+            )
+            server_owners = discord.utils.get(
+                self.guild.roles, name="WRCCDC Server Owners"
+            )
+
+            # Default: hide from @everyone
+            overwrites[self.guild.default_role] = discord.PermissionOverwrite(
+                read_messages=False, send_messages=False, connect=False
+            )
+
+            # Team role: full access
+            overwrites[role] = discord.PermissionOverwrite(
+                read_messages=True, send_messages=True, connect=True, speak=True
+            )
+
+            # White Team: read and connect only
+            if white_team:
+                overwrites[white_team] = discord.PermissionOverwrite(
+                    read_messages=True, connect=True
+                )
+
+            # WRCCDC Observers: read only
+            if observers:
+                overwrites[observers] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=False, connect=False
+                )
+
+            # Orange Team: full access
+            if orange_team:
+                overwrites[orange_team] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=True, connect=True, speak=True
+                )
+
+            # WRCCDC Room Judge: read only
+            if room_judge:
+                overwrites[room_judge] = discord.PermissionOverwrite(read_messages=True)
+
+            # WRCCDC Operations Team: full access
+            if operations_team:
+                overwrites[operations_team] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=True, connect=True, speak=True
+                )
+
+            # WRCCDC Server Owners: full access
+            if server_owners:
+                overwrites[server_owners] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=True, connect=True, speak=True
+                )
+
+            # Create category
+            from typing import cast as type_cast, Any
+
+            category = await self.guild.create_category(
+                name=category_name,
+                overwrites=type_cast(Any, overwrites),
+                reason="WCComps team category",
+            )
+
+            # Create code-defined channels
+            await category.create_text_channel(
+                f"team{team_number:02d}-chat", reason="WCComps team text channel"
+            )
+            await category.create_voice_channel(
+                f"team{team_number:02d}-voice", reason="WCComps team voice channel"
+            )
+
+            # Position category after the closest lower-numbered team category
+            team_categories = []
+            for cat in self.guild.categories:
+                match = re.match(r"^team (\d+)$", cat.name, re.IGNORECASE)
+                if match:
+                    team_categories.append((int(match.group(1)), cat))
+
+            team_categories.sort(key=lambda x: x[0], reverse=True)
+
+            positioned = False
+            for num, cat in team_categories:
+                if num < team_number:
+                    await category.edit(position=cat.position + 1)
+                    logger.info(f"Positioned after team {num}")
+                    positioned = True
+                    break
+
+            if not positioned and team_categories:
+                await category.edit(position=0)
+                logger.info("Positioned at beginning (no lower-numbered team)")
+
+            logger.info(f"Created code-defined category for Team {team_number}")
+            return category
+
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to create category for Team {team_number}")
+            return None
+        except Exception as e:
+            logger.error(f"Error creating category: {e}")
+            return None
+
+    async def assign_team_role(self, member: discord.Member, team_number: int) -> bool:
+        """Assign team role and Blueteam role to a member."""
+        team = await Team.objects.filter(team_number=team_number).afirst()
+        if not team:
+            logger.error(f"Team {team_number} not found")
+            return False
+
+        if not team.discord_role_id:
+            logger.error(f"Team {team_number} has no Discord role")
+            return False
+
+        role = self.guild.get_role(team.discord_role_id)
+        if not role:
+            logger.error(f"Role {team.discord_role_id} not found")
+            return False
+
+        try:
+            roles_to_add = [role]
+
+            blueteam_role = discord.utils.get(self.guild.roles, name="Blueteam")
+            if blueteam_role:
+                roles_to_add.append(blueteam_role)
+
+            await member.add_roles(*roles_to_add, reason="WCComps team assignment")
+            logger.info(
+                f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}"
+            )
+            return True
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to assign role to {member}")
+            return False
+        except Exception as e:
+            logger.error(f"Error assigning team role to {member}: {e}")
+            return False
+
+    async def assign_group_roles(
+        self, member: discord.Member, authentik_groups: list[str]
+    ) -> bool:
+        """
+        Assign Discord roles based on Authentik groups.
+
+        Similar to assign_team_role but for non-team colored team roles.
+        """
+        roles_to_add = []
+
+        for group_name, role_id in settings.GROUP_ROLE_MAPPING.items():
+            if group_name in authentik_groups:
+                role = self.guild.get_role(role_id)
+                if role:
+                    roles_to_add.append(role)
+                else:
+                    logger.warning(
+                        f"Role {role_id} for group {group_name} not found in guild"
+                    )
+
+        if not roles_to_add:
+            return True
+
+        try:
+            await member.add_roles(
+                *roles_to_add, reason="WCComps Authentik group assignment"
+            )
+            logger.info(
+                f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}"
+            )
+            return True
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to assign roles to {member}")
+            return False
+        except Exception as e:
+            logger.error(f"Error assigning group roles to {member}: {e}")
+            return False
+
+    async def remove_group_roles(
+        self, member: discord.Member, authentik_groups: list[str]
+    ) -> bool:
+        """
+        Remove Discord roles based on Authentik groups.
+
+        Similar to remove_team_role but for non-team colored team roles.
+        """
+        roles_to_remove = []
+
+        for group_name, role_id in settings.GROUP_ROLE_MAPPING.items():
+            if group_name in authentik_groups:
+                role = self.guild.get_role(role_id)
+                if role and role in member.roles:
+                    roles_to_remove.append(role)
+
+        if not roles_to_remove:
+            return True
+
+        try:
+            await member.remove_roles(
+                *roles_to_remove, reason="WCComps account unlinked"
+            )
+            logger.info(
+                f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}"
+            )
+            return True
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to remove roles from {member}")
+            return False
+        except Exception as e:
+            logger.error(f"Error removing group roles from {member}: {e}")
+            return False
+
+    async def remove_team_role(self, member: discord.Member, team_number: int) -> bool:
+        """Remove team role and Blueteam role from a member."""
+        team = await Team.objects.filter(team_number=team_number).afirst()
+        if not team:
+            return False
+
+        if not team.discord_role_id:
+            return False
+
+        role = self.guild.get_role(team.discord_role_id)
+        if not role:
+            return False
+
+        try:
+            roles_to_remove = [role]
+
+            blueteam_role = discord.utils.get(self.guild.roles, name="Blueteam")
+            if blueteam_role and blueteam_role in member.roles:
+                roles_to_remove.append(blueteam_role)
+
+            await member.remove_roles(*roles_to_remove, reason="WCComps team removal")
+            logger.info(
+                f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}"
+            )
+            return True
+        except discord.errors.Forbidden:
+            logger.error(f"No permission to remove role from {member}")
+            return False
+
+    async def remove_all_team_roles(self) -> int:
+        """Remove team roles and Blueteam role from all members."""
+        teams = [t async for t in Team.objects.all()]
+        removed_count = 0
+        blueteam_role = discord.utils.get(self.guild.roles, name="Blueteam")
+
+        for team in teams:
+            if not team.discord_role_id:
+                continue
+
+            role = self.guild.get_role(team.discord_role_id)
+            if not role:
+                continue
+
+            for member in role.members:
+                try:
+                    roles_to_remove = [role]
+                    if blueteam_role and blueteam_role in member.roles:
+                        roles_to_remove.append(blueteam_role)
+
+                    await member.remove_roles(
+                        *roles_to_remove, reason="Competition ended"
+                    )
+                    removed_count += 1
+                except discord.errors.Forbidden:
+                    logger.error(f"No permission to remove role from {member}")
+
+            if role.members:
+                logger.info(f"Removed {role.name} from members")
+
+        # Remove Blueteam role from any remaining members
+        if blueteam_role and blueteam_role.members:
+            blueteam_count = 0
+            logger.info(f"Removing Blueteam from {len(blueteam_role.members)} members")
+            for member in blueteam_role.members:
+                try:
+                    await member.remove_roles(blueteam_role, reason="Competition ended")
+                    blueteam_count += 1
+                except discord.errors.Forbidden:
+                    logger.error(f"No permission to remove Blueteam from {member}")
+            logger.info(f"Removed Blueteam from {blueteam_count} members")
+
+        return removed_count

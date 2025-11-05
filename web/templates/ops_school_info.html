@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}School Information - WCComps{% endblock %}
+
+{% block branding %}<a href="/ops/school-info/">WCComps - School Information</a>{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module" id="changelist">
+
+        <div class="results">
+            <table id="result_list" style="table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 15%;">
+                    <col style="width: 25%;">
+                    <col style="width: 25%;">
+                    <col style="width: 20%;">
+                    <col style="width: 10%;">
+                    <col style="width: 5%;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <div class="text">Team</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">School Name</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Contact Email</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Secondary Email</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Last Updated</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Action</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in teams %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <th class="field-team">
+                            Team {{ item.team.team_number }}
+                            <div>{{ item.team.team_name }}</div>
+                        </th>
+                        <td class="field-school_name">
+                            {% if item.school_info %}
+                                {{ item.school_info.school_name }}
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </td>
+                        <td class="field-contact_email">
+                            {% if item.school_info %}
+                                {{ item.school_info.contact_email }}
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </td>
+                        <td class="field-secondary_email">
+                            {% if item.school_info %}
+                                {{ item.school_info.secondary_contact_email|default:"—" }}
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </td>
+                        <td class="field-updated">
+                            {% if item.school_info %}
+                                {{ item.school_info.updated_at|timesince }} ago
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="field-action">
+                            <a href="{% url 'ops_school_info_edit' item.team.team_number %}" class="button">
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p class="paginator">
+            {{ teams|length }} team(s)
+        </p>
+    </div>
+</div>
+{% endblock %}

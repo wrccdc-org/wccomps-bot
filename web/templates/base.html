@@ -1,0 +1,218 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WCComps{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'admin/css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'admin/css/changelists.css' %}">
+    <link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
+
+    {% block extra_css %}{% endblock %}
+
+    <style>
+        #content {
+            margin-left: 0;
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #417690;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 9999;
+        }
+
+        .refresh-indicator.active {
+            opacity: 1;
+        }
+
+        /* Table improvements - better density for scanning 50+ rows */
+        #result_list td,
+        #result_list th {
+            padding: 10px 12px;
+            line-height: 1.5;
+        }
+
+        #result_list tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* Filter bar layout - organized horizontal layout */
+        .toolbar {
+            background: #f8f8f8;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+
+        .toolbar form > div > div {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .toolbar form > div > div > div {
+            display: flex;
+            flex-direction: column;
+            min-width: 140px;
+        }
+
+        .toolbar label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .toolbar input[type="text"],
+        .toolbar input[type="number"],
+        .toolbar select {
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
+        /* Button improvements - larger click targets for high-stress use */
+        .button,
+        input[type="submit"],
+        button[type="submit"] {
+            padding: 8px 16px !important;
+            font-size: 13px !important;
+            min-width: 80px;
+            cursor: pointer;
+        }
+
+        .button:hover,
+        input[type="submit"]:hover,
+        button[type="submit"]:hover {
+            opacity: 0.85;
+        }
+
+        /* Status indicators - subtle visual distinction */
+        .field-status span {
+            display: inline-block;
+            padding: 4px 10px;
+            font-weight: 600;
+            font-size: 12px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .field-status span[role="status"][aria-label*="Open"] {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+
+        .field-status span[role="status"][aria-label*="Claimed"] {
+            background: #fff3e0;
+            color: #f57c00;
+            border: 1px solid #ffb74d;
+        }
+
+        .field-status span[role="status"][aria-label*="Resolved"] {
+            background: #e8f5e9;
+            color: #388e3c;
+            border: 1px solid #81c784;
+        }
+
+        .field-status span[role="status"][aria-label*="Cancelled"] {
+            background: #f5f5f5;
+            color: #757575;
+            border: 1px solid #bdbdbd;
+        }
+
+        /* Team status in mappings page */
+        .field-status > div:first-child {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        /* Actions column spacing */
+        .field-actions form {
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        /* Make checkbox column narrower */
+        .action-checkbox-column {
+            width: 40px;
+            text-align: center;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div id="container">
+        <div id="header">
+            <div id="branding">
+                <h1 id="site-name"><a href="{% block home_url %}/ops/tickets/{% endblock %}">WCComps</a></h1>
+            </div>
+            {% block userlinks %}
+            <div id="user-tools">
+                <a href="/ops/tickets/">Tickets</a>
+                /
+                <a href="/ops/group-role-mappings/">Team Mappings</a>
+                /
+                <a href="/ops/school-info/">School Info</a>
+                {% if user.is_staff %}
+                /
+                <a href="/admin/">Admin</a>
+                {% endif %}
+                —
+                {{ authentik_username }}
+                /
+                <a href="/accounts/logout/">Log out</a>
+            </div>
+            {% endblock %}
+        </div>
+
+        {% block nav-global %}{% endblock %}
+
+        <div id="content" class="colM">
+            {% block messages %}
+            {% if messages %}
+            <ul class="messagelist">
+                {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% endblock %}
+
+            {% block content %}{% endblock %}
+        </div>
+
+        <div id="footer"></div>
+    </div>
+
+    {% if auto_refresh %}
+    <div class="refresh-indicator" id="refresh-indicator">Refreshing...</div>
+
+    <!-- Auto-refresh script -->
+    <script>
+        // Auto-refresh every 30 seconds
+        setInterval(function() {
+            const indicator = document.getElementById('refresh-indicator');
+            indicator.classList.add('active');
+            setTimeout(function() {
+                location.reload();
+            }, 500);
+        }, 30000);
+    </script>
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
