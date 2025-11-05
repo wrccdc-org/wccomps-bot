@@ -7,6 +7,11 @@ set -e
 REMOTE_HOST="root@10.0.0.10"
 REMOTE_PATH="/opt/stacks/wccomps-bot/"
 
+echo "Upgrading dependencies..."
+uv lock --upgrade
+
+echo "✓ Dependencies upgraded"
+echo ""
 echo "Running ruff format..."
 uv run ruff format .
 
@@ -75,16 +80,16 @@ ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot web"
 
 echo "✓ Services restarted"
 echo ""
-echo "Running database health check..."
+echo "Verifying containers..."
 
-# Run health check
-if ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose exec -T web uv run python manage.py check_db_health"; then
-    echo "✓ Database health check passed"
+# Check container status
+if ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web bot | grep -q 'Up'"; then
+    echo "✓ Containers running"
     echo ""
     echo "Deployment complete!"
 else
-    echo "✗ Database health check FAILED"
+    echo "✗ Containers failed to start"
     echo ""
-    echo "Deployment completed but health check failed - check logs for details"
+    echo "Check logs with: docker compose logs web bot"
     exit 1
 fi

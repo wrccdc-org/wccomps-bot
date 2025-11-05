@@ -37,4 +37,4 @@ ENV DJANGO_SETTINGS_MODULE=wccomps.settings
 WORKDIR /app
 
 # Run the bot
-CMD ["uv", "run", "main.py"]
+CMD ["uv", "run", "--no-sync", "main.py"]
