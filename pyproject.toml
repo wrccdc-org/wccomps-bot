@@ -70,8 +70,3 @@ ignore_errors = true
 [tool.django-stubs]
 django_settings_module = "wccomps.settings"
 
-[tool.mutmut]
-paths_to_mutate = ["bot/discord_manager.py"]
-tests_dir = ["../bot/tests"]
-runner = "export PYTHONDONTWRITEBYTECODE=1 DJANGO_SETTINGS_MODULE=wccomps.settings PYTHONPATH=.:../web:.. && ../.venv/bin/pytest ../bot/tests -x -q --cache-clear"
-debug = true
