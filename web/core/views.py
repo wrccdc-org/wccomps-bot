@@ -563,15 +563,13 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 },
             )
 
-        # Generate ticket number
-        latest_ticket = Ticket.objects.filter(team=team).order_by("-created_at").first()
-        if latest_ticket:
-            # Extract sequence number from last ticket (format: T001-XXX)
-            last_seq = int(latest_ticket.ticket_number.split("-")[1])
-            sequence = last_seq + 1
-        else:
-            sequence = 1
+        # Generate ticket number using atomic database counter
+        from django.db.models import F
 
+        team.ticket_counter = F("ticket_counter") + 1
+        team.save(update_fields=["ticket_counter"])
+        team.refresh_from_db()
+        sequence = team.ticket_counter
         ticket_number = f"T{team_number:03d}-{sequence:03d}"
 
         # For box-reset, use hostname as description

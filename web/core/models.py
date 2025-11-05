@@ -20,6 +20,9 @@ class Team(models.Model):
     # Limits
     max_members = models.IntegerField(default=10)
 
+    # Ticket sequence counter
+    ticket_counter = models.IntegerField(default=0)
+
     # Status
     is_active = models.BooleanField(default=True)
 
