@@ -187,12 +187,22 @@ class TestSetupTeamInfrastructure:
 
     async def test_returns_none_when_team_not_found(self, mock_guild_with_base_roles):
         """Test that method returns None when team doesn't exist."""
-        manager = DiscordManager(mock_guild_with_base_roles)
+        guild = mock_guild_with_base_roles
+        manager = DiscordManager(guild)
+
+        # Track that guild methods are NOT called for non-existent team
+        initial_role_count = len(guild.roles)
+        initial_category_count = len(guild.categories)
 
         role, category = await manager.setup_team_infrastructure(999)
 
         assert role is None
         assert category is None
+        # Verify no resources were created
+        assert len(guild.roles) == initial_role_count
+        assert len(guild.categories) == initial_category_count
+        # Verify create_role was never called
+        guild.create_role.assert_not_called()
 
     async def test_returns_tuple(self, team, mock_guild_with_base_roles):
         """Test that method returns a tuple of (role, category)."""
@@ -646,9 +656,15 @@ class TestRemoveAllTeamRoles:
         assert result == 1
         assert member.remove_roles.call_count == 2
         # First call removes both team role and Blueteam
-        assert member.remove_roles.call_args_list[0] == ((role, blueteam_role), {"reason": "Competition ended"})
+        assert member.remove_roles.call_args_list[0] == (
+            (role, blueteam_role),
+            {"reason": "Competition ended"},
+        )
         # Second call removes Blueteam from remaining members
-        assert member.remove_roles.call_args_list[1] == ((blueteam_role,), {"reason": "Competition ended"})
+        assert member.remove_roles.call_args_list[1] == (
+            (blueteam_role,),
+            {"reason": "Competition ended"},
+        )
 
     async def test_handles_permission_errors(self, mock_guild_with_base_roles):
         """Test handling permission errors when removing roles."""
