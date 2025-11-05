@@ -191,8 +191,8 @@ def db(transactional_db):  # type: ignore
     Override the default db fixture to use transactional_db instead.
 
     This forces all tests to use TransactionTestCase behavior (database flushing)
-    instead of TestCase behavior (transaction rollback), which is necessary
-    for mutmut's multiple test passes in the same Python process.
+    instead of TestCase behavior (transaction rollback), providing stronger
+    test isolation.
     """
     return transactional_db
 
