@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket {{ ticket.ticket_number }} - WCComps{% endblock %}
+
+{% block nav-global %}
+<div id="nav-global">
+    <a href="/ops/tickets/" class="active">Tickets</a>
+    <a href="/ops/group-role-mappings/">Team Mappings</a>
+    <a href="/ops/school-info/">School Information</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1>Ticket {{ ticket.ticket_number }}</h1>
+    </div>
+
+    <div class="module">
+
+        <!-- Ticket Details -->
+        <fieldset class="module aligned">
+            <h2>Ticket Information</h2>
+
+            {% if not ticket.discord_thread_id %}
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
+                <strong style="color: #856404;">⚠️ Discord Thread Missing</strong>
+                <p style="margin: 5px 0 0 0; color: #856404;">
+                    This ticket's thread failed to create. Team can only interact via web interface.
+                    Comments posted here will not sync to Discord.
+                </p>
+            </div>
+            {% endif %}
+
+            <div class="form-row">
+                <div>
+                    <label>Team:</label>
+                    <div class="readonly">{{ ticket.team.team_name }} (Team #{{ ticket.team.team_number }})</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Category:</label>
+                    <div class="readonly">{{ category_name }}</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Status:</label>
+                    <div class="readonly">{{ status_display }}</div>
+                </div>
+            </div>
+
+            {% if ticket.assigned_to_discord_username %}
+            <div class="form-row">
+                <div>
+                    <label>Assigned To:</label>
+                    <div class="readonly">{{ ticket.assigned_to_discord_username }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-row">
+                <div>
+                    <label>Description:</label>
+                    <div class="readonly">{{ ticket.description }}</div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Created:</label>
+                    <div class="readonly">{{ ticket.created_at|timesince }} ago</div>
+                </div>
+            </div>
+
+            {% if ticket.resolved_at %}
+            <div class="form-row">
+                <div>
+                    <label>Resolved:</label>
+                    <div class="readonly">{{ ticket.resolved_at|timesince }} ago</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ticket.resolution_notes %}
+            <div class="form-row">
+                <div>
+                    <label>Resolution Notes:</label>
+                    <div class="readonly">{{ ticket.resolution_notes }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </fieldset>
+
+        <!-- Actions -->
+        <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 6px; border: 2px solid #dee2e6;">
+            <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">🎯 Actions</h3>
+            {% if ticket.status == 'open' %}
+            <div class="quick-actions">
+                <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="action-button action-button-warning">
+                        Claim Ticket
+                    </button>
+                </form>
+            </div>
+            {% elif ticket.status == 'claimed' %}
+            <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
+                {% csrf_token %}
+                <div style="margin-bottom: 15px;">
+                    <label for="resolution_notes" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Resolution Notes (optional)</label>
+                    <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;"></textarea>
+                </div>
+                <div class="quick-actions">
+                    <button type="submit" class="action-button action-button-success">
+                        ✓ Resolve Ticket
+                    </button>
+                </div>
+            </form>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="action-button action-button-secondary">
+                        Unclaim
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Comments -->
+        <fieldset class="module">
+            <h2>Comments</h2>
+            {% if comments %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Author</th>
+                        <th>Comment</th>
+                        <th>Posted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comment in comments %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ comment.author_name }}</td>
+                        <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
+                        <td>{{ comment.posted_at|timesince }} ago</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 30px;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No comments yet</strong></div>
+                <div style="color: #999; font-size: 12px;">Comments from the ticket thread will appear here</div>
+            </div>
+            {% endif %}
+
+            <!-- Add Comment Form -->
+            {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
+            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 4px; border: 2px solid #dee2e6;">
+                <h3 style="margin-top: 0; color: #2c3e50;">💬 Add Comment</h3>
+                <form method="POST" action="{% url 'ops_ticket_comment' ticket.ticket_number %}">
+                    {% csrf_token %}
+                    <textarea name="comment" rows="5" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;" placeholder="Type your comment here..."></textarea>
+                    <button type="submit" class="action-button action-button-primary" style="margin-top: 15px;">Post Comment</button>
+                </form>
+            </div>
+            {% endif %}
+        </fieldset>
+
+        <!-- Attachments -->
+        {% if attachments %}
+        <fieldset class="module">
+            <h2>Attachments</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Uploaded By</th>
+                        <th>Uploaded</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attachment in attachments %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ attachment.filename }}</td>
+                        <td>{{ attachment.uploaded_by }}</td>
+                        <td>{{ attachment.uploaded_at|timesince }} ago</td>
+                        <td>
+                            <a href="/ops/ticket/{{ ticket.ticket_number }}/attachment/{{ attachment.id }}/" class="viewlink">
+                                Download
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </fieldset>
+        {% endif %}
+
+        <!-- History -->
+        <fieldset class="module">
+            <h2>History</h2>
+            {% if history %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                        <th>Actor</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in history %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ event.timestamp|timesince }} ago</td>
+                        <td>{{ event.action }}</td>
+                        <td>{{ event.actor_username }}</td>
+                        <td>{{ event.details }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 30px;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No history available</strong></div>
+                <div style="color: #999; font-size: 12px;">Ticket state changes and actions will be recorded here</div>
+            </div>
+            {% endif %}
+        </fieldset>
+    </div>
+</div>
+{% endblock %}

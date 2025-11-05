@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Ticket - {{ team.team_name }}{% endblock %}
+
+{% block home_url %}{% url 'team_tickets' %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dynamic-field {
+        display: none;
+    }
+    .dynamic-field.show {
+        display: block;
+    }
+    .category-info {
+        background: #e8f4f8;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+    .category-warning {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 10px;
+        margin-top: 10px;
+        font-size: 13px;
+    }
+    .required {
+        color: #ba2121;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1>Create Support Ticket</h1>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ team.team_name }}</p>
+    </div>
+
+    <form method="post" id="ticketForm">
+        {% csrf_token %}
+
+        <div class="module">
+            <div class="toolbar">
+                <a href="{% url 'team_tickets' %}" class="historylink">Back to Tickets</a>
+            </div>
+
+            {% if error %}
+            <p class="errornote">{{ error }}</p>
+            {% endif %}
+
+            <fieldset class="module aligned">
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="category">Category:</label>
+                        <select name="category" id="category" required>
+                            <option value="">Select a category...</option>
+                            {% for cat_key, cat_info in categories.items %}
+                            <option value="{{ cat_key }}"
+                                    data-points="{{ cat_info.points }}"
+                                    data-required='[{% for field in cat_info.required_fields %}"{{ field }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
+                                    {% if form_data.category == cat_key %}selected{% endif %}>
+                                {{ cat_info.display_name }} - {{ cat_info.points }} points
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div id="categoryInfo" class="category-info" style="display: none;"></div>
+                        <div id="categoryWarning" class="category-warning" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="title">Title:</label>
+                        <input type="text" name="title" id="title" required maxlength="200"
+                               value="{{ form_data.title }}"
+                               placeholder="Brief summary of the issue">
+                    </div>
+                </div>
+
+                <div class="form-row dynamic-field" id="field-hostname">
+                    <div>
+                        <label for="hostname">Hostname: <span class="required" id="req-hostname">*</span></label>
+                        <input type="text" name="hostname" id="hostname"
+                               value="{{ form_data.hostname }}"
+                               placeholder="e.g., web01">
+                    </div>
+                </div>
+
+                <div class="form-row dynamic-field" id="field-ip_address">
+                    <div>
+                        <label for="ip_address">IP Address: <span class="required" id="req-ip_address">*</span></label>
+                        <input type="text" name="ip_address" id="ip_address"
+                               value="{{ form_data.ip_address }}"
+                               placeholder="e.g., 10.0.1.5">
+                    </div>
+                </div>
+
+                <div class="form-row dynamic-field" id="field-service_name">
+                    <div>
+                        <label for="service_name">Service Name: <span class="required" id="req-service_name">*</span></label>
+                        <input type="text" name="service_name" id="service_name"
+                               value="{{ form_data.service_name }}"
+                               placeholder="e.g., HTTP, SSH, DNS">
+                    </div>
+                </div>
+
+                <div class="form-row dynamic-field" id="field-description">
+                    <div>
+                        <label for="description">Description: <span class="required" id="req-description">*</span></label>
+                        <textarea name="description" id="description" rows="5"
+                                  placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="submit-row">
+                <input type="submit" value="Create Ticket" class="default">
+                <a href="{% url 'team_tickets' %}" class="button cancel-link">Cancel</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    const categories = {{ categories|safe }};
+    const categorySelect = document.getElementById('category');
+    const categoryInfo = document.getElementById('categoryInfo');
+    const categoryWarning = document.getElementById('categoryWarning');
+
+    const fields = {
+        'hostname': document.getElementById('field-hostname'),
+        'ip_address': document.getElementById('field-ip_address'),
+        'service_name': document.getElementById('field-service_name'),
+        'description': document.getElementById('field-description')
+    };
+
+    categorySelect.addEventListener('change', function() {
+        const categoryKey = this.value;
+
+        // Hide all dynamic fields first
+        Object.values(fields).forEach(field => field.classList.remove('show'));
+
+        if (!categoryKey) {
+            categoryInfo.style.display = 'none';
+            categoryWarning.style.display = 'none';
+            return;
+        }
+
+        // Get category data from options
+        const option = this.options[this.selectedIndex];
+        const points = option.dataset.points;
+        const requiredFields = JSON.parse(option.dataset.required || '[]');
+
+        // Show category info
+        categoryInfo.textContent = `This ticket will cost ${points} points.`;
+        categoryInfo.style.display = 'block';
+
+        // Show warning if exists
+        const catData = Object.values({{ categories|safe }}).find(c =>
+            c.display_name === option.text.split(' - ')[0]
+        );
+        if (catData && catData.warning) {
+            categoryWarning.textContent = catData.warning;
+            categoryWarning.style.display = 'block';
+        } else {
+            categoryWarning.style.display = 'none';
+        }
+
+        // Show required fields
+        requiredFields.forEach(fieldName => {
+            if (fields[fieldName]) {
+                fields[fieldName].classList.add('show');
+                document.getElementById(fieldName).required = true;
+                document.getElementById('req-' + fieldName).style.display = 'inline';
+            }
+        });
+
+        // Show optional fields without required marker
+        const catInfo = Object.values({{ categories|safe }}).find(c =>
+            c.display_name === option.text.split(' - ')[0]
+        );
+        if (catInfo && catInfo.optional_fields) {
+            catInfo.optional_fields.forEach(fieldName => {
+                if (fields[fieldName]) {
+                    fields[fieldName].classList.add('show');
+                    document.getElementById(fieldName).required = false;
+                    document.getElementById('req-' + fieldName).style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Trigger on page load if category already selected
+    if (categorySelect.value) {
+        categorySelect.dispatchEvent(new Event('change'));
+    }
+</script>
+{% endblock %}

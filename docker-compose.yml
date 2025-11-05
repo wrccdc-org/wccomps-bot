@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wccomps-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wccomps}
+      POSTGRES_USER: ${DB_USER:-wccomps}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    command: >
+      postgres
+      -c max_connections=120
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - wccomps-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-wccomps}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: wccomps-web
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      # Limit gunicorn workers to stay under 50 connection limit
+      # Each worker uses ~2-3 DB connections with connection pooling
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./web:/app/web
+      - static_files:/app/web/staticfiles
+    restart: unless-stopped
+    networks:
+      - wccomps-net
+      - dockge_default
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wccomps.rule=Host(`bot.wccomps.org`)
+      - traefik.http.routers.wccomps.entrypoints=web
+      - traefik.http.services.wccomps.loadbalancer.server.port=8000
+      # Cloudflare terminates HTTPS and forwards to Traefik on HTTP
+      - traefik.http.middlewares.wccomps-https.headers.customrequestheaders.X-Forwarded-Proto=https
+      - traefik.http.routers.wccomps.middlewares=wccomps-https
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: wccomps-bot
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+      web:
+        condition: service_started
+    volumes:
+      - ./bot:/app/bot
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - wccomps-net
+
+volumes:
+  postgres_data:
+  static_files:
+
+networks:
+  wccomps-net:
+    driver: bridge
+  dockge_default:
+    external: true

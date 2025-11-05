@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit School Information - Team {{ team.team_number }}{% endblock %}
+
+{% block nav-global %}
+<div id="nav-global">
+    <a href="/ops/tickets/">Tickets</a>
+    <a href="/ops/group-role-mappings/">Team Mappings</a>
+    <a href="/ops/school-info/" class="active">School Information</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1>Edit School Information - Team {{ team.team_number }}</h1>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ team.team_name }}</p>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="module">
+            <div class="toolbar">
+                <a href="/ops/school-info/" class="historylink">Back to School Information</a>
+            </div>
+
+            {% if error %}
+            <p class="errornote">{{ error }}</p>
+            {% endif %}
+
+            <fieldset class="module aligned">
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="school_name">School Name:</label>
+                        <input
+                            type="text"
+                            name="school_name"
+                            id="school_name"
+                            value="{% if school_info %}{{ school_info.school_name }}{% endif %}"
+                            required
+                            placeholder="e.g., University of Example"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="contact_email">Contact Email:</label>
+                        <input
+                            type="email"
+                            name="contact_email"
+                            id="contact_email"
+                            value="{% if school_info %}{{ school_info.contact_email }}{% endif %}"
+                            required
+                            placeholder="e.g., coach@example.edu"
+                        >
+                        <p class="help">Primary contact for this team</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div>
+                        <label for="secondary_email">Secondary Email:</label>
+                        <input
+                            type="email"
+                            name="secondary_email"
+                            id="secondary_email"
+                            value="{% if school_info %}{{ school_info.secondary_email }}{% endif %}"
+                            placeholder="e.g., alternate@example.edu"
+                        >
+                        <p class="help">Optional secondary contact</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div>
+                        <label for="notes">Notes:</label>
+                        <textarea
+                            name="notes"
+                            id="notes"
+                            rows="4"
+                            placeholder="Additional notes about this team..."
+                        >{% if school_info %}{{ school_info.notes }}{% endif %}</textarea>
+                        <p class="help">Optional internal notes</p>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="submit-row">
+                <input type="submit" value="Save School Information" class="default">
+                <a href="/ops/school-info/" class="button cancel-link">Cancel</a>
+            </div>
+
+            {% if school_info %}
+            <p style="margin-top: 20px; color: #999; font-size: 13px;">
+                Last updated {{ school_info.updated_at|timesince }} ago
+                {% if school_info.updated_by %}by {{ school_info.updated_by }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Link Error - WCComps{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="page-header">
+        <h1 style="color: #ba2121;">{{ error }}</h1>
+    </div>
+
+    <div class="module">
+        <p style="color: #666; margin-bottom: 20px;">There was a problem linking your account</p>
+
+        <fieldset class="module">
+            <p>{{ message }}</p>
+        </fieldset>
+
+        <p style="margin-top: 20px;">
+            Please return to Discord and try again. If the problem persists, contact an administrator for assistance.
+        </p>
+    </div>
+</div>
+{% endblock %}

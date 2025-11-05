@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Team Mappings - WCComps{% endblock %}
+
+{% block branding %}<a href="/ops/group-role-mappings/">WCComps - Team Mappings</a>{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module" id="changelist">
+
+        <div class="toolbar">
+            <input type="text" id="team-search" placeholder="Search teams by number or name..." />
+        </div>
+
+        <div class="results">
+            <table id="result_list" style="table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 15%;">
+                    <col style="width: 15%;">
+                    <col style="width: 70%;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <div class="text">Team</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Status</div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Members</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in team_status %}
+                    <tr class="{% cycle 'row1' 'row2' %} team-row" data-team="{{ item.team.team_number }}" data-name="{{ item.team.team_name|lower }}">
+                        <th class="field-team">
+                            Team {{ item.team.team_number }}
+                            <div>{{ item.team.team_name }}</div>
+                        </th>
+                        <td class="field-status">
+                            <div>
+                                {{ item.current_count }}/{{ item.max_count }}
+                            </div>
+                            <div>
+                                {% if item.is_full %}
+                                    Full
+                                {% elif item.current_count == 0 %}
+                                    Empty
+                                {% else %}
+                                    {{ item.max_count|add:"-"|add:item.current_count }} Open
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="field-members">
+                            {% if item.members %}
+                                {% for member in item.members %}
+                                    {{ member.discord_username }} ({{ member.authentik_username }}){% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                No members linked
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3">
+                            No active teams found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p class="paginator">
+            {{ team_status|length }} team(s)
+        </p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('team-search');
+    const teamRows = document.querySelectorAll('.team-row');
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+
+        teamRows.forEach(row => {
+            const teamNumber = row.dataset.team;
+            const teamName = row.dataset.name;
+
+            if (teamNumber.includes(query) || teamName.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

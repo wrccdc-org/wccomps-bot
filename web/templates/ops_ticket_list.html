@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ticket List - WCComps{% endblock %}
+
+{% block branding %}<a href="/ops/tickets/">WCComps - Ticket List</a>{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module filtered" id="changelist">
+        <div class="toolbar">
+            <form id="changelist-filter" method="GET" role="search" aria-label="Filter tickets">
+                <div id="filter-content">
+                    <div>
+                        <div>
+                            <label for="id_search">Search</label>
+                            <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/">
+                        </div>
+                        <div>
+                            <label for="id_status">Status</label>
+                            <select name="status" id="id_status" aria-label="Filter by status">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                                <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="id_team">Team Number</label>
+                            <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
+                        </div>
+                        <div>
+                            <label for="id_category">Category</label>
+                            <select name="category" id="id_category" aria-label="Filter by category">
+                                <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
+                                {% for cat_id, cat_info in categories.items %}
+                                <option value="{{ cat_id }}" {% if category_filter == cat_id %}selected{% endif %}>
+                                    {{ cat_info.display_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="id_assignee">Assigned To</label>
+                            <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
+                                <option value="">All Assignees</option>
+                                <option value="unassigned" {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                                {% for assignee in assignees %}
+                                <option value="{{ assignee }}" {% if assignee_filter == assignee %}selected{% endif %}>{{ assignee }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="id_page_size">Results Per Page</label>
+                            <select name="page_size" id="id_page_size" aria-label="Results per page">
+                                <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                                <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="actions" id="bulk-actions" style="display: none;" role="region" aria-live="polite" aria-label="Bulk actions">
+            <div>
+                <span>
+                    <strong id="selected-count" aria-live="polite">0</strong> tickets selected
+                </span>
+                <form method="post" action="/ops/tickets/bulk-claim/" style="display: inline;" id="bulk-claim-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="ticket_numbers" id="bulk-claim-tickets" />
+                    <button type="submit" class="button">Claim Selected</button>
+                </form>
+                <form method="post" action="/ops/tickets/bulk-resolve/" style="display: inline;" id="bulk-resolve-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="ticket_numbers" id="bulk-resolve-tickets" />
+                    <button type="submit" class="button">Resolve Selected</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="results">
+            <table id="result_list" role="grid" aria-label="Tickets list" style="table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 5%;">
+                    <col style="width: 10%;">
+                    <col style="width: 10%;">
+                    <col style="width: 15%;">
+                    <col style="width: 10%;">
+                    <col style="width: 10%;">
+                    <col style="width: 10%;">
+                    <col style="width: 30%;">
+                </colgroup>
+                <thead>
+                    <tr role="row">
+                        <th scope="col" class="action-checkbox-column" role="columnheader">
+                            <input type="checkbox" id="action-toggle" aria-label="Select all tickets" />
+                        </th>
+                        <th scope="col">
+                            <div class="text">Ticket</div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'category' %}-{% endif %}category&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Category {% if sort_by == 'category' %}▲{% elif sort_by == '-category' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'status' %}-{% endif %}status&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Status {% if sort_by == 'status' %}▲{% elif sort_by == '-status' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'assigned_to_discord_username' %}-{% endif %}assigned_to_discord_username&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Assigned {% if sort_by == 'assigned_to_discord_username' %}▲{% elif sort_by == '-assigned_to_discord_username' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'created_at' %}-{% endif %}created_at&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Created {% if sort_by == 'created_at' %}▲{% elif sort_by == '-created_at' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col">
+                            <div class="text">Actions</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
+                        <td class="action-checkbox" role="gridcell">
+                            <input type="checkbox" class="action-select" name="_selected_action" value="{{ item.ticket.ticket_number }}" aria-label="Select ticket {{ item.ticket.ticket_number }}" />
+                        </td>
+                        <th class="field-ticket_number">
+                            <a href="/ops/ticket/{{ item.ticket.ticket_number }}/?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page={{ page_obj.number }}&page_size={{ page_size }}">
+                                {{ item.ticket.ticket_number }}
+                            </a>
+                            {% if item.is_stale %}
+                            <span>STALE</span>
+                            {% endif %}
+                            <div>
+                                {% if item.ticket.comment_count > 0 %}
+                                <span title="{{ item.ticket.comment_count }} comment(s)">Comments: {{ item.ticket.comment_count }}</span>
+                                {% endif %}
+                                {% if item.ticket.attachment_count > 0 %}
+                                <span title="{{ item.ticket.attachment_count }} attachment(s)">Attachments: {{ item.ticket.attachment_count }}</span>
+                                {% endif %}
+                            </div>
+                        </th>
+                        <td class="field-team">{{ item.ticket.team.team_name }}</td>
+                        <td class="field-category">{{ item.category_name }}</td>
+                        <td class="field-status" role="gridcell">
+                            <span role="status" aria-label="Status: {{ item.status_display }}">{{ item.status_display }}</span>
+                        </td>
+                        <td class="field-assigned">
+                            {% if item.ticket.assigned_to_discord_username %}
+                                {{ item.ticket.assigned_to_discord_username }}
+                            {% else %}
+                                Unassigned
+                            {% endif %}
+                        </td>
+                        <td class="field-created">{{ item.ticket.created_at|timesince }} ago</td>
+                        <td class="field-actions">
+                            {% if item.ticket.status == "open" %}
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/claim/" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Claim</button>
+                                </form>
+                            {% elif item.ticket.status == "claimed" %}
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/resolve/" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Resolve</button>
+                                </form>
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button">Unclaim</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            {% if search_query or status_filter != 'all' or category_filter != 'all' or team_filter or assignee_filter %}
+                                No tickets match your filters. Try adjusting your filters or <a href="/ops/tickets/">clearing all filters</a>
+                            {% else %}
+                                No tickets found. Tickets will appear here when teams create them.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj %}
+        <p class="paginator">
+            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} tickets
+
+            <span class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">First</a>
+                    <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Previous</a>
+                {% endif %}
+
+                <span class="this-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Next</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Last</a>
+                {% endif %}
+            </span>
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleCheckbox = document.getElementById('action-toggle');
+    const checkboxes = document.querySelectorAll('.action-select');
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+
+    function updateBulkActions() {
+        const selected = Array.from(checkboxes).filter(cb => cb.checked);
+        selectedCount.textContent = selected.length;
+
+        if (selected.length > 0) {
+            bulkActions.style.display = 'block';
+            const ticketNumbers = selected.map(cb => cb.value).join(',');
+            document.getElementById('bulk-claim-tickets').value = ticketNumbers;
+            document.getElementById('bulk-resolve-tickets').value = ticketNumbers;
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+
+    toggleCheckbox.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateBulkActions();
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateBulkActions);
+    });
+
+    // Filter toggle
+    const toggleFiltersBtn = document.getElementById('toggle-filters');
+    const filterContent = document.getElementById('filter-content');
+    let filtersVisible = true;
+
+    toggleFiltersBtn.addEventListener('click', function() {
+        filtersVisible = !filtersVisible;
+        if (filtersVisible) {
+            filterContent.style.display = 'block';
+            toggleFiltersBtn.textContent = 'Hide Filters';
+        } else {
+            filterContent.style.display = 'none';
+            toggleFiltersBtn.textContent = 'Show Filters';
+        }
+    });
+
+    // Auto-submit filter form
+    const filterForm = document.getElementById('changelist-filter');
+    const searchInput = document.getElementById('id_search');
+    const statusSelect = document.getElementById('id_status');
+    const categorySelect = document.getElementById('id_category');
+    const teamInput = document.getElementById('id_team');
+    const assigneeSelect = document.getElementById('id_assignee');
+    const pageSizeSelect = document.getElementById('id_page_size');
+
+    // Debounce function for search input
+    let searchTimeout;
+    function debounceSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            sessionStorage.setItem('searchFocus', 'true');
+            sessionStorage.setItem('searchCursorPos', searchInput.selectionStart);
+            filterForm.submit();
+        }, 800);
+    }
+
+    // Auto-submit on change for all filters
+    statusSelect.addEventListener('change', () => filterForm.submit());
+    categorySelect.addEventListener('change', () => filterForm.submit());
+    assigneeSelect.addEventListener('change', () => filterForm.submit());
+    pageSizeSelect.addEventListener('change', () => filterForm.submit());
+
+    // Debounced search
+    searchInput.addEventListener('input', debounceSearch);
+
+    // Restore focus to search input after page load if it was being used
+    if (sessionStorage.getItem('searchFocus') === 'true') {
+        searchInput.focus();
+        const cursorPos = parseInt(sessionStorage.getItem('searchCursorPos') || searchInput.value.length);
+        searchInput.setSelectionRange(cursorPos, cursorPos);
+        sessionStorage.removeItem('searchFocus');
+        sessionStorage.removeItem('searchCursorPos');
+    }
+
+    // Submit on Enter for team input
+    teamInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            filterForm.submit();
+        }
+    });
+
+    // Auto-submit on blur for team input
+    teamInput.addEventListener('blur', function() {
+        if (this.value !== '{{ team_filter }}') {
+            filterForm.submit();
+        }
+    });
+
+    // Page-specific keyboard shortcut for filter toggle
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+
+        if (e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            toggleFiltersBtn.click();
+        }
+    });
+});
+</script>
+{% endblock %}

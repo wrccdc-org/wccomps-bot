@@ -1,0 +1,55 @@
+node_modules/
+.env
+*.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+dist/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.vscode/
+.idea/
+.claude
+.rsyncignore
+DESIGN.md
+DEPLOYMENT.md
+TESTING.md
+IMPLEMENTATION_STATUS.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# uv
+.venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+mutants/
