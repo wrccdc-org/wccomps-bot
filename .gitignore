@@ -54,3 +54,6 @@ logs/
 *.log
 mutants/
 .mutmut-cache
+
+# Hypothesis
+.hypothesis/

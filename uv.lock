@@ -709,6 +709,23 @@ wheels = [
 ]
 
 [[package]]
+name = "hypothesis"
+version = "6.146.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/77/5673c9ba8d34f2d808e566cbe7d98daa75ec5e9209c7d6672586cc34f57e/hypothesis-6.146.0.tar.gz", hash = "sha256:542b8a6b7c4ab15a3a259893cd646b4e324ac332b4d19901abd68a79790dd963", size = 468651, upload-time = "2025-11-05T06:02:18.187Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/ad/49568317b2282d14607cc72242aa595f57298aa49847ae045805cce6071b/hypothesis-6.146.0-py3-none-any.whl", hash = "sha256:aef4a9cd82cdb51173decfc37c16a71c8f89e4b60111bafe39615a4c19de5f57", size = 535602, upload-time = "2025-11-05T06:02:13.822Z" },
+]
+
+[package.optional-dependencies]
+django = [
+    { name = "django" },
+]
+
+[[package]]
 name = "idna"
 version = "3.11"
 source = { registry = "https://pypi.org/simple" }
@@ -1395,6 +1412,15 @@ wheels = [
 ]
 
 [[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
 name = "sqlparse"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1504,6 +1530,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "django-stubs" },
+    { name = "hypothesis", extra = ["django"] },
     { name = "mypy" },
     { name = "pylint" },
     { name = "pylint-django" },
@@ -1540,6 +1567,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "django-stubs", specifier = ">=5.1.1" },
+    { name = "hypothesis", extras = ["django"], specifier = ">=6.100" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pylint", specifier = ">=3.0" },
     { name = "pylint-django", specifier = ">=2.6" },
