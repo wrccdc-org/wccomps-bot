@@ -9,7 +9,8 @@ from django.utils import timezone
 import discord
 
 from bot.discord_queue import DiscordQueueProcessor
-from core.models import DiscordTask, Team
+from core.models import DiscordTask
+from team.models import Team
 
 
 @pytest_asyncio.fixture
@@ -333,7 +334,7 @@ class TestAssignRoleRetry:
     async def test_assign_role_member_not_found(
         self, mock_bot_with_guild: Any, test_team: Team
     ) -> None:
-        """Test handling when member is not found in guild - retries then fails."""
+        """Test handling when member is not found in guild - completes gracefully."""
         task = await DiscordTask.objects.acreate(
             task_type="assign_role",
             payload={
@@ -354,11 +355,10 @@ class TestAssignRoleRetry:
         # Refresh from DB
         await task.arefresh_from_db()
 
-        # Verify task is scheduled for retry (not immediately failed)
-        assert task.status == "pending"
-        assert task.retry_count == 1
-        assert task.next_retry_at is not None
-        assert "not found in guild" in task.error_message
+        # Verify task completed successfully (member will get role when they join)
+        assert task.status == "completed"
+        assert task.retry_count == 0
+        assert task.completed_at is not None
 
 
 @pytest.mark.asyncio
@@ -575,7 +575,7 @@ class TestPermanentFailure:
         self, mock_bot_with_guild: Any
     ) -> None:
         """Test task is marked failed when retry_count reaches max_retries."""
-        from core.models import Team
+        from team.models import Team
 
         # Create team needed for the task
         team = await Team.objects.acreate(
@@ -618,7 +618,7 @@ class TestPermanentFailure:
         self, mock_bot_with_guild: Any
     ) -> None:
         """Test that permanent failures are logged to ops channel."""
-        from core.models import Team
+        from team.models import Team
 
         # Create team needed for the task
         team = await Team.objects.acreate(

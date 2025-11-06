@@ -6,7 +6,8 @@ from typing import Optional, Any
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.conf import settings
-from core.models import Ticket, BotState, DashboardUpdate
+from core.models import BotState, DashboardUpdate
+from ticketing.models import Ticket
 from core.tickets_config import TICKET_CATEGORIES
 from asgiref.sync import sync_to_async
 import discord

@@ -5,9 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
-from core.models import AuditLog, DiscordLink, Team
+from core.models import AuditLog
+from team.models import DiscordLink, Team
 
-from bot.cogs.admin_linking import AdminLinkingCog
+from bot.cogs.admin_teams import AdminTeamsCog
+from bot.cogs.admin_competition import AdminCompetitionCog
 
 
 @pytest.mark.asyncio
@@ -25,7 +27,7 @@ class TestAdminCommands:
         )
         await Team.objects.acreate(team_number=11, team_name="Team Beta", max_members=5)
 
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_teams.callback(cog, mock_interaction)
 
         mock_interaction.response.send_message.assert_called_once()
@@ -40,7 +42,7 @@ class TestAdminCommands:
     ) -> None:
         mock_interaction.user.id = 123456789
 
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_teams.callback(cog, mock_interaction)
 
         mock_interaction.response.send_message.assert_called_once()
@@ -55,7 +57,7 @@ class TestAdminCommands:
 
         await Team.objects.acreate(team_number=12, team_name="Test Team", max_members=5)
 
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_team_info.callback(cog, mock_interaction, team_number=12)
 
         mock_interaction.response.send_message.assert_called_once()
@@ -67,50 +69,45 @@ class TestAdminCommands:
     ) -> None:
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_team_info.callback(cog, mock_interaction, team_number=42)
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "not found" in call_args.args[0].lower()
 
-    @patch("requests.get")
-    @patch("requests.post")
-    @patch("bot.cogs.admin_linking.settings")
+    @patch("bot.cogs.admin_competition.settings")
+    @patch("bot.cogs.admin_competition.reset_blueteam_password")
+    @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords(
         self,
+        mock_generate_password: Any,
+        mock_reset_password: Any,
         mock_settings: Any,
-        mock_post: Any,
-        mock_get: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
     ) -> None:
-        """Test /admin reset-blueteam-passwords - verifies API calls and response handling."""
+        """Test /admin reset-blueteam-passwords - verifies password reset flow."""
         mock_interaction.user.id = mock_admin_user._discord_id
         mock_settings.AUTHENTIK_TOKEN = "test-token"
-        mock_settings.AUTHENTIK_URL = "http://test.example.com"
 
-        # Mock Authentik API responses
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {"results": [{"pk": "test-user-id"}]}
-        mock_post.return_value.status_code = 200
+        # Mock password generation
+        mock_generate_password.return_value = "Test-Password-123!"
 
-        cog = AdminLinkingCog(mock_bot)
+        # Mock successful password reset
+        mock_reset_password.return_value = (True, "")
+
+        cog = AdminCompetitionCog(mock_bot)
         await cog.admin_reset_blueteam_passwords.callback(
-            cog, mock_interaction, team_numbers="1-50"
+            cog, mock_interaction, team_numbers="1-3"
         )
 
-        # Verify API calls were made with correct structure
-        assert mock_get.called, "Should call Authentik API to get users"
-        get_call_args = mock_get.call_args
-        assert "Authorization" in get_call_args.kwargs.get("headers", {}), (
-            "Should include auth header"
-        )
-        assert (
-            mock_settings.AUTHENTIK_TOKEN
-            in get_call_args.kwargs["headers"]["Authorization"]
-        )
+        # Verify password was generated for each team
+        assert mock_generate_password.call_count == 3
+
+        # Verify password reset was called for each team
+        assert mock_reset_password.call_count == 3
 
         mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
 
@@ -119,12 +116,14 @@ class TestAdminCommands:
         call_args = mock_interaction.followup.send.call_args
         assert "file" in call_args.kwargs, "Should send file with passwords"
 
-    @patch("requests.get")
-    @patch("bot.cogs.admin_linking.settings")
+    @patch("bot.cogs.admin_competition.settings")
+    @patch("bot.cogs.admin_competition.reset_blueteam_password")
+    @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords_api_failure(
         self,
+        mock_generate_password: Any,
+        mock_reset_password: Any,
         mock_settings: Any,
-        mock_get: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
@@ -132,28 +131,30 @@ class TestAdminCommands:
         """Test /admin reset-blueteam-passwords handles API failures."""
         mock_interaction.user.id = mock_admin_user._discord_id
         mock_settings.AUTHENTIK_TOKEN = "test-token"
-        mock_settings.AUTHENTIK_URL = "http://test.example.com"
 
-        # Simulate API failure
-        mock_get.return_value.status_code = 500
-        mock_get.return_value.text = "Internal Server Error"
+        # Mock password generation
+        mock_generate_password.return_value = "Test-Password-123!"
 
-        cog = AdminLinkingCog(mock_bot)
+        # Simulate API failure for password reset
+        mock_reset_password.return_value = (False, "HTTP 500: Internal Server Error")
+
+        cog = AdminCompetitionCog(mock_bot)
 
         # Should handle error gracefully
         await cog.admin_reset_blueteam_passwords.callback(
-            cog, mock_interaction, team_numbers="1-50"
+            cog, mock_interaction, team_numbers="1-3"
         )
 
         # Verify error was communicated
-        assert (
-            mock_interaction.followup.send.called
-            or mock_interaction.response.send_message.called
-        ), "Should send error message"
+        assert mock_interaction.followup.send.called, "Should send error message"
 
-    @patch("bot.cogs.admin_linking.remove_blueteam_role")
-    @patch("bot.cogs.admin_linking.safe_remove_role")
-    @patch("bot.cogs.admin_linking.log_to_ops_channel")
+        # Verify CSV file was still sent (with attempted passwords)
+        call_args = mock_interaction.followup.send.call_args
+        assert "file" in call_args.kwargs, "Should still send CSV file"
+
+    @patch("bot.cogs.admin_teams.remove_blueteam_role")
+    @patch("bot.cogs.admin_teams.safe_remove_role")
+    @patch("bot.cogs.admin_teams.log_to_ops_channel")
     async def test_admin_remove_team(
         self,
         mock_log_ops: Any,
@@ -245,7 +246,7 @@ class TestAdminCommands:
         mock_remove_blueteam.side_effect = track_blueteam_removal
 
         # Execute command
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_remove_team.callback(
             cog, mock_interaction, team_number=team_number
         )
@@ -347,13 +348,11 @@ class TestAdminCommands:
 
         # Mock safe_remove_role and remove_blueteam_role
         with (
-            patch("bot.cogs.admin_linking.safe_remove_role") as mock_safe_remove,
-            patch(
-                "bot.cogs.admin_linking.remove_blueteam_role"
-            ) as mock_remove_blueteam,
-            patch("bot.cogs.admin_linking.log_to_ops_channel") as mock_log_ops,
+            patch("bot.cogs.admin_teams.safe_remove_role") as mock_safe_remove,
+            patch("bot.cogs.admin_teams.remove_blueteam_role") as mock_remove_blueteam,
+            patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops,
         ):
-            cog = AdminLinkingCog(mock_bot)
+            cog = AdminTeamsCog(mock_bot)
             # Pass member ID as string
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
@@ -410,7 +409,7 @@ class TestAdminCommands:
         # Mock guild.get_member to return the member
         mock_interaction.guild.get_member.return_value = member_mock
 
-        cog = AdminLinkingCog(mock_bot)
+        cog = AdminTeamsCog(mock_bot)
         await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
         # Verify appropriate error message
@@ -453,10 +452,10 @@ class TestAdminCommands:
         member_mock.mention = "<@test>"
 
         with (
-            patch("bot.cogs.admin_linking.safe_remove_role"),
-            patch("bot.cogs.admin_linking.log_to_ops_channel"),
+            patch("bot.cogs.admin_teams.safe_remove_role"),
+            patch("bot.cogs.admin_teams.log_to_ops_channel"),
         ):
-            cog = AdminLinkingCog(mock_bot)
+            cog = AdminTeamsCog(mock_bot)
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
             # Since guild is None, command should return error early

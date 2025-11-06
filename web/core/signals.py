@@ -60,12 +60,8 @@ def promote_authentik_admins(
             user.save()
 
             # Grant permissions for ticket models
-            from core.models import (
-                Ticket,
-                TicketComment,
-                TicketHistory,
-                DiscordTask,
-            )
+            from core.models import DiscordTask
+            from ticketing.models import Ticket, TicketComment, TicketHistory
 
             ticket_models = [
                 Ticket,

@@ -6,7 +6,7 @@ from allauth.socialaccount.models import SocialAccount, SocialLogin
 import re
 
 if TYPE_CHECKING:
-    from .models import Team
+    from team.models import Team
 
 
 def get_authentik_data(user: User) -> tuple[str, list[str], Optional[str]]:
@@ -78,7 +78,7 @@ def get_team_from_groups(
             - team_number: Team number (1-50) or None
             - is_team_account: Boolean indicating if user is in a team group
     """
-    from .models import Team
+    from team.models import Team
 
     for group in groups:
         team_match = re.match(r"^WCComps_BlueTeam(\d+)$", group)

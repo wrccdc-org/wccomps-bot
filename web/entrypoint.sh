@@ -6,7 +6,7 @@ uv run --no-sync python manage.py migrate --noinput
 
 echo "Checking for teams..."
 uv run --no-sync python manage.py shell -c "
-from core.models import Team
+from team.models import Team
 if Team.objects.count() == 0:
     print('No teams found, initializing 50 teams...')
     from django.core.management import call_command

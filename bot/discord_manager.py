@@ -3,9 +3,9 @@
 import discord
 import logging
 import re
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 from django.conf import settings
-from core.models import Team
+from team.models import Team
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +13,13 @@ logger = logging.getLogger(__name__)
 class DiscordManager:
     """Manages Discord roles and channels for teams."""
 
-    def __init__(self, guild: discord.Guild):
+    def __init__(
+        self,
+        guild: discord.Guild,
+        bot: Optional[Union[discord.Client, "discord.ext.commands.Bot"]] = None,
+    ):
         self.guild = guild
+        self.bot = bot
 
     async def setup_team_infrastructure(
         self, team_number: int
@@ -206,7 +211,7 @@ class DiscordManager:
             )
 
             # Create code-defined channels
-            await category.create_text_channel(
+            text_channel = await category.create_text_channel(
                 f"team{team_number:02d}-chat", reason="WCComps team text channel"
             )
             await category.create_voice_channel(
@@ -230,11 +235,34 @@ class DiscordManager:
                     positioned = True
                     break
 
-            if not positioned and team_categories:
-                await category.edit(position=0)
-                logger.info("Positioned at beginning (no lower-numbered team)")
+            if not positioned:
+                # Position at the end (bottom) of categories
+                # Discord will auto-position at bottom if we don't specify position
+                # But to be explicit, we can position after the highest-numbered team
+                if team_categories:
+                    # team_categories is sorted reverse, so first item is highest number
+                    highest_team_cat = team_categories[0][1]
+                    await category.edit(position=highest_team_cat.position + 1)
+                    logger.info(
+                        f"Positioned after team {team_categories[0][0]} (no lower-numbered team)"
+                    )
 
             logger.info(f"Created code-defined category for Team {team_number}")
+
+            # Post ticket panel to team channel
+            if self.bot and hasattr(self.bot, "get_cog"):
+                try:
+                    from bot.cogs.help_panels import HelpPanelsCog
+
+                    help_panels_cog = self.bot.get_cog("HelpPanelsCog")
+                    if isinstance(help_panels_cog, HelpPanelsCog):
+                        await help_panels_cog.post_team_ticket_panel(text_channel.id)
+                        logger.info(
+                            f"Posted ticket panel to team {team_number} channel"
+                        )
+                except Exception as e:
+                    logger.warning(f"Could not post ticket panel to team channel: {e}")
+
             return category
 
         except discord.errors.Forbidden:

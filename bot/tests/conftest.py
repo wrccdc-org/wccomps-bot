@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 from django.contrib.auth.models import User
 from allauth.socialaccount.models import SocialAccount
-from core.models import Team, DiscordLink
+from team.models import Team, DiscordLink
 
 
 @pytest.fixture
@@ -88,8 +88,9 @@ async def mock_team_user(db: Any) -> User:
     )
 
     team = await Team.objects.acreate(
-        team_number=int(unique_id, 16) % 10000,
+        team_number=(int(unique_id, 16) % 50) + 1,  # Valid range: 1-50
         team_name=f"Test Team {unique_id}",
+        authentik_group=f"WCComps_BlueTeam{(int(unique_id, 16) % 50) + 1:02d}",
         max_members=5,
     )
 
@@ -123,6 +124,12 @@ def mock_bot() -> Any:
     bot.user = MagicMock()
     bot.user.id = 1422808875651829785
     bot.user.name = "wccomps-bot"
+
+    # Mock command tree
+    bot.tree = MagicMock()
+    bot.tree.get_commands = MagicMock(return_value=[])
+    bot.tree.add_command = MagicMock()
+
     return bot
 
 

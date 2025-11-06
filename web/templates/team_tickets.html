@@ -7,14 +7,12 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="page-header">
-        <h1>{{ team.team_name }} - Tickets</h1>
-    </div>
+    <c-page_header title="{{ team.team_name }} - Tickets" />
 
-    <div class="module" id="changelist">
-        <div class="toolbar">
-            <a href="{% url 'create_ticket' %}" class="addlink">Create New Ticket</a>
-        </div>
+    <c-module id="changelist">
+        <c-slot name="toolbar">
+            <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
+        </c-slot>
 
         <div class="toolbar" style="margin-top: 10px;">
             <form method="GET" id="filter-form" role="search" aria-label="Filter tickets">
@@ -26,7 +24,7 @@
                     <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
                     <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
-                <a href="{% url 'team_tickets' %}" class="button" style="color: white; margin-left: 10px;">Clear</a>
+                <c-link href="{% url 'team_tickets' %}" class="button" style="color: white; margin-left: 10px;">Clear</c-link>
             </form>
         </div>
 
@@ -58,7 +56,7 @@
                         </th>
                         <td class="field-category" role="gridcell">{{ item.category_name }}</td>
                         <td class="field-status" role="gridcell">
-                            <span class="status-badge status-{{ item.ticket.status }}" role="status" aria-label="Status: {{ item.status_display }}">{{ item.status_display }}</span>
+                            <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
                         </td>
                         <td class="field-created" role="gridcell">{{ item.ticket.created_at|timesince }} ago</td>
                     </tr>
@@ -91,7 +89,7 @@
             {{ tickets|length }} ticket(s)
         </p>
         {% endif %}
-    </div>
+    </c-module>
 </div>
 
 <script>

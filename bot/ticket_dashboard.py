@@ -4,7 +4,7 @@ from typing import Optional, Tuple, cast, Any
 import discord
 import logging
 from django.utils import timezone
-from core.models import Ticket
+from ticketing.models import Ticket
 from core.tickets_config import TICKET_CATEGORIES
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class TicketActionView(discord.ui.View):
             return
 
         from django.db import transaction
-        from core.models import TicketHistory
+        from ticketing.models import TicketHistory
         from asgiref.sync import sync_to_async
 
         # Use select_for_update to prevent race conditions
@@ -222,6 +222,86 @@ class TicketActionView(discord.ui.View):
         modal = ResolveTicketModal(ticket)
         await interaction.response.send_modal(modal)
 
+    @discord.ui.button(
+        label="Cancel",
+        style=discord.ButtonStyle.danger,
+        custom_id="ticket_cancel",
+        row=2,
+    )
+    async def cancel_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button[Any]
+    ) -> None:
+        """Cancel an unclaimed ticket (team members only)."""
+        from team.models import DiscordLink
+        from ticketing.models import TicketHistory
+        from asgiref.sync import sync_to_async
+
+        # Check if user is linked to a team
+        @sync_to_async
+        def get_team_link() -> Optional[DiscordLink]:
+            return (
+                DiscordLink.objects.filter(
+                    discord_id=interaction.user.id, is_active=True
+                )
+                .select_related("team")
+                .first()
+            )
+
+        link = await get_team_link()
+        if not link or not link.team:
+            await interaction.response.send_message(
+                "You must be linked to a team to cancel tickets.", ephemeral=True
+            )
+            return
+
+        # Get ticket
+        ticket = (
+            await Ticket.objects.select_related("team")
+            .filter(id=self.ticket_id)
+            .afirst()
+        )
+        if not ticket:
+            await interaction.response.send_message("Ticket not found.", ephemeral=True)
+            return
+
+        # Verify ticket belongs to user's team
+        if ticket.team.id != link.team.id:
+            await interaction.response.send_message(
+                "This ticket does not belong to your team.", ephemeral=True
+            )
+            return
+
+        # Only allow cancellation if unclaimed
+        if ticket.status != "open":
+            await interaction.response.send_message(
+                f"Cannot cancel this ticket. It is already {ticket.status}.\n"
+                f"Claimed or in-progress tickets must be cancelled by an admin.",
+                ephemeral=True,
+            )
+            return
+
+        # Cancel ticket
+        ticket.status = "cancelled"
+        ticket.resolved_at = timezone.now()
+        ticket.resolution_notes = f"Cancelled by {interaction.user}"
+        await ticket.asave()
+
+        # Create history entry
+        await TicketHistory.objects.acreate(
+            ticket=ticket,
+            action="cancelled",
+            actor_username=str(interaction.user),
+            details={"reason": "Cancelled by team member (unclaimed)"},
+        )
+
+        # Update dashboard
+        await update_ticket_dashboard(interaction.client, ticket)
+
+        await interaction.response.send_message(
+            f"Ticket {ticket.ticket_number} has been cancelled (no point penalty).",
+            ephemeral=True,
+        )
+
 
 class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
     """Modal for resolving a ticket."""
@@ -255,7 +335,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         """Handle modal submission."""
-        from core.models import TicketHistory
+        from ticketing.models import TicketHistory
         from datetime import timedelta
 
         cat_info = TICKET_CATEGORIES.get(self.ticket.category, {})

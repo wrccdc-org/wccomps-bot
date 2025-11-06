@@ -5,18 +5,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.utils import timezone
 from django.db import transaction
-from .models import (
-    LinkToken,
-    DiscordLink,
-    Team,
-    LinkAttempt,
-    DiscordTask,
-    Ticket,
-    TicketComment,
-    TicketHistory,
-    TicketAttachment,
-    SchoolInfo,
-)
+from django.contrib import messages
+from team.models import LinkToken, DiscordLink, Team, LinkAttempt, SchoolInfo
+from ticketing.models import Ticket, TicketComment, TicketHistory, TicketAttachment
+from core.models import DiscordTask
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
 from .utils import get_authentik_data, get_team_from_groups, check_permissions
 from django.contrib.auth.models import User
@@ -105,6 +97,10 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
 @login_required
 def link_callback(request: HttpRequest) -> HttpResponse:
     """Handle OAuth callback after Authentik authentication."""
+    # Clear any django-allauth success messages (we show our own)
+    storage = messages.get_messages(request)
+    storage.used = True  # type: ignore[union-attr]
+
     user = cast(User, request.user)
     try:
         # Get Authentik user info first
@@ -167,6 +163,32 @@ def link_callback(request: HttpRequest) -> HttpResponse:
 
     # Get team information
     team, team_number, is_team_account = get_team_from_groups(groups)
+
+    # Check if this Authentik account is already linked to a different Discord account
+    existing_link = DiscordLink.objects.filter(
+        authentik_user_id=authentik_user_id, is_active=True
+    ).first()
+
+    if existing_link and existing_link.discord_id != discord_id:
+        # This Authentik account is already linked to a different Discord account
+        LinkAttempt.objects.create(
+            discord_id=discord_id,
+            discord_username=discord_username,
+            authentik_username=authentik_username,
+            team=team,
+            success=False,
+            failure_reason=f"Authentik account already linked to Discord user {existing_link.discord_username}",
+        )
+        return render(
+            request,
+            "link_error.html",
+            {
+                "error": "Account already linked",
+                "message": f"This Authentik account ({authentik_username}) is already linked to Discord user {existing_link.discord_username}. "
+                f"Each Authentik account can only be linked to one Discord account at a time. "
+                f"Please contact an administrator if you need to unlink the previous account.",
+            },
+        )
 
     # For non-team accounts (admins/support), try to store discord_id in Authentik
     # This is optional - if it fails due to permissions, we still have DiscordLink
@@ -458,7 +480,7 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
         return HttpResponse("Comment cannot be empty", status=400)
 
     # Check rate limit
-    from core.models import CommentRateLimit
+    from ticketing.models import CommentRateLimit
 
     user_id = user.id
     assert user_id is not None
@@ -511,6 +533,20 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             },
         )
 
+    # Fetch infrastructure from Quotient API
+    from quotient.client import get_quotient_client
+
+    quotient_client = get_quotient_client()
+    infrastructure = quotient_client.get_infrastructure()
+    service_choices = quotient_client.get_service_choices()
+    box_names = quotient_client.get_box_names()
+
+    # Build box mapping for IP lookups (box_name -> ip)
+    box_ip_map = {}
+    if infrastructure:
+        for box in infrastructure.boxes:
+            box_ip_map[box.name] = box.ip
+
     if request.method == "POST":
         category = request.POST.get("category")
         title = request.POST.get("title", "").strip()
@@ -521,12 +557,17 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
 
         # Validate category
         if category not in TICKET_CATEGORIES:
+            import json
+
             return render(
                 request,
                 "create_ticket.html",
                 {
                     "team": team,
                     "categories": TICKET_CATEGORIES,
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": json.dumps(box_ip_map),
                     "error": "Invalid ticket category selected.",
                 },
             )
@@ -552,12 +593,17 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             errors.append("Description is required for this category.")
 
         if errors:
+            import json
+
             return render(
                 request,
                 "create_ticket.html",
                 {
                     "team": team,
                     "categories": TICKET_CATEGORIES,
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": json.dumps(box_ip_map),
                     "error": " ".join(errors),
                     "form_data": request.POST,
                 },
@@ -619,12 +665,17 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         return redirect("ticket_detail", ticket_id=ticket.id)
 
     # GET request - show form
+    import json
+
     return render(
         request,
         "create_ticket.html",
         {
             "team": team,
             "categories": TICKET_CATEGORIES,
+            "service_choices": service_choices,
+            "box_names": box_names,
+            "box_ip_map": json.dumps(box_ip_map),
         },
     )
 
@@ -965,7 +1016,7 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Comment cannot be empty", status=400)
 
     # Check rate limit
-    from core.models import CommentRateLimit
+    from ticketing.models import CommentRateLimit
 
     user_id = user.id
     assert user_id is not None

@@ -6,13 +6,8 @@ from discord.ext import commands, tasks
 import logging
 from typing import Any
 from django.utils import timezone
-from core.models import (
-    Ticket,
-    DiscordLink,
-    TicketHistory,
-    TicketAttachment,
-    TicketComment,
-)
+from team.models import DiscordLink
+from ticketing.models import Ticket, TicketHistory, TicketAttachment, TicketComment
 from core.tickets_config import TICKET_CATEGORIES
 from bot.ticket_dashboard import post_ticket_to_dashboard
 
@@ -140,7 +135,7 @@ class TicketingCog(commands.Cog):
             await interaction.response.send_message(
                 "**This command is for Blue Team competitors only.**\n\n"
                 "Your account is linked as an administrator or support member, not as a team competitor.\n"
-                "If you need to create a ticket for a team, use `/admin ticket create` instead.",
+                "If you need to create a ticket for a team, use `/tickets create` instead.",
                 ephemeral=True,
             )
             return
@@ -333,7 +328,7 @@ class TicketingCog(commands.Cog):
             return
 
         # Check rate limit for comments
-        from core.models import CommentRateLimit
+        from ticketing.models import CommentRateLimit
         from asgiref.sync import sync_to_async
 
         is_allowed, reason = await sync_to_async(CommentRateLimit.check_rate_limit)(
@@ -421,7 +416,7 @@ class TicketingCog(commands.Cog):
             return
 
         # Find comment by message ID
-        from core.models import TicketComment
+        from ticketing.models import TicketComment
 
         comment = await TicketComment.objects.filter(
             ticket=ticket, discord_message_id=after.id
@@ -453,7 +448,7 @@ class TicketingCog(commands.Cog):
             return
 
         # Find comment by message ID
-        from core.models import TicketComment
+        from ticketing.models import TicketComment
 
         comment = await TicketComment.objects.filter(
             ticket=ticket, discord_message_id=message.id
@@ -467,167 +462,6 @@ class TicketingCog(commands.Cog):
             logger.info(
                 f"Marked comment {comment.id} as deleted for ticket #{ticket.id}"
             )
-
-    @app_commands.command(
-        name="ticket-cancel", description="Cancel your unclaimed support ticket"
-    )
-    @app_commands.describe(ticket_id="Ticket ID number to cancel")
-    async def cancel_ticket(
-        self, interaction: discord.Interaction, ticket_id: int
-    ) -> None:
-        """Cancel an unclaimed ticket (team members only)."""
-        # Check if user is linked to a team
-        link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("team")
-            .afirst()
-        )
-
-        if not link or not link.team:
-            await interaction.response.send_message(
-                "You must be linked to a team to cancel tickets.", ephemeral=True
-            )
-            return
-
-        # Get ticket
-        ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
-        )
-        if not ticket:
-            await interaction.response.send_message(
-                f"Ticket #{ticket_id} not found.", ephemeral=True
-            )
-            return
-
-        # Verify ticket belongs to user's team
-        if ticket.team.id != link.team.id:
-            await interaction.response.send_message(
-                f"Ticket #{ticket_id} does not belong to your team.", ephemeral=True
-            )
-            return
-
-        # Only allow cancellation if unclaimed
-        if ticket.status != "open":
-            await interaction.response.send_message(
-                f"Cannot cancel ticket #{ticket_id}. It is already {ticket.status}.\n"
-                f"Claimed or in-progress tickets must be cancelled by an admin.",
-                ephemeral=True,
-            )
-            return
-
-        # Cancel ticket
-        ticket.status = "cancelled"
-        ticket.resolved_at = timezone.now()
-        ticket.resolution_notes = f"Cancelled by {interaction.user}"
-        await ticket.asave()
-
-        # Create history entry
-        await TicketHistory.objects.acreate(
-            ticket=ticket,
-            action="cancelled",
-            actor_username=str(interaction.user),
-            details={"reason": "Cancelled by team member (unclaimed)"},
-        )
-
-        # Update dashboard
-        from bot.ticket_dashboard import update_ticket_dashboard
-
-        try:
-            await update_ticket_dashboard(self.bot, ticket)
-        except Exception as e:
-            logger.error(f"Failed to update dashboard: {e}")
-
-        await interaction.response.send_message(
-            f"Ticket #{ticket_id} has been cancelled (no point penalty).",
-            ephemeral=True,
-        )
-        logger.info(
-            f"Ticket #{ticket_id} cancelled by {interaction.user} (team member)"
-        )
-
-    @app_commands.command(
-        name="ticket-search", description="Search for a ticket by ticket number"
-    )
-    @app_commands.describe(ticket_number="Ticket number (e.g., T001-042)")
-    async def search_ticket(
-        self, interaction: discord.Interaction, ticket_number: str
-    ) -> None:
-        """Search for a ticket and get thread link."""
-        from bot.permissions import can_support_tickets_async
-
-        # Check if volunteer
-        is_volunteer = await can_support_tickets_async(interaction)
-
-        # If not volunteer, verify they have a team link first
-        team_link = None
-        if not is_volunteer:
-            team_link = await (
-                DiscordLink.objects.filter(
-                    discord_id=interaction.user.id, is_active=True
-                )
-                .select_related("team")
-                .afirst()
-            )
-
-            if not team_link or not team_link.team:
-                await interaction.response.send_message(
-                    "You must be a volunteer or linked to a team to search tickets.",
-                    ephemeral=True,
-                )
-                return
-
-            # Now search for ticket (only for authenticated users)
-            ticket = await Ticket.objects.filter(
-                ticket_number=ticket_number.upper()
-            ).afirst()
-
-            if not ticket:
-                await interaction.response.send_message(
-                    f"Ticket {ticket_number} not found.", ephemeral=True
-                )
-                return
-
-            # Verify ticket belongs to their team
-            if ticket.team.id != team_link.team.id:
-                await interaction.response.send_message(
-                    f"Ticket {ticket_number} not found.", ephemeral=True
-                )
-                return
-        else:
-            # Volunteer - just search for ticket
-            ticket = await Ticket.objects.filter(
-                ticket_number=ticket_number.upper()
-            ).afirst()
-
-            if not ticket:
-                await interaction.response.send_message(
-                    f"Ticket {ticket_number} not found.", ephemeral=True
-                )
-                return
-
-        # Build response with thread link
-        if ticket.discord_thread_id:
-            guild_id = interaction.guild_id
-            thread_url = (
-                f"https://discord.com/channels/{guild_id}/{ticket.discord_thread_id}"
-            )
-            status_display = ticket.status.replace("_", " ").title()
-
-            await interaction.response.send_message(
-                f"**{ticket.ticket_number}** - {ticket.team.team_name}\n"
-                f"Status: {status_display}\n"
-                f"[Go to thread]({thread_url})",
-                ephemeral=True,
-            )
-        else:
-            await interaction.response.send_message(
-                f"**{ticket.ticket_number}** - {ticket.team.team_name}\n"
-                f"Status: {ticket.status.replace('_', ' ').title()}\n"
-                f"Thread not created yet.",
-                ephemeral=True,
-            )
-
-        logger.info(f"User {interaction.user} searched for ticket {ticket_number}")
 
 
 async def post_comment_to_discord(

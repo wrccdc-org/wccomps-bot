@@ -1,0 +1,12 @@
+{# Filter field component - individual filter input in toolbar #}
+{# Usage: <c-filter_field label="Status" id="id_status">{{ select_field }}</c-filter_field> #}
+{# Props: label, id, min_width #}
+
+<c-vars label="" id="" min_width="140px" />
+
+<div style="display: flex; flex-direction: column; min-width: {{ min_width }};">
+    <label for="{{ id }}" style="font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #333;">
+        {{ label }}
+    </label>
+    {{ slot }}
+</div>

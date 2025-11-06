@@ -13,24 +13,21 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="page-header">
-        <h1>Edit School Information - Team {{ team.team_number }}</h1>
-        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ team.team_name }}</p>
-    </div>
+    <c-page_header title="Edit School Information - Team {{ team.team_number }}" subtitle="{{ team.team_name }}" />
 
     <form method="POST">
         {% csrf_token %}
 
-        <div class="module">
-            <div class="toolbar">
-                <a href="/ops/school-info/" class="historylink">Back to School Information</a>
-            </div>
+        <c-module>
+            <c-slot name="toolbar">
+                <c-link href="/ops/school-info/" variant="history">Back to School Information</c-link>
+            </c-slot>
 
             {% if error %}
-            <p class="errornote">{{ error }}</p>
+            <c-alert variant="error">{{ error }}</c-alert>
             {% endif %}
 
-            <fieldset class="module aligned">
+            <c-fieldset aligned="true">
                 <div class="form-row">
                     <div>
                         <label class="required" for="school_name">School Name:</label>
@@ -86,11 +83,11 @@
                         <p class="help">Optional internal notes</p>
                     </div>
                 </div>
-            </fieldset>
+            </c-fieldset>
 
             <div class="submit-row">
-                <input type="submit" value="Save School Information" class="default">
-                <a href="/ops/school-info/" class="button cancel-link">Cancel</a>
+                <c-button type="submit" variant="primary">Save School Information</c-button>
+                <c-link href="/ops/school-info/" class="button cancel-link">Cancel</c-link>
             </div>
 
             {% if school_info %}
@@ -99,7 +96,7 @@
                 {% if school_info.updated_by %}by {{ school_info.updated_by }}{% endif %}
             </p>
             {% endif %}
-        </div>
+        </c-module>
     </form>
 </div>
 {% endblock %}

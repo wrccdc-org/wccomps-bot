@@ -1,40 +1,15 @@
 """Tests for ticket dashboard functionality."""
 
 from unittest.mock import AsyncMock, MagicMock
-import discord
 import pytest
 from django.test import TestCase
-from core.models import Team, Ticket
+from team.models import Team
+from ticketing.models import Ticket
 from bot.ticket_dashboard import (
     format_ticket_embed,
-    get_ticket_color,
     post_ticket_to_dashboard,
     update_ticket_dashboard,
 )
-
-
-class TestTicketColor:
-    """Test ticket color helper function."""
-
-    def test_get_ticket_color_open(self) -> None:
-        """Test color for open tickets."""
-        assert get_ticket_color("open") == discord.Color.red()
-
-    def test_get_ticket_color_claimed(self) -> None:
-        """Test color for claimed tickets."""
-        assert get_ticket_color("claimed") == discord.Color.orange()
-
-    def test_get_ticket_color_resolved(self) -> None:
-        """Test color for resolved tickets."""
-        assert get_ticket_color("resolved") == discord.Color.green()
-
-    def test_get_ticket_color_cancelled(self) -> None:
-        """Test color for cancelled tickets."""
-        assert get_ticket_color("cancelled") == discord.Color.dark_gray()
-
-    def test_get_ticket_color_unknown(self) -> None:
-        """Test color for unknown status."""
-        assert get_ticket_color("unknown") == discord.Color.default()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -48,56 +23,46 @@ class TicketDashboardTest(TestCase):
             authentik_group="test-group",
         )
 
-    def test_format_ticket_embed_basic(self) -> None:
-        """Test formatting a basic ticket embed."""
-        ticket = Ticket.objects.create(
+    def test_format_ticket_embed_comprehensive(self) -> None:
+        """Test formatting ticket embeds with various states and categories."""
+        from django.utils import timezone as tz
+        from core.tickets_config import TICKET_CATEGORIES
+
+        # Test basic open ticket
+        open_ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=self.team,
             category="box-reset",
-            title="Test Ticket",
-            description="Test description",
+            title="Test Open",
+            description="Open description",
             status="open",
         )
+        open_embed = format_ticket_embed(open_ticket)
+        self.assertIsNotNone(open_embed)
+        self.assertIn("Test Open", str(open_embed.title))
 
-        # Should not raise AttributeError
-        embed = format_ticket_embed(ticket)
-
-        self.assertIsNotNone(embed)
-        self.assertIsNotNone(embed.title)
-        assert embed.title is not None
-        self.assertIn("Test Ticket", embed.title)
-        self.assertEqual(embed.description, "Test description")
-
-    def test_format_ticket_embed_with_assignment(self) -> None:
-        """Test formatting ticket with assigned volunteer."""
-        ticket = Ticket.objects.create(
+        # Test claimed ticket with assignment
+        claimed_ticket = Ticket.objects.create(
             ticket_number="T001-002",
             team=self.team,
             category="scoring-service-check",
-            title="Service Check",
-            description="Check DNS",
+            title="Test Claimed",
+            description="Claimed description",
             status="claimed",
             assigned_to_discord_id=123456789,
             assigned_to_discord_username="volunteer1",
         )
-
-        embed = format_ticket_embed(ticket)
-
-        self.assertIsNotNone(embed)
-        # Check that assigned field is included
-        field_names = [field.name for field in embed.fields]
+        claimed_embed = format_ticket_embed(claimed_ticket)
+        field_names = [field.name for field in claimed_embed.fields]
         self.assertIn("Assigned To", field_names)
 
-    def test_format_ticket_embed_resolved(self) -> None:
-        """Test formatting resolved ticket."""
-        from django.utils import timezone as tz
-
-        ticket = Ticket.objects.create(
+        # Test resolved ticket with resolution info
+        resolved_ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=self.team,
             category="other",
-            title="General Issue",
-            description="Fixed issue",
+            title="Test Resolved",
+            description="Resolved description",
             status="resolved",
             resolved_at=tz.now(),
             resolved_by_discord_id=987654321,
@@ -105,17 +70,11 @@ class TicketDashboardTest(TestCase):
             resolution_notes="All fixed",
             points_charged=10,
         )
+        resolved_embed = format_ticket_embed(resolved_ticket)
+        resolved_field_names = [field.name for field in resolved_embed.fields]
+        self.assertIn("Resolved At", resolved_field_names)
 
-        embed = format_ticket_embed(ticket)
-
-        self.assertIsNotNone(embed)
-        field_names = [field.name for field in embed.fields]
-        self.assertIn("Resolved At", field_names)
-
-    def test_format_ticket_embed_all_categories(self) -> None:
-        """Test all ticket categories can be formatted without errors."""
-        from core.tickets_config import TICKET_CATEGORIES
-
+        # Test that all ticket categories can be formatted
         for idx, category_key in enumerate(TICKET_CATEGORIES.keys(), start=10):
             ticket = Ticket.objects.create(
                 ticket_number=f"T001-{idx:03d}",
@@ -125,8 +84,6 @@ class TicketDashboardTest(TestCase):
                 description="Test",
                 status="open",
             )
-
-            # Should not raise AttributeError on missing fields
             embed = format_ticket_embed(ticket)
             self.assertIsNotNone(embed)
 

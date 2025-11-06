@@ -1,11 +1,10 @@
 """Permission checking for Discord bot commands."""
 
-from typing import Any, Callable, TypedDict
+from typing import TypedDict
 import discord
-from core.models import DiscordLink
+from team.models import DiscordLink
 from allauth.socialaccount.models import SocialAccount
 import logging
-from functools import wraps
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -126,7 +125,7 @@ async def is_admin_async(interaction: discord.Interaction) -> bool:
     Check if user has admin permissions via Authentik groups.
 
     Requires WCComps_Discord_Admin Authentik group.
-    User must be linked via /admin-link.
+    User must be linked via /link.
 
     Admin can:
     - All team management commands
@@ -146,7 +145,7 @@ async def can_manage_tickets_async(interaction: discord.Interaction) -> bool:
     Check if user can manage tickets via Authentik groups.
 
     Requires WCComps_Ticketing_Admin or WCComps_Discord_Admin group.
-    User must be linked via /admin-link.
+    User must be linked via /link.
     """
     if await is_admin_async(interaction):
         return True
@@ -166,7 +165,7 @@ async def can_support_tickets_async(interaction: discord.Interaction) -> bool:
     Check if user can work on tickets via Authentik groups.
 
     Requires WCComps_Ticketing_Support, WCComps_Ticketing_Admin, or WCComps_Discord_Admin group.
-    User must be linked via /admin-link.
+    User must be linked via /link.
     """
     if await is_admin_async(interaction) or await can_manage_tickets_async(interaction):
         return True
@@ -186,7 +185,7 @@ async def is_gold_team_async(interaction: discord.Interaction) -> bool:
     Check if user is member of GoldTeam via Authentik groups.
 
     Requires WCComps_GoldTeam or WCComps_Discord_Admin group.
-    User must be linked via /admin-link.
+    User must be linked via /link.
     """
     if await is_admin_async(interaction):
         return True
@@ -211,82 +210,54 @@ async def get_permission_level_async(interaction: discord.Interaction) -> str:
         return "none"
 
 
-# Permission decorators for commands
-def require_admin(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require admin permissions (checks Authentik groups)."""
-
-    @wraps(func)
-    async def wrapper(
-        self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
-    ) -> Any:
-        if not await is_admin_async(interaction):
-            await interaction.response.send_message(
-                "❌ Admin permissions required.\n\n"
-                "You need the `WCComps_Discord_Admin` Authentik group.\n"
-                "If you have this group, link your account with `/link`.",
-                ephemeral=True,
-            )
-            return
-        return await func(self, interaction, *args, **kwargs)
-
-    return wrapper
+# Permission check functions for use with @app_commands.check()
+async def check_admin(interaction: discord.Interaction) -> bool:
+    """Check if user has admin permissions."""
+    has_permission = await is_admin_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ Admin permissions required.\n\n"
+            "You need the `WCComps_Discord_Admin` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission
 
 
-def require_ticketing_admin(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require ticketing admin permissions."""
-
-    @wraps(func)
-    async def wrapper(
-        self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
-    ) -> Any:
-        if not await can_manage_tickets_async(interaction):
-            await interaction.response.send_message(
-                "❌ Ticketing admin permissions required.\n\n"
-                "You need the `WCComps_Ticketing_Admin` Authentik group.\n"
-                "If you have this group, link your account with `/link`.",
-                ephemeral=True,
-            )
-            return
-        return await func(self, interaction, *args, **kwargs)
-
-    return wrapper
+async def check_ticketing_admin(interaction: discord.Interaction) -> bool:
+    """Check if user can manage tickets."""
+    has_permission = await can_manage_tickets_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ Ticketing admin permissions required.\n\n"
+            "You need the `WCComps_Ticketing_Admin` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission
 
 
-def require_ticketing_support(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require ticketing support permissions."""
-
-    @wraps(func)
-    async def wrapper(
-        self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
-    ) -> Any:
-        if not await can_support_tickets_async(interaction):
-            await interaction.response.send_message(
-                "❌ Ticketing support permissions required.\n\n"
-                "You need the `WCComps_Ticketing_Support` Authentik group.\n"
-                "If you have this group, link your account with `/link`.",
-                ephemeral=True,
-            )
-            return
-        return await func(self, interaction, *args, **kwargs)
-
-    return wrapper
+async def check_ticketing_support(interaction: discord.Interaction) -> bool:
+    """Check if user can work on tickets."""
+    has_permission = await can_support_tickets_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ Ticketing support permissions required.\n\n"
+            "You need the `WCComps_Ticketing_Support` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission
 
 
-def require_gold_team(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to require GoldTeam permissions."""
-
-    @wraps(func)
-    async def wrapper(
-        self: Any, interaction: discord.Interaction, *args: Any, **kwargs: Any
-    ) -> Any:
-        if not await is_gold_team_async(interaction):
-            await interaction.response.send_message(
-                "❌ GoldTeam permissions required.\n\n"
-                "You need the `WCComps_GoldTeam` Authentik group.\n"
-                "If you have this group, link your account with `/link`.",
-                ephemeral=True,
-            )
-            return
-        return await func(self, interaction, *args, **kwargs)
-
-    return wrapper
+async def check_gold_team(interaction: discord.Interaction) -> bool:
+    """Check if user is member of GoldTeam."""
+    has_permission = await is_gold_team_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ GoldTeam permissions required.\n\n"
+            "You need the `WCComps_GoldTeam` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission

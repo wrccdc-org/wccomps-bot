@@ -1,0 +1,643 @@
+"""Tests for unified dashboard functionality."""
+
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from datetime import timedelta
+import discord
+import pytest
+from django.utils import timezone
+from core.models import BotState, DashboardUpdate
+from ticketing.models import Ticket
+from team.models import Team
+from bot.unified_dashboard import UnifiedDashboard, DashboardControlView
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestUnifiedDashboard:
+    """Test unified dashboard functionality."""
+
+    async def test_initialization(self) -> None:
+        """Test UnifiedDashboard initialization."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        assert dashboard.bot is bot
+        assert dashboard.running is False
+        assert dashboard.task is None
+        assert dashboard.dashboard_message_id is None
+        assert dashboard.dashboard_channel_id is None
+        assert dashboard.sort_by == "created"
+        assert dashboard.filter_status == "all"
+
+    async def test_start_creates_task(self) -> None:
+        """Test that start() creates background task."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        with patch("asyncio.create_task") as mock_create_task:
+            mock_task = Mock()
+            mock_create_task.return_value = mock_task
+
+            dashboard.start()
+
+            assert dashboard.running is True
+            assert dashboard.task is mock_task
+            mock_create_task.assert_called_once()
+
+    async def test_stop_cancels_task(self) -> None:
+        """Test that stop() cancels background task."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        mock_task = Mock()
+        mock_task.cancel = Mock()
+        dashboard.task = mock_task
+        dashboard.running = True
+
+        dashboard.stop()
+
+        assert dashboard.running is False
+        mock_task.cancel.assert_called_once()
+
+    async def test_initialize_dashboard_creates_new_message(self) -> None:
+        """Test _initialize_dashboard creates new message when none exists."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 9999
+        mock_message = AsyncMock()
+        mock_message.id = 8888
+        mock_channel.send = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        with patch.object(
+            dashboard, "_update_dashboard", new_callable=AsyncMock
+        ) as mock_update:
+            with patch("bot.unified_dashboard.settings") as mock_settings:
+                mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
+
+                await dashboard._initialize_dashboard()
+
+                assert dashboard.dashboard_message_id == 8888
+                assert dashboard.dashboard_channel_id == 9999
+                mock_channel.send.assert_called_once()
+                mock_update.assert_called_once()
+
+                # Verify state saved
+                msg_state = await BotState.objects.aget(
+                    key="unified_dashboard_message_id"
+                )
+                assert msg_state.value == "8888"
+
+    async def test_initialize_dashboard_reconnects_existing(self) -> None:
+        """Test _initialize_dashboard reconnects to existing message."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        await BotState.objects.acreate(key="unified_dashboard_message_id", value="7777")
+        await BotState.objects.acreate(key="unified_dashboard_channel_id", value="6666")
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 6666
+        mock_message = AsyncMock()
+        mock_message.id = 7777
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        with patch.object(
+            dashboard, "_update_dashboard", new_callable=AsyncMock
+        ) as mock_update:
+            await dashboard._initialize_dashboard()
+
+            assert dashboard.dashboard_message_id == 7777
+            assert dashboard.dashboard_channel_id == 6666
+            mock_channel.fetch_message.assert_called_once_with(7777)
+            mock_update.assert_called_once()
+
+    async def test_initialize_dashboard_fallback_on_reconnect_failure(self) -> None:
+        """Test _initialize_dashboard creates new message if reconnect fails."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        await BotState.objects.acreate(key="unified_dashboard_message_id", value="5555")
+        await BotState.objects.acreate(key="unified_dashboard_channel_id", value="4444")
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 9999
+        mock_message = AsyncMock()
+        mock_message.id = 3333
+        mock_channel.send = AsyncMock(return_value=mock_message)
+
+        mock_response = Mock()
+        mock_response.status = 404
+        mock_channel.fetch_message = AsyncMock(
+            side_effect=discord.NotFound(mock_response, "message")
+        )
+
+        # First call returns None (old channel), second returns new channel
+        bot.get_channel.side_effect = [mock_channel, mock_channel]
+
+        with patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock):
+            with patch("bot.unified_dashboard.settings") as mock_settings:
+                mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
+
+                await dashboard._initialize_dashboard()
+
+                assert dashboard.dashboard_message_id == 3333
+                mock_channel.send.assert_called_once()
+
+    async def test_check_and_update_updates_when_needed(self) -> None:
+        """Test _check_and_update triggers update when flag is set."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        await DashboardUpdate.objects.acreate(needs_update=True)
+
+        with patch.object(
+            dashboard, "_update_dashboard", new_callable=AsyncMock
+        ) as mock_update:
+            await dashboard._check_and_update()
+
+            mock_update.assert_called_once()
+
+            # Verify flag cleared
+            dashboard_update = await DashboardUpdate.objects.afirst()
+            assert dashboard_update is not None
+            assert dashboard_update.needs_update is False
+
+    async def test_check_and_update_skips_when_not_needed(self) -> None:
+        """Test _check_and_update skips update when flag is not set."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        await DashboardUpdate.objects.acreate(needs_update=False)
+
+        with patch.object(
+            dashboard, "_update_dashboard", new_callable=AsyncMock
+        ) as mock_update:
+            await dashboard._check_and_update()
+
+            mock_update.assert_not_called()
+
+    async def test_get_stale_indicator_no_assigned_at(self) -> None:
+        """Test _get_stale_indicator returns empty string for unassigned tickets."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        team = await Team.objects.acreate(
+            team_number=1, team_name="Test Team", max_members=5
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T001-001",
+            team=team,
+            category="box-reset",
+            title="Test",
+            description="Test",
+            status="open",
+        )
+
+        result = dashboard._get_stale_indicator(ticket)
+
+        assert result == ""
+
+    async def test_get_stale_indicator_under_30_minutes(self) -> None:
+        """Test _get_stale_indicator returns empty for tickets <30min."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        team = await Team.objects.acreate(
+            team_number=2, team_name="Test Team", max_members=5
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T002-001",
+            team=team,
+            category="box-reset",
+            title="Test",
+            description="Test",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(minutes=15),
+        )
+
+        result = dashboard._get_stale_indicator(ticket)
+
+        assert result == ""
+
+    async def test_get_stale_indicator_over_30_minutes(self) -> None:
+        """Test _get_stale_indicator returns warning for tickets >30min."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        team = await Team.objects.acreate(
+            team_number=3, team_name="Test Team", max_members=5
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T003-001",
+            team=team,
+            category="box-reset",
+            title="Test",
+            description="Test",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(minutes=45),
+        )
+
+        result = dashboard._get_stale_indicator(ticket)
+
+        assert result == " ⚠️"
+
+    async def test_get_stale_indicator_over_1_hour(self) -> None:
+        """Test _get_stale_indicator returns alert for tickets >1hr."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        team = await Team.objects.acreate(
+            team_number=4, team_name="Test Team", max_members=5
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T004-001",
+            team=team,
+            category="box-reset",
+            title="Test",
+            description="Test",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(hours=1, minutes=30),
+        )
+
+        result = dashboard._get_stale_indicator(ticket)
+
+        assert result == " 🚨"
+
+    async def test_get_stale_indicator_over_2_hours(self) -> None:
+        """Test _get_stale_indicator returns critical for tickets >2hr."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        team = await Team.objects.acreate(
+            team_number=5, team_name="Test Team", max_members=5
+        )
+
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T005-001",
+            team=team,
+            category="box-reset",
+            title="Test",
+            description="Test",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(hours=3),
+        )
+
+        result = dashboard._get_stale_indicator(ticket)
+
+        assert result == " ⛔"
+
+    async def test_get_time_ago_just_now(self) -> None:
+        """Test _get_time_ago returns 'just now' for <1min."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        dt = timezone.now() - timedelta(seconds=30)
+        result = dashboard._get_time_ago(dt)
+
+        assert result == "just now"
+
+    async def test_get_time_ago_minutes(self) -> None:
+        """Test _get_time_ago returns minutes for <1hr."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        dt = timezone.now() - timedelta(minutes=15)
+        result = dashboard._get_time_ago(dt)
+
+        assert "15m ago" in result
+
+    async def test_get_time_ago_hours(self) -> None:
+        """Test _get_time_ago returns hours for <1day."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        dt = timezone.now() - timedelta(hours=5)
+        result = dashboard._get_time_ago(dt)
+
+        assert "5h ago" in result
+
+    async def test_get_time_ago_days(self) -> None:
+        """Test _get_time_ago returns days for >1day."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        dt = timezone.now() - timedelta(days=3)
+        result = dashboard._get_time_ago(dt)
+
+        assert "3d ago" in result
+
+    async def test_get_time_ago_none(self) -> None:
+        """Test _get_time_ago returns empty string for None."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        result = dashboard._get_time_ago(None)
+
+        assert result == ""
+
+    async def test_update_dashboard_no_tickets(self) -> None:
+        """Test _update_dashboard with no active tickets."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+        assert "No active tickets!" in embed.description
+
+    async def test_update_dashboard_with_tickets(self) -> None:
+        """Test _update_dashboard displays tickets correctly."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+
+        team = await Team.objects.acreate(
+            team_number=10, team_name="Test Team", max_members=5
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T010-001",
+            team=team,
+            category="box-reset",
+            title="Test Ticket",
+            description="Test description",
+            status="open",
+            discord_thread_id=9999,
+        )
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+        assert "1 active tickets" in embed.description
+
+    async def test_update_dashboard_sort_by_stale(self) -> None:
+        """Test _update_dashboard sorting by stale."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+        dashboard.sort_by = "stale"
+
+        team = await Team.objects.acreate(
+            team_number=11, team_name="Test Team", max_members=5
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T011-001",
+            team=team,
+            category="box-reset",
+            title="Old Ticket",
+            description="Old",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(hours=2),
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T011-002",
+            team=team,
+            category="box-reset",
+            title="New Ticket",
+            description="New",
+            status="claimed",
+            assigned_at=timezone.now() - timedelta(minutes=5),
+        )
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+
+    async def test_update_dashboard_sort_by_team(self) -> None:
+        """Test _update_dashboard sorting by team name."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+        dashboard.sort_by = "team"
+
+        team_a = await Team.objects.acreate(
+            team_number=20, team_name="Alpha Team", max_members=5
+        )
+
+        team_b = await Team.objects.acreate(
+            team_number=21, team_name="Bravo Team", max_members=5
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T021-001",
+            team=team_b,
+            category="box-reset",
+            title="Bravo Ticket",
+            description="Bravo",
+            status="open",
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T020-001",
+            team=team_a,
+            category="box-reset",
+            title="Alpha Ticket",
+            description="Alpha",
+            status="open",
+        )
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+
+    async def test_update_dashboard_filter_open(self) -> None:
+        """Test _update_dashboard filtering to only open tickets."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+        dashboard.filter_status = "open"
+
+        team = await Team.objects.acreate(
+            team_number=30, team_name="Test Team", max_members=5
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T030-001",
+            team=team,
+            category="box-reset",
+            title="Open Ticket",
+            description="Open",
+            status="open",
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T030-002",
+            team=team,
+            category="box-reset",
+            title="Claimed Ticket",
+            description="Claimed",
+            status="claimed",
+        )
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+        assert "Filter: Open" in embed.description
+
+    async def test_update_dashboard_filter_claimed(self) -> None:
+        """Test _update_dashboard filtering to only claimed tickets."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+        dashboard.filter_status = "claimed"
+
+        team = await Team.objects.acreate(
+            team_number=31, team_name="Test Team", max_members=5
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T031-001",
+            team=team,
+            category="box-reset",
+            title="Open Ticket",
+            description="Open",
+            status="open",
+        )
+
+        await Ticket.objects.acreate(
+            ticket_number="T031-002",
+            team=team,
+            category="box-reset",
+            title="Claimed Ticket",
+            description="Claimed",
+            status="claimed",
+        )
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_channel.id = 2222
+        mock_channel.guild = Mock()
+        mock_channel.guild.id = 3333
+        mock_message = AsyncMock()
+        mock_message.edit = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+        assert "Filter: Claimed" in embed.description
+
+    async def test_update_dashboard_handles_not_found(self) -> None:
+        """Test _update_dashboard handles message not found."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        dashboard.dashboard_message_id = 1111
+        dashboard.dashboard_channel_id = 2222
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_response = Mock()
+        mock_response.status = 404
+        mock_channel.fetch_message = AsyncMock(
+            side_effect=discord.NotFound(mock_response, "message")
+        )
+
+        bot.get_channel.return_value = mock_channel
+
+        await dashboard._update_dashboard()
+
+        assert dashboard.dashboard_message_id is None
+        assert dashboard.dashboard_channel_id is None
+
+    async def test_trigger_update(self) -> None:
+        """Test trigger_update sets needs_update flag."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+
+        await dashboard.trigger_update()
+
+        dashboard_update = await DashboardUpdate.objects.afirst()
+        assert dashboard_update is not None
+        assert dashboard_update.needs_update is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestDashboardControlView:
+    """Test dashboard control view initialization."""
+
+    async def test_view_initialization(self) -> None:
+        """Test DashboardControlView creates with dashboard reference."""
+        bot = AsyncMock(spec=discord.Client)
+        dashboard = UnifiedDashboard(bot)
+        view = DashboardControlView(dashboard)
+
+        assert view.dashboard is dashboard
+        assert view.timeout is None

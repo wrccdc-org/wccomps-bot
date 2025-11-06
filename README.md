@@ -142,7 +142,7 @@ No Django users are created - all authentication goes through Authentik. Users i
 
 ### 6. Setup Discord Infrastructure
 
-In Discord, run: `/admin` commands to set up team roles and channels as needed.
+In Discord, run: `/teams`, `/tickets`, or `/competition` commands to set up team roles and channels as needed.
 
 ## Multi-Guild Role Synchronization
 
@@ -172,30 +172,34 @@ Role sync is **one-way** (Volunteer → Competition):
 ### Admin Commands
 
 **Team Management:**
-- `/admin teams` - List all teams with member counts
-- `/admin team-info <team_number>` - Detailed info about specific team
-- `/admin link-attempts [limit]` - View recent link attempts (successes and failures)
-- `/admin unlink <users>` - Unlink one or more Discord users from their teams
-- `/admin remove-team <team_number>` - Remove team infrastructure (Team 1 category/channels protected)
-- `/admin reset-team <team_number>` - Comprehensive team reset (unlinks users, resets password, revokes sessions, optionally recreates channels)
-- `/admin end-competition` - Cleanup all teams at end of competition (deletes ALL infrastructure including Team 01)
-- `/admin reset-blueteam-passwords` - Reset passwords for all blueteam01-blueteam50 accounts and export CSV
-- `/admin set-max-members <count>` - Set maximum members per team globally (1-20)
-- `/admin set-start-time <datetime>` - Set competition start time for auto-enabling applications
-- `/admin enable-applications-now` - Emergency override to enable applications immediately
-- `/admin competition-disable-apps` - Manually disable competition applications
-- `/admin competition-status` - View competition timing and application status
-- `/admin competition-set-apps <slugs>` - Set which Authentik applications to control
+- `/teams list` - List all teams with member counts
+- `/teams info <team_number>` - Detailed info about specific team
+- `/teams unlink <users>` - Unlink one or more Discord users from their teams
+- `/teams remove <team_number>` - Remove team infrastructure (Team 1 category/channels protected)
+- `/teams reset <team_number>` - Comprehensive team reset (unlinks users, resets password, revokes sessions, optionally recreates channels)
+
+**Competition Management:**
+- `/competition end-competition` - Cleanup all teams at end of competition (deletes ALL infrastructure including Team 01)
+- `/competition reset-blueteam-passwords` - Reset passwords for all blueteam01-blueteam50 accounts and export CSV
+- `/competition set-max-members <count>` - Set maximum members per team globally (1-20)
+- `/competition set-start-time <datetime>` - Set competition start time for auto-enabling applications
+- `/competition enable-applications-now` - Emergency override to enable applications immediately
+- `/competition disable-apps` - Manually disable competition applications
+- `/competition status` - View competition timing and application status
+- `/competition set-apps <slugs>` - Set which Authentik applications to control
+- `/competition link-attempts [limit]` - View recent link attempts (successes and failures)
+- `/competition broadcast <target> <message>` - Broadcast message to announcements, all teams, or specific teams (e.g., "1,3,5-10")
+
+**General Admin:**
 - `/admin sync-roles` - Synchronize team roles from volunteer guild to competition guild (one-way sync)
-- `/admin broadcast <target> <message>` - Broadcast message to announcements, all teams, or specific teams (e.g., "1,3,5-10")
 
 **Ticketing:**
-- `/admin ticket-create <team_number> <category> <description>` - Create ticket for a team
-- `/admin ticket-list [status] [team_number]` - List and filter tickets
-- `/admin ticket-resolve <ticket_id> <notes> [points]` - Resolve ticket with optional point override (use dashboard button instead)
-- `/admin ticket-cancel <ticket_id> [reason]` - Cancel ticket without point penalty
-- `/admin ticket-comment <ticket_id> <comment>` - Add comment to ticket
-- `/admin points <team_number>` - View team's point adjustment history
+- `/tickets create <team_number> <category> <description>` - Create ticket for a team
+- `/tickets list [status] [team_number]` - List and filter tickets
+- `/tickets resolve <ticket_id> <notes> [points]` - Resolve ticket with optional point override (use dashboard button instead)
+- `/tickets cancel <ticket_id> [reason]` - Cancel ticket without point penalty
+- `/tickets reassign <ticket_id> <support_user>` - Reassign ticket to different support volunteer
+- `/tickets reopen <ticket_id>` - Reopen a resolved ticket
 
 **Team Commands:**
 - `/ticket-cancel <ticket_id>` - Cancel your own unclaimed ticket (no point penalty)
@@ -358,7 +362,7 @@ Variable cost categories default to lower value. Volunteers can override points 
 2. Bot updates ticket status to "claimed" and shows volunteer's name
 3. Volunteer works on issue
 4. Volunteer clicks "Start Work" to mark in progress
-5. Volunteer runs `/admin ticket-resolve <id> <notes>` to close ticket
+5. Volunteer runs `/tickets resolve <id> <notes>` to close ticket
 6. Points automatically deducted from team
 7. Ticket marked as resolved
 
@@ -373,7 +377,7 @@ Variable cost categories default to lower value. Volunteers can override points 
 
 ### Resetting BlueTeam Passwords
 
-The `/admin reset-blueteam-passwords` command allows WCComps_Discord_Admin members to reset all blueteam account passwords at once.
+The `/competition reset-blueteam-passwords` command allows WCComps_Discord_Admin members to reset all blueteam account passwords at once.
 
 **Requirements:**
 - User must be in `WCComps_Discord_Admin` Authentik group
@@ -381,7 +385,7 @@ The `/admin reset-blueteam-passwords` command allows WCComps_Discord_Admin membe
 - Generate token at: `https://auth.wccomps.org/if/admin/#/core/tokens`
 
 **Workflow:**
-1. Admin runs `/admin reset-blueteam-passwords` in Discord
+1. Admin runs `/competition reset-blueteam-passwords` in Discord
 2. Bot generates readable passphrase-style passwords for blueteam01-blueteam50
 3. Bot calls Authentik API to reset each password
 4. Bot creates CSV file with username, password, and status columns
@@ -445,7 +449,7 @@ blueteam03,315!-Lunchbox-Molecule,User not found
 ### Queue processor errors
 - Check bot logs: `docker-compose logs bot`
 - Verify database connection is working
-- Check for failed tasks in Django admin: `/admin/core/discordtask/`
+- Check for failed tasks in Django admin at web interface: `/admin/core/discordtask/`
 - Retry failed tasks using admin action
 
 ### Ticket queue channel not updating

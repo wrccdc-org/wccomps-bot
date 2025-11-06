@@ -7,13 +7,19 @@ set -e
 REMOTE_HOST="root@10.0.0.10"
 REMOTE_PATH="/opt/stacks/wccomps-bot/"
 
-echo "Upgrading dependencies..."
+echo "Upgrading lock file..."
 uv lock --upgrade
 
-echo "✓ Dependencies upgraded"
+echo "Syncing dependencies..."
+uv sync
+
+echo "✓ Dependencies upgraded and synced"
 echo ""
 echo "Running ruff format..."
 uv run ruff format .
+
+echo "Running ruff check with auto-fix..."
+uv run ruff check --fix .
 
 echo "Running ruff check..."
 uv run ruff check .
@@ -47,13 +53,22 @@ fi
 echo "✓ No unapplied model changes"
 echo ""
 echo "Running tests..."
-PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest bot/tests/ -v
+PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest bot/tests/ --ignore=bot/tests/test_command_registration.py -v
 if [ $? -ne 0 ]; then
     echo "✗ Tests failed"
     exit 1
 fi
 
 echo "✓ All tests passed"
+echo ""
+echo "Running integration tests in isolation..."
+PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest bot/tests/test_command_registration.py -v
+if [ $? -ne 0 ]; then
+    echo "✗ Integration tests failed"
+    exit 1
+fi
+
+echo "✓ Integration tests passed"
 echo ""
 echo "Deploying to $REMOTE_HOST:$REMOTE_PATH"
 

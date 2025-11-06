@@ -2,21 +2,13 @@
 
 import pytest
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from hypothesis import given, strategies as st, assume, settings
-from hypothesis.extra.django import from_model, TestCase
 from django.utils import timezone
-from django.db import IntegrityError, transaction
 
-from core.models import (
-    Team,
-    DiscordLink,
-    LinkToken,
-    LinkRateLimit,
-    CommentRateLimit,
-    CompetitionConfig,
-    Ticket,
-)
+from core.models import CompetitionConfig
+from team.models import Team, DiscordLink, LinkToken, LinkRateLimit
+from ticketing.models import CommentRateLimit, Ticket
 
 
 @pytest.mark.django_db(transaction=True)
@@ -26,14 +18,15 @@ class TestTeamProperties:
     @given(
         max_members=st.integers(min_value=1, max_value=20),
         member_count=st.integers(min_value=0, max_value=20),
+        team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=50)
     def test_team_is_full_property(
-        self, max_members: int, member_count: int
+        self, max_members: int, member_count: int, team_number: int
     ):
         """Property: team.is_full() iff get_member_count() >= max_members."""
-        # Use unique team_number for each test run
-        team_number = hash(str(uuid.uuid4())) % 10000
+        # Skip if team number already exists (avoid UNIQUE constraint failures)
+        assume(not Team.objects.filter(team_number=team_number).exists())
 
         team = Team.objects.create(
             team_number=team_number,
@@ -59,14 +52,13 @@ class TestTeamProperties:
 
     @given(
         max_members=st.integers(min_value=1, max_value=20),
+        team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=50)
-    def test_member_count_never_negative(
-        self, max_members: int
-    ):
+    def test_member_count_never_negative(self, max_members: int, team_number: int):
         """Property: get_member_count() is always >= 0."""
-        # Use unique team_number for each test run
-        team_number = hash(str(uuid.uuid4())) % 10000
+        # Try to create team, skip if team number already exists
+        assume(not Team.objects.filter(team_number=team_number).exists())
 
         team = Team.objects.create(
             team_number=team_number,
@@ -86,9 +78,7 @@ class TestDiscordLinkProperties:
         link_count=st.integers(min_value=2, max_value=5),
     )
     @settings(max_examples=30)
-    def test_only_one_active_link_per_discord_id(
-        self, link_count: int
-    ):
+    def test_only_one_active_link_per_discord_id(self, link_count: int):
         """Property: only one active DiscordLink per discord_id at any time."""
         # Use unique discord_id for each test run
         discord_id = hash(str(uuid.uuid4())) % 1000000000000000000 + 100000000000000000
@@ -122,9 +112,7 @@ class TestLinkTokenProperties:
         hours_from_now=st.floats(min_value=-24, max_value=24, allow_nan=False),
     )
     @settings(max_examples=50)
-    def test_token_expiration_property(
-        self, hours_from_now: float
-    ):
+    def test_token_expiration_property(self, hours_from_now: float):
         """Property: token.is_expired() iff current_time > expires_at."""
         discord_id = hash(str(uuid.uuid4())) % 1000000000000000000 + 100000000000000000
         expires_at = timezone.now() + timedelta(hours=hours_from_now)
@@ -201,17 +189,20 @@ class TestCommentRateLimitProperties:
     @given(
         ticket_comments=st.integers(min_value=0, max_value=10),
         user_comments=st.integers(min_value=0, max_value=15),
+        team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=50)
     def test_comment_rate_limit_properties(
         self,
         ticket_comments: int,
         user_comments: int,
+        team_number: int,
     ):
         """Property: rate limit enforces both per-ticket and per-user limits."""
         assume(ticket_comments <= user_comments)
+        # Skip if team number already exists
+        assume(not Team.objects.filter(team_number=team_number).exists())
 
-        team_number = hash(str(uuid.uuid4())) % 10000
         discord_id = hash(str(uuid.uuid4())) % 1000000000000000000 + 100000000000000000
 
         # Create team and ticket
@@ -230,21 +221,17 @@ class TestCommentRateLimitProperties:
 
         # Create comments for this ticket
         for i in range(ticket_comments):
-            CommentRateLimit.objects.create(
-                ticket=ticket, discord_id=discord_id
-            )
+            CommentRateLimit.objects.create(ticket=ticket, discord_id=discord_id)
 
         # Create comments for other tickets (to test user-level limit)
         for i in range(user_comments - ticket_comments):
             other_ticket = Ticket.objects.create(
-                ticket_number=f"T{team_number}-{i+2:03d}-{uuid.uuid4()}",
+                ticket_number=f"T{team_number}-{i + 2:03d}-{uuid.uuid4()}",
                 team=team,
                 category="technical",
                 title=f"Other ticket {i}",
             )
-            CommentRateLimit.objects.create(
-                ticket=other_ticket, discord_id=discord_id
-            )
+            CommentRateLimit.objects.create(ticket=other_ticket, discord_id=discord_id)
 
         is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, discord_id)
 
@@ -289,9 +276,7 @@ class TestCompetitionConfigProperties:
 
     @given(currently_enabled=st.booleans())
     @settings(max_examples=20)
-    def test_should_not_enable_without_start_time(
-        self, currently_enabled: bool
-    ):
+    def test_should_not_enable_without_start_time(self, currently_enabled: bool):
         """Property: should never enable if no start_time is set."""
         config = CompetitionConfig.objects.create(
             competition_start_time=None, applications_enabled=currently_enabled
@@ -309,13 +294,15 @@ class TestTeamTicketCounterProperties:
 
     @given(
         initial_counter=st.integers(min_value=0, max_value=100),
+        team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=30)
     def test_ticket_counter_never_negative(
-        self, initial_counter: int
+        self, initial_counter: int, team_number: int
     ):
         """Property: ticket_counter is always >= 0."""
-        team_number = hash(str(uuid.uuid4())) % 10000
+        # Skip if team number already exists
+        assume(not Team.objects.filter(team_number=team_number).exists())
 
         team = Team.objects.create(
             team_number=team_number,
@@ -326,3 +313,165 @@ class TestTeamTicketCounterProperties:
 
         assert team.ticket_counter >= 0
         assert team.ticket_counter == initial_counter
+
+
+@pytest.mark.django_db(transaction=True)
+class TestInputValidationProperties:
+    """Property-based tests that stress input validation to find bugs."""
+
+    @given(
+        discord_id=st.one_of(
+            st.integers(min_value=-999999999999999999, max_value=-1),  # Negative
+            st.just(0),  # Zero
+            st.integers(min_value=1, max_value=99999999999999999),  # Too small
+            st.integers(
+                min_value=10000000000000000000, max_value=99999999999999999999
+            ),  # Too large
+        ),
+    )
+    @settings(max_examples=50)
+    def test_discord_id_validation_rejects_invalid_ids(self, discord_id: int):
+        """Property: Invalid discord IDs should be rejected or handled safely."""
+        import uuid
+
+        username = f"user_{uuid.uuid4()}"
+
+        try:
+            DiscordLink.objects.create(
+                discord_id=discord_id,
+                discord_username=username,
+                authentik_username=username,
+                authentik_user_id=f"uid-{uuid.uuid4()}",
+                is_active=True,
+            )
+            # If it succeeded, the ID should be valid
+            # Discord IDs are 17-19 digit positive integers
+            assert discord_id > 0, f"Accepted invalid discord_id: {discord_id}"
+            assert discord_id >= 100000000000000000, (
+                f"Accepted too-small discord_id: {discord_id}"
+            )
+        except Exception as e:
+            # Exceptions are acceptable for invalid input
+            # But should be specific validation errors, not crashes
+            assert not isinstance(e, TypeError), f"Should validate, not crash: {e}"
+            assert not isinstance(e, AttributeError), f"Should validate, not crash: {e}"
+
+    @given(
+        team_number=st.integers(min_value=-100, max_value=200),
+    )
+    @settings(max_examples=50)
+    def test_team_number_bounds_enforced(self, team_number: int):
+        """Property: Team numbers outside 1-50 should be rejected."""
+        try:
+            Team.objects.create(
+                team_number=team_number,
+                team_name=f"Team {team_number}",
+                authentik_group=f"WCComps_BlueTeam{team_number}",
+                max_members=5,
+            )
+            # If it succeeded, verify it's in valid range
+            # Property: Valid teams should be 1-50
+            if team_number < 1:
+                pytest.fail(f"Accepted negative team_number: {team_number}")
+            if team_number > 50:
+                pytest.fail(f"Accepted team_number > 50: {team_number}")
+        except Exception:
+            # Invalid team numbers should raise exceptions
+            pass
+
+    @given(
+        max_members=st.integers(min_value=-10, max_value=100),
+    )
+    @settings(max_examples=50)
+    def test_max_members_bounds_enforced(self, max_members: int):
+        """Property: max_members should reject nonsensical values."""
+        try:
+            Team.objects.create(
+                team_number=42,
+                team_name="Test Team",
+                authentik_group="WCComps_BlueTeam42",
+                max_members=max_members,
+            )
+            # Property: max_members should be positive
+            if max_members < 1:
+                pytest.fail(f"Accepted invalid max_members: {max_members}")
+            # No upper bound - teams can have any positive number of max members
+        except Exception:
+            pass
+
+
+@pytest.mark.django_db(transaction=True)
+class TestDataCorruptionProperties:
+    """Property-based tests for data corruption scenarios."""
+
+    @given(
+        operations=st.lists(
+            st.sampled_from(["add", "remove", "deactivate", "reactivate"]),
+            min_size=5,
+            max_size=20,
+        ),
+        team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
+    )
+    @settings(max_examples=30)
+    def test_team_member_count_never_negative_after_operations(
+        self, operations, team_number
+    ):
+        """Property: No sequence of operations makes member_count negative."""
+        import uuid
+
+        # Skip if team exists
+        assume(not Team.objects.filter(team_number=team_number).exists())
+
+        team = Team.objects.create(
+            team_number=team_number,
+            team_name=f"Stress Test Team {team_number}",
+            authentik_group=f"WCComps_BlueTeam{team_number}",
+            max_members=5,
+        )
+
+        links_created = []
+
+        for i, op in enumerate(operations):
+            if op == "add":
+                # Only add if team is not full (respecting business logic)
+                if not team.is_full():
+                    link = DiscordLink.objects.create(
+                        discord_id=500000000000000000 + i,
+                        discord_username=f"user{i}_{uuid.uuid4()}",
+                        authentik_username=f"auth{i}_{uuid.uuid4()}",
+                        authentik_user_id=f"uid-{uuid.uuid4()}",
+                        team=team,
+                        is_active=True,
+                    )
+                    links_created.append(link)
+
+            elif op == "remove" and links_created:
+                # Remove a member by deactivating link
+                link = links_created.pop()
+                link.is_active = False
+                link.save()
+
+            elif op == "deactivate" and links_created:
+                # Deactivate without removing from list
+                link = links_created[-1]
+                link.is_active = False
+                link.save()
+
+            elif op == "reactivate" and links_created:
+                # Try to reactivate (might violate uniqueness)
+                link = links_created[-1]
+                link.is_active = True
+                link.save()
+
+            # Property: member count is never negative
+            count = team.get_member_count()
+            assert count >= 0, (
+                f"Member count went negative: {count} after operation '{op}'"
+            )
+
+            # Property: member count never exceeds max_members
+            # (This might find a bug if the uniqueness constraint isn't enforced properly)
+            if count > team.max_members:
+                pytest.fail(
+                    f"Member count {count} exceeded max_members {team.max_members}"
+                )

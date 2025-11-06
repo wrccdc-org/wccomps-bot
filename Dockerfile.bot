@@ -23,6 +23,11 @@ RUN uv sync --frozen --no-dev
 COPY main.py ./main.py
 COPY bot/ ./bot/
 COPY web/core/ ./web/core/
+COPY web/team/ ./web/team/
+COPY web/ticketing/ ./web/ticketing/
+COPY web/person/ ./web/person/
+COPY web/competition/ ./web/competition/
+COPY web/quotient/ ./web/quotient/
 COPY web/wccomps/ ./web/wccomps/
 COPY web/manage.py ./web/manage.py
 

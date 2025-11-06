@@ -1,0 +1,156 @@
+# Cotton Component Library
+
+Reusable UI components for wccomps-bot templates using Django Cotton.
+
+## Components
+
+### Layout & Structure
+
+#### `<c-module>`
+Content container (card-like) with optional toolbar.
+```django
+<c-module>
+    <c-slot name="toolbar">
+        <c-link href="/back" variant="history">Back</c-link>
+    </c-slot>
+    Main content here
+</c-module>
+```
+
+#### `<c-page_header>`
+Page title with optional subtitle.
+```django
+<c-page_header title="Ticket List" subtitle="Team Blue" />
+```
+
+#### `<c-fieldset>`
+Grouped form fields with heading.
+```django
+<c-fieldset heading="Ticket Information">
+    <c-form_field label="Title" required="true">
+        <input type="text" name="title" />
+    </c-form_field>
+</c-fieldset>
+```
+
+### Forms
+
+#### `<c-form_field>`
+Form row with label, input, and optional help text/error.
+```django
+<c-form_field label="Email" required="true" help_text="Enter your work email">
+    <input type="email" name="email" />
+</c-form_field>
+```
+
+#### `<c-filter_toolbar>`
+Search and filter form with horizontal layout.
+```django
+<c-filter_toolbar form_id="ticket-filters">
+    <c-filter_field label="Status" id="id_status">
+        <select name="status">...</select>
+    </c-filter_field>
+</c-filter_toolbar>
+```
+
+#### `<c-filter_field>`
+Individual filter input within toolbar.
+```django
+<c-filter_field label="Team" id="id_team">
+    <input type="number" name="team" />
+</c-filter_field>
+```
+
+### Interactive Elements
+
+#### `<c-button>`
+Styled action buttons.
+```django
+<c-button variant="primary" type="submit">Save</c-button>
+<c-button variant="danger">Delete</c-button>
+<c-button variant="cancel">Cancel</c-button>
+```
+
+Props:
+- `variant`: default|primary|danger|cancel
+- `type`: button|submit
+- `class`, `id`, `name`, `value`
+
+#### `<c-link>`
+Styled links.
+```django
+<c-link href="/back" variant="history">Back</c-link>
+<c-link href="/add" variant="add">Add New</c-link>
+```
+
+Props: `href`, `variant` (default|history|add|change)
+
+### Display
+
+#### `<c-badge>`
+Status indicators with color coding.
+```django
+<c-badge status="open">Open</c-badge>
+<c-badge status="claimed">Claimed</c-badge>
+<c-badge status="resolved">Resolved</c-badge>
+<c-badge status="cancelled">Cancelled</c-badge>
+```
+
+#### `<c-alert>`
+Info, warning, error, success messages.
+```django
+<c-alert variant="error">Something went wrong</c-alert>
+<c-alert variant="warning">Points will be deducted</c-alert>
+<c-alert variant="success">Ticket created</c-alert>
+```
+
+### Tables
+
+#### `<c-table>`
+Data table with header and body slots.
+```django
+<c-table id="results" aria_label="Tickets list" fixed_layout="true">
+    <c-slot name="headers">
+        <tr>
+            <c-table_header sort_field="team" current_sort="-created_at">Team</c-table_header>
+        </tr>
+    </c-slot>
+    <tr><td>Data row</td></tr>
+</c-table>
+```
+
+#### `<c-table_header>`
+Sortable table column header.
+```django
+<c-table_header
+    sort_field="team__team_number"
+    current_sort="{{ sort_by }}"
+    query_params="&status=open">
+    Team Number
+</c-table_header>
+```
+
+#### `<c-pagination>`
+Page navigation for paginated results.
+```django
+<c-pagination page_obj=page_obj query_params="&status=open&team=1" />
+```
+
+## Benefits
+
+1. **Consistency**: UI elements look and behave the same across pages
+2. **Maintainability**: Update styling in one place, affects all uses
+3. **Reduced Code**: Less repetition in templates (~40% reduction)
+4. **Type Safety**: Components enforce correct prop usage
+5. **Documentation**: Self-documenting with clear prop names
+6. **Migration Path**: Easy to switch from Django Admin CSS to Bootstrap 5 by updating component internals
+
+## Migration Strategy
+
+Templates can be gradually refactored to use components:
+1. Replace repetitive button HTML with `<c-button>`
+2. Replace status spans with `<c-badge>`
+3. Replace form rows with `<c-form_field>`
+4. Replace tables with `<c-table>` and `<c-table_header>`
+
+The components currently use Django Admin CSS classes, matching the existing style. In the future, we can update component internals to use Bootstrap 5 without changing templates that use the components.
