@@ -7,7 +7,9 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="module" id="changelist">
+    <c-page_header title="School Information" />
+
+    <c-module id="changelist">
 
         <div class="results">
             <table id="result_list" style="table-layout: fixed; width: 100%;">
@@ -77,9 +79,7 @@
                             {% endif %}
                         </td>
                         <td class="field-action">
-                            <a href="{% url 'ops_school_info_edit' item.team.team_number %}" class="button">
-                                Edit
-                            </a>
+                            <c-link href="{% url 'ops_school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
                         </td>
                     </tr>
                     {% endfor %}
@@ -90,6 +90,6 @@
         <p class="paginator">
             {{ teams|length }} team(s)
         </p>
-    </div>
+    </c-module>
 </div>
 {% endblock %}

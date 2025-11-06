@@ -51,7 +51,15 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
+    "crispy_forms",
+    "crispy_bootstrap5",
+    "django_cotton",
     "core",
+    "team",
+    "ticketing",
+    "person",
+    "competition",
+    "quotient",
 ]
 
 MIDDLEWARE = [
@@ -69,6 +77,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "wccomps.urls"
 
+# Crispy Forms configuration
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -80,6 +92,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+            ],
+            "builtins": [
+                "django_cotton.templatetags.cotton",
             ],
         },
     },
@@ -201,6 +216,7 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_LOGIN_ON_GET = True  # Skip intermediate page, redirect immediately
+SOCIALACCOUNT_STORE_TOKENS = False  # Don't store OAuth tokens (we don't need them)
 LOGIN_URL = "/accounts/oidc/authentik/login/"
 LOGIN_REDIRECT_URL = "/"
 SOCIALACCOUNT_PROVIDERS = {
@@ -245,6 +261,14 @@ DISCORD_TICKET_QUEUE_CHANNEL_ID = int(
 DISCORD_ANNOUNCEMENT_CHANNEL_ID = int(
     os.environ.get("DISCORD_ANNOUNCEMENT_CHANNEL_ID", 1208127199622860881)
 )
+# Channel where combined link+ticket panel is posted (#welcome-rules)
+DISCORD_WELCOME_CHANNEL_ID = int(
+    os.environ.get("DISCORD_WELCOME_CHANNEL_ID", 525724053730885642)
+)
+# Channel where link-only panel is posted (#link - hidden after linking)
+DISCORD_LINK_CHANNEL_ID = int(
+    os.environ.get("DISCORD_LINK_CHANNEL_ID", 1436492939130835065)
+)
 BLUETEAM_ROLE_ID = int(os.environ.get("BLUETEAM_ROLE_ID", 525444104763736075))
 
 # Authentik group to Discord role mappings
@@ -281,6 +305,11 @@ ROLE_SYNC_MAPPING = {
 
 AUTHENTIK_URL = os.environ.get("AUTHENTIK_URL", "https://auth.wccomps.org")
 AUTHENTIK_TOKEN = os.environ.get("AUTHENTIK_TOKEN", "")
+
+# Quotient API settings
+QUOTIENT_API_URL = os.environ.get("QUOTIENT_API_URL", "https://scoring.wccomps.org")
+QUOTIENT_ADMIN_USERNAME = os.environ.get("QUOTIENT_ADMIN_USERNAME", "")
+QUOTIENT_ADMIN_PASSWORD = os.environ.get("QUOTIENT_ADMIN_PASSWORD", "")
 
 # Logging configuration - capture errors to stdout
 LOGGING = {

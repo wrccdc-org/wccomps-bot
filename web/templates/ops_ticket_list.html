@@ -7,63 +7,54 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="module filtered" id="changelist">
-        <div class="toolbar">
-            <form id="changelist-filter" method="GET" role="search" aria-label="Filter tickets">
-                <div id="filter-content">
-                    <div>
-                        <div>
-                            <label for="id_search">Search</label>
-                            <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/">
-                        </div>
-                        <div>
-                            <label for="id_status">Status</label>
-                            <select name="status" id="id_status" aria-label="Filter by status">
-                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
-                                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                                <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
-                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="id_team">Team Number</label>
-                            <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
-                        </div>
-                        <div>
-                            <label for="id_category">Category</label>
-                            <select name="category" id="id_category" aria-label="Filter by category">
-                                <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
-                                {% for cat_id, cat_info in categories.items %}
-                                <option value="{{ cat_id }}" {% if category_filter == cat_id %}selected{% endif %}>
-                                    {{ cat_info.display_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="id_assignee">Assigned To</label>
-                            <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
-                                <option value="">All Assignees</option>
-                                <option value="unassigned" {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
-                                {% for assignee in assignees %}
-                                <option value="{{ assignee }}" {% if assignee_filter == assignee %}selected{% endif %}>{{ assignee }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="id_page_size">Results Per Page</label>
-                            <select name="page_size" id="id_page_size" aria-label="Results per page">
-                                <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
-                                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-                                <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
+    <c-module filtered="true" id="changelist">
+        <c-filter_toolbar form_id="changelist-filter">
+            <c-filter_field label="Search" id="id_search" min_width="200px">
+                <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/">
+            </c-filter_field>
+
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                    <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </c-filter_field>
+
+            <c-filter_field label="Team Number" id="id_team">
+                <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
+            </c-filter_field>
+
+            <c-filter_field label="Category" id="id_category">
+                <select name="category" id="id_category" aria-label="Filter by category">
+                    <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
+                    {% for cat_id, cat_info in categories.items %}
+                    <option value="{{ cat_id }}" {% if category_filter == cat_id %}selected{% endif %}>{{ cat_info.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
+
+            <c-filter_field label="Assigned To" id="id_assignee">
+                <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
+                    <option value="">All Assignees</option>
+                    <option value="unassigned" {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                    {% for assignee in assignees %}
+                    <option value="{{ assignee }}" {% if assignee_filter == assignee %}selected{% endif %}>{{ assignee }}</option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
+
+            <c-filter_field label="Results Per Page" id="id_page_size">
+                <select name="page_size" id="id_page_size" aria-label="Results per page">
+                    <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                    <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                    <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
+                </select>
+            </c-filter_field>
+        </c-filter_toolbar>
 
         <div class="actions" id="bulk-actions" style="display: none;" role="region" aria-live="polite" aria-label="Bulk actions">
             <div>
@@ -73,12 +64,12 @@
                 <form method="post" action="/ops/tickets/bulk-claim/" style="display: inline;" id="bulk-claim-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-claim-tickets" />
-                    <button type="submit" class="button">Claim Selected</button>
+                    <c-button type="submit">Claim Selected</c-button>
                 </form>
                 <form method="post" action="/ops/tickets/bulk-resolve/" style="display: inline;" id="bulk-resolve-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-resolve-tickets" />
-                    <button type="submit" class="button">Resolve Selected</button>
+                    <c-button type="submit">Resolve Selected</c-button>
                 </form>
             </div>
         </div>
@@ -168,7 +159,7 @@
                         <td class="field-team">{{ item.ticket.team.team_name }}</td>
                         <td class="field-category">{{ item.category_name }}</td>
                         <td class="field-status" role="gridcell">
-                            <span role="status" aria-label="Status: {{ item.status_display }}">{{ item.status_display }}</span>
+                            <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
                         </td>
                         <td class="field-assigned">
                             {% if item.ticket.assigned_to_discord_username %}
@@ -182,16 +173,16 @@
                             {% if item.ticket.status == "open" %}
                                 <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/claim/" style="display: inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="button">Claim</button>
+                                    <c-button type="submit">Claim</c-button>
                                 </form>
                             {% elif item.ticket.status == "claimed" %}
                                 <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/resolve/" style="display: inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="button">Resolve</button>
+                                    <c-button type="submit">Resolve</c-button>
                                 </form>
                                 <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" style="display: inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="button">Unclaim</button>
+                                    <c-button type="submit">Unclaim</c-button>
                                 </form>
                             {% endif %}
                         </td>
@@ -211,26 +202,8 @@
             </table>
         </div>
 
-        {% if page_obj %}
-        <p class="paginator">
-            Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} tickets
-
-            <span class="pagination">
-                {% if page_obj.has_previous %}
-                    <a href="?page=1&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">First</a>
-                    <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Previous</a>
-                {% endif %}
-
-                <span class="this-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-
-                {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Next</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}">Last</a>
-                {% endif %}
-            </span>
-        </p>
-        {% endif %}
-    </div>
+        <c-pagination page_obj="{{ page_obj }}" query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}" />
+    </c-module>
 </div>
 
 <script>

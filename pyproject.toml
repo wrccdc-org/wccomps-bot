@@ -11,6 +11,9 @@ dependencies = [
     # Django web app
     "django>=5.0,<5.1",
     "django-allauth>=0.57",
+    "django-cotton>=0.9",
+    "django-crispy-forms>=2.1",
+    "crispy-bootstrap5>=2024.2",
     "pyjwt>=2.8.0",
     "gunicorn>=21.2",
     "whitenoise>=6.6",
@@ -54,6 +57,7 @@ dev = [
     "mypy>=1.13",
     "django-stubs>=5.1.1",
     "types-requests>=2.32",
+    "pytest-cov>=7.0.0",
 ]
 
 [tool.mypy]
@@ -70,4 +74,14 @@ ignore_errors = true
 
 [tool.django-stubs]
 django_settings_module = "wccomps.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "wccomps.settings"
+pythonpath = ["web"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+testpaths = ["bot/tests"]
+addopts = ["-v", "--tb=short"]
 

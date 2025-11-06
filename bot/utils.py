@@ -5,7 +5,9 @@ import discord
 from typing import Optional, Tuple
 from django.conf import settings
 from asgiref.sync import sync_to_async
-from core.models import Team, Ticket, AuditLog, TicketHistory
+from core.models import AuditLog
+from team.models import Team
+from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,7 @@ async def get_team_or_respond(
     Returns:
         Team object if found, None if not found (error sent to user)
     """
-    from core.models import Team
+    from team.models import Team
 
     if validate_range and (team_number < 1 or team_number > 50):
         await interaction.response.send_message(
@@ -166,7 +168,8 @@ def log_action(
     Returns:
         Tuple of (AuditLog, TicketHistory or None)
     """
-    from core.models import AuditLog, TicketHistory
+    from core.models import AuditLog
+    from ticketing.models import TicketHistory
 
     # Determine target entity and ID
     if ticket:

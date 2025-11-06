@@ -7,7 +7,9 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
-from core.models import DiscordTask, Team, Ticket, TicketComment
+from core.models import DiscordTask
+from team.models import Team
+from ticketing.models import Ticket, TicketComment
 from bot.discord_manager import DiscordManager
 from asgiref.sync import sync_to_async
 import discord
@@ -26,12 +28,22 @@ class DiscordQueueProcessor:
 
     def start(self) -> None:
         """Start the queue processor as an async task."""
+        import os
+
         self.running = True
 
-        # Initialize discord manager when bot is ready
-        if self.bot.guilds:
+        # Initialize discord manager with the configured guild
+        guild_id = int(os.environ.get("DISCORD_GUILD_ID", 0))
+        if guild_id:
+            guild = self.bot.get_guild(guild_id)
+            if guild:
+                self.discord_manager = DiscordManager(guild, self.bot)
+            else:
+                logger.error(f"Could not find configured guild {guild_id}")
+        elif self.bot.guilds:
+            # Fallback to first guild if DISCORD_GUILD_ID not set
             guild = self.bot.guilds[0]
-            self.discord_manager = DiscordManager(guild)
+            self.discord_manager = DiscordManager(guild, self.bot)
 
         # Start processing task
         self.task = asyncio.create_task(self._process_loop())
@@ -187,10 +199,29 @@ class DiscordQueueProcessor:
         if not discord_id or not team_number:
             raise ValueError("Missing discord_id or team_number in payload")
 
-        guild = self.bot.guilds[0]
+        guild = self.discord_manager.guild
         member = guild.get_member(discord_id)
+
+        # If not in cache, try to fetch from API
         if not member:
-            raise ValueError(f"Member {discord_id} not found in guild")
+            try:
+                member = await guild.fetch_member(discord_id)
+            except discord.NotFound:
+                # Member is not in the guild
+                try:
+                    user = await self.bot.fetch_user(discord_id)
+                    username = f"{user.name} ({discord_id})"
+                except Exception:
+                    username = str(discord_id)
+
+                logger.warning(
+                    f"Member {username} not found in guild, skipping role assignment. "
+                    f"Role will be assigned when they join the server."
+                )
+                return
+            except Exception as e:
+                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                raise
 
         # Set up team infrastructure if needed
         @sync_to_async
@@ -220,13 +251,21 @@ class DiscordQueueProcessor:
         if not discord_id:
             raise ValueError("Missing discord_id in payload")
 
-        guild = self.bot.guilds[0]
+        guild = self.discord_manager.guild
         member = guild.get_member(discord_id)
+
+        # If not in cache, try to fetch from API
         if not member:
-            logger.warning(
-                f"Member {discord_id} not found in guild, skipping group role assignment"
-            )
-            return
+            try:
+                member = await guild.fetch_member(discord_id)
+            except discord.NotFound:
+                logger.warning(
+                    f"Member {discord_id} not found in guild, skipping group role assignment"
+                )
+                return
+            except Exception as e:
+                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                raise
 
         # Assign group-based roles
         success = await self.discord_manager.assign_group_roles(
@@ -248,11 +287,21 @@ class DiscordQueueProcessor:
         if not discord_id or not team_number:
             raise ValueError("Missing discord_id or team_number in payload")
 
-        guild = self.bot.guilds[0]
+        guild = self.discord_manager.guild
         member = guild.get_member(discord_id)
+
+        # If not in cache, try to fetch from API
         if not member:
-            logger.warning(f"Member {discord_id} not in guild, skipping role removal")
-            return
+            try:
+                member = await guild.fetch_member(discord_id)
+            except discord.NotFound:
+                logger.warning(
+                    f"Member {discord_id} not in guild, skipping role removal"
+                )
+                return
+            except Exception as e:
+                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                raise
 
         success = await self.discord_manager.remove_team_role(member, team_number)
         if not success:

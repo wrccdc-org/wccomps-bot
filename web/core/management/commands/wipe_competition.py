@@ -2,20 +2,9 @@
 
 from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
-from core.models import (
-    Team,
-    DiscordLink,
-    LinkToken,
-    LinkAttempt,
-    AuditLog,
-    Ticket,
-    TicketAttachment,
-    TicketComment,
-    TicketHistory,
-    DiscordTask,
-    BotState,
-    DashboardUpdate,
-)
+from core.models import AuditLog, DiscordTask, BotState, DashboardUpdate
+from team.models import Team, DiscordLink, LinkToken, LinkAttempt
+from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
 
 class Command(BaseCommand):

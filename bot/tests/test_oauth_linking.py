@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import patch
 import pytest
 from bot.cogs.linking import LinkingCog
-from core.models import DiscordLink, LinkToken, LinkRateLimit, Team
+from team.models import DiscordLink, LinkToken, LinkRateLimit, Team
 from django.utils import timezone
 
 
@@ -47,8 +47,9 @@ class TestLinkTokenGeneration:
     ) -> None:
         """Test that /link command rejects already linked users."""
         team = await Team.objects.acreate(
-            team_number=60,
+            team_number=10,
             team_name="Test Team Already Linked",
+            authentik_group="WCComps_BlueTeam10",
             max_members=5,
         )
 
@@ -160,7 +161,7 @@ class TestDiscordLinkCreation:
     async def test_create_link_for_team_member(self) -> None:
         """Test creating DiscordLink for team member."""
         team = await Team.objects.acreate(
-            team_number=61,
+            team_number=11,
             team_name="Test Team Link Creation",
             max_members=5,
         )
@@ -179,7 +180,7 @@ class TestDiscordLinkCreation:
     async def test_prevent_duplicate_active_links(self) -> None:
         """Test that duplicate active links are prevented."""
         team = await Team.objects.acreate(
-            team_number=62,
+            team_number=12,
             team_name="Test Team Duplicate",
             max_members=5,
         )
@@ -204,7 +205,7 @@ class TestDiscordLinkCreation:
     async def test_deactivate_link(self) -> None:
         """Test deactivating a DiscordLink."""
         team = await Team.objects.acreate(
-            team_number=63,
+            team_number=13,
             team_name="Test Team Deactivate",
             max_members=5,
         )
@@ -236,7 +237,7 @@ class TestLinkingWithRoles:
         from core.models import DiscordTask
 
         team = await Team.objects.acreate(
-            team_number=64,
+            team_number=14,
             team_name="Test Team Role Queue",
             discord_role_id=6401,
             max_members=5,
@@ -269,7 +270,7 @@ class TestLinkingWithRoles:
         from core.models import DiscordTask
 
         team = await Team.objects.acreate(
-            team_number=65,
+            team_number=15,
             team_name="Test Team Group Roles",
             discord_role_id=6501,
             max_members=5,

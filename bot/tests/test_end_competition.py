@@ -1,7 +1,7 @@
 from typing import Any
 import pytest
 from bot.discord_manager import DiscordManager
-from core.models import Team
+from team.models import Team
 
 
 @pytest.mark.asyncio

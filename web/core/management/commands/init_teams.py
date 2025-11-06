@@ -2,7 +2,8 @@
 
 from typing import Any
 from django.core.management.base import BaseCommand
-from core.models import Team, CompetitionConfig
+from core.models import CompetitionConfig
+from team.models import Team
 
 
 class Command(BaseCommand):

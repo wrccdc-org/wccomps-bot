@@ -8,7 +8,7 @@ import logging
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
-from core.models import DiscordLink, LinkToken, LinkRateLimit
+from team.models import DiscordLink, LinkToken, LinkRateLimit
 
 logger = logging.getLogger(__name__)
 

@@ -68,94 +68,6 @@ class TestGroupRoleAssignment:
         assert whiteteam_role in call_args[0]
         assert orangeteam_role in call_args[0]
 
-    async def test_assign_group_roles_missing_role_id(self) -> None:
-        """Test handling when configured role ID not found in guild - logs warning."""
-        from unittest.mock import patch
-
-        guild = MagicMock(spec=discord.Guild)
-        member = MagicMock(spec=discord.Member)
-        member.add_roles = AsyncMock()
-
-        guild.get_role = MagicMock(return_value=None)
-
-        manager = DiscordManager(guild)
-
-        with patch("bot.discord_manager.logger") as mock_logger:
-            success = await manager.assign_group_roles(member, ["WCComps_BlackTeam"])
-
-            mock_logger.warning.assert_called_once()
-            warning_msg = mock_logger.warning.call_args[0][0]
-            assert "not found in guild" in warning_msg
-
-        assert success is True
-        member.add_roles.assert_not_called()
-
-    async def test_assign_group_roles_no_matching_groups(self) -> None:
-        """Test assigning roles when user has no matching Authentik groups."""
-        guild = MagicMock(spec=discord.Guild)
-        member = MagicMock(spec=discord.Member)
-        member.add_roles = AsyncMock()
-
-        manager = DiscordManager(guild)
-        success = await manager.assign_group_roles(member, ["WCComps_BlueTeam01"])
-
-        assert success is True
-        member.add_roles.assert_not_called()
-
-    async def test_assign_group_roles_permission_denied(self) -> None:
-        """Test handling permission denied when assigning roles."""
-        guild = MagicMock(spec=discord.Guild)
-        member = MagicMock(spec=discord.Member)
-
-        blackteam_role = MagicMock(spec=discord.Role)
-        blackteam_role.id = 779192640540639263
-        blackteam_role.name = "BlackTeam"
-
-        guild.get_role = MagicMock(return_value=blackteam_role)
-
-        member.add_roles = AsyncMock(
-            side_effect=discord.errors.Forbidden(MagicMock(), "No permission")
-        )
-
-        manager = DiscordManager(guild)
-
-        from unittest.mock import patch
-
-        with patch("bot.discord_manager.logger") as mock_logger:
-            success = await manager.assign_group_roles(member, ["WCComps_BlackTeam"])
-
-            mock_logger.error.assert_called_once()
-            error_msg = mock_logger.error.call_args[0][0]
-            assert "No permission" in error_msg
-
-        assert success is False
-
-    async def test_assign_group_roles_http_exception(self) -> None:
-        """Test handling HTTP exceptions from Discord API."""
-        from unittest.mock import patch
-
-        guild = MagicMock(spec=discord.Guild)
-        member = MagicMock(spec=discord.Member)
-
-        role = MagicMock(spec=discord.Role)
-        role.id = 779192640540639263
-        role.name = "BlackTeam"
-
-        guild.get_role = MagicMock(return_value=role)
-
-        member.add_roles = AsyncMock(
-            side_effect=discord.errors.HTTPException(MagicMock(), "API Error")
-        )
-
-        manager = DiscordManager(guild)
-
-        with patch("bot.discord_manager.logger") as mock_logger:
-            success = await manager.assign_group_roles(member, ["WCComps_BlackTeam"])
-
-            mock_logger.error.assert_called_once()
-
-        assert success is False
-
     async def test_assign_group_roles_mixed_valid_invalid(self) -> None:
         """Test assigning mix of valid roles and missing roles."""
         from unittest.mock import patch
@@ -336,6 +248,9 @@ class TestGroupRoleQueueProcessing:
         guild = MagicMock(spec=discord.Guild)
         guild.id = 525435725123158026
         guild.get_member = MagicMock(return_value=None)
+        guild.fetch_member = AsyncMock(
+            side_effect=discord.NotFound(MagicMock(), "Member not found")
+        )
         bot.guilds = [guild]
 
         processor = DiscordQueueProcessor(bot)

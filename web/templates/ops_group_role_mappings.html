@@ -7,7 +7,9 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="module" id="changelist">
+    <c-page_header title="Team Mappings" />
+
+    <c-module id="changelist">
 
         <div class="toolbar">
             <input type="text" id="team-search" placeholder="Search teams by number or name..." />
@@ -78,7 +80,7 @@
         <p class="paginator">
             {{ team_status|length }} team(s)
         </p>
-    </div>
+    </c-module>
 </div>
 
 <script>

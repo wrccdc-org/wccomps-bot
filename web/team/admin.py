@@ -1,0 +1,104 @@
+"""Admin configuration for team app."""
+
+from django.contrib import admin
+
+from .models import (
+    DiscordLink,
+    LinkAttempt,
+    LinkRateLimit,
+    LinkToken,
+    SchoolInfo,
+    Team,
+)
+
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = [
+        "team_number",
+        "team_name",
+        "authentik_group",
+        "is_active",
+        "member_count",
+        "created_at",
+    ]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["team_name", "authentik_group"]
+    ordering = ["team_number"]
+    readonly_fields = ["created_at", "updated_at", "ticket_counter"]
+
+    def member_count(self, obj):
+        """Display member count."""
+        return obj.get_member_count()
+
+    member_count.short_description = "Members"
+
+
+@admin.register(DiscordLink)
+class DiscordLinkAdmin(admin.ModelAdmin):
+    list_display = [
+        "discord_username",
+        "authentik_username",
+        "team",
+        "is_active",
+        "linked_at",
+    ]
+    list_filter = ["is_active", "team", "linked_at"]
+    search_fields = ["discord_username", "authentik_username"]
+    readonly_fields = ["linked_at", "unlinked_at"]
+    ordering = ["-linked_at"]
+
+
+@admin.register(LinkToken)
+class LinkTokenAdmin(admin.ModelAdmin):
+    list_display = ["token", "discord_username", "used", "expires_at", "created_at"]
+    list_filter = ["used", "expires_at"]
+    search_fields = ["discord_username", "token"]
+    readonly_fields = ["created_at"]
+    ordering = ["-created_at"]
+
+
+@admin.register(LinkAttempt)
+class LinkAttemptAdmin(admin.ModelAdmin):
+    list_display = [
+        "discord_username",
+        "authentik_username",
+        "team",
+        "success",
+        "created_at",
+    ]
+    list_filter = ["success", "team", "created_at"]
+    search_fields = ["discord_username", "authentik_username"]
+    readonly_fields = ["created_at"]
+    ordering = ["-created_at"]
+
+    def has_add_permission(self, request):
+        """Disable adding link attempts manually."""
+        return False
+
+
+@admin.register(LinkRateLimit)
+class LinkRateLimitAdmin(admin.ModelAdmin):
+    list_display = ["discord_id", "attempted_at"]
+    list_filter = ["attempted_at"]
+    search_fields = ["discord_id"]
+    readonly_fields = ["attempted_at"]
+    ordering = ["-attempted_at"]
+
+    def has_add_permission(self, request):
+        """Disable adding rate limits manually."""
+        return False
+
+
+@admin.register(SchoolInfo)
+class SchoolInfoAdmin(admin.ModelAdmin):
+    list_display = [
+        "school_name",
+        "team",
+        "contact_email",
+        "secondary_email",
+        "updated_at",
+    ]
+    search_fields = ["school_name", "contact_email", "team__team_name"]
+    readonly_fields = ["created_at", "updated_at", "updated_by"]
+    ordering = ["team__team_number"]

@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 import discord
-from core.models import Team
+from team.models import Team
 from bot.discord_manager import DiscordManager
 
 
@@ -13,69 +13,27 @@ async def team(db):
     """Create a test team with unique team number."""
     import random
 
-    team_num = random.randint(100, 9999)
+    team_num = random.randint(1, 50)  # Valid range: 1-50
     return await Team.objects.acreate(
         team_number=team_num,
         team_name=f"Test Team {team_num}",
         authentik_group=f"WCComps_Team{team_num:02d}",
+        max_members=10,
     )
 
 
 @pytest.fixture
 def mock_guild_with_base_roles():
-    """Create a mock Discord guild with base role setup."""
+    """Create a mock Discord guild with simplified setup."""
     guild = MagicMock(spec=discord.Guild)
     guild.id = 525435725123158026
     guild.name = "Test Guild"
-
-    # Create base roles that might be referenced
-    white_team_role = MagicMock(spec=discord.Role)
-    white_team_role.name = "White Team"
-    white_team_role.id = 5001
-
-    observers_role = MagicMock(spec=discord.Role)
-    observers_role.name = "WRCCDC Observers"
-    observers_role.id = 5002
-
-    orange_team_role = MagicMock(spec=discord.Role)
-    orange_team_role.name = "Orange Team"
-    orange_team_role.id = 5003
-
-    room_judge_role = MagicMock(spec=discord.Role)
-    room_judge_role.name = "WRCCDC Room Judge"
-    room_judge_role.id = 5004
-
-    ops_team_role = MagicMock(spec=discord.Role)
-    ops_team_role.name = "WRCCDC Operations Team"
-    ops_team_role.id = 5005
-
-    server_owners_role = MagicMock(spec=discord.Role)
-    server_owners_role.name = "WRCCDC Server Owners"
-    server_owners_role.id = 5006
-
-    team_01_role = MagicMock(spec=discord.Role)
-    team_01_role.name = "Team 01"
-    team_01_role.color = discord.Color.blue()
-    team_01_role.position = 10
-    team_01_role.id = 5010
-
-    # Create default role (@everyone)
-    default_role = MagicMock(spec=discord.Role)
-    default_role.name = "@everyone"
-    default_role.id = 525435725123158026  # Same as guild ID
-    guild.default_role = default_role
-
-    guild.roles = [
-        default_role,
-        white_team_role,
-        observers_role,
-        orange_team_role,
-        room_judge_role,
-        ops_team_role,
-        server_owners_role,
-        team_01_role,
-    ]
+    guild.roles = []
     guild.categories = []
+
+    # Counters to ensure unique IDs even after removal
+    role_counter = {"value": 0}
+    category_counter = {"value": 0}
 
     # Setup get_role method with dynamic lookup
     def get_role_by_id(role_id):
@@ -86,51 +44,39 @@ def mock_guild_with_base_roles():
 
     guild.get_role = MagicMock(side_effect=get_role_by_id)
 
-    # Setup create_role method with counter to avoid ID collisions
-    role_counter = {"count": len(guild.roles)}
-
+    # Simplified create_role
     async def create_role(**kwargs):
         role = MagicMock(spec=discord.Role)
         role.name = kwargs.get("name", "New Role")
         role.color = kwargs.get("color", discord.Color.default())
-        role.id = 6000 + role_counter["count"]
+        role.id = 6000 + role_counter["value"]
         role.position = len(guild.roles)
         role.edit = AsyncMock()
         guild.roles.append(role)
-        role_counter["count"] += 1
+        role_counter["value"] += 1
         return role
 
     guild.create_role = AsyncMock(side_effect=create_role)
 
-    # Setup create_category method with counter to avoid ID collisions
-    category_counter = {"count": 0}
-
+    # Simplified create_category
     async def create_category(**kwargs):
         category = MagicMock(spec=discord.CategoryChannel)
         category.name = kwargs.get("name", "New Category")
-        category.id = 7000 + category_counter["count"]
+        category.id = 7000 + category_counter["value"]
         category.position = len(guild.categories)
         category.edit = AsyncMock()
-
-        # Mock create_text_channel
-        async def create_text_channel(name, **ch_kwargs):
-            channel = MagicMock(spec=discord.TextChannel)
-            channel.name = name
-            channel.id = 8000 + category_counter["count"]
-            return channel
-
-        # Mock create_voice_channel
-        async def create_voice_channel(name, **ch_kwargs):
-            channel = MagicMock(spec=discord.VoiceChannel)
-            channel.name = name
-            channel.id = 9000 + category_counter["count"]
-            return channel
-
-        category.create_text_channel = AsyncMock(side_effect=create_text_channel)
-        category.create_voice_channel = AsyncMock(side_effect=create_voice_channel)
-
+        category.create_text_channel = AsyncMock(
+            return_value=MagicMock(
+                spec=discord.TextChannel, id=8000 + category_counter["value"]
+            )
+        )
+        category.create_voice_channel = AsyncMock(
+            return_value=MagicMock(
+                spec=discord.VoiceChannel, id=9000 + category_counter["value"]
+            )
+        )
         guild.categories.append(category)
-        category_counter["count"] += 1
+        category_counter["value"] += 1
         return category
 
     guild.create_category = AsyncMock(side_effect=create_category)
@@ -204,15 +150,6 @@ class TestSetupTeamInfrastructure:
         # Verify create_role was never called
         guild.create_role.assert_not_called()
 
-    async def test_returns_tuple(self, team, mock_guild_with_base_roles):
-        """Test that method returns a tuple of (role, category)."""
-        manager = DiscordManager(mock_guild_with_base_roles)
-
-        result = await manager.setup_team_infrastructure(team.team_number)
-
-        assert isinstance(result, tuple)
-        assert len(result) == 2
-
     async def test_idempotent_no_duplicates_created(
         self, team, mock_guild_with_base_roles
     ):
@@ -246,120 +183,62 @@ class TestSetupTeamInfrastructure:
         assert role2.id == role1.id
         assert category2.id == category1.id
 
-    async def test_self_healing_recreates_missing_category(
-        self, team, mock_guild_with_base_roles
-    ):
-        """Test self-healing: when category is deleted but role exists, category is recreated."""
+    async def test_self_healing_infrastructure(self, team, mock_guild_with_base_roles):
+        """Test self-healing recreates missing Discord infrastructure (roles/categories)."""
         manager = DiscordManager(mock_guild_with_base_roles)
         guild = mock_guild_with_base_roles
 
-        # First setup - create both role and category
+        # Initial setup - create both role and category
         role1, category1 = await manager.setup_team_infrastructure(team.team_number)
         assert role1 is not None
         assert category1 is not None
-
         original_role_id = role1.id
         original_category_id = category1.id
 
-        # Simulate category deletion (remove from guild.categories list)
+        # Test 1: Missing category only - should recreate category, keep role
         guild.categories.remove(category1)
-
-        # Track role count before self-healing
         role_count_before = len(guild.roles)
 
-        # Second setup - should detect missing category and recreate it
         role2, category2 = await manager.setup_team_infrastructure(team.team_number)
 
-        # Verify role was NOT recreated (same role returned)
-        assert role2.id == original_role_id
-        assert len(guild.roles) == role_count_before
+        assert role2.id == original_role_id  # Same role
+        assert len(guild.roles) == role_count_before  # No new role created
+        assert category2.id != original_category_id  # New category
 
-        # Verify category WAS recreated (new category created)
-        assert category2 is not None
-        assert category2.id != original_category_id
-
-        # Verify database updated with new category ID
         await team.arefresh_from_db()
         assert team.discord_role_id == original_role_id
         assert team.discord_category_id == category2.id
 
-    async def test_self_healing_recreates_missing_role(
-        self, team, mock_guild_with_base_roles
-    ):
-        """Test self-healing: when role is deleted but category exists, role is recreated."""
-        manager = DiscordManager(mock_guild_with_base_roles)
-        guild = mock_guild_with_base_roles
-
-        # First setup - create both role and category
-        role1, category1 = await manager.setup_team_infrastructure(team.team_number)
-        assert role1 is not None
-        assert category1 is not None
-
-        original_role_id = role1.id
-        original_category_id = category1.id
-
-        # Simulate role deletion (remove from guild.roles list)
-        guild.roles.remove(role1)
-
-        # Track category count before self-healing
+        # Test 2: Missing role only - should recreate role, keep category
+        guild.roles.remove(role2)
         category_count_before = len(guild.categories)
 
-        # Second setup - should detect missing role and recreate it
-        role2, category2 = await manager.setup_team_infrastructure(team.team_number)
+        role3, category3 = await manager.setup_team_infrastructure(team.team_number)
 
-        # Verify category was NOT recreated (same category returned)
-        assert category2.id == original_category_id
-        assert len(guild.categories) == category_count_before
+        assert category3.id == category2.id  # Same category
+        assert len(guild.categories) == category_count_before  # No new category
+        assert role3.id != original_role_id  # New role
 
-        # Verify role WAS recreated (new role created)
-        assert role2 is not None
-        assert role2.id != original_role_id
-
-        # Verify database updated with new role ID
         await team.arefresh_from_db()
-        assert team.discord_role_id == role2.id
-        assert team.discord_category_id == original_category_id
-
-    async def test_self_healing_recreates_both_if_both_deleted(
-        self, team, mock_guild_with_base_roles
-    ):
-        """Test self-healing: when both role and category are deleted, both are recreated."""
-        manager = DiscordManager(mock_guild_with_base_roles)
-        guild = mock_guild_with_base_roles
-
-        # First setup - create both role and category
-        role1, category1 = await manager.setup_team_infrastructure(team.team_number)
-        assert role1 is not None
-        assert category1 is not None
-
-        original_role_id = role1.id
-        original_category_id = category1.id
-
-        # Simulate both being deleted
-        guild.roles.remove(role1)
-        guild.categories.remove(category1)
-
-        # Track counts before self-healing
-        role_count_before = len(guild.roles)
-        category_count_before = len(guild.categories)
-
-        # Second setup - should detect both missing and recreate both
-        role2, category2 = await manager.setup_team_infrastructure(team.team_number)
-
-        # Verify both were recreated
-        assert role2 is not None
-        assert category2 is not None
-        assert role2.id != original_role_id
-        assert category2.id != original_category_id
-
-        # Verify counts increased by 1 each
-        assert len(guild.roles) == role_count_before + 1
-        assert len(guild.categories) == category_count_before + 1
-
-        # Verify database updated with new IDs
-        await team.arefresh_from_db()
-        assert team.discord_role_id == role2.id
+        assert team.discord_role_id == role3.id
         assert team.discord_category_id == category2.id
+
+        # Test 3: Both missing - should recreate both
+        guild.roles.remove(role3)
+        guild.categories.remove(category3)
+        role_count = len(guild.roles)
+        category_count = len(guild.categories)
+
+        role4, category4 = await manager.setup_team_infrastructure(team.team_number)
+
+        assert role4.id != role3.id  # New role
+        assert category4.id != category3.id  # New category
+        assert len(guild.roles) == role_count + 1
+        assert len(guild.categories) == category_count + 1
+
+        await team.arefresh_from_db()
+        assert team.discord_role_id == role4.id
+        assert team.discord_category_id == category4.id
 
 
 @pytest.mark.asyncio
@@ -599,10 +478,16 @@ class TestRemoveAllTeamRoles:
 
         # Create multiple teams
         team1 = await Team.objects.acreate(
-            team_number=501, team_name="Team A", max_members=5
+            team_number=1,
+            team_name="Team A",
+            authentik_group="WCComps_BlueTeam01",
+            max_members=5,
         )
         team2 = await Team.objects.acreate(
-            team_number=502, team_name="Team B", max_members=5
+            team_number=2,
+            team_name="Team B",
+            authentik_group="WCComps_BlueTeam02",
+            max_members=5,
         )
 
         # Setup infrastructure for both teams
@@ -633,7 +518,10 @@ class TestRemoveAllTeamRoles:
 
         # Create team
         team = await Team.objects.acreate(
-            team_number=503, team_name="Team C", max_members=5
+            team_number=3,
+            team_name="Team C",
+            authentik_group="WCComps_BlueTeam03",
+            max_members=5,
         )
         role, _ = await manager.setup_team_infrastructure(team.team_number)
 
@@ -673,7 +561,10 @@ class TestRemoveAllTeamRoles:
 
         # Create team
         team = await Team.objects.acreate(
-            team_number=504, team_name="Team D", max_members=5
+            team_number=4,
+            team_name="Team D",
+            authentik_group="WCComps_BlueTeam04",
+            max_members=5,
         )
         role, _ = await manager.setup_team_infrastructure(team.team_number)
 

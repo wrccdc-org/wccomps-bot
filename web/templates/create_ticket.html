@@ -35,24 +35,21 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="page-header">
-        <h1>Create Support Ticket</h1>
-        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ team.team_name }}</p>
-    </div>
+    <c-page_header title="Create Support Ticket" subtitle="{{ team.team_name }}" />
 
     <form method="post" id="ticketForm">
         {% csrf_token %}
 
-        <div class="module">
-            <div class="toolbar">
-                <a href="{% url 'team_tickets' %}" class="historylink">Back to Tickets</a>
-            </div>
+        <c-module>
+            <c-slot name="toolbar">
+                <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
+            </c-slot>
 
             {% if error %}
-            <p class="errornote">{{ error }}</p>
+            <c-alert variant="error">{{ error }}</c-alert>
             {% endif %}
 
-            <fieldset class="module aligned">
+            <c-fieldset>
                 <div class="form-row">
                     <div>
                         <label class="required" for="category">Category:</label>
@@ -84,9 +81,15 @@
                 <div class="form-row dynamic-field" id="field-hostname">
                     <div>
                         <label for="hostname">Hostname: <span class="required" id="req-hostname">*</span></label>
-                        <input type="text" name="hostname" id="hostname"
-                               value="{{ form_data.hostname }}"
-                               placeholder="e.g., web01">
+                        <select name="hostname" id="hostname">
+                            <option value="">Select a box...</option>
+                            {% for box_name in box_names %}
+                            <option value="{{ box_name }}"
+                                    {% if form_data.hostname == box_name %}selected{% endif %}>
+                                {{ box_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
@@ -95,16 +98,26 @@
                         <label for="ip_address">IP Address: <span class="required" id="req-ip_address">*</span></label>
                         <input type="text" name="ip_address" id="ip_address"
                                value="{{ form_data.ip_address }}"
-                               placeholder="e.g., 10.0.1.5">
+                               readonly
+                               placeholder="(auto-filled from hostname)">
                     </div>
                 </div>
 
                 <div class="form-row dynamic-field" id="field-service_name">
                     <div>
-                        <label for="service_name">Service Name: <span class="required" id="req-service_name">*</span></label>
-                        <input type="text" name="service_name" id="service_name"
-                               value="{{ form_data.service_name }}"
-                               placeholder="e.g., HTTP, SSH, DNS">
+                        <label for="service_name">Service: <span class="required" id="req-service_name">*</span></label>
+                        <select name="service_name" id="service_name">
+                            <option value="">Select a service...</option>
+                            {% for service in service_choices %}
+                            <option value="{{ service.value }}"
+                                    data-box="{{ service.box_name }}"
+                                    data-ip="{{ service.box_ip }}"
+                                    {% if form_data.service_name == service.value %}selected{% endif %}>
+                                {{ service.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Format: hostname - service name</p>
                     </div>
                 </div>
 
@@ -115,13 +128,13 @@
                                   placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
                     </div>
                 </div>
-            </fieldset>
+            </c-fieldset>
 
             <div class="submit-row">
-                <input type="submit" value="Create Ticket" class="default">
-                <a href="{% url 'team_tickets' %}" class="button cancel-link">Cancel</a>
+                <c-button type="submit" variant="primary">Create Ticket</c-button>
+                <c-link href="{% url 'team_tickets' %}" class="button cancel-link">Cancel</c-link>
             </div>
-        </div>
+        </c-module>
     </form>
 </div>
 
@@ -130,6 +143,7 @@
     const categorySelect = document.getElementById('category');
     const categoryInfo = document.getElementById('categoryInfo');
     const categoryWarning = document.getElementById('categoryWarning');
+    const boxIpMap = {{ box_ip_map|safe }};
 
     const fields = {
         'hostname': document.getElementById('field-hostname'),
@@ -137,6 +151,39 @@
         'service_name': document.getElementById('field-service_name'),
         'description': document.getElementById('field-description')
     };
+
+    const hostnameSelect = document.getElementById('hostname');
+    const ipAddressInput = document.getElementById('ip_address');
+    const serviceSelect = document.getElementById('service_name');
+
+    // Auto-populate IP address when hostname is selected (for box-reset)
+    hostnameSelect.addEventListener('change', function() {
+        const boxName = this.value;
+        if (boxName && boxIpMap[boxName]) {
+            ipAddressInput.value = boxIpMap[boxName];
+        } else {
+            ipAddressInput.value = '';
+        }
+    });
+
+    // Auto-populate hostname and IP when service is selected (for service checks)
+    serviceSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            const boxName = selectedOption.dataset.box;
+            const boxIp = selectedOption.dataset.ip;
+
+            // Update hostname select if field is visible
+            if (fields.hostname.classList.contains('show')) {
+                hostnameSelect.value = boxName;
+            }
+
+            // Update IP address if field is visible
+            if (fields.ip_address.classList.contains('show')) {
+                ipAddressInput.value = boxIp;
+            }
+        }
+    });
 
     categorySelect.addEventListener('change', function() {
         const categoryKey = this.value;

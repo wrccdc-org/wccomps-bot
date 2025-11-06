@@ -51,15 +51,53 @@ class WCCompsBot(commands.Bot):
 
         # Load cogs
         await self.load_extension("bot.cogs.linking")
-        await self.load_extension("bot.cogs.admin_linking")
-        # await self.load_extension("bot.cogs.ticketing")  # Disabled - using tickets.wccomps.org
+        await self.load_extension("bot.cogs.ticketing")
+        await self.load_extension("bot.cogs.help_panels")
+        await self.load_extension("bot.cogs.admin")
+        await self.load_extension("bot.cogs.admin_teams")
+        await self.load_extension("bot.cogs.admin_tickets")
+        await self.load_extension("bot.cogs.admin_competition")
 
         logger.info("Cogs loaded")
+
+        # Log registered commands for debugging
+        commands_list = self.tree.get_commands()
+        logger.info(f"Registered {len(commands_list)} top-level commands:")
+        for cmd in commands_list:
+            if isinstance(cmd, discord.app_commands.Group):
+                logger.info(
+                    f"  - {cmd.name} (Group with {len(cmd.commands)} subcommands)"
+                )
+            else:
+                logger.info(f"  - {cmd.name} (Command)")
 
         # Sync commands to guild
         guild_id = int(os.environ.get("DISCORD_GUILD_ID", 0))
         if guild_id:
             guild = discord.Object(id=guild_id)
+
+            # Strategy: Fetch existing commands from Discord, delete them, then sync fresh
+            # Step 1: Fetch what Discord currently has
+            try:
+                existing_commands = await self.tree.fetch_commands(guild=guild)
+                logger.info(
+                    f"Found {len(existing_commands)} existing commands on Discord"
+                )
+
+                # Delete each command individually
+                for cmd in existing_commands:
+                    logger.info(f"Deleting command: {cmd.name}")
+                    await cmd.delete()
+                logger.info("Deleted all existing commands from Discord")
+            except Exception as e:
+                logger.warning(f"Could not fetch/delete existing commands: {e}")
+
+            # Step 2: Clear local tree and sync empty to ensure clean slate
+            self.tree.clear_commands(guild=guild)
+            await self.tree.sync(guild=guild)
+            logger.info(f"Synced empty command tree to guild {guild_id}")
+
+            # Step 3: Re-register our commands and sync
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
             logger.info(f"Command tree synced to guild {guild_id}")

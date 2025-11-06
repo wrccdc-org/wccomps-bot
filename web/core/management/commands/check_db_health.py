@@ -81,7 +81,8 @@ class Command(BaseCommand):
         # Check 4: Critical queries
         self.stdout.write("Testing critical queries...")
         try:
-            from core.models import Team, Ticket, DiscordLink
+            from team.models import Team, DiscordLink
+            from ticketing.models import Ticket
             from allauth.socialaccount.models import SocialAccount
 
             # Test queries that views depend on
