@@ -29,9 +29,7 @@ Edit `.env` with your configuration:
 2. Enable Server Members Intent and Message Content Intent
 3. Add bot token and guild ID to `.env`
 4. Invite with permissions: Manage Roles, Manage Channels, Send Messages, Use Slash Commands
-5. Set `DISCORD_TEMPLATE_CATEGORY_ID` to your Team 01 category ID (will be cloned for other teams)
-6. Set `DISCORD_LOG_CHANNEL_ID` to your ops log channel ID
-7. Set `ADMIN_ROLE_ID` to your admin role ID
+5. Set `DISCORD_LOG_CHANNEL_ID` to your ops log channel ID
 
 ### 3. Authentik Configuration
 
@@ -56,7 +54,6 @@ Edit `.env` with your configuration:
      - Link Discord accounts (via `/link` command)
      - View tickets on web interface at `/tickets/`
      - View point history at `/points/`
-   - Each team group limited to 10 members (configurable via MAX_TEAM_MEMBERS)
 
    **Permission Groups:**
 
@@ -132,14 +129,6 @@ No Django users are created - all authentication goes through Authentik. Users i
 4. User authenticates with their Authentik account
 5. Permissions granted based on group membership
 
-**Permission System:**
-- Bot checks DiscordLink → Authentik groups for all permissions
-- Team assignment based on `WCComps_BlueTeam01-50` group membership
-- Admin/support permissions based on permission groups
-- Fallback to Discord roles (legacy support)
-- Change Authentik groups → permissions update immediately
-- No manual Discord role management needed
-
 ### 6. Setup Discord Infrastructure
 
 In Discord, run: `/teams`, `/tickets`, or `/competition` commands to set up team roles and channels as needed.
@@ -181,13 +170,12 @@ Role sync is **one-way** (Volunteer → Competition):
 **Competition Management:**
 - `/competition end-competition` - Cleanup all teams at end of competition (deletes ALL infrastructure including Team 01)
 - `/competition reset-blueteam-passwords` - Reset passwords for all blueteam01-blueteam50 accounts and export CSV
+- `/competition toggle-blueteams <enable|disable>` - Enable or disable all blueteam accounts
 - `/competition set-max-members <count>` - Set maximum members per team globally (1-20)
 - `/competition set-start-time <datetime>` - Set competition start time for auto-enabling applications
-- `/competition enable-applications-now` - Emergency override to enable applications immediately
-- `/competition disable-apps` - Manually disable competition applications
-- `/competition status` - View competition timing and application status
+- `/competition set-end-time <datetime>` - Set competition end time for auto-disabling applications
+- `/competition start-competition` - Manually start competition (enable applications and accounts)
 - `/competition set-apps <slugs>` - Set which Authentik applications to control
-- `/competition link-attempts [limit]` - View recent link attempts (successes and failures)
 - `/competition broadcast <target> <message>` - Broadcast message to announcements, all teams, or specific teams (e.g., "1,3,5-10")
 
 **General Admin:**
@@ -244,17 +232,19 @@ uv sync
 # Start PostgreSQL (or use local instance)
 docker-compose up -d postgres
 
-# Start web server with auto-migrations
-./dev.sh
+# Run migrations
+cd web
+uv run python manage.py migrate
+
+# Start web server
+uv run python manage.py runserver
 
 # In another terminal, run bot
 cd bot
 uv run python main.py
 ```
 
-The `dev.sh` script automatically handles migrations before starting the server.
-
-Then login via Authentik with a user in the `WCComps_Discord_Admin` group to get admin access.
+Login via Authentik with a user in the `WCComps_Discord_Admin` group to get admin access.
 
 ### Testing
 
@@ -282,13 +272,16 @@ docker-compose exec web uv run python manage.py init_teams
 
 ## Configuration
 
-Key environment variables:
+Key environment variables (see `.env.example` for full list):
 
-- `MAX_TEAM_MEMBERS=10` - Maximum members per team
-- `DISCORD_TEMPLATE_CATEGORY_ID` - Team 01 category to clone for new teams
+- `DISCORD_BOT_TOKEN` - Discord bot token
+- `DISCORD_GUILD_ID` - Competition guild ID
 - `DISCORD_LOG_CHANNEL_ID` - Channel for ops logging
-- `ADMIN_ROLE_ID` - Discord role ID for admin permissions
+- `AUTHENTIK_URL` - Authentik server URL
+- `AUTHENTIK_CLIENT_ID` - OAuth client ID
+- `AUTHENTIK_SECRET` - OAuth client secret
 - `BASE_URL` - Public URL for OAuth callbacks
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - Database configuration
 
 ## Linking Flow
 
@@ -339,13 +332,14 @@ Key environment variables:
 
 ## Ticket Categories
 
-The system supports 5 ticket categories configured in `web/core/tickets_config.py`:
+The system supports 6 ticket categories configured in `web/core/tickets_config.py`:
 
 1. **Service Scoring Validation** (0 points) - Verify scoring is working correctly
 2. **Box Reset** (60 points) - Reset a service to clean state
 3. **Scoring Service Check** (10 points) - Check if scoring service is running
 4. **BlackTeam Phone Consultation** (100 points) - Phone support
 5. **BlackTeam Hands-on Consultation** (200-300 points, variable) - In-person support
+6. **Other** (0 points initially) - General issues, points adjusted manually by ticket lead
 
 Variable cost categories default to lower value. Volunteers can override points during resolution.
 
@@ -388,38 +382,29 @@ The `/competition reset-blueteam-passwords` command allows WCComps_Discord_Admin
 1. Admin runs `/competition reset-blueteam-passwords` in Discord
 2. Bot generates readable passphrase-style passwords for blueteam01-blueteam50
 3. Bot calls Authentik API to reset each password
-4. Bot creates CSV file with username, password, and status columns
+4. Bot creates CSV file with username and password
 5. CSV file sent as ephemeral Discord attachment (only visible to admin)
 6. Action logged to ops channel and audit log
 
 **Password Format:**
 Passwords are generated using the **EFF Long Wordlist** (7,776 words) in the format: `Word-Word` with a random number (100-999) AND special character (!@#$%&*+) combined together and interspersed at a random position.
 
-Examples:
-- `Renovate-542#-Unleash`
-- `Sleeping-@789-Rewrite`
-- `315!-Lunchbox-Molecule`
-- `Dwindling-Handbook-&926`
+Examples: `Renovate-542#-Unleash` or `315!-Lunchbox-Molecule`
 
 **CSV Format:**
 ```csv
-Username,Password,Status
-blueteam01,Renovate-542#-Unleash,Success
-blueteam02,Sleeping-@789-Rewrite,Success
-blueteam03,315!-Lunchbox-Molecule,User not found
+Username,Password
+blueteam01,Renovate-542#-Unleash
+blueteam02,Sleeping-@789-Rewrite
 ...
 ```
 
 **Security Notes:**
 - CSV file is sent as ephemeral message (only admin can see)
 - All password resets are logged in audit trail
-- Failed resets are clearly marked with reason in status column
-- Passwords use the **EFF Long Wordlist** (7,776 words) via `xkcdpass` library
-- Cryptographically secure random selection using Python's `secrets` module
-- Each password is approximately 19-25 characters - short enough to type quickly during competition
-- Provides strong entropy (~26 bits from words + ~13 bits from number+symbol+order+position = **~41 bits total**)
-- Comparable to 3-word passphrase while being shorter and easier to type
-- Exceeds NIST guidelines for temporary competition accounts
+- Passwords use EFF Long Wordlist via `xkcdpass` library with cryptographically secure randomness
+- Each password provides ~41 bits entropy, exceeding NIST guidelines for competition accounts
+- Passwords are 19-25 characters - secure yet quick to type during competition
 
 ## Troubleshooting
 
@@ -433,7 +418,7 @@ blueteam03,315!-Lunchbox-Molecule,User not found
 - Verify `BASE_URL` matches your domain
 - Check Authentik redirect URI matches: `{BASE_URL}/accounts/authentik/login/callback/`
 - Verify Authentik client ID and secret are correct
-- Check team username format (must be `team01` through `team50`)
+- Ensure `groups` scope is enabled in Authentik provider
 
 ### Database connection errors
 - Ensure PostgreSQL is running: `docker-compose ps postgres`
