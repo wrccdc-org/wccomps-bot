@@ -13,13 +13,6 @@
     .dynamic-field.show {
         display: block;
     }
-    .category-info {
-        background: #e8f4f8;
-        padding: 10px;
-        margin-top: 10px;
-        border-radius: 4px;
-        font-size: 13px;
-    }
     .category-warning {
         background: #fff3cd;
         border-left: 4px solid #ffc107;
@@ -64,7 +57,6 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div id="categoryInfo" class="category-info" style="display: none;"></div>
                         <div id="categoryWarning" class="category-warning" style="display: none;"></div>
                     </div>
                 </div>
@@ -141,7 +133,6 @@
 <script>
     const categories = {{ categories|safe }};
     const categorySelect = document.getElementById('category');
-    const categoryInfo = document.getElementById('categoryInfo');
     const categoryWarning = document.getElementById('categoryWarning');
     const boxIpMap = {{ box_ip_map|safe }};
 
@@ -192,19 +183,13 @@
         Object.values(fields).forEach(field => field.classList.remove('show'));
 
         if (!categoryKey) {
-            categoryInfo.style.display = 'none';
             categoryWarning.style.display = 'none';
             return;
         }
 
         // Get category data from options
         const option = this.options[this.selectedIndex];
-        const points = option.dataset.points;
         const requiredFields = JSON.parse(option.dataset.required || '[]');
-
-        // Show category info
-        categoryInfo.textContent = `This ticket will cost ${points} points.`;
-        categoryInfo.style.display = 'block';
 
         // Show warning if exists
         const catData = Object.values({{ categories|safe }}).find(c =>
@@ -216,6 +201,14 @@
         } else {
             categoryWarning.style.display = 'none';
         }
+
+        // First, make all dynamic fields optional and hidden
+        Object.entries(fields).forEach(([fieldName, field]) => {
+            const input = document.getElementById(fieldName);
+            if (input) {
+                input.required = false;
+            }
+        });
 
         // Show required fields
         requiredFields.forEach(fieldName => {

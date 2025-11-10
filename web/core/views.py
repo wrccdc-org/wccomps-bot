@@ -609,60 +609,62 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 },
             )
 
-        # Generate ticket number using atomic database counter
-        from django.db.models import F
-
-        team.ticket_counter = F("ticket_counter") + 1
-        team.save(update_fields=["ticket_counter"])
-        team.refresh_from_db()
-        sequence = team.ticket_counter
-        ticket_number = f"T{team_number:03d}-{sequence:03d}"
-
         # For box-reset, use hostname as description
         if category == "box-reset" and hostname:
             description = hostname
 
-        # Create ticket
-        ticket = Ticket.objects.create(
-            ticket_number=ticket_number,
-            team=team,
-            category=category,
-            title=title,
-            description=description,
-            hostname=hostname,
-            ip_address=ip_address or None,
-            service_name=service_name,
-            status="open",
-            points_charged=cat_info.get("points", 0),
-        )
+        # Create ticket using shared atomic function
+        from ticketing.utils import create_ticket_atomic
 
-        # Create history entry
-        TicketHistory.objects.create(
-            ticket=ticket,
-            action="created",
-            actor_username=authentik_username,
-            details="Ticket created via web UI",
-        )
+        try:
+            ticket = create_ticket_atomic(
+                team=team,
+                category=category,
+                title=title,
+                description=description,
+                hostname=hostname,
+                ip_address=ip_address,
+                service_name=service_name,
+                actor_username=authentik_username,
+            )
 
-        # Create Discord task to notify bot (so it can create thread)
-        DiscordTask.objects.create(
-            task_type="ticket_created_web",
-            payload={
-                "ticket_id": ticket.id,
-                "ticket_number": ticket_number,
-                "team_number": team_number,
-                "category": category,
-                "title": title,
-                "created_by": authentik_username,
-            },
-            status="pending",
-        )
+            # Create Discord task to notify bot (so it can create thread)
+            DiscordTask.objects.create(
+                task_type="ticket_created_web",
+                payload={
+                    "ticket_id": ticket.id,
+                    "ticket_number": ticket.ticket_number,
+                    "team_number": team_number,
+                    "category": category,
+                    "title": title,
+                    "created_by": authentik_username,
+                },
+                status="pending",
+            )
 
-        logger.info(
-            f"Ticket {ticket_number} created via web by {authentik_username} for {team.team_name}"
-        )
+            logger.info(
+                f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}"
+            )
 
-        return redirect("ticket_detail", ticket_id=ticket.id)
+            return redirect("ticket_detail", ticket_id=ticket.id)
+
+        except Exception as e:
+            logger.error(f"Failed to create ticket: {e}", exc_info=True)
+            import json
+
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "categories": TICKET_CATEGORIES,
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": json.dumps(box_ip_map),
+                    "error": f"Failed to create ticket: {str(e)}. Please try again or contact support if the problem persists.",
+                    "form_data": request.POST,
+                },
+            )
 
     # GET request - show form
     import json
@@ -1067,15 +1069,13 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     ):
         return HttpResponse("Access denied", status=403)
 
+    # Get ticket to find ID
     try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+        ticket_obj = Ticket.objects.select_related("team").get(
+            ticket_number=ticket_number
+        )
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
-
-    if ticket.status not in ["open"]:
-        return HttpResponse(
-            f"Cannot claim ticket with status: {ticket.status}", status=400
-        )
 
     # Try to find Discord link (optional for web UI)
     try:
@@ -1093,30 +1093,40 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         discord_id = None
         discord_username = None
 
-    ticket.status = "claimed"
-    ticket.assigned_to_discord_id = discord_id
-    ticket.assigned_to_discord_username = discord_username or ""
-    ticket.assigned_to_authentik_username = authentik_username
-    ticket.assigned_to_authentik_user_id = authentik_user_id or ""
-    ticket.assigned_at = timezone.now()
-    ticket.save()
+    # Use shared atomic claim function
+    from ticketing.utils import claim_ticket_atomic
 
-    TicketHistory.objects.create(
-        ticket=ticket,
-        action="claimed",
+    ticket, error = claim_ticket_atomic(
+        ticket_id=ticket_obj.id,
         actor_username=authentik_username,
-        details={
-            "claimed_by": authentik_username,
-            "discord_username": discord_username,
-        },
+        discord_id=discord_id,
+        discord_username=discord_username,
+        authentik_username=authentik_username,
+        authentik_user_id=authentik_user_id,
     )
 
+    if error or ticket is None:
+        return HttpResponse(error or "Failed to claim ticket", status=400)
+
+    # Queue dashboard update
     DiscordTask.objects.create(
         task_type="update_dashboard",
         ticket=ticket,
         payload={"ticket_id": ticket.id},
         status="pending",
     )
+
+    # Add volunteer to thread if they have Discord linked and ticket has a thread
+    if discord_id and ticket.discord_thread_id:
+        DiscordTask.objects.create(
+            task_type="add_user_to_thread",
+            ticket=ticket,
+            payload={
+                "discord_id": discord_id,
+                "thread_id": ticket.discord_thread_id,
+            },
+            status="pending",
+        )
 
     logger.info(f"Ticket {ticket_number} claimed by {authentik_username}")
     return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
@@ -1137,31 +1147,26 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     ):
         return HttpResponse("Access denied", status=403)
 
+    # Get ticket to find ID
     try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+        ticket_obj = Ticket.objects.select_related("team").get(
+            ticket_number=ticket_number
+        )
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
-    if ticket.status not in ["claimed"]:
-        return HttpResponse(
-            f"Cannot unclaim ticket with status: {ticket.status}", status=400
-        )
+    # Use shared atomic unclaim function
+    from ticketing.utils import unclaim_ticket_atomic
 
-    ticket.status = "open"
-    ticket.assigned_to_discord_id = None
-    ticket.assigned_to_discord_username = ""
-    ticket.assigned_to_authentik_username = ""
-    ticket.assigned_to_authentik_user_id = ""
-    ticket.assigned_at = None
-    ticket.save()
-
-    TicketHistory.objects.create(
-        ticket=ticket,
-        action="unclaimed",
+    ticket, error = unclaim_ticket_atomic(
+        ticket_id=ticket_obj.id,
         actor_username=authentik_username,
-        details={"unclaimed_by": authentik_username},
     )
 
+    if error or ticket is None:
+        return HttpResponse(error or "Failed to unclaim ticket", status=400)
+
+    # Queue dashboard update
     DiscordTask.objects.create(
         task_type="update_dashboard",
         ticket=ticket,
@@ -1188,15 +1193,13 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     ):
         return HttpResponse("Access denied", status=403)
 
+    # Get ticket to find ID
     try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+        ticket_obj = Ticket.objects.select_related("team").get(
+            ticket_number=ticket_number
+        )
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
-
-    if ticket.status not in ["claimed"]:
-        return HttpResponse(
-            f"Cannot resolve ticket with status: {ticket.status}", status=400
-        )
 
     resolution_notes = request.POST.get("resolution_notes", "").strip()
 
@@ -1216,26 +1219,23 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         discord_id = None
         discord_username = None
 
-    ticket.status = "resolved"
-    ticket.resolved_at = timezone.now()
-    ticket.resolved_by_discord_id = discord_id
-    ticket.resolved_by_discord_username = discord_username or ""
-    ticket.resolved_by_authentik_username = authentik_username
-    ticket.resolved_by_authentik_user_id = authentik_user_id or ""
-    ticket.resolution_notes = resolution_notes
-    ticket.save()
+    # Use shared atomic resolve function
+    from ticketing.utils import resolve_ticket_atomic
 
-    TicketHistory.objects.create(
-        ticket=ticket,
-        action="resolved",
+    ticket, error = resolve_ticket_atomic(
+        ticket_id=ticket_obj.id,
         actor_username=authentik_username,
-        details={
-            "resolved_by": authentik_username,
-            "discord_username": discord_username,
-            "notes": resolution_notes,
-        },
+        resolution_notes=resolution_notes,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        authentik_username=authentik_username,
+        authentik_user_id=authentik_user_id,
     )
 
+    if error or ticket is None:
+        return HttpResponse(error or "Failed to resolve ticket", status=400)
+
+    # Queue dashboard update
     DiscordTask.objects.create(
         task_type="update_dashboard",
         ticket=ticket,

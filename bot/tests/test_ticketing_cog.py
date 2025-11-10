@@ -319,3 +319,137 @@ class TestTicketingCog:
         # Verify unexpired tickets were not archived (last 2)
         for i in range(3, 5):
             mock_threads[tickets[i].discord_thread_id].edit.assert_not_called()
+
+    async def test_on_message_creates_comment(
+        self, cog: TicketingCog, team: Team
+    ) -> None:
+        """Test on_message creates TicketComment for Discord messages."""
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T042-100",
+            team=team,
+            category="service-check",
+            title="Test Comment Sync",
+            description="Test",
+            status="open",
+            discord_thread_id=7777888999,
+        )
+
+        # Mock Discord message
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.author.__str__ = Mock(return_value="testuser#1234")
+        message.id = 999888777666
+        message.content = "This is a test message"
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.attachments = []
+
+        initial_count = await TicketComment.objects.acount()
+        await cog.on_message(message)
+
+        # Verify comment created
+        assert await TicketComment.objects.acount() == initial_count + 1
+
+        # Verify comment has correct data
+        comment = await TicketComment.objects.filter(
+            discord_message_id=message.id
+        ).afirst()
+        assert comment is not None
+        assert comment.ticket_id == ticket.id
+        assert comment.author_name == "testuser#1234"
+        assert comment.author_discord_id == 123456789
+        assert comment.comment_text == "This is a test message"
+        assert comment.discord_message_id == 999888777666
+
+    async def test_on_message_prevents_duplicate_comments(
+        self, cog: TicketingCog, team: Team
+    ) -> None:
+        """Test on_message doesn't create duplicate comments."""
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T042-101",
+            team=team,
+            category="service-check",
+            title="Test Duplicate",
+            description="Test",
+            status="open",
+            discord_thread_id=8888999111,
+        )
+
+        # Create existing comment
+        await TicketComment.objects.acreate(
+            ticket=ticket,
+            author_name="testuser",
+            author_discord_id=123456789,
+            comment_text="Original",
+            discord_message_id=111222333444,
+        )
+
+        # Mock Discord message with same ID
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.author.__str__ = Mock(return_value="testuser#1234")
+        message.id = 111222333444  # Same as existing
+        message.content = "Duplicate attempt"
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.attachments = []
+
+        initial_count = await TicketComment.objects.acount()
+        await cog.on_message(message)
+
+        # Should not create duplicate
+        assert await TicketComment.objects.acount() == initial_count
+
+    async def test_on_message_ignores_empty_content(
+        self, cog: TicketingCog, team: Team
+    ) -> None:
+        """Test on_message ignores messages with no text content."""
+        ticket = await Ticket.objects.acreate(
+            ticket_number="T042-102",
+            team=team,
+            category="service-check",
+            title="Test Empty",
+            description="Test",
+            status="open",
+            discord_thread_id=9999000222,
+        )
+
+        # Mock Discord message with empty content
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.content = ""  # Empty content
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.attachments = []
+
+        initial_count = await TicketComment.objects.acount()
+        await cog.on_message(message)
+
+        # Should not create comment for empty message
+        assert await TicketComment.objects.acount() == initial_count
+
+    async def test_on_message_for_nonexistent_ticket(self, cog: TicketingCog) -> None:
+        """Test on_message handles messages in threads with no ticket."""
+        # Mock Discord message in thread that doesn't have a ticket
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.author.__str__ = Mock(return_value="testuser#1234")
+        message.id = 555444333222
+        message.content = "This thread has no ticket"
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = 111111111111  # Non-existent thread
+        message.attachments = []
+
+        initial_count = await TicketComment.objects.acount()
+        await cog.on_message(message)
+
+        # Should not create comment for non-ticket thread
+        assert await TicketComment.objects.acount() == initial_count

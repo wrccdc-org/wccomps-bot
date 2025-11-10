@@ -63,13 +63,11 @@ TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
         "display_name": "Black Team Phone Consultation",
         "points": 100,
         "required_fields": ["description"],
-        "warning": "100 points - consider free validation first",
     },
     "blackteam-handson-consultation": {
         "display_name": "Black Team Hands-on Consultation",
         "points": 200,
         "required_fields": ["hostname", "description"],
-        "warning": "200 points (300 if >45min) - consider phone consultation first",
         "variable_cost_note": "If consultation exceeded 45 minutes, ticket lead will manually adjust to 300 points",
     },
     "other": {
