@@ -308,8 +308,10 @@ AUTHENTIK_TOKEN = os.environ.get("AUTHENTIK_TOKEN", "")
 
 # Quotient API settings
 QUOTIENT_API_URL = os.environ.get("QUOTIENT_API_URL", "https://scoring.wccomps.org")
+QUOTIENT_FALLBACK_URL = os.environ.get("QUOTIENT_FALLBACK_URL", "")
 QUOTIENT_ADMIN_USERNAME = os.environ.get("QUOTIENT_ADMIN_USERNAME", "")
 QUOTIENT_ADMIN_PASSWORD = os.environ.get("QUOTIENT_ADMIN_PASSWORD", "")
+QUOTIENT_OIDC_TOKEN = os.environ.get("QUOTIENT_OIDC_TOKEN", os.environ.get("AUTHENTIK_TOKEN", ""))
 
 # Logging configuration - capture errors to stdout
 LOGGING = {

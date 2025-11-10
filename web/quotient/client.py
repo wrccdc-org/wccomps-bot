@@ -89,41 +89,69 @@ class QuotientClient:
     def __init__(
         self,
         base_url: Optional[str] = None,
+        fallback_url: Optional[str] = None,
         admin_username: Optional[str] = None,
         admin_password: Optional[str] = None,
+        oidc_token: Optional[str] = None,
         cache_ttl: int = 300,  # 5 minutes
     ):
         """
         Initialize Quotient API client.
 
         Args:
-            base_url: Base URL for Quotient API (default from settings)
+            base_url: Primary URL for Quotient API (default from settings)
+            fallback_url: Fallback URL if primary fails (default from settings)
             admin_username: Admin username for authentication
             admin_password: Admin password for authentication
+            oidc_token: OIDC token for authentication (takes precedence)
             cache_ttl: Cache time-to-live in seconds (default 300)
         """
         self.base_url = (base_url or getattr(settings, "QUOTIENT_API_URL", "")).rstrip(
             "/"
         )
+        self.fallback_url = (
+            fallback_url or getattr(settings, "QUOTIENT_FALLBACK_URL", "")
+        ).rstrip("/")
         self.admin_username = admin_username or getattr(
             settings, "QUOTIENT_ADMIN_USERNAME", ""
         )
         self.admin_password = admin_password or getattr(
             settings, "QUOTIENT_ADMIN_PASSWORD", ""
         )
+        self.oidc_token = oidc_token or getattr(settings, "QUOTIENT_OIDC_TOKEN", "")
         self.cache_ttl = cache_ttl
         self.session: Optional[requests.Session] = None
+        self._active_url: Optional[str] = None
 
     def _get_session(self) -> requests.Session:
         """Get or create authenticated session."""
         if self.session is None:
             self.session = requests.Session()
 
-            # Authenticate with Quotient
+            # Try OIDC token authentication first (for service-to-service)
+            if self.oidc_token:
+                try:
+                    # Use OIDC token as password in login API
+                    # Quotient accepts OIDC tokens via ValidateOIDCToken when username is empty
+                    response = self.session.post(
+                        f"{self._get_active_url()}/api/login",
+                        json={
+                            "username": "",
+                            "password": self.oidc_token,
+                        },
+                        timeout=10,
+                    )
+                    response.raise_for_status()
+                    logger.info("Authenticated with Quotient API using OIDC token")
+                    return self.session
+                except requests.RequestException as e:
+                    logger.warning(f"OIDC authentication failed, falling back to username/password: {e}")
+
+            # Fall back to username/password authentication
             if self.admin_username and self.admin_password:
                 try:
                     response = self.session.post(
-                        f"{self.base_url}/api/login",
+                        f"{self._get_active_url()}/api/login",
                         json={
                             "username": self.admin_username,
                             "password": self.admin_password,
@@ -131,7 +159,7 @@ class QuotientClient:
                         timeout=10,
                     )
                     response.raise_for_status()
-                    logger.info("Authenticated with Quotient API")
+                    logger.info("Authenticated with Quotient API using credentials")
                 except requests.RequestException as e:
                     logger.error(f"Failed to authenticate with Quotient: {e}")
                     raise QuotientAPIError(f"Authentication failed: {e}")
@@ -139,6 +167,12 @@ class QuotientClient:
                 logger.warning("No Quotient credentials configured, API calls may fail")
 
         return self.session
+
+    def _get_active_url(self) -> str:
+        """Get the currently active URL (primary or fallback)."""
+        if self._active_url:
+            return self._active_url
+        return self.base_url
 
     def get_infrastructure(
         self, force_refresh: bool = False
@@ -161,53 +195,71 @@ class QuotientClient:
                 logger.debug("Returning cached infrastructure")
                 return cached
 
-        # Fetch from API
-        try:
-            session = self._get_session()
-            response = session.get(f"{self.base_url}/api/infrastructure", timeout=10)
-            response.raise_for_status()
+        # Try primary URL first, then fallback
+        urls_to_try = [self.base_url]
+        if self.fallback_url:
+            urls_to_try.append(self.fallback_url)
 
-            data = response.json()
+        last_error = None
+        for url_attempt in urls_to_try:
+            self._active_url = url_attempt
+            # Reset session for new URL
+            self.session = None
 
-            # Parse response into dataclasses
-            boxes = []
-            for box_data in data.get("boxes", []):
-                services = [
-                    QuotientService(
-                        name=svc["name"],
-                        display_name=svc["display_name"],
-                        type=svc["type"],
+            try:
+                session = self._get_session()
+                response = session.get(f"{url_attempt}/api/metadata", timeout=10)
+                response.raise_for_status()
+
+                data = response.json()
+
+                # Parse response into dataclasses
+                # /api/metadata returns: {"boxes": [{"name": str, "ip": str, "services": [str]}]}
+                boxes = []
+                for box_data in data.get("boxes", []):
+                    # Services are just strings (display names) in metadata endpoint
+                    services = [
+                        QuotientService(
+                            name=svc_name,
+                            display_name=svc_name,
+                            type="custom",  # Type not provided by metadata endpoint
+                        )
+                        for svc_name in box_data.get("services", [])
+                    ]
+
+                    boxes.append(
+                        QuotientBox(
+                            name=box_data["name"],
+                            ip=box_data["ip"],
+                            services=services,
+                        )
                     )
-                    for svc in box_data.get("services", [])
-                ]
 
-                boxes.append(
-                    QuotientBox(
-                        name=box_data["name"],
-                        ip=box_data["ip"],
-                        services=services,
-                    )
+                infrastructure = QuotientInfrastructure(
+                    boxes=boxes,
+                    event_name="",  # Not provided by metadata endpoint
+                    team_count=0,  # Not provided by metadata endpoint
+                    api_version="v1",
                 )
 
-            infrastructure = QuotientInfrastructure(
-                boxes=boxes,
-                event_name=data.get("event_name", ""),
-                team_count=data.get("team_count", 0),
-                api_version=data.get("api_version", "v1"),
-            )
+                # Cache the result
+                cache.set(cache_key, infrastructure, self.cache_ttl)
+                logger.info(f"Fetched {len(boxes)} boxes from Quotient API at {url_attempt}")
 
-            # Cache the result
-            cache.set(cache_key, infrastructure, self.cache_ttl)
-            logger.info(f"Fetched {len(boxes)} boxes from Quotient API")
+                return infrastructure
 
-            return infrastructure
+            except requests.RequestException as e:
+                last_error = e
+                logger.warning(f"Failed to fetch infrastructure from {url_attempt}: {e}")
+                continue
+            except (KeyError, ValueError) as e:
+                last_error = e
+                logger.warning(f"Failed to parse response from {url_attempt}: {e}")
+                continue
 
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch infrastructure from Quotient: {e}")
-            return None
-        except (KeyError, ValueError) as e:
-            logger.error(f"Failed to parse Quotient API response: {e}")
-            return None
+        # All URLs failed
+        logger.error(f"Failed to fetch infrastructure from all URLs. Last error: {last_error}")
+        return None
 
     def get_scores(self, force_refresh: bool = False) -> Optional[List[TeamScore]]:
         """
