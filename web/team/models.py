@@ -68,7 +68,9 @@ class Team(models.Model):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save to run validation."""
-        self.full_clean()
+        # Skip validation when using update_fields (e.g., with F() expressions)
+        if not kwargs.get("update_fields"):
+            self.full_clean()
         super().save(*args, **kwargs)
 
     def get_member_count(self) -> int:

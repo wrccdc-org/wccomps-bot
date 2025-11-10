@@ -60,6 +60,12 @@ class WCCompsBot(commands.Bot):
 
         logger.info("Cogs loaded")
 
+        # Register persistent views for ticket buttons
+        from bot.ticket_dashboard import TicketActionView
+
+        self.add_view(TicketActionView(ticket_id=0))
+        logger.info("Registered persistent ticket action view")
+
         # Log registered commands for debugging
         commands_list = self.tree.get_commands()
         logger.info(f"Registered {len(commands_list)} top-level commands:")

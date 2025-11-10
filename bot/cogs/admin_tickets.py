@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
-from typing import Optional, cast
+from typing import Optional, cast, Union
 from django.utils import timezone
 from datetime import timedelta
 from core.models import DiscordTask
@@ -24,6 +24,34 @@ from bot.ticket_dashboard import (
 from bot.permissions import check_ticketing_admin, check_ticketing_support
 
 logger = logging.getLogger(__name__)
+
+
+class UserOrIdTransformer(app_commands.Transformer):
+    """Transform either a User mention or a Discord ID string into a User object."""
+
+    async def transform(
+        self, interaction: discord.Interaction, value: Union[discord.User, str]
+    ) -> Optional[discord.User]:
+        """
+        Transform input into a discord.User.
+
+        Accepts:
+        - @mention (discord automatically converts to discord.User)
+        - Raw Discord ID as string (we fetch the user)
+        """
+        # If the value is already a User, return it (from @mention)
+        if isinstance(value, discord.User):
+            return value
+
+        # Try to parse as Discord ID
+        try:
+            user_id = int(value)
+            user = await interaction.client.fetch_user(user_id)
+            return user
+        except (ValueError, discord.NotFound, discord.HTTPException):
+            raise app_commands.AppCommandError(
+                "Invalid user. Please provide a @mention or valid Discord ID."
+            )
 
 
 class AdminTicketsCog(commands.Cog):
@@ -268,7 +296,9 @@ class AdminTicketsCog(commands.Cog):
                 value += f"\nAssigned: {ticket.assigned_to_discord_username}"
 
             embed.add_field(
-                name=f"#{ticket.id}: {ticket.title}", value=value, inline=False
+                name=f"{ticket.ticket_number}: {ticket.title}",
+                value=value,
+                inline=False,
             )
 
         if total_count > display_limit:
@@ -280,7 +310,7 @@ class AdminTicketsCog(commands.Cog):
         name="resolve", description="[ADMIN] Resolve a ticket and apply points"
     )
     @app_commands.describe(
-        ticket_id="Ticket ID number",
+        ticket_number="Ticket number (e.g., T050-003)",
         notes="Resolution notes",
         points="Point adjustment (for variable point categories)",
     )
@@ -288,24 +318,26 @@ class AdminTicketsCog(commands.Cog):
     async def admin_ticket_resolve(
         self,
         interaction: discord.Interaction,
-        ticket_id: int,
+        ticket_number: str,
         notes: str = "",
         points: Optional[int] = None,
     ) -> None:
         """Resolve a ticket and apply point adjustments."""
 
         ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
+            await Ticket.objects.select_related("team")
+            .filter(ticket_number=ticket_number)
+            .afirst()
         )
         if not ticket:
             await interaction.response.send_message(
-                f"Ticket #{ticket_id} not found", ephemeral=True
+                f"Ticket {ticket_number} not found", ephemeral=True
             )
             return
 
         if ticket.status == "resolved":
             await interaction.response.send_message(
-                f"Ticket #{ticket_id} is already resolved", ephemeral=True
+                f"Ticket {ticket.ticket_number} is already resolved", ephemeral=True
             )
             return
 
@@ -369,12 +401,12 @@ class AdminTicketsCog(commands.Cog):
         # Log to ops
         await log_to_ops_channel(
             self.bot,
-            f"Ticket Resolved: #{ticket.id} for **{ticket.team.team_name}** by {interaction.user.mention}\n"
+            f"Ticket Resolved: {ticket.ticket_number} for **{ticket.team.team_name}** by {interaction.user.mention}\n"
             f"Point Penalty: {point_penalty} points",
         )
 
         await interaction.response.send_message(
-            f"Resolved ticket #{ticket.id}\n"
+            f"Resolved ticket {ticket.ticket_number}\n"
             f"Point Penalty: {point_penalty} points applied to {ticket.team.team_name}",
             ephemeral=True,
         )
@@ -383,26 +415,30 @@ class AdminTicketsCog(commands.Cog):
         name="cancel", description="[ADMIN] Cancel a ticket without applying points"
     )
     @app_commands.describe(
-        ticket_id="Ticket ID number", reason="Reason for cancellation"
+        ticket_number="Ticket number (e.g., T050-003)",
+        reason="Reason for cancellation",
     )
     @app_commands.check(check_ticketing_admin)
     async def admin_ticket_cancel(
-        self, interaction: discord.Interaction, ticket_id: int, reason: str = ""
+        self, interaction: discord.Interaction, ticket_number: str, reason: str = ""
     ) -> None:
         """Cancel a ticket without point penalty."""
 
         ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
+            await Ticket.objects.select_related("team")
+            .filter(ticket_number=ticket_number)
+            .afirst()
         )
         if not ticket:
             await interaction.response.send_message(
-                f"Ticket #{ticket_id} not found", ephemeral=True
+                f"Ticket {ticket_number} not found", ephemeral=True
             )
             return
 
         if ticket.status == "resolved" or ticket.status == "cancelled":
             await interaction.response.send_message(
-                f"Ticket #{ticket_id} is already {ticket.status}", ephemeral=True
+                f"Ticket {ticket.ticket_number} is already {ticket.status}",
+                ephemeral=True,
             )
             return
 
@@ -432,12 +468,13 @@ class AdminTicketsCog(commands.Cog):
         # Log to ops
         await log_to_ops_channel(
             self.bot,
-            f"Ticket Cancelled: #{ticket.id} for **{ticket.team.team_name}** by {interaction.user.mention}\n"
+            f"Ticket Cancelled: {ticket.ticket_number} for **{ticket.team.team_name}** by {interaction.user.mention}\n"
             f"Reason: {reason or 'No reason provided'}",
         )
 
         await interaction.response.send_message(
-            f"Cancelled ticket #{ticket.id} (no point penalty applied)", ephemeral=True
+            f"Cancelled ticket {ticket.ticket_number} (no point penalty applied)",
+            ephemeral=True,
         )
 
     @tickets_group.command(
@@ -445,25 +482,29 @@ class AdminTicketsCog(commands.Cog):
         description="[ADMIN] Reassign a ticket to a different volunteer",
     )
     @app_commands.describe(
-        ticket_id="Ticket ID number",
-        volunteer="Discord user to assign (leave empty to unassign)",
+        ticket_number="Ticket number (e.g., T050-003)",
+        volunteer="Discord user (@mention or ID) to assign (leave empty to unassign)",
     )
     @app_commands.check(check_ticketing_admin)
     async def admin_ticket_reassign(
         self,
         interaction: discord.Interaction,
-        ticket_id: int,
-        volunteer: Optional[discord.User] = None,
+        ticket_number: str,
+        volunteer: Optional[
+            app_commands.Transform[discord.User, UserOrIdTransformer]
+        ] = None,
     ) -> None:
         """Reassign a ticket to a different volunteer."""
         await interaction.response.defer(ephemeral=True)
 
         ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
+            await Ticket.objects.select_related("team")
+            .filter(ticket_number=ticket_number)
+            .afirst()
         )
         if not ticket:
             await interaction.followup.send(
-                f"Ticket #{ticket_id} not found", ephemeral=True
+                f"Ticket {ticket_number} not found", ephemeral=True
             )
             return
 
@@ -508,7 +549,7 @@ class AdminTicketsCog(commands.Cog):
         await DiscordTask.objects.acreate(task_type="update_dashboard", ticket=ticket)
 
         await interaction.followup.send(
-            f"Ticket #{ticket_id} reassigned\n• From: {old_assignee}\n• To: {new_assignee}",
+            f"Ticket {ticket.ticket_number} reassigned\n• From: {old_assignee}\n• To: {new_assignee}",
             ephemeral=True,
         )
 
@@ -516,7 +557,7 @@ class AdminTicketsCog(commands.Cog):
         await log_to_ops_channel(
             self.bot,
             f"Ticket reassigned by {interaction.user.mention}\n"
-            f"• Ticket: #{ticket_id} ({ticket.team.team_name})\n"
+            f"• Ticket: {ticket.ticket_number} ({ticket.team.team_name})\n"
             f"• From: {old_assignee}\n"
             f"• To: {new_assignee}",
         )
@@ -524,20 +565,24 @@ class AdminTicketsCog(commands.Cog):
     @tickets_group.command(
         name="reopen", description="[ADMIN] Reopen a resolved ticket"
     )
-    @app_commands.describe(ticket_id="Ticket ID number", reason="Reason for reopening")
+    @app_commands.describe(
+        ticket_number="Ticket number (e.g., T050-003)", reason="Reason for reopening"
+    )
     @app_commands.check(check_ticketing_admin)
     async def admin_ticket_reopen(
-        self, interaction: discord.Interaction, ticket_id: int, reason: str
+        self, interaction: discord.Interaction, ticket_number: str, reason: str
     ) -> None:
         """Reopen a resolved ticket."""
         await interaction.response.defer(ephemeral=True)
 
         ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
+            await Ticket.objects.select_related("team")
+            .filter(ticket_number=ticket_number)
+            .afirst()
         )
         if not ticket:
             await interaction.followup.send(
-                f"Ticket #{ticket_id} not found", ephemeral=True
+                f"Ticket {ticket_number} not found", ephemeral=True
             )
             return
 
@@ -573,7 +618,7 @@ class AdminTicketsCog(commands.Cog):
             refund_msg = f"\n• Refunded: {ticket.points_charged} points"
 
         await interaction.followup.send(
-            f"Ticket #{ticket_id} reopened\n• Reason: {reason}{refund_msg}",
+            f"Ticket {ticket.ticket_number} reopened\n• Reason: {reason}{refund_msg}",
             ephemeral=True,
         )
 
@@ -581,7 +626,7 @@ class AdminTicketsCog(commands.Cog):
         await log_to_ops_channel(
             self.bot,
             f"Ticket reopened by {interaction.user.mention}\n"
-            f"• Ticket: #{ticket_id} ({ticket.team.team_name})\n"
+            f"• Ticket: {ticket.ticket_number} ({ticket.team.team_name})\n"
             f"• Reason: {reason}{refund_msg}",
         )
 

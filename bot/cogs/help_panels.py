@@ -9,7 +9,6 @@ from django.conf import settings
 
 from core.tickets_config import TICKET_CATEGORIES
 from team.models import DiscordLink
-from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
 
@@ -74,34 +73,18 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
         try:
             cat_info = TICKET_CATEGORIES[self.category_id]
 
-            # Generate ticket number
-            latest_ticket = (
-                await Ticket.objects.filter(team=link.team)
-                .order_by("-created_at")
-                .afirst()
-            )
-            if latest_ticket:
-                try:
-                    last_seq = int(latest_ticket.ticket_number.split("-")[1])
-                    sequence = last_seq + 1
-                except (IndexError, ValueError):
-                    sequence = 1
-            else:
-                sequence = 1
+            # Create ticket using shared atomic function
+            from ticketing.utils import acreate_ticket_atomic
 
-            ticket_number = f"T{link.team.team_number:03d}-{sequence:03d}"
-
-            ticket = await Ticket.objects.acreate(
-                ticket_number=ticket_number,
+            ticket = await acreate_ticket_atomic(
                 team=link.team,
                 category=self.category_id,
                 title=cat_info["display_name"],
                 description=description,
                 hostname=hostname,
-                ip_address=ip_address or None,
+                ip_address=ip_address,
                 service_name=service_name,
-                status="open",
-                points_charged=cat_info.get("points", 0),
+                actor_username=f"discord:{interaction.user.name}",
             )
 
             # Queue Discord thread creation

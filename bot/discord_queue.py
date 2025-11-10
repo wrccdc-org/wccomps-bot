@@ -112,6 +112,8 @@ class DiscordQueueProcessor:
                 await self._handle_ticket_created_web(task)
             elif task.task_type == "post_comment":
                 await self._handle_post_comment(task)
+            elif task.task_type == "add_user_to_thread":
+                await self._handle_add_user_to_thread(task)
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
@@ -422,11 +424,19 @@ class DiscordQueueProcessor:
                     embed = format_ticket_embed(ticket)
                     view = TicketActionView(ticket.id)
 
-                    await thread.send(
+                    message = await thread.send(
                         f"**Ticket #{ticket.ticket_number}** - Use buttons below to manage this ticket.",
                         embed=embed,
                         view=view,
                     )
+
+                    # Pin the ticket message to the thread
+                    try:
+                        await message.pin()
+                    except Exception as pin_error:
+                        logger.warning(
+                            f"Failed to pin ticket message in thread {thread.id}: {pin_error}"
+                        )
 
                     logger.info(
                         f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web"
@@ -495,3 +505,36 @@ class DiscordQueueProcessor:
         logger.info(
             f"Posted comment {comment_id} to thread {thread.id} (message {message.id})"
         )
+
+    async def _handle_add_user_to_thread(self, task: DiscordTask) -> None:
+        """Add a user to a Discord thread."""
+        discord_id = task.payload.get("discord_id")
+        thread_id = task.payload.get("thread_id")
+
+        if not discord_id or not thread_id:
+            raise ValueError("Missing discord_id or thread_id in payload")
+
+        # Get thread
+        thread = self.bot.get_channel(thread_id)
+        if not thread:
+            try:
+                thread = await self.bot.fetch_channel(thread_id)
+            except Exception as e:
+                raise ValueError(f"Could not find thread {thread_id}: {e}")
+
+        # Type guard for threads
+        if not isinstance(thread, discord.Thread):
+            raise ValueError(f"Channel {thread_id} is not a thread")
+
+        # Get user
+        user = self.bot.get_user(discord_id)
+        if not user:
+            try:
+                user = await self.bot.fetch_user(discord_id)
+            except Exception as e:
+                raise ValueError(f"Could not find user {discord_id}: {e}")
+
+        # Add user to thread
+        await thread.add_user(user)
+
+        logger.info(f"Added user {discord_id} to thread {thread_id}")

@@ -355,6 +355,23 @@ class TicketingCog(commands.Cog):
             ticket=ticket, discord_id=message.author.id
         )
 
+        # Save message as comment in database (for web interface visibility)
+        if message.content:  # Only save if there's text content
+            # Check if this message is already saved (prevent duplicates)
+            existing = await TicketComment.objects.filter(
+                discord_message_id=message.id
+            ).afirst()
+
+            if not existing:
+                await TicketComment.objects.acreate(
+                    ticket=ticket,
+                    author_name=str(message.author),
+                    author_discord_id=message.author.id,
+                    comment_text=message.content,
+                    discord_message_id=message.id,
+                )
+                logger.info(f"Saved Discord message as comment for ticket #{ticket.id}")
+
         # Process attachments
         if message.attachments:
             for attachment in message.attachments:

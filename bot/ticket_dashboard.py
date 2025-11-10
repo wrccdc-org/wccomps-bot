@@ -1,6 +1,6 @@
 """Ticket dashboard management for #ticket-queue channel."""
 
-from typing import Optional, Tuple, cast, Any
+from typing import Optional, Any
 import discord
 import logging
 from django.utils import timezone
@@ -115,10 +115,37 @@ class TicketActionView(discord.ui.View):
                 )
             )
 
+    async def _get_ticket_id_from_interaction(
+        self, interaction: discord.Interaction
+    ) -> Optional[int]:
+        """Extract ticket ID from interaction message or instance variable."""
+        import re
+
+        # If instance has ticket_id, use it (for newly created views)
+        if hasattr(self, "ticket_id") and self.ticket_id:
+            return self.ticket_id
+
+        # Extract from message embed (for persistent views after bot restart)
+        if interaction.message and interaction.message.embeds:
+            embed = interaction.message.embeds[0]
+            if embed.title:
+                # Title format: "Ticket 123: Title"
+                match = re.match(r"Ticket (\d+):", embed.title)
+                if match:
+                    ticket_number = int(match.group(1))
+                    # Look up ticket by ticket_number
+                    ticket = await Ticket.objects.filter(
+                        ticket_number=ticket_number
+                    ).afirst()
+                    if ticket:
+                        return ticket.id
+
+        return None
+
     @discord.ui.button(
         label="Claim",
         style=discord.ButtonStyle.primary,
-        custom_id="ticket_claim",
+        custom_id="ticket_claim_persistent",
         row=1,
     )
     async def claim_button(
@@ -126,6 +153,15 @@ class TicketActionView(discord.ui.View):
     ) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
+
+        # Extract ticket_id from message embed or instance variable
+        ticket_id = await self._get_ticket_id_from_interaction(interaction)
+        if not ticket_id:
+            await interaction.response.send_message(
+                "Could not identify ticket from this message.",
+                ephemeral=True,
+            )
+            return
 
         # Check permissions
         if not await can_support_tickets_async(interaction):
@@ -136,50 +172,39 @@ class TicketActionView(discord.ui.View):
             )
             return
 
-        from django.db import transaction
-        from ticketing.models import TicketHistory
-        from asgiref.sync import sync_to_async
+        # Use shared atomic claim function
+        from ticketing.utils import aclaim_ticket_atomic
 
-        # Use select_for_update to prevent race conditions
-        @sync_to_async
-        def claim_ticket_atomic() -> Tuple[Optional[Ticket], Optional[str]]:
-            with transaction.atomic():
-                ticket: Optional[Ticket] = (
-                    Ticket.objects.select_for_update().filter(id=self.ticket_id).first()
-                )
+        ticket, error = await aclaim_ticket_atomic(
+            ticket_id=ticket_id,
+            actor_username=str(interaction.user),
+            discord_id=interaction.user.id,
+            discord_username=str(interaction.user),
+        )
 
-                if not ticket:
-                    return None, "Ticket not found."
-
-                if ticket.status != "open":
-                    return None, f"This ticket is already {ticket.status}."
-
-                # Update ticket
-                ticket.status = "claimed"
-                ticket.assigned_to_discord_id = interaction.user.id
-                ticket.assigned_to_discord_username = str(interaction.user)
-                ticket.assigned_at = timezone.now()
-                ticket.save()
-
-                # Add history
-                TicketHistory.objects.create(
-                    ticket=ticket,
-                    action="claimed",
-                    actor_username=str(interaction.user),
-                    details={"assigned_to": str(interaction.user)},
-                )
-
-                return ticket, None
-
-        ticket, error = await claim_ticket_atomic()
         if error or ticket is None:
             await interaction.response.send_message(
                 error or "Failed to claim ticket.", ephemeral=True
             )
             return
 
-        # Update dashboard (outside transaction)
+        # Update dashboard
         await update_ticket_dashboard(interaction.client, ticket)
+
+        # Add user to thread if ticket has a thread
+        if ticket.discord_thread_id:
+            try:
+                thread = interaction.client.get_channel(ticket.discord_thread_id)
+                if not thread:
+                    thread = await interaction.client.fetch_channel(
+                        ticket.discord_thread_id
+                    )
+                if thread and isinstance(thread, discord.Thread):
+                    await thread.add_user(interaction.user)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to add user {interaction.user.id} to thread {ticket.discord_thread_id}: {e}"
+                )
 
         await interaction.response.send_message(
             f"You have claimed ticket {ticket.ticket_number}.",
@@ -189,7 +214,7 @@ class TicketActionView(discord.ui.View):
     @discord.ui.button(
         label="Resolve",
         style=discord.ButtonStyle.success,
-        custom_id="ticket_resolve",
+        custom_id="ticket_resolve_persistent",
         row=1,
     )
     async def resolve_button(
@@ -197,6 +222,15 @@ class TicketActionView(discord.ui.View):
     ) -> None:
         """Show resolve modal with category dropdown and notes."""
         from bot.permissions import can_support_tickets_async
+
+        # Extract ticket_id from message embed or instance variable
+        ticket_id = await self._get_ticket_id_from_interaction(interaction)
+        if not ticket_id:
+            await interaction.response.send_message(
+                "Could not identify ticket from this message.",
+                ephemeral=True,
+            )
+            return
 
         # Check permissions
         if not await can_support_tickets_async(interaction):
@@ -207,7 +241,7 @@ class TicketActionView(discord.ui.View):
             )
             return
 
-        ticket = await Ticket.objects.filter(id=self.ticket_id).afirst()
+        ticket = await Ticket.objects.filter(id=ticket_id).afirst()
         if not ticket:
             await interaction.response.send_message("Ticket not found.", ephemeral=True)
             return
@@ -225,7 +259,7 @@ class TicketActionView(discord.ui.View):
     @discord.ui.button(
         label="Cancel",
         style=discord.ButtonStyle.danger,
-        custom_id="ticket_cancel",
+        custom_id="ticket_cancel_persistent",
         row=2,
     )
     async def cancel_button(
@@ -235,6 +269,15 @@ class TicketActionView(discord.ui.View):
         from team.models import DiscordLink
         from ticketing.models import TicketHistory
         from asgiref.sync import sync_to_async
+
+        # Extract ticket_id from message embed or instance variable
+        ticket_id = await self._get_ticket_id_from_interaction(interaction)
+        if not ticket_id:
+            await interaction.response.send_message(
+                "Could not identify ticket from this message.",
+                ephemeral=True,
+            )
+            return
 
         # Check if user is linked to a team
         @sync_to_async
@@ -256,9 +299,7 @@ class TicketActionView(discord.ui.View):
 
         # Get ticket
         ticket = (
-            await Ticket.objects.select_related("team")
-            .filter(id=self.ticket_id)
-            .afirst()
+            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
         )
         if not ticket:
             await interaction.response.send_message("Ticket not found.", ephemeral=True)
@@ -335,72 +376,42 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         """Handle modal submission."""
-        from ticketing.models import TicketHistory
-        from datetime import timedelta
-
         cat_info = TICKET_CATEGORIES.get(self.ticket.category, {})
 
-        # Determine point penalty
+        # Parse points override if variable category
+        points_override = None
         if cat_info.get("variable_points", False):
             if self.points.value.strip():
                 try:
-                    point_penalty = int(self.points.value.strip())
-                    min_pts = cast(int, cat_info.get("min_points", 0))
-                    max_pts = cast(int, cat_info.get("max_points", 0))
-                    if point_penalty < min_pts or point_penalty > max_pts:
-                        await interaction.response.send_message(
-                            f"Point value must be between {min_pts} and {max_pts}.",
-                            ephemeral=True,
-                        )
-                        return
+                    points_override = int(self.points.value.strip())
                 except ValueError:
                     await interaction.response.send_message(
                         "Invalid point value. Must be a number.", ephemeral=True
                     )
                     return
-            else:
-                await interaction.response.send_message(
-                    f"This category requires a point value between {cat_info.get('min_points', 0)} and {cat_info.get('max_points', 0)}.",
-                    ephemeral=True,
-                )
-                return
-        else:
-            point_penalty = cat_info.get("points", 0)
 
-        # Update ticket
-        self.ticket.status = "resolved"
-        self.ticket.resolved_at = timezone.now()
-        self.ticket.resolved_by_discord_id = interaction.user.id
-        self.ticket.resolved_by_discord_username = str(interaction.user)
-        self.ticket.resolution_notes = self.notes.value
-        self.ticket.points_charged = point_penalty
-        if not self.ticket.assigned_to_discord_id:
-            self.ticket.assigned_to_discord_id = interaction.user.id
-            self.ticket.assigned_to_discord_username = str(interaction.user)
+        # Use shared atomic resolve function
+        from ticketing.utils import aresolve_ticket_atomic
 
-        # Schedule thread archiving after 60 seconds
-        if self.ticket.discord_thread_id:
-            self.ticket.thread_archive_scheduled_at = timezone.now() + timedelta(
-                seconds=60
-            )
-
-        await self.ticket.asave()
-
-        # Create history entry
-        await TicketHistory.objects.acreate(
-            ticket=self.ticket,
-            action="resolved",
+        ticket, error = await aresolve_ticket_atomic(
+            ticket_id=self.ticket.id,
             actor_username=str(interaction.user),
-            details={
-                "notes": self.notes.value,
-                "point_penalty": point_penalty,
-            },
+            resolution_notes=self.notes.value,
+            points_override=points_override,
+            discord_id=interaction.user.id,
+            discord_username=str(interaction.user),
         )
 
+        if error or ticket is None:
+            await interaction.response.send_message(
+                error or "Failed to resolve ticket.", ephemeral=True
+            )
+            return
+
         # Update dashboard
-        await update_ticket_dashboard(interaction.client, self.ticket)
+        await update_ticket_dashboard(interaction.client, ticket)
 
         await interaction.response.send_message(
-            f"Ticket {self.ticket.ticket_number} resolved with {point_penalty} point penalty.",
+            f"Ticket {ticket.ticket_number} resolved with {ticket.points_charged} point penalty.",
             ephemeral=True,
         )

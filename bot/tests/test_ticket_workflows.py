@@ -168,7 +168,7 @@ class TestTicketResolutionWorkflow:
             await cog.admin_ticket_resolve.callback(
                 cog,
                 mock_interaction,
-                ticket_id=ticket.id,
+                ticket_number=ticket.ticket_number,
                 notes="Fixed the issue",
                 points=5,
             )
@@ -212,7 +212,7 @@ class TestTicketResolutionWorkflow:
             await cog.admin_ticket_resolve.callback(
                 cog,
                 mock_interaction,
-                ticket_id=ticket.id,
+                ticket_number=ticket.ticket_number,
                 notes="All fixed",
                 points=10,
             )
@@ -260,7 +260,7 @@ class TestTicketResolutionWorkflow:
             await cog.admin_ticket_resolve.callback(
                 cog,
                 mock_interaction,
-                ticket_id=ticket.id,
+                ticket_number=ticket.ticket_number,
                 notes="Done",
                 points=0,
             )
@@ -299,7 +299,7 @@ class TestTicketResolutionWorkflow:
         await cog.admin_ticket_resolve.callback(
             cog,
             mock_interaction,
-            ticket_id=ticket.id,
+            ticket_number=ticket.ticket_number,
             notes="Try again",
             points=5,
         )
