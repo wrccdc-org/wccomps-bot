@@ -202,7 +202,7 @@
             </table>
         </div>
 
-        <c-pagination page_obj="{{ page_obj }}" query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}" />
+        <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}" />
     </c-module>
 </div>
 
@@ -236,21 +236,23 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', updateBulkActions);
     });
 
-    // Filter toggle
+    // Filter toggle (optional - only if toggle button exists)
     const toggleFiltersBtn = document.getElementById('toggle-filters');
-    const filterContent = document.getElementById('filter-content');
-    let filtersVisible = true;
+    if (toggleFiltersBtn) {
+        const filterContent = document.getElementById('filter-content');
+        let filtersVisible = true;
 
-    toggleFiltersBtn.addEventListener('click', function() {
-        filtersVisible = !filtersVisible;
-        if (filtersVisible) {
-            filterContent.style.display = 'block';
-            toggleFiltersBtn.textContent = 'Hide Filters';
-        } else {
-            filterContent.style.display = 'none';
-            toggleFiltersBtn.textContent = 'Show Filters';
-        }
-    });
+        toggleFiltersBtn.addEventListener('click', function() {
+            filtersVisible = !filtersVisible;
+            if (filtersVisible) {
+                filterContent.style.display = 'block';
+                toggleFiltersBtn.textContent = 'Hide Filters';
+            } else {
+                filterContent.style.display = 'none';
+                toggleFiltersBtn.textContent = 'Show Filters';
+            }
+        });
+    }
 
     // Auto-submit filter form
     const filterForm = document.getElementById('changelist-filter');
@@ -306,16 +308,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Page-specific keyboard shortcut for filter toggle
-    document.addEventListener('keydown', function(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-            return;
-        }
+    if (toggleFiltersBtn) {
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                return;
+            }
 
-        if (e.key.toLowerCase() === 'f') {
-            e.preventDefault();
-            toggleFiltersBtn.click();
-        }
-    });
+            if (e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                toggleFiltersBtn.click();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

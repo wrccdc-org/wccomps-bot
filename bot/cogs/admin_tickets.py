@@ -449,6 +449,13 @@ class AdminTicketsCog(commands.Cog):
         if not ticket.assigned_to_discord_id:
             ticket.assigned_to_discord_id = interaction.user.id
             ticket.assigned_to_discord_username = str(interaction.user)
+
+        # Schedule thread archiving if Discord thread exists
+        if ticket.discord_thread_id:
+            from datetime import timedelta
+
+            ticket.thread_archive_scheduled_at = timezone.now() + timedelta(seconds=60)
+
         await ticket.asave()
 
         # Create history entry
