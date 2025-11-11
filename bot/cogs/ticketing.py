@@ -152,7 +152,7 @@ class TicketingCog(commands.Cog):
         hostname = description if category == "box-reset" else ""
 
         # Create ticket atomically to prevent race conditions
-        from web.ticketing.utils import acreate_ticket_atomic
+        from ticketing.utils import acreate_ticket_atomic
 
         ticket = await acreate_ticket_atomic(
             team=link.team,
