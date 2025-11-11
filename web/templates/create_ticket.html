@@ -130,11 +130,14 @@
     </form>
 </div>
 
+{{ categories|json_script:"categories-data" }}
+{{ box_ip_map|json_script:"box-ip-map-data" }}
+
 <script>
-    const categories = {{ categories|safe }};
+    const categories = JSON.parse(document.getElementById('categories-data').textContent);
     const categorySelect = document.getElementById('category');
     const categoryWarning = document.getElementById('categoryWarning');
-    const boxIpMap = {{ box_ip_map|safe }};
+    const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
 
     const fields = {
         'hostname': document.getElementById('field-hostname'),
@@ -192,7 +195,7 @@
         const requiredFields = JSON.parse(option.dataset.required || '[]');
 
         // Show warning if exists
-        const catData = Object.values({{ categories|safe }}).find(c =>
+        const catData = Object.values(categories).find(c =>
             c.display_name === option.text.split(' - ')[0]
         );
         if (catData && catData.warning) {
@@ -220,7 +223,7 @@
         });
 
         // Show optional fields without required marker
-        const catInfo = Object.values({{ categories|safe }}).find(c =>
+        const catInfo = Object.values(categories).find(c =>
             c.display_name === option.text.split(' - ')[0]
         );
         if (catInfo && catInfo.optional_fields) {
