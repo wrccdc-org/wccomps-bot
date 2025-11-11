@@ -47,11 +47,7 @@ class TestQuotientClient:
         self, mock_infrastructure: Dict[str, Any]
     ) -> None:
         """Test successful infrastructure fetch."""
-        client = QuotientClient(
-            base_url="http://test.local",
-            admin_username="admin",
-            admin_password="password",
-        )
+        client = QuotientClient(base_url="http://test.local")
 
         mock_session = Mock()
         mock_response = Mock()
@@ -105,13 +101,9 @@ class TestQuotientClient:
 
     def test_authentication_failure(self) -> None:
         """Test authentication failure handling."""
-        client = QuotientClient(
-            base_url="http://test.local",
-            admin_username="bad",
-            admin_password="wrong",
-        )
+        client = QuotientClient(base_url="http://test.local")
 
-        with patch("core.quotient_client.requests.Session") as mock_session_class:
+        with patch("quotient.client.requests.Session") as mock_session_class:
             mock_session = Mock()
             mock_response = Mock()
             # Wrap the exception properly in requests.RequestException
@@ -149,7 +141,7 @@ class TestQuotientClient:
         mock_session.get.return_value = mock_response
         client.session = mock_session
 
-        with patch("core.quotient_client.cache") as mock_cache:
+        with patch("quotient.client.cache") as mock_cache:
             mock_cache.get.return_value = None
 
             # First call - should hit API

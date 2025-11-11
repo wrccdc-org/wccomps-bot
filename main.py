@@ -141,6 +141,89 @@ class WCCompsBot(commands.Bot):
             self.unified_dashboard = UnifiedDashboard(self)
             self.unified_dashboard.start()
 
+        # Refresh ticket action buttons on all active tickets
+        await self._refresh_ticket_buttons()
+
+    async def _refresh_ticket_buttons(self) -> None:
+        """Refresh action buttons on all active ticket thread messages."""
+        from ticketing.models import Ticket
+        from bot.ticket_dashboard import format_ticket_embed, TicketActionView
+
+        try:
+            # Get all active tickets with threads
+            tickets = Ticket.objects.filter(
+                status__in=["open", "claimed"], discord_thread_id__isnull=False
+            )
+
+            tickets_list = [t async for t in tickets]
+            if not tickets_list:
+                logger.info("No active tickets with threads to refresh")
+                return
+
+            logger.info(
+                f"Refreshing buttons on {len(tickets_list)} active ticket threads"
+            )
+
+            refreshed = 0
+            failed = 0
+
+            for ticket in tickets_list:
+                try:
+                    logger.info(
+                        f"Processing ticket {ticket.ticket_number} (thread {ticket.discord_thread_id})"
+                    )
+
+                    # Fetch the thread
+                    thread = self.get_channel(ticket.discord_thread_id)
+                    if not thread:
+                        thread = await self.fetch_channel(ticket.discord_thread_id)
+
+                    if not isinstance(thread, discord.Thread):
+                        logger.warning(
+                            f"Channel {ticket.discord_thread_id} is not a thread for ticket {ticket.ticket_number}"
+                        )
+                        continue
+
+                    # Find the ticket message (the one with embed and buttons)
+                    # Search first few messages for one with an embed from the bot
+                    ticket_message = None
+                    async for message in thread.history(limit=10, oldest_first=True):
+                        if message.author == self.user and message.embeds:
+                            ticket_message = message
+                            break
+
+                    if ticket_message:
+                        # Re-edit with fresh embed and view
+                        from asgiref.sync import sync_to_async
+
+                        embed = await sync_to_async(format_ticket_embed)(ticket)
+                        view = TicketActionView(ticket.id)
+                        await ticket_message.edit(embed=embed, view=view)
+                        refreshed += 1
+                        logger.info(f"Refreshed ticket {ticket.ticket_number}")
+                    else:
+                        logger.warning(
+                            f"No ticket message with embed found for ticket {ticket.ticket_number}"
+                        )
+
+                except discord.NotFound:
+                    logger.warning(
+                        f"Thread {ticket.discord_thread_id} not found for ticket {ticket.ticket_number}"
+                    )
+                    failed += 1
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to refresh buttons for ticket {ticket.ticket_number}: {e}"
+                    )
+                    failed += 1
+
+            logger.info(
+                f"Button refresh complete: {refreshed} refreshed, {failed} failed"
+            )
+
+        except Exception as e:
+            logger.error(f"Error refreshing ticket buttons: {e}")
+
     async def on_command_error(
         self, ctx: commands.Context[Any], error: Exception
     ) -> None:

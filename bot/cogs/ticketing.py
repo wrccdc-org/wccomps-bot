@@ -36,7 +36,7 @@ class TicketingCog(commands.Cog):
                 async for ticket in Ticket.objects.filter(
                     thread_archive_scheduled_at__lte=now,
                     discord_thread_id__isnull=False,
-                    status="resolved",
+                    status__in=["resolved", "cancelled"],
                 )
             ]
 

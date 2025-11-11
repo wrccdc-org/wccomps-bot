@@ -129,10 +129,10 @@ class TicketActionView(discord.ui.View):
         if interaction.message and interaction.message.embeds:
             embed = interaction.message.embeds[0]
             if embed.title:
-                # Title format: "Ticket 123: Title"
-                match = re.match(r"Ticket (\d+):", embed.title)
+                # Title format: "Ticket T050-008: Title"
+                match = re.match(r"Ticket ([^:]+):", embed.title)
                 if match:
-                    ticket_number = int(match.group(1))
+                    ticket_number = match.group(1).strip()
                     # Look up ticket by ticket_number
                     ticket = await Ticket.objects.filter(
                         ticket_number=ticket_number
@@ -325,6 +325,13 @@ class TicketActionView(discord.ui.View):
         ticket.status = "cancelled"
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = f"Cancelled by {interaction.user}"
+
+        # Schedule thread archiving if Discord thread exists
+        if ticket.discord_thread_id:
+            from datetime import timedelta
+
+            ticket.thread_archive_scheduled_at = timezone.now() + timedelta(seconds=60)
+
         await ticket.asave()
 
         # Create history entry
@@ -351,28 +358,40 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         super().__init__()
         self.ticket = ticket
 
+        # Create notes input
+        self.notes: discord.ui.TextInput[Any] = discord.ui.TextInput(
+            label="Resolution Notes",
+            placeholder="Describe how the issue was resolved...",
+            style=discord.TextStyle.paragraph,
+            required=False,
+            max_length=1000,
+        )
+
         # Check if variable points category
         cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        self.points: discord.ui.TextInput[Any]
         if cat_info.get("variable_points", False):
             min_pts = cat_info.get("min_points", 0)
             max_pts = cat_info.get("max_points", 0)
-            self.points.placeholder = f"Enter points ({min_pts}-{max_pts})"
-            self.points.required = True
+            self.points = discord.ui.TextInput(
+                label="Points (for variable categories)",
+                placeholder=f"Enter points ({min_pts}-{max_pts})",
+                required=True,
+                max_length=5,
+            )
+        else:
+            # Show fixed points that will be charged if left blank
+            fixed_pts = cat_info.get("points", 0)
+            self.points = discord.ui.TextInput(
+                label="Points (for variable categories)",
+                placeholder=f"Leave blank to charge {fixed_pts} points",
+                required=False,
+                max_length=5,
+            )
 
-    notes: discord.ui.TextInput[Any] = discord.ui.TextInput(
-        label="Resolution Notes",
-        placeholder="Describe how the issue was resolved...",
-        style=discord.TextStyle.paragraph,
-        required=False,
-        max_length=1000,
-    )
-
-    points: discord.ui.TextInput[Any] = discord.ui.TextInput(
-        label="Points (for variable categories)",
-        placeholder="Leave blank for fixed-point categories",
-        required=False,
-        max_length=5,
-    )
+        # Add items to modal
+        self.add_item(self.notes)
+        self.add_item(self.points)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         """Handle modal submission."""

@@ -26,7 +26,7 @@ class Ticket(models.Model):
 
     # Category-specific fields
     hostname = models.CharField(max_length=255, blank=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    ip_address = models.CharField(max_length=45, blank=True, null=True)
     service_name = models.CharField(max_length=100, blank=True)
     custom_fields = models.JSONField(default=dict, blank=True)
 
