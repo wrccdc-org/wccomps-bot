@@ -212,7 +212,7 @@ Variable cost categories default to lower value. Volunteers can override points 
 - Admins can reopen resolved or cancelled tickets via `/tickets reopen` command
 - Ticket status changed back to "open"
 - Points are not refunded automatically (manual adjustment needed)
-- Thread is unarchived
+- Thread remains archived (must be manually unarchived if needed)
 
 ### Unified Dashboard
 
@@ -245,15 +245,16 @@ The unified dashboard in #ticket-queue provides:
 ### Comments
 - All messages in ticket threads are automatically synced to database
 - Comments visible on web interface for full ticket history
-- Rate limiting: 3 messages per 10 seconds per user to prevent spam
+- Rate limiting: 5 comments per minute per ticket, 10 comments per minute per user
 - Edit tracking: Edits to Discord messages sync to database
 - Deletion tracking: Deleted messages marked as "[Message deleted]"
 - Web-posted comments are sent to Discord thread automatically
 
 ### Rate Limiting
 - Implemented via `CommentRateLimit` model
-- Tracks message timestamps per user per ticket
-- Sliding window: last 3 messages within 10 seconds triggers limit
+- Tracks message timestamps per user and per ticket
+- Ticket-level limit: 5 comments per minute per ticket
+- User-level limit: 10 comments per minute per user (across all tickets)
 - Violating messages are deleted with ephemeral warning
 - Prevents spam and abuse in ticket threads
 
@@ -311,9 +312,10 @@ The system can automatically enable/disable Authentik applications based on comp
 
 **Behavior:**
 - Background task checks every minute
-- At start time: enables all configured applications and blueteam accounts
-- At end time: disables all configured applications and blueteam accounts
+- At start time: enables all configured applications
+- At end time: disables all configured applications
 - Manual override: `/competition start-competition` to enable immediately
+- Note: Blueteam account toggling is separate via `/competition toggle-blueteams` command
 
 **Implementation:**
 - Uses `CompetitionConfig` model to store timing
@@ -555,12 +557,12 @@ If ticket's Discord thread failed to create, shows prominent warning that team c
 When `DJANGO_DEBUG=False`:
 - `SESSION_COOKIE_SECURE = True` - Cookies only sent over HTTPS
 - `CSRF_COOKIE_SECURE = True` - CSRF cookies only sent over HTTPS
-- `SECURE_SSL_REDIRECT = True` - Redirect HTTP to HTTPS
+- `SECURE_SSL_REDIRECT = False` - SSL redirect handled by reverse proxy (Traefik)
 - `SECURE_HSTS_SECONDS = 31536000` - HSTS enabled for 1 year
 - `SECURE_HSTS_INCLUDE_SUBDOMAINS = True` - HSTS includes subdomains
 - `SECURE_HSTS_PRELOAD = True` - Enable HSTS preload
 
-Ensure your reverse proxy (nginx, Caddy, etc.) handles TLS termination.
+Ensure your reverse proxy (Traefik, nginx, Caddy, etc.) handles TLS termination and HTTP→HTTPS redirect.
 
 ## Task Queue & Rate Limiting
 
@@ -576,12 +578,12 @@ Ensure your reverse proxy (nginx, Caddy, etc.) handles TLS termination.
 - `failed`: Failed after max retries (default 5)
 
 **Retry Logic:**
-- Exponential backoff: 2^(attempt-1) seconds, capped at 300s
+- Exponential backoff: 2^retry_count seconds (first retry: 2s, second: 4s, third: 8s, etc.), capped at 300s
 - Discord rate limit headers respected
 - Tasks automatically retried on transient errors
 
 ### Queue Processor
-- Polls database every 5 seconds for ready tasks
+- Polls database every 2 seconds for ready tasks
 - Processes up to 10 tasks per poll
 - Oldest tasks (by created_at) processed first
 - Logs all task execution to ops channel on failure
