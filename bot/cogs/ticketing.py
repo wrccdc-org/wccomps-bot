@@ -151,40 +151,16 @@ class TicketingCog(commands.Cog):
         # For box-reset, use description as hostname
         hostname = description if category == "box-reset" else ""
 
-        # Generate ticket number
-        latest_ticket = (
-            await Ticket.objects.filter(team=link.team).order_by("-created_at").afirst()
-        )
-        if latest_ticket:
-            # Extract sequence from last ticket (format: T001-XXX)
-            try:
-                last_seq = int(latest_ticket.ticket_number.split("-")[1])
-                sequence = last_seq + 1
-            except (IndexError, ValueError):
-                sequence = 1
-        else:
-            sequence = 1
+        # Create ticket atomically to prevent race conditions
+        from web.ticketing.utils import acreate_ticket_atomic
 
-        ticket_number = f"T{link.team.team_number:03d}-{sequence:03d}"
-
-        # Create ticket
-        ticket = await Ticket.objects.acreate(
-            ticket_number=ticket_number,
+        ticket = await acreate_ticket_atomic(
             team=link.team,
             category=category,
             title=cat_info["display_name"],
             description=description,
             hostname=hostname,
-            status="open",
-            points_charged=cat_info.get("points", 0),
-        )
-
-        # Create history entry
-        await TicketHistory.objects.acreate(
-            ticket=ticket,
-            action="created",
-            actor_username=str(interaction.user),
-            details=f"Ticket created via Discord by {interaction.user}",
+            actor_username=f"discord:{interaction.user}",
         )
 
         # Create thread in team's category
