@@ -3,14 +3,6 @@
 
 {% block title %}Edit School Information - Team {{ team.team_number }}{% endblock %}
 
-{% block nav-global %}
-<div id="nav-global">
-    <a href="/ops/tickets/">Tickets</a>
-    <a href="/ops/group-role-mappings/">Team Mappings</a>
-    <a href="/ops/school-info/" class="active">School Information</a>
-</div>
-{% endblock %}
-
 {% block content %}
 <div id="content-main">
     <c-page_header title="Edit School Information - Team {{ team.team_number }}" subtitle="{{ team.team_name }}" />

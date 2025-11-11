@@ -3,14 +3,6 @@
 
 {% block title %}Ticket {{ ticket.ticket_number }} - WCComps{% endblock %}
 
-{% block nav-global %}
-<div id="nav-global">
-    <a href="/ops/tickets/" class="active">Tickets</a>
-    <a href="/ops/group-role-mappings/">Team Mappings</a>
-    <a href="/ops/school-info/">School Information</a>
-</div>
-{% endblock %}
-
 {% block content %}
 <div id="content-main">
     <c-page_header title="Ticket {{ ticket.ticket_number }}" />
