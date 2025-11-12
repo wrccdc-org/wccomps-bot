@@ -1,6 +1,6 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -253,23 +253,28 @@ def resolve_ticket_atomic(
 
         # Determine points
         cat_info = TICKET_CATEGORIES.get(ticket.category, {})
-        if cat_info.get("variable_points", False):
-            if points_override is None:
-                min_pts = int(cat_info.get("min_points", 0))
-                max_pts = int(cat_info.get("max_points", 0))
+
+        # If points_override is provided, use it (for both variable and fixed categories)
+        if points_override is not None:
+            # For variable categories, validate range
+            if cat_info.get("variable_points", False):
+                min_pts = cast(int, cat_info.get("min_points", 0))
+                max_pts = cast(int, cat_info.get("max_points", 0))
+                if points_override < min_pts or points_override > max_pts:
+                    return None, f"Point value must be between {min_pts} and {max_pts}."
+            point_penalty = points_override
+        else:
+            # No override provided
+            if cat_info.get("variable_points", False):
+                # Variable categories require an explicit value
+                min_pts = cast(int, cat_info.get("min_points", 0))
+                max_pts = cast(int, cat_info.get("max_points", 0))
                 return (
                     None,
                     f"This category requires a point value between {min_pts} and {max_pts}.",
                 )
-
-            min_pts = int(cat_info.get("min_points", 0))
-            max_pts = int(cat_info.get("max_points", 0))
-            if points_override < min_pts or points_override > max_pts:
-                return None, f"Point value must be between {min_pts} and {max_pts}."
-
-            point_penalty = points_override
-        else:
-            point_penalty = int(cat_info.get("points", 0))
+            # Use default for fixed categories
+            point_penalty = cast(int, cat_info.get("points", 0))
 
         # Update ticket
         ticket.status = "resolved"

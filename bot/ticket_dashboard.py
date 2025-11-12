@@ -1,6 +1,6 @@
 """Ticket dashboard management for #ticket-queue channel."""
 
-from typing import Optional, Any
+from typing import Optional, Any, cast
 import discord
 import logging
 from django.utils import timezone
@@ -374,7 +374,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
             min_pts = cat_info.get("min_points", 0)
             max_pts = cat_info.get("max_points", 0)
             self.points = discord.ui.TextInput(
-                label="Points (for variable categories)",
+                label="Points Override",
                 placeholder=f"Enter points ({min_pts}-{max_pts})",
                 required=True,
                 max_length=5,
@@ -383,8 +383,8 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
             # Show fixed points that will be charged if left blank
             fixed_pts = cat_info.get("points", 0)
             self.points = discord.ui.TextInput(
-                label="Points (for variable categories)",
-                placeholder=f"Leave blank to charge {fixed_pts} points",
+                label="Points Override",
+                placeholder=f"Leave blank for default ({fixed_pts}pt) or enter to override",
                 required=False,
                 max_length=5,
             )
@@ -397,15 +397,25 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         """Handle modal submission."""
         cat_info = TICKET_CATEGORIES.get(self.ticket.category, {})
 
-        # Parse points override if variable category
+        # Parse points override for both variable and fixed categories
         points_override = None
-        if cat_info.get("variable_points", False):
-            if self.points.value.strip():
-                try:
-                    points_override = int(self.points.value.strip())
-                except ValueError:
+        if self.points.value.strip():
+            try:
+                points_override = int(self.points.value.strip())
+            except ValueError:
+                await interaction.response.send_message(
+                    "Invalid point value. Must be a number.", ephemeral=True
+                )
+                return
+
+            # Validate range for variable categories
+            if cat_info.get("variable_points", False):
+                min_pts = cast(int, cat_info.get("min_points", 0))
+                max_pts = cast(int, cat_info.get("max_points", 0))
+                if points_override < min_pts or points_override > max_pts:
                     await interaction.response.send_message(
-                        "Invalid point value. Must be a number.", ephemeral=True
+                        f"Point value must be between {min_pts} and {max_pts}.",
+                        ephemeral=True,
                     )
                     return
 
