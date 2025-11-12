@@ -101,8 +101,14 @@
             <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
                 {% csrf_token %}
                 <div style="margin-bottom: 15px;">
-                    <label for="resolution_notes" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Resolution Notes (optional)</label>
-                    <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;"></textarea>
+                    <label for="points_override" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Points Override</label>
+                    <input type="number" name="points_override" id="points_override" placeholder="Leave blank for default ({{ ticket.points_charged }}pt)" style="width: 200px; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
+                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Enter a value to override the default point penalty (e.g., 0 for ops errors)</div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="resolution_notes" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Resolution Notes</label>
+                    <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;" required></textarea>
+                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Explain how the issue was resolved</div>
                 </div>
                 <div class="quick-actions">
                     <c-button type="submit" variant="success">✓ Resolve Ticket</c-button>

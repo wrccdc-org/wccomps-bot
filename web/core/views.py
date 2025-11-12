@@ -1258,6 +1258,15 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Ticket not found", status=404)
 
     resolution_notes = request.POST.get("resolution_notes", "").strip()
+    points_override_str = request.POST.get("points_override", "").strip()
+
+    # Parse points override if provided
+    points_override = None
+    if points_override_str:
+        try:
+            points_override = int(points_override_str)
+        except ValueError:
+            return HttpResponse("Invalid points value. Must be a number.", status=400)
 
     # Try to find Discord link (optional for web UI)
     try:
@@ -1282,6 +1291,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         ticket_id=ticket_obj.id,
         actor_username=authentik_username,
         resolution_notes=resolution_notes,
+        points_override=points_override,
         discord_id=discord_id,
         discord_username=discord_username,
         authentik_username=authentik_username,
