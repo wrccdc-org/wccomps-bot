@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.utils import timezone
+from django.utils.http import content_disposition_header
 from django.db import transaction
 from django.contrib import messages
 from team.models import LinkToken, DiscordLink, Team, LinkAttempt, SchoolInfo
@@ -441,6 +442,9 @@ def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Get comments
     comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
 
+    # Get attachments
+    attachments = TicketAttachment.objects.filter(ticket=ticket).order_by("uploaded_at")
+
     return render(
         request,
         "ticket_detail.html",
@@ -449,6 +453,7 @@ def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
             "ticket": ticket,
             "category_name": cat_info.get("name", ticket.category),
             "comments": comments,
+            "attachments": attachments,
             "status_display": ticket.status.upper().replace("_", " "),
         },
     )
@@ -557,8 +562,6 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
 
         # Validate category
         if category not in TICKET_CATEGORIES:
-            import json
-
             return render(
                 request,
                 "create_ticket.html",
@@ -567,7 +570,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
-                    "box_ip_map": json.dumps(box_ip_map),
+                    "box_ip_map": box_ip_map,
                     "error": "Invalid ticket category selected.",
                 },
             )
@@ -593,8 +596,6 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             errors.append("Description is required for this category.")
 
         if errors:
-            import json
-
             return render(
                 request,
                 "create_ticket.html",
@@ -603,7 +604,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
-                    "box_ip_map": json.dumps(box_ip_map),
+                    "box_ip_map": box_ip_map,
                     "error": " ".join(errors),
                     "form_data": request.POST,
                 },
@@ -650,7 +651,6 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
 
         except Exception as e:
             logger.error(f"Failed to create ticket: {e}", exc_info=True)
-            import json
 
             return render(
                 request,
@@ -660,15 +660,13 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
-                    "box_ip_map": json.dumps(box_ip_map),
+                    "box_ip_map": box_ip_map,
                     "error": f"Failed to create ticket: {str(e)}. Please try again or contact support if the problem persists.",
                     "form_data": request.POST,
                 },
             )
 
     # GET request - show form
-    import json
-
     return render(
         request,
         "create_ticket.html",
@@ -677,7 +675,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             "categories": TICKET_CATEGORIES,
             "service_choices": service_choices,
             "box_names": box_names,
-            "box_ip_map": json.dumps(box_ip_map),
+            "box_ip_map": box_ip_map,
         },
     )
 
@@ -741,17 +739,91 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
         details={"reason": "Cancelled by team member via web (unclaimed)"},
     )
 
-    # Create Discord task to update dashboard
-    DiscordTask.objects.create(
-        task_type="update_dashboard",
-        ticket=ticket,
-        payload={"ticket_id": ticket.id},
-        status="pending",
-    )
-
     logger.info(f"Ticket #{ticket_id} cancelled by {authentik_username} via web")
 
     return redirect("team_tickets")
+
+
+@login_required
+def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpResponse:
+    """Upload an attachment to a ticket (team members only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    # Get user's team
+    user = cast(User, request.user)
+    authentik_username, groups, _ = get_authentik_data(user)
+    team, _, is_team = get_team_from_groups(groups)
+
+    if not is_team or not team:
+        return HttpResponse("Access denied", status=403)
+
+    # Get ticket (must belong to user's team)
+    try:
+        ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    uploaded_file = request.FILES.get("attachment")
+    if not uploaded_file:
+        return HttpResponse("No file provided", status=400)
+
+    # Check file size (limit to 10MB)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if uploaded_file.size is None or uploaded_file.size > max_size:
+        return HttpResponse("File too large (max 10MB)", status=400)
+
+    # Validate filename
+    if not uploaded_file.name:
+        return HttpResponse("File must have a name", status=400)
+
+    # Read file data
+    file_data = uploaded_file.read()
+
+    # Create attachment
+    TicketAttachment.objects.create(
+        ticket=ticket,
+        file_data=file_data,
+        filename=uploaded_file.name,
+        mime_type=uploaded_file.content_type or "application/octet-stream",
+        uploaded_by=authentik_username,
+    )
+
+    logger.info(
+        f"Attachment {uploaded_file.name} uploaded to ticket #{ticket_id} by {authentik_username}"
+    )
+
+    return redirect("ticket_detail", ticket_id=ticket_id)
+
+
+@login_required
+def ticket_attachment_download(
+    request: HttpRequest, ticket_id: int, attachment_id: int
+) -> HttpResponse:
+    """Download an attachment from a ticket (team members only)."""
+    # Get user's team
+    user = cast(User, request.user)
+    _, groups, _ = get_authentik_data(user)
+    team, _, is_team = get_team_from_groups(groups)
+
+    if not is_team or not team:
+        return HttpResponse("Access denied", status=403)
+
+    # Get attachment (ticket must belong to user's team)
+    try:
+        attachment = TicketAttachment.objects.select_related(
+            "ticket", "ticket__team"
+        ).get(id=attachment_id, ticket_id=ticket_id, ticket__team=team)
+    except TicketAttachment.DoesNotExist:
+        return HttpResponse("Attachment not found", status=404)
+
+    response = HttpResponse(
+        bytes(attachment.file_data), content_type=attachment.mime_type
+    )
+    response["Content-Disposition"] = str(
+        content_disposition_header(as_attachment=True, filename=attachment.filename)
+    )
+    return response
 
 
 @login_required
@@ -1108,14 +1180,6 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if error or ticket is None:
         return HttpResponse(error or "Failed to claim ticket", status=400)
 
-    # Queue dashboard update
-    DiscordTask.objects.create(
-        task_type="update_dashboard",
-        ticket=ticket,
-        payload={"ticket_id": ticket.id},
-        status="pending",
-    )
-
     # Add volunteer to thread if they have Discord linked and ticket has a thread
     if discord_id and ticket.discord_thread_id:
         DiscordTask.objects.create(
@@ -1165,14 +1229,6 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     if error or ticket is None:
         return HttpResponse(error or "Failed to unclaim ticket", status=400)
-
-    # Queue dashboard update
-    DiscordTask.objects.create(
-        task_type="update_dashboard",
-        ticket=ticket,
-        payload={"ticket_id": ticket.id},
-        status="pending",
-    )
 
     logger.info(f"Ticket {ticket_number} unclaimed by {authentik_username}")
     return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
@@ -1235,14 +1291,6 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     if error or ticket is None:
         return HttpResponse(error or "Failed to resolve ticket", status=400)
 
-    # Queue dashboard update
-    DiscordTask.objects.create(
-        task_type="update_dashboard",
-        ticket=ticket,
-        payload={"ticket_id": ticket.id},
-        status="pending",
-    )
-
     logger.info(f"Ticket {ticket_number} resolved by {authentik_username}")
     return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
 
@@ -1304,12 +1352,6 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
                 details={"claimed_by": discord_username, "bulk": True},
             )
 
-            DiscordTask.objects.create(
-                task_type="update_dashboard",
-                ticket=ticket,
-                payload={"ticket_id": ticket.id},
-                status="pending",
-            )
             claimed_count += 1
         except Ticket.DoesNotExist:
             continue
@@ -1376,18 +1418,96 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
                 details={"resolved_by": discord_username, "bulk": True},
             )
 
-            DiscordTask.objects.create(
-                task_type="update_dashboard",
-                ticket=ticket,
-                payload={"ticket_id": ticket.id},
-                status="pending",
-            )
             resolved_count += 1
         except Ticket.DoesNotExist:
             continue
 
     logger.info(f"Bulk resolved {resolved_count} tickets by {authentik_username}")
     return redirect("ops_ticket_list")
+
+
+@login_required
+def ops_ticket_attachment_upload(
+    request: HttpRequest, ticket_number: str
+) -> HttpResponse:
+    """Upload an attachment to a ticket (operations team only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, groups, _ = get_authentik_data(user)
+    permissions = check_permissions(user, groups)
+
+    if not permissions.get("is_ticketing_support") and not permissions.get(
+        "is_ticketing_admin"
+    ):
+        return HttpResponse("Access denied", status=403)
+
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    uploaded_file = request.FILES.get("attachment")
+    if not uploaded_file:
+        return HttpResponse("No file provided", status=400)
+
+    # Check file size (limit to 10MB)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if uploaded_file.size is None or uploaded_file.size > max_size:
+        return HttpResponse("File too large (max 10MB)", status=400)
+
+    # Validate filename
+    if not uploaded_file.name:
+        return HttpResponse("File must have a name", status=400)
+
+    # Read file data
+    file_data = uploaded_file.read()
+
+    # Create attachment
+    TicketAttachment.objects.create(
+        ticket=ticket,
+        file_data=file_data,
+        filename=uploaded_file.name,
+        mime_type=uploaded_file.content_type or "application/octet-stream",
+        uploaded_by=authentik_username,
+    )
+
+    logger.info(
+        f"Attachment {uploaded_file.name} uploaded to ticket {ticket_number} by {authentik_username}"
+    )
+
+    return redirect("ops_ticket_detail", ticket_number=ticket_number)
+
+
+@login_required
+def ops_ticket_attachment_download(
+    request: HttpRequest, ticket_number: str, attachment_id: int
+) -> HttpResponse:
+    """Download an attachment from a ticket (operations team only)."""
+    user = cast(User, request.user)
+    _, groups, _ = get_authentik_data(user)
+    permissions = check_permissions(user, groups)
+
+    if not permissions.get("is_ticketing_support") and not permissions.get(
+        "is_ticketing_admin"
+    ):
+        return HttpResponse("Access denied", status=403)
+
+    try:
+        attachment = TicketAttachment.objects.select_related("ticket").get(
+            id=attachment_id, ticket__ticket_number=ticket_number
+        )
+    except TicketAttachment.DoesNotExist:
+        return HttpResponse("Attachment not found", status=404)
+
+    response = HttpResponse(
+        bytes(attachment.file_data), content_type=attachment.mime_type
+    )
+    response["Content-Disposition"] = str(
+        content_disposition_header(as_attachment=True, filename=attachment.filename)
+    )
+    return response
 
 
 @login_required

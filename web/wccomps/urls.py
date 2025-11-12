@@ -58,6 +58,16 @@ if TICKETING_ENABLED:
         path(
             "tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"
         ),
+        path(
+            "tickets/<int:ticket_id>/attachment/upload/",
+            views.ticket_attachment_upload,
+            name="ticket_attachment_upload",
+        ),
+        path(
+            "tickets/<int:ticket_id>/attachment/<int:attachment_id>/",
+            views.ticket_attachment_download,
+            name="ticket_attachment_download",
+        ),
         path("ops/tickets/", views.ops_ticket_list, name="ops_ticket_list"),
         path(
             "ops/tickets/bulk-claim/",
@@ -93,5 +103,15 @@ if TICKETING_ENABLED:
             "ops/ticket/<str:ticket_number>/resolve/",
             views.ops_ticket_resolve,
             name="ops_ticket_resolve",
+        ),
+        path(
+            "ops/ticket/<str:ticket_number>/attachment/upload/",
+            views.ops_ticket_attachment_upload,
+            name="ops_ticket_attachment_upload",
+        ),
+        path(
+            "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
+            views.ops_ticket_attachment_download,
+            name="ops_ticket_attachment_download",
         ),
     ]
