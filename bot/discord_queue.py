@@ -340,8 +340,10 @@ class DiscordQueueProcessor:
 
     async def _handle_ticket_created_web(self, task: DiscordTask) -> None:
         """Handle ticket creation from web UI - create thread and post to dashboard."""
+        import time
         from bot.ticket_dashboard import post_ticket_to_dashboard
 
+        start_time = time.time()
         ticket_id = task.payload.get("ticket_id")
         if not ticket_id:
             raise ValueError("Missing ticket_id in payload")
@@ -351,6 +353,9 @@ class DiscordQueueProcessor:
             return Ticket.objects.select_related("team").get(id=ticket_id)
 
         ticket = await get_ticket()
+        logger.info(
+            f"Ticket {ticket.ticket_number}: DB fetch took {time.time() - start_time:.3f}s"
+        )
 
         # Check if thread already exists (from previous retry)
         if ticket.discord_thread_id:
@@ -387,9 +392,13 @@ class DiscordQueueProcessor:
                         raise Exception("No text channel found in team category")
 
                     # Create thread in the team's text channel
+                    thread_start = time.time()
                     thread = await chat_channel.create_thread(
                         name=f"{ticket.ticket_number} - Team {ticket.team.team_number:02d} - {ticket.title[:60]}",
                         auto_archive_duration=10080,  # 7 days
+                    )
+                    logger.info(
+                        f"Ticket {ticket.ticket_number}: Thread creation took {time.time() - thread_start:.3f}s"
                     )
 
                     # Store thread ID
@@ -399,12 +408,22 @@ class DiscordQueueProcessor:
                         ticket.discord_channel_id = category.id
                         ticket.save()
 
+                    save_start = time.time()
                     await save_thread_id()
+                    logger.info(
+                        f"Ticket {ticket.ticket_number}: Save thread ID took {time.time() - save_start:.3f}s"
+                    )
 
                     # Add all linked team members to thread
                     from bot.utils import get_team_member_discord_ids
 
+                    members_start = time.time()
                     team_member_ids = await get_team_member_discord_ids(ticket.team)
+                    logger.info(
+                        f"Ticket {ticket.ticket_number}: Get member IDs took {time.time() - members_start:.3f}s"
+                    )
+
+                    add_start = time.time()
                     for member_id in team_member_ids:
                         try:
                             member = self.bot.get_user(member_id)
@@ -414,6 +433,9 @@ class DiscordQueueProcessor:
                             logger.warning(
                                 f"Failed to add member {member_id} to thread: {e}"
                             )
+                    logger.info(
+                        f"Ticket {ticket.ticket_number}: Add {len(team_member_ids)} members took {time.time() - add_start:.3f}s"
+                    )
 
                     # Send initial message in thread with action buttons
                     from bot.ticket_dashboard import (
@@ -424,22 +446,30 @@ class DiscordQueueProcessor:
                     embed = format_ticket_embed(ticket)
                     view = TicketActionView(ticket.id)
 
+                    send_start = time.time()
                     message = await thread.send(
                         f"**Ticket #{ticket.ticket_number}** - Use buttons below to manage this ticket.",
                         embed=embed,
                         view=view,
                     )
+                    logger.info(
+                        f"Ticket {ticket.ticket_number}: Send message took {time.time() - send_start:.3f}s"
+                    )
 
                     # Pin the ticket message to the thread
+                    pin_start = time.time()
                     try:
                         await message.pin()
+                        logger.info(
+                            f"Ticket {ticket.ticket_number}: Pin message took {time.time() - pin_start:.3f}s"
+                        )
                     except Exception as pin_error:
                         logger.warning(
                             f"Failed to pin ticket message in thread {thread.id}: {pin_error}"
                         )
 
                     logger.info(
-                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web"
+                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web (total: {time.time() - start_time:.3f}s)"
                     )
             except Exception as e:
                 logger.error(
@@ -451,7 +481,11 @@ class DiscordQueueProcessor:
             )
 
         # Always update dashboard, even if thread creation failed
+        dashboard_start = time.time()
         await post_ticket_to_dashboard(self.bot, ticket)
+        logger.info(
+            f"Ticket {ticket.ticket_number}: Dashboard update took {time.time() - dashboard_start:.3f}s"
+        )
 
     async def _handle_post_comment(self, task: DiscordTask) -> None:
         """Handle posting a comment from web to Discord thread."""

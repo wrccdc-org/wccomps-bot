@@ -7,7 +7,6 @@ import logging
 from typing import Optional, cast, Union
 from django.utils import timezone
 from datetime import timedelta
-from core.models import DiscordTask
 from ticketing.models import Ticket, TicketHistory
 from core.tickets_config import TICKET_CATEGORIES
 from bot.utils import (
@@ -529,9 +528,6 @@ class AdminTicketsCog(commands.Cog):
             details={"old_assignee": old_assignee, "new_assignee": new_assignee},
         )
 
-        # Update dashboard
-        await DiscordTask.objects.acreate(task_type="update_dashboard", ticket=ticket)
-
         await interaction.followup.send(
             f"Ticket {ticket.ticket_number} reassigned\n• From: {old_assignee}\n• To: {new_assignee}",
             ephemeral=True,
@@ -593,9 +589,6 @@ class AdminTicketsCog(commands.Cog):
                 "old_status": old_status,
             },
         )
-
-        # Update dashboard
-        await DiscordTask.objects.acreate(task_type="update_dashboard", ticket=ticket)
 
         refund_msg = ""
         if ticket.points_charged > 0:

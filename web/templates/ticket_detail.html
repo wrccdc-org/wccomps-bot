@@ -121,6 +121,54 @@
             {% endif %}
         </c-fieldset>
 
+        <!-- Attachments -->
+        <c-fieldset heading="Attachments">
+            {% if attachments %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Uploaded By</th>
+                        <th>Uploaded</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attachment in attachments %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ attachment.filename }}</td>
+                        <td>{{ attachment.uploaded_by }}</td>
+                        <td>{{ attachment.uploaded_at|timesince }} ago</td>
+                        <td>
+                            <a href="{% url 'ticket_attachment_download' ticket.id attachment.id %}" class="viewlink">
+                                Download
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 30px;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No attachments yet</strong></div>
+                <div style="color: #999; font-size: 12px;">Upload files to attach to this ticket</div>
+            </div>
+            {% endif %}
+
+            <!-- Upload Attachment Form -->
+            {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom: 10px;">Upload Attachment</h3>
+                <form method="POST" action="{% url 'ticket_attachment_upload' ticket.id %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" name="attachment" required style="margin-bottom: 10px;">
+                    <div style="color: #666; font-size: 12px; margin-bottom: 10px;">Max file size: 10MB</div>
+                    <c-button type="submit" variant="primary">Upload File</c-button>
+                </form>
+            </div>
+            {% endif %}
+        </c-fieldset>
+
         <!-- Cancel ticket option -->
         {% if ticket.status == 'open' %}
         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">

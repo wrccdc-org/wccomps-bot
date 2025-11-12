@@ -159,8 +159,8 @@
         </c-fieldset>
 
         <!-- Attachments -->
-        {% if attachments %}
         <c-fieldset heading="Attachments">
+            {% if attachments %}
             <table>
                 <thead>
                     <tr>
@@ -185,8 +185,26 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div style="text-align: center; padding: 30px;">
+                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No attachments yet</strong></div>
+                <div style="color: #999; font-size: 12px;">Upload files to attach to this ticket</div>
+            </div>
+            {% endif %}
+
+            <!-- Upload Attachment Form -->
+            {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom: 10px;">Upload Attachment</h3>
+                <form method="POST" action="{% url 'ops_ticket_attachment_upload' ticket.ticket_number %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="file" name="attachment" required style="margin-bottom: 10px;">
+                    <div style="color: #666; font-size: 12px; margin-bottom: 10px;">Max file size: 10MB</div>
+                    <c-button type="submit" variant="primary">Upload File</c-button>
+                </form>
+            </div>
+            {% endif %}
         </c-fieldset>
-        {% endif %}
 
         <!-- History -->
         <c-fieldset heading="History">
