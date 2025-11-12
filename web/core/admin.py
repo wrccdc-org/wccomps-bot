@@ -15,6 +15,7 @@ from .models import (
     DiscordTask,
     BotState,
     DashboardUpdate,
+    CompetitionConfig,
 )
 
 if TYPE_CHECKING:
@@ -119,3 +120,73 @@ class DashboardUpdateAdmin(BaseModelAdmin):
 
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False  # System singleton
+
+
+@admin.register(CompetitionConfig)
+class CompetitionConfigAdmin(BaseModelAdmin):
+    list_display = [
+        "competition_status",
+        "competition_start_time",
+        "competition_end_time",
+        "applications_enabled",
+        "max_team_members",
+    ]
+    readonly_fields = ["created_at", "updated_at", "last_check", "applications_enabled"]
+
+    fieldsets = (
+        (
+            "Competition Timing",
+            {
+                "fields": (
+                    "competition_start_time",
+                    "competition_end_time",
+                    "applications_enabled",
+                ),
+                "description": "Set start/end times for automatic application enable/disable. "
+                "Applications will be automatically enabled at start time and disabled at end time.",
+            },
+        ),
+        (
+            "Application Control",
+            {
+                "fields": ("controlled_applications",),
+                "description": "List of Authentik application slugs to control (e.g., ['netbird', 'scoring']). "
+                "These applications will be enabled/disabled based on competition timing.",
+            },
+        ),
+        (
+            "Team Settings",
+            {
+                "fields": ("max_team_members",),
+                "description": "Maximum number of members allowed per team.",
+            },
+        ),
+        (
+            "System Info",
+            {
+                "fields": ("created_at", "updated_at", "last_check"),
+                "description": "Audit and system information.",
+            },
+        ),
+    )
+
+    @admin.display(description="Status")
+    def competition_status(self, obj: CompetitionConfig) -> str:
+        """Display current competition status."""
+        from django.utils import timezone
+
+        if obj.applications_enabled:
+            return "Active"
+        elif obj.competition_start_time and timezone.now() < obj.competition_start_time:
+            return "Scheduled"
+        elif obj.competition_end_time and timezone.now() > obj.competition_end_time:
+            return "Ended"
+        else:
+            return "Not Scheduled"
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        # Only allow creation if no config exists
+        return not CompetitionConfig.objects.exists()
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False  # Singleton - never delete
