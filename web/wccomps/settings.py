@@ -128,7 +128,10 @@ DATABASES = {
 }
 
 # Use SQLite for tests (no PostgreSQL needed locally)
-if "test" in sys.argv or "pytest" in sys.modules:
+# Unless USE_POSTGRES_FOR_TESTS is set (for integration tests)
+if ("test" in sys.argv or "pytest" in sys.modules) and not os.environ.get(
+    "USE_POSTGRES_FOR_TESTS"
+):
     import tempfile
 
     DATABASES["default"] = {

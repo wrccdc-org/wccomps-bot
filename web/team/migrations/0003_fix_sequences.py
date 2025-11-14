@@ -19,8 +19,9 @@ def fix_sequences(apps, schema_editor):
         ]
 
         for seq_name, table_name in sequences:
+            # Get max ID, default to 1 if table is empty (setval doesn't accept 0)
             cursor.execute(
-                f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX(id), 0) FROM {table_name}));"
+                f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX(id), 1) FROM {table_name}), false);"
             )
 
 

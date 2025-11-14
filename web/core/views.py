@@ -166,30 +166,33 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     team, team_number, is_team_account = get_team_from_groups(groups)
 
     # Check if this Authentik account is already linked to a different Discord account
-    existing_link = DiscordLink.objects.filter(
-        authentik_user_id=authentik_user_id, is_active=True
-    ).first()
+    # For team accounts, multiple Discord users can link to the same Authentik account (shared team account)
+    # For non-team accounts (admins/support), enforce one-to-one mapping
+    if not is_team_account:
+        existing_link = DiscordLink.objects.filter(
+            authentik_user_id=authentik_user_id, is_active=True
+        ).first()
 
-    if existing_link and existing_link.discord_id != discord_id:
-        # This Authentik account is already linked to a different Discord account
-        LinkAttempt.objects.create(
-            discord_id=discord_id,
-            discord_username=discord_username,
-            authentik_username=authentik_username,
-            team=team,
-            success=False,
-            failure_reason=f"Authentik account already linked to Discord user {existing_link.discord_username}",
-        )
-        return render(
-            request,
-            "link_error.html",
-            {
-                "error": "Account already linked",
-                "message": f"This Authentik account ({authentik_username}) is already linked to Discord user {existing_link.discord_username}. "
-                f"Each Authentik account can only be linked to one Discord account at a time. "
-                f"Please contact an administrator if you need to unlink the previous account.",
-            },
-        )
+        if existing_link and existing_link.discord_id != discord_id:
+            # This Authentik account is already linked to a different Discord account
+            LinkAttempt.objects.create(
+                discord_id=discord_id,
+                discord_username=discord_username,
+                authentik_username=authentik_username,
+                team=team,
+                success=False,
+                failure_reason=f"Authentik account already linked to Discord user {existing_link.discord_username}",
+            )
+            return render(
+                request,
+                "link_error.html",
+                {
+                    "error": "Account already linked",
+                    "message": f"This Authentik account ({authentik_username}) is already linked to Discord user {existing_link.discord_username}. "
+                    f"Each Authentik account can only be linked to one Discord account at a time. "
+                    f"Please contact an administrator if you need to unlink the previous account.",
+                },
+            )
 
     # For non-team accounts (admins/support), try to store discord_id in Authentik
     # This is optional - if it fails due to permissions, we still have DiscordLink
