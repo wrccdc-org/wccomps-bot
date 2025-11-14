@@ -1,0 +1,28 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: wccomps-test-db
+    environment:
+      POSTGRES_DB: wccomps_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    command: >
+      postgres
+      -c max_connections=120
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - wccomps-test-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  wccomps-test-net:
+    driver: bridge

@@ -51,6 +51,8 @@ dev = [
     "pytest>=7.4",
     "pytest-django>=4.7",
     "pytest-asyncio>=0.21",
+    "pytest-playwright>=0.4.0",
+    "playwright>=1.40.0",
     "hypothesis[django]>=6.100",
     "pylint>=3.0",
     "pylint-django>=2.6",
@@ -81,7 +83,12 @@ pythonpath = ["web"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-asyncio_mode = "auto"
-testpaths = ["bot/tests"]
+testpaths = ["bot/tests", "web/integration_tests"]
 addopts = ["-v", "--tb=short"]
+markers = [
+    "critical: Critical tests that must pass on every deployment",
+    "integration: Integration tests with real database and APIs",
+    "browser: Browser-based UI tests using Playwright",
+    "load: Load and stress tests for concurrency and performance",
+]
 

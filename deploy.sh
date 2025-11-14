@@ -70,6 +70,54 @@ fi
 
 echo "✓ Integration tests passed"
 echo ""
+echo "Starting test database for critical integration tests..."
+# Always recreate database for clean state
+docker compose -f docker-compose.test.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.test.yml up -d --wait
+
+if [ $? -ne 0 ]; then
+    echo "✗ Failed to start test database"
+    exit 1
+fi
+
+echo "✓ Test database ready"
+echo ""
+echo "Installing Playwright browsers (if not already installed)..."
+uv run playwright install chromium --with-deps 2>/dev/null || true
+
+echo ""
+echo "Collecting static files..."
+cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput > /dev/null 2>&1
+cd ..
+echo "✓ Static files collected"
+
+echo ""
+echo "Running critical integration tests..."
+# Load .env.test file
+if [ -f .env.test ]; then
+    set -a
+    source .env.test
+    set +a
+fi
+
+export USE_POSTGRES_FOR_TESTS=1
+export TICKETING_ENABLED=true
+export PYTHONPATH="$(pwd)/web:$(pwd)"
+
+uv run pytest -m critical --tb=short -v
+
+CRITICAL_TESTS_EXIT=$?
+
+echo "Stopping test database..."
+docker compose -f docker-compose.test.yml down
+
+if [ $CRITICAL_TESTS_EXIT -ne 0 ]; then
+    echo "✗ Critical integration tests failed"
+    exit 1
+fi
+
+echo "✓ Critical integration tests passed"
+echo ""
 echo "Deploying to $REMOTE_HOST:$REMOTE_PATH"
 
 # Use rsync with exclude-from to read .rsyncignore
