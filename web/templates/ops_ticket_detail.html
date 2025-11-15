@@ -120,6 +120,18 @@
                     <c-button type="submit">Unclaim</c-button>
                 </form>
             </div>
+            {% elif ticket.status == 'resolved' and is_ticketing_admin %}
+            <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
+                {% csrf_token %}
+                <div style="margin-bottom: 15px;">
+                    <label for="reopen_reason" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Reopen Reason (Optional)</label>
+                    <textarea name="reopen_reason" id="reopen_reason" rows="3" placeholder="Optionally explain why this ticket is being reopened..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;"></textarea>
+                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Describe why the ticket needs to be reopened (optional)</div>
+                </div>
+                <div class="quick-actions">
+                    <c-button type="submit" variant="warning">🔄 Reopen Ticket</c-button>
+                </div>
+            </form>
             {% endif %}
         </div>
 

@@ -236,15 +236,13 @@ class DiscordManager:
                     break
 
             if not positioned:
-                # Position at the end (bottom) of categories
-                # Discord will auto-position at bottom if we don't specify position
-                # But to be explicit, we can position after the highest-numbered team
+                # No lower-numbered team exists, so position before the lowest-numbered team
                 if team_categories:
-                    # team_categories is sorted reverse, so first item is highest number
-                    highest_team_cat = team_categories[0][1]
-                    await category.edit(position=highest_team_cat.position + 1)
+                    # team_categories is sorted reverse, so last item is lowest number
+                    lowest_team_cat = team_categories[-1][1]
+                    await category.edit(position=lowest_team_cat.position)
                     logger.info(
-                        f"Positioned after team {team_categories[0][0]} (no lower-numbered team)"
+                        f"Positioned before team {team_categories[-1][0]} (no lower-numbered team)"
                     )
 
             logger.info(f"Created code-defined category for Team {team_number}")

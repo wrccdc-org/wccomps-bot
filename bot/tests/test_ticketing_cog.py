@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock
 import discord
 import pytest
+import pytest_asyncio
 from datetime import timedelta
 from django.utils import timezone
 
@@ -16,7 +17,7 @@ from bot.cogs.ticketing import TicketingCog
 class TestTicketingCog:
     """Test TicketingCog class."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def bot(self) -> AsyncMock:
         """Create mock bot instance."""
         bot = AsyncMock(spec=discord.Client)
@@ -24,7 +25,7 @@ class TestTicketingCog:
         bot.get_channel = Mock(return_value=None)
         return bot
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def cog(self, bot: AsyncMock) -> TicketingCog:
         """Create TicketingCog instance."""
         cog = TicketingCog(bot)
@@ -32,7 +33,7 @@ class TestTicketingCog:
         cog.archive_threads_task.cancel()
         return cog
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def team(self) -> Team:
         """Create test team."""
         return await Team.objects.acreate(
@@ -43,7 +44,7 @@ class TestTicketingCog:
             max_members=5,
         )
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def discord_link(self, team: Team) -> DiscordLink:
         """Create test Discord link."""
         return await DiscordLink.objects.acreate(
