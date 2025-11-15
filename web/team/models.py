@@ -120,14 +120,13 @@ class DiscordLink(models.Model):
         """Override save to deactivate previous active link when creating new one."""
         if self.is_active:
             # Deactivate any existing active link for this discord_id
+            # (one Discord user can only have one active link at a time)
             DiscordLink.objects.filter(
                 discord_id=self.discord_id, is_active=True
             ).exclude(pk=self.pk).update(is_active=False, unlinked_at=timezone.now())
 
-            # Deactivate any existing active link for this authentik_user_id
-            DiscordLink.objects.filter(
-                authentik_user_id=self.authentik_user_id, is_active=True
-            ).exclude(pk=self.pk).update(is_active=False, unlinked_at=timezone.now())
+            # Do NOT deactivate links based on authentik_user_id because blue teams
+            # share a single Authentik account (multiple Discord users -> same authentik_user_id)
         super().save(*args, **kwargs)
 
 
