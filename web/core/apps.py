@@ -7,3 +7,7 @@ class CoreConfig(AppConfig):
 
     def ready(self) -> None:
         """Import signals when app is ready."""
+        from . import signals
+
+        # Ensure signals module is loaded (reference it to prevent removal by linter)
+        _ = signals

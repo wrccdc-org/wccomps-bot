@@ -1309,6 +1309,56 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
 
 
 @login_required
+def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Reopen a resolved ticket (operations team only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, groups, authentik_user_id = get_authentik_data(user)
+    permissions = check_permissions(user, groups)
+
+    if not permissions.get("is_ticketing_admin"):
+        return HttpResponse("Access denied - requires ticketing admin role", status=403)
+
+    # Get ticket
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    # Only allow reopening resolved tickets
+    if ticket.status != "resolved":
+        return HttpResponse(f"Cannot reopen - ticket is {ticket.status}", status=400)
+
+    reopen_reason = request.POST.get("reopen_reason", "").strip()
+
+    # Reopen ticket
+    old_status = ticket.status
+    ticket.status = "open"
+    ticket.resolved_at = None
+    ticket.save()
+
+    # Create history entry
+    details = {"old_status": old_status}
+    if reopen_reason:
+        details["reason"] = reopen_reason
+
+    TicketHistory.objects.create(
+        ticket=ticket,
+        action="reopened",
+        actor_username=authentik_username,
+        details=details,
+    )
+
+    logger.info(
+        f"Ticket {ticket_number} reopened by {authentik_username}"
+        + (f": {reopen_reason}" if reopen_reason else "")
+    )
+    return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+
+
+@login_required
 def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     """Bulk claim tickets (operations team only)."""
     if request.method != "POST":

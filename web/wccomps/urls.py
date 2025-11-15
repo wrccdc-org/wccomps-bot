@@ -105,6 +105,11 @@ if TICKETING_ENABLED:
             name="ops_ticket_resolve",
         ),
         path(
+            "ops/ticket/<str:ticket_number>/reopen/",
+            views.ops_ticket_reopen,
+            name="ops_ticket_reopen",
+        ),
+        path(
             "ops/ticket/<str:ticket_number>/attachment/upload/",
             views.ops_ticket_attachment_upload,
             name="ops_ticket_attachment_upload",
