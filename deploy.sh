@@ -82,10 +82,6 @@ fi
 
 echo "✓ Test database ready"
 echo ""
-echo "Installing Playwright browsers (if not already installed)..."
-uv run playwright install chromium --with-deps 2>/dev/null || true
-
-echo ""
 echo "Collecting static files..."
 cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput > /dev/null 2>&1
 cd ..

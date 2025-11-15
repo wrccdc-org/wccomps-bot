@@ -107,11 +107,8 @@ class DiscordLink(models.Model):
                 condition=models.Q(is_active=True),
                 name="team_unique_active_discord_link",
             ),
-            models.UniqueConstraint(
-                fields=["authentik_user_id"],
-                condition=models.Q(is_active=True),
-                name="team_unique_active_authentik_link",
-            ),
+            # Note: authentik_user_id is NOT unique because blue teams share a single
+            # Authentik account (e.g., team01) but multiple Discord users link to it
         ]
 
     def __str__(self) -> str:
