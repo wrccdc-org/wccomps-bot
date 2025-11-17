@@ -1,43 +1,48 @@
 """Django admin configuration for WCComps."""
 
-from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from allauth.socialaccount.models import SocialAccount
 from django.contrib import admin
-from django.contrib.auth.models import Group
 from django.http import HttpRequest
-from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialAccount, SocialToken, SocialApp
 
 # Team, DiscordLink, LinkToken, LinkAttempt moved to team.admin
 # Ticket, TicketAttachment, TicketComment, TicketHistory moved to ticketing.admin
 from .models import (
     AuditLog,
-    DiscordTask,
     BotState,
-    DashboardUpdate,
     CompetitionConfig,
+    DashboardUpdate,
+    DiscordTask,
 )
 
-if TYPE_CHECKING:
-    from django.contrib.admin import ModelAdmin, TabularInline
 
-    BaseModelAdmin = ModelAdmin[Any]
-    BaseTabularInline = TabularInline[Any, Any]
-else:
-    BaseModelAdmin = admin.ModelAdmin
-    BaseTabularInline = admin.TabularInline
+# Custom admin site with Authentik group-based permissions
+class AuthentikAdminSite(admin.AdminSite):
+    """Admin site that checks Authentik groups instead of is_staff."""
 
-# Customize admin site
-admin.site.site_header = "WCComps Administration"
-admin.site.site_title = "WCComps Admin"
-admin.site.index_title = "Competition Management"
+    site_header = "WCComps Administration"
+    site_title = "WCComps Admin"
+    index_title = "Competition Management"
 
-# Unregister unnecessary admin models
-admin.site.unregister(Group)  # Managed via Authentik
-admin.site.unregister(EmailAddress)  # Not using email auth
-admin.site.unregister(SocialAccount)  # Internal OAuth data
-admin.site.unregister(SocialToken)  # Internal OAuth tokens
-admin.site.unregister(SocialApp)  # Configured via settings
+    def has_permission(self, request: HttpRequest) -> bool:
+        """Check admin access via Authentik groups instead of is_staff."""
+        if not request.user.is_active or not request.user.is_authenticated:
+            return False
+
+        try:
+            social_account = SocialAccount.objects.get(user=request.user, provider="authentik")
+            # Groups can be in userinfo.groups or groups (depends on OAuth flow)
+            extra_data = social_account.extra_data
+            groups = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
+            return "WCComps_Discord_Admin" in groups or "WCComps_Ticketing_Admin" in groups
+        except SocialAccount.DoesNotExist:
+            return False
+
+
+# Replace default admin site
+admin.site = AuthentikAdminSite()
+admin.sites.site = admin.site
 
 
 # ============================================================================
@@ -47,13 +52,12 @@ admin.site.unregister(SocialApp)  # Configured via settings
 
 
 # ============================================================================
-# AUDIT & DEBUGGING (Read-only)
-# These models provide audit trails and debugging info
+# Audit and Debugging - Read-only models for audit trails
 # ============================================================================
 
 
 @admin.register(AuditLog)
-class AuditLogAdmin(BaseModelAdmin):
+class AuditLogAdmin(admin.ModelAdmin[AuditLog]):
     list_display = ["action", "admin_user", "target_entity", "target_id", "created_at"]
     list_filter = ["action", "target_entity"]
     search_fields = ["admin_user", "action"]
@@ -74,7 +78,7 @@ class AuditLogAdmin(BaseModelAdmin):
 
 
 @admin.register(DiscordTask)
-class DiscordTaskAdmin(BaseModelAdmin):
+class DiscordTaskAdmin(admin.ModelAdmin[DiscordTask]):
     list_display = ["task_type", "status", "retry_count", "created_at", "completed_at"]
     list_filter = ["status", "task_type"]
     search_fields = ["task_type", "error_message"]
@@ -97,7 +101,7 @@ class DiscordTaskAdmin(BaseModelAdmin):
 
 
 @admin.register(BotState)
-class BotStateAdmin(BaseModelAdmin):
+class BotStateAdmin(admin.ModelAdmin[BotState]):
     list_display = ["key", "value", "updated_at"]
     search_fields = ["key", "value"]
     ordering = ["key"]
@@ -111,7 +115,7 @@ class BotStateAdmin(BaseModelAdmin):
 
 
 @admin.register(DashboardUpdate)
-class DashboardUpdateAdmin(BaseModelAdmin):
+class DashboardUpdateAdmin(admin.ModelAdmin[DashboardUpdate]):
     list_display = ["needs_update", "last_updated", "update_scheduled_at"]
     readonly_fields = ["needs_update", "last_updated", "update_scheduled_at"]
 
@@ -123,7 +127,7 @@ class DashboardUpdateAdmin(BaseModelAdmin):
 
 
 @admin.register(CompetitionConfig)
-class CompetitionConfigAdmin(BaseModelAdmin):
+class CompetitionConfigAdmin(admin.ModelAdmin[CompetitionConfig]):
     list_display = [
         "competition_status",
         "competition_start_time",
@@ -177,12 +181,11 @@ class CompetitionConfigAdmin(BaseModelAdmin):
 
         if obj.applications_enabled:
             return "Active"
-        elif obj.competition_start_time and timezone.now() < obj.competition_start_time:
+        if obj.competition_start_time and timezone.now() < obj.competition_start_time:
             return "Scheduled"
-        elif obj.competition_end_time and timezone.now() > obj.competition_end_time:
+        if obj.competition_end_time and timezone.now() > obj.competition_end_time:
             return "Ended"
-        else:
-            return "Not Scheduled"
+        return "Not Scheduled"
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         # Only allow creation if no config exists
