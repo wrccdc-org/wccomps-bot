@@ -1189,6 +1189,13 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
+    # Check if user claimed the ticket or is admin
+    is_admin = has_permission(user, "ticketing_admin")
+    has_claimed = ticket_obj.assigned_to_authentik_username == authentik_username
+
+    if not is_admin and not has_claimed:
+        return HttpResponse("You can only unclaim tickets you have claimed", status=403)
+
     # Use shared atomic unclaim function
     from ticketing.utils import unclaim_ticket_atomic
 
