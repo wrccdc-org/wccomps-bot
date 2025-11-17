@@ -114,12 +114,14 @@
                     <c-button type="submit" variant="success">✓ Resolve Ticket</c-button>
                 </div>
             </form>
+            {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
                 <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" style="display: inline;">
                     {% csrf_token %}
                     <c-button type="submit">Unclaim</c-button>
                 </form>
             </div>
+            {% endif %}
             {% elif ticket.status == 'resolved' and is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
