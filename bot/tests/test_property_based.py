@@ -209,7 +209,7 @@ class TestCommentRateLimitProperties:
         )
 
         ticket = Ticket.objects.create(
-            ticket_number=f"T{team_number}-001-{uuid.uuid4()}",
+            ticket_number=f"T{team_number:03d}-001",
             team=team,
             category="technical",
             title="Test ticket",
@@ -222,7 +222,7 @@ class TestCommentRateLimitProperties:
         # Create comments for other tickets (to test user-level limit)
         for i in range(user_comments - ticket_comments):
             other_ticket = Ticket.objects.create(
-                ticket_number=f"T{team_number}-{i + 2:03d}-{uuid.uuid4()}",
+                ticket_number=f"T{team_number:03d}-{i + 2:03d}",
                 team=team,
                 category="technical",
                 title=f"Other ticket {i}",
