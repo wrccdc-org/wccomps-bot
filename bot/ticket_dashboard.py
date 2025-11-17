@@ -300,7 +300,7 @@ class TicketActionView(discord.ui.View):
             return
 
         # If team member (not ops), verify ticket belongs to their team
-        if is_team_member and not is_ops and ticket.team.id != link.team.id:
+        if is_team_member and not is_ops and link and link.team and ticket.team.id != link.team.id:
             await interaction.response.send_message("This ticket does not belong to your team.", ephemeral=True)
             return
 
