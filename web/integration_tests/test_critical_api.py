@@ -6,13 +6,14 @@ endpoints with real database and API calls to catch 500 errors.
 """
 
 import os
+
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
-from ticketing.models import Ticket
-from team.models import Team
-from django.contrib.auth.models import User
 
+from team.models import Team
+from ticketing.models import Ticket
 
 # Skip all tests in this file if ticketing is not enabled
 TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
@@ -62,19 +63,19 @@ class TestOAuthCallback:
 
     def test_oauth_callback_success(self, db, test_team_id):
         """OAuth callback should successfully link Discord account to Authentik account."""
-        import uuid
         import random
+        import uuid
         from datetime import timedelta
-        from django.utils import timezone
+
         from allauth.socialaccount.models import SocialAccount
+        from django.utils import timezone
+
         from team.models import LinkToken, Team
 
         # Create authenticated user with SocialAccount (simulates completed OAuth)
         unique_id = str(uuid.uuid4())[:8]
         username = f"test_oauth_{unique_id}"
-        user = User.objects.create_user(
-            username=username, email=f"{username}@example.com"
-        )
+        user = User.objects.create_user(username=username, email=f"{username}@example.com")
 
         # Create SocialAccount with team groups
         team = Team.objects.get(team_number=test_team_id)
@@ -168,8 +169,9 @@ class TestTicketOperations:
     @pytest.fixture
     def support_user(self, db, django_user_model):
         """Create a support user for ticket operations."""
-        import uuid
         import random
+        import uuid
+
         from allauth.socialaccount.models import SocialAccount
 
         unique_id = str(uuid.uuid4())[:8]
@@ -191,9 +193,7 @@ class TestTicketOperations:
             extra_data={
                 "userinfo": {
                     "preferred_username": username,
-                    "groups": [
-                        "WCComps_Ticketing_Support"
-                    ],  # Grant ticketing permissions
+                    "groups": ["WCComps_Ticketing_Support"],  # Grant ticketing permissions
                 },
             },
         )
@@ -223,11 +223,7 @@ class TestTicketOperations:
         """Ticket claim should require authentication."""
         client = Client()
 
-        response = client.post(
-            reverse(
-                "ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}
-            )
-        )
+        response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
         # Should redirect to login (not 500)
         assert response.status_code in [302, 401, 403]
@@ -237,11 +233,7 @@ class TestTicketOperations:
         client = Client()
         client.force_login(support_user.user)
 
-        response = client.post(
-            reverse(
-                "ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}
-            )
-        )
+        response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
         # Should succeed or redirect (not 500)
         assert response.status_code in [200, 302]
@@ -318,8 +310,9 @@ class TestConcurrentOperations:
     @pytest.fixture
     def support_users(self, db, django_user_model):
         """Create multiple support users for concurrent testing."""
-        import uuid
         import random
+        import uuid
+
         from allauth.socialaccount.models import SocialAccount
 
         users = []
@@ -371,9 +364,7 @@ class TestConcurrentOperations:
         return users
         # Let pytest-django's transaction rollback handle cleanup
 
-    def test_concurrent_ticket_claim(
-        self, transactional_db, cleanup_test_data, test_ticket, support_users
-    ):
+    def test_concurrent_ticket_claim(self, transactional_db, cleanup_test_data, test_ticket, support_users):
         """
         Test that only one user can claim a ticket when multiple try simultaneously.
         This catches race conditions that cause 500 errors.
@@ -416,11 +407,7 @@ class TestConcurrentOperations:
         assert test_ticket.assigned_to_discord_id is not None
         # Verify assigned user is one of the support users
         assigned_user = next(
-            (
-                u
-                for u in support_users
-                if u.discord_id == test_ticket.assigned_to_discord_id
-            ),
+            (u for u in support_users if u.discord_id == test_ticket.assigned_to_discord_id),
             None,
         )
         assert assigned_user is not None, "Ticket assigned to unknown user"
@@ -454,8 +441,9 @@ class TestBulkOperations:
     @pytest.fixture
     def support_user(self, db, django_user_model):
         """Create support user for bulk operations."""
-        import uuid
         import random
+        import uuid
+
         from allauth.socialaccount.models import SocialAccount
 
         unique_id = str(uuid.uuid4())[:8]

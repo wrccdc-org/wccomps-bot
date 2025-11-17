@@ -1,8 +1,9 @@
 """Authentik API manager for web application."""
 
-from typing import Any, Optional
-import requests
 import logging
+from typing import Any
+
+import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -28,15 +29,15 @@ class AuthentikManager:
                 self.api_url = api_url
                 self.headers = headers
 
-            def get(self, path: str, params: Optional[dict[str, Any]] = None) -> Any:
+            def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
                 url = f"{self.api_url}{path}"
-                response = requests.get(url, headers=self.headers, params=params)
+                response = requests.get(url, headers=self.headers, params=params, timeout=30)
                 response.raise_for_status()
                 return response.json()
 
             def patch(self, path: str, data: dict[str, Any]) -> Any:
                 url = f"{self.api_url}{path}"
-                response = requests.patch(url, headers=self.headers, json=data)
+                response = requests.patch(url, headers=self.headers, json=data, timeout=30)
                 response.raise_for_status()
                 return response.json()
 
@@ -63,20 +64,17 @@ class AuthentikManager:
                 f"/api/v3/core/users/{authentik_user_id}/",
                 {"attributes": attributes},
             )
-            logger.info(
-                f"Updated Authentik user {authentik_user_id} with discord_id {discord_id}"
-            )
+            logger.info(f"Updated Authentik user {authentik_user_id} with discord_id {discord_id}")
         except requests.HTTPError as e:
             if e.response.status_code == 403:
-                logger.error(
-                    f"Authentik API token lacks permission to update user {authentik_user_id}. "
-                    f"Error: {e.response.text}"
+                logger.exception(
+                    f"Authentik API token lacks permission to update user {authentik_user_id}. Error: {e.response.text}"
                 )
             else:
-                logger.error(f"Failed to update Authentik user discord_id: {e}")
+                logger.exception(f"Failed to update Authentik user discord_id: {e}")
             raise
 
-    def get_user_by_discord_id(self, discord_id: int) -> Optional[dict[str, Any]]:
+    def get_user_by_discord_id(self, discord_id: int) -> dict[str, Any] | None:
         """
         Find Authentik user by Discord ID.
 
@@ -95,5 +93,5 @@ class AuthentikManager:
             results = response.get("results", [])
             return results[0] if results else None
         except Exception as e:
-            logger.error(f"Failed to search for user by discord_id: {e}")
+            logger.exception(f"Failed to search for user by discord_id: {e}")
             return None

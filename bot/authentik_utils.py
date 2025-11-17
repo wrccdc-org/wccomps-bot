@@ -3,15 +3,14 @@
 import logging
 import secrets
 from typing import Any
+
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 
-def validate_team_account(
-    user_data: dict[str, Any], expected_username: str
-) -> tuple[bool, str]:
+def validate_team_account(user_data: dict[str, Any], expected_username: str) -> tuple[bool, str]:
     """Validate that a user account is a legitimate team account.
 
     Args:
@@ -84,7 +83,7 @@ def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
         response.raise_for_status()
         return (True, "")
     except Exception as e:
-        logger.error(f"Failed to toggle {username}: {e}")
+        logger.exception(f"Failed to toggle {username}: {e}")
         return (False, str(e))
 
 
@@ -125,9 +124,7 @@ def generate_blueteam_password() -> str:
     wordlist = xp.generate_wordlist(wordfile=xp.locate_wordfile())
 
     # Generate 2 random words
-    words = xp.generate_xkcdpassword(
-        wordlist, numwords=2, delimiter="-", case="capitalize"
-    )
+    words = xp.generate_xkcdpassword(wordlist, numwords=2, delimiter="-", case="capitalize")
 
     # Generate random number (100-999)
     number = secrets.randbelow(900) + 100
@@ -137,10 +134,7 @@ def generate_blueteam_password() -> str:
     special_char = secrets.choice(special_chars)
 
     # Combine number and symbol (randomly choose order)
-    if secrets.choice([True, False]):
-        insert_value = f"{number}{special_char}"
-    else:
-        insert_value = f"{special_char}{number}"
+    insert_value = f"{number}{special_char}" if secrets.choice([True, False]) else f"{special_char}{number}"
 
     # Randomly choose position (0=before, 1=middle, 2=after)
     position = secrets.randbelow(3)
@@ -219,7 +213,7 @@ def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]
         return (True, "")
 
     except Exception as e:
-        logger.error(f"Failed to reset password for {username}: {e}")
+        logger.exception(f"Failed to reset password for {username}: {e}")
         return (False, str(e))
 
 
@@ -240,8 +234,8 @@ def parse_team_range(range_str: str) -> list[int]:
     """
     team_numbers: set[int] = set()
 
-    for part in range_str.split(","):
-        part = part.strip()
+    for raw_part in range_str.split(","):
+        part = raw_part.strip()
         if not part:
             continue
 
@@ -251,23 +245,24 @@ def parse_team_range(range_str: str) -> list[int]:
                 start_str, end_str = part.split("-", 1)
                 start_num = int(start_str.strip())
                 end_num = int(end_str.strip())
-
-                if start_num > end_num:
-                    raise ValueError(f"Invalid range: {part} (start > end)")
-                if start_num < 1 or end_num > 50:
-                    raise ValueError(f"Team numbers must be 1-50, got: {part}")
-
-                team_numbers.update(range(start_num, end_num + 1))
             except ValueError as e:
                 raise ValueError(f"Invalid range format: {part}") from e
+
+            if start_num > end_num:
+                raise ValueError(f"Invalid range: {part} (start > end)")
+            if start_num < 1 or end_num > 50:
+                raise ValueError(f"Team numbers must be 1-50, got: {part}")
+
+            team_numbers.update(range(start_num, end_num + 1))
         else:
             # Single number
             try:
                 num = int(part)
-                if num < 1 or num > 50:
-                    raise ValueError(f"Team number must be 1-50, got: {num}")
-                team_numbers.add(num)
-            except ValueError:
-                raise ValueError(f"Invalid team number: {part}")
+            except ValueError as e:
+                raise ValueError(f"Invalid team number: {part}") from e
 
-    return sorted(list(team_numbers))
+            if num < 1 or num > 50:
+                raise ValueError(f"Team number must be 1-50, got: {num}")
+            team_numbers.add(num)
+
+    return sorted(team_numbers)

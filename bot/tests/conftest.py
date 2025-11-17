@@ -1,13 +1,16 @@
 """Pytest fixtures for bot command testing."""
 
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+import discord
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock
-import discord
-from django.contrib.auth.models import User
+from _pytest.config import Config
 from allauth.socialaccount.models import SocialAccount
-from team.models import Team, DiscordLink
+from django.contrib.auth.models import User
+
+from team.models import DiscordLink, Team
 
 
 @pytest.fixture
@@ -35,8 +38,8 @@ def mock_interaction() -> Any:
 
 @pytest_asyncio.fixture
 async def mock_admin_user(db: Any) -> User:
-    import uuid
     import random
+    import uuid
 
     unique_id = str(uuid.uuid4())[:8]
     username = f"testadmin_{unique_id}"
@@ -75,8 +78,8 @@ async def mock_admin_user(db: Any) -> User:
 
 @pytest_asyncio.fixture
 async def mock_team_user(db: Any) -> User:
-    import uuid
     import random
+    import uuid
 
     unique_id = str(uuid.uuid4())[:8]
     username = f"teammember_{unique_id}"
@@ -184,7 +187,7 @@ def mock_discord_guild() -> Any:
     return guild
 
 
-def pytest_configure(config):  # type: ignore
+def pytest_configure(config: Config) -> None:
     """Configure pytest to use database flushing for isolation between tests."""
     config.addinivalue_line(
         "markers",
@@ -193,7 +196,7 @@ def pytest_configure(config):  # type: ignore
 
 
 @pytest.fixture(scope="function")
-def db(transactional_db):  # type: ignore
+def db(transactional_db: Any) -> Any:
     """
     Override the default db fixture to use transactional_db instead.
 
@@ -208,6 +211,7 @@ def db(transactional_db):  # type: ignore
 def setup_django() -> None:
     """Set up Django for tests."""
     import os
+
     import django
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wccomps.settings")

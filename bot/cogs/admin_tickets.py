@@ -1,26 +1,28 @@
 """Admin commands for ticket management."""
 
+import logging
+from datetime import timedelta
+from typing import cast
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import logging
-from typing import Optional, cast, Union
 from django.utils import timezone
-from datetime import timedelta
-from ticketing.models import Ticket, TicketHistory
-from core.tickets_config import TICKET_CATEGORIES
-from bot.utils import (
-    log_to_ops_channel,
-    get_team_or_respond,
-    get_team_member_discord_ids,
-)
+
+from bot.permissions import check_ticketing_admin, check_ticketing_support
 from bot.ticket_dashboard import (
+    TicketActionView,
+    format_ticket_embed,
     post_ticket_to_dashboard,
     update_ticket_dashboard,
-    format_ticket_embed,
-    TicketActionView,
 )
-from bot.permissions import check_ticketing_admin, check_ticketing_support
+from bot.utils import (
+    get_team_member_discord_ids,
+    get_team_or_respond,
+    log_to_ops_channel,
+)
+from core.tickets_config import TICKET_CATEGORIES
+from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +30,7 @@ logger = logging.getLogger(__name__)
 class UserOrIdTransformer(app_commands.Transformer):
     """Transform either a User mention or a Discord ID string into a User object."""
 
-    async def transform(
-        self, interaction: discord.Interaction, value: Union[discord.User, str]
-    ) -> Optional[discord.User]:
+    async def transform(self, interaction: discord.Interaction, value: discord.User | str) -> discord.User | None:
         """
         Transform input into a discord.User.
 
@@ -45,28 +45,21 @@ class UserOrIdTransformer(app_commands.Transformer):
         # Try to parse as Discord ID
         try:
             user_id = int(value)
-            user = await interaction.client.fetch_user(user_id)
-            return user
-        except (ValueError, discord.NotFound, discord.HTTPException):
-            raise app_commands.AppCommandError(
-                "Invalid user. Please provide a @mention or valid Discord ID."
-            )
+            return await interaction.client.fetch_user(user_id)
+        except (ValueError, discord.NotFound, discord.HTTPException) as e:
+            raise app_commands.AppCommandError("Invalid user. Please provide a @mention or valid Discord ID.") from e
 
 
 class AdminTicketsCog(commands.Cog):
     """Admin commands for ticket management."""
 
     # Create tickets command group as class attribute
-    tickets_group = app_commands.Group(
-        name="tickets", description="Ticket management commands"
-    )
+    tickets_group = app_commands.Group(name="tickets", description="Ticket management commands")
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @tickets_group.command(
-        name="create", description="[ADMIN] Create a ticket for a team"
-    )
+    @tickets_group.command(name="create", description="[ADMIN] Create a ticket for a team")
     @app_commands.describe(
         team_number="Team number (1-50)",
         category="Ticket category",
@@ -74,8 +67,7 @@ class AdminTicketsCog(commands.Cog):
     )
     @app_commands.choices(
         category=[
-            app_commands.Choice(name=cat["display_name"], value=cat_id)
-            for cat_id, cat in TICKET_CATEGORIES.items()
+            app_commands.Choice(name=cat["display_name"], value=cat_id) for cat_id, cat in TICKET_CATEGORIES.items()
         ]
     )
     @app_commands.check(check_ticketing_admin)
@@ -88,9 +80,7 @@ class AdminTicketsCog(commands.Cog):
     ) -> None:
         """Create a ticket as admin."""
         if not interaction.guild:
-            await interaction.response.send_message(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
             return
 
         team = await get_team_or_respond(interaction, team_number)
@@ -99,9 +89,7 @@ class AdminTicketsCog(commands.Cog):
 
         cat_info = TICKET_CATEGORIES.get(category)
         if not cat_info:
-            await interaction.response.send_message(
-                "Invalid ticket category.", ephemeral=True
-            )
+            await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
         # For box-reset, use description as hostname
@@ -121,31 +109,22 @@ class AdminTicketsCog(commands.Cog):
 
         # Create thread in team's category
         if team.discord_category_id:
-            try:
-                category_channel = (
-                    interaction.guild.get_channel(team.discord_category_id)
-                    if interaction.guild
-                    else None
-                )
-                if category_channel and isinstance(
-                    category_channel, discord.CategoryChannel
-                ):
-                    # Find the team's text channel within the category
-                    chat_channel = None
-                    for channel in category_channel.channels:
-                        if (
-                            isinstance(channel, discord.TextChannel)
-                            and "chat" in channel.name.lower()
-                        ):
-                            chat_channel = channel
-                            break
+            # Find and validate category/channel before entering try block
+            category_channel = interaction.guild.get_channel(team.discord_category_id) if interaction.guild else None
+            if category_channel and isinstance(category_channel, discord.CategoryChannel):
+                # Find the team's text channel within the category
+                chat_channel = None
+                for channel in category_channel.channels:
+                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                        chat_channel = channel
+                        break
 
-                    if not chat_channel:
-                        logger.warning(
-                            f"No text channel found in category {category_channel.name}"
-                        )
-                        raise Exception("No text channel found in team category")
+                if not chat_channel:
+                    logger.warning(f"No text channel found in category {category_channel.name}")
+                    raise RuntimeError("No text channel found in team category")
 
+                # Now do Discord API calls with error handling
+                try:
                     thread = await chat_channel.create_thread(
                         name=f"{ticket.ticket_number} - Team {team.team_number:02d} - {ticket.title[:60]}",
                         auto_archive_duration=10080,  # 7 days
@@ -170,9 +149,7 @@ class AdminTicketsCog(commands.Cog):
                             if member:
                                 await thread.add_user(member)
                         except Exception as e:
-                            logger.warning(
-                                f"Failed to add member {member_id} to thread: {e}"
-                            )
+                            logger.warning(f"Failed to add member {member_id} to thread: {e}")
 
                     # Send initial message in thread with action buttons
                     embed_thread = format_ticket_embed(ticket)
@@ -184,24 +161,21 @@ class AdminTicketsCog(commands.Cog):
                         view=view,
                     )
 
-                    logger.info(
-                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} (admin)"
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Failed to create thread for ticket {ticket.ticket_number}: {e}"
-                )
+                    logger.info(f"Created thread {thread.id} for ticket #{ticket.ticket_number} (admin)")
+                except Exception as e:
+                    logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
 
         # Post to dashboard
         try:
             await post_ticket_to_dashboard(self.bot, ticket)
         except Exception as e:
-            logger.error(f"Failed to post ticket to dashboard: {e}")
+            logger.exception(f"Failed to post ticket to dashboard: {e}")
 
         # Log to ops
         await log_to_ops_channel(
             self.bot,
-            f"Admin Ticket Created: {ticket.ticket_number} - {cat_info['display_name']} for **{team.team_name}** by {interaction.user.mention}",
+            f"Admin Ticket Created: {ticket.ticket_number} - {cat_info['display_name']} "
+            f"for **{team.team_name}** by {interaction.user.mention}",
         )
 
         await interaction.response.send_message(
@@ -212,9 +186,7 @@ class AdminTicketsCog(commands.Cog):
         )
 
     @tickets_group.command(name="list", description="[ADMIN] List open tickets")
-    @app_commands.describe(
-        status="Filter by status", team_number="Filter by team number"
-    )
+    @app_commands.describe(status="Filter by status", team_number="Filter by team number")
     @app_commands.choices(
         status=[
             app_commands.Choice(name="Open", value="open"),
@@ -228,7 +200,7 @@ class AdminTicketsCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         status: str = "open",
-        team_number: Optional[int] = None,
+        team_number: int | None = None,
     ) -> None:
         """List tickets with optional filters."""
 
@@ -243,9 +215,7 @@ class AdminTicketsCog(commands.Cog):
         total_count = await query.acount()
 
         if total_count == 0:
-            await interaction.response.send_message(
-                "No tickets found matching criteria", ephemeral=True
-            )
+            await interaction.response.send_message("No tickets found matching criteria", ephemeral=True)
             return
 
         # Fetch tickets (limit to 25 due to Discord embed field limit)
@@ -282,9 +252,7 @@ class AdminTicketsCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @tickets_group.command(
-        name="resolve", description="[ADMIN] Resolve a ticket and apply points"
-    )
+    @tickets_group.command(name="resolve", description="[ADMIN] Resolve a ticket and apply points")
     @app_commands.describe(
         ticket_number="Ticket number (e.g., T050-003)",
         notes="Resolution notes",
@@ -296,19 +264,13 @@ class AdminTicketsCog(commands.Cog):
         interaction: discord.Interaction,
         ticket_number: str,
         notes: str = "",
-        points: Optional[int] = None,
+        points: int | None = None,
     ) -> None:
         """Resolve a ticket and apply point adjustments."""
 
-        ticket = (
-            await Ticket.objects.select_related("team")
-            .filter(ticket_number=ticket_number)
-            .afirst()
-        )
+        ticket = await Ticket.objects.select_related("team").filter(ticket_number=ticket_number).afirst()
         if not ticket:
-            await interaction.response.send_message(
-                f"Ticket {ticket_number} not found", ephemeral=True
-            )
+            await interaction.response.send_message(f"Ticket {ticket_number} not found", ephemeral=True)
             return
 
         if ticket.status == "resolved":
@@ -372,7 +334,7 @@ class AdminTicketsCog(commands.Cog):
         try:
             await update_ticket_dashboard(self.bot, ticket)
         except Exception as e:
-            logger.error(f"Failed to update dashboard: {e}")
+            logger.exception(f"Failed to update dashboard: {e}")
 
         # Log to ops
         await log_to_ops_channel(
@@ -387,31 +349,21 @@ class AdminTicketsCog(commands.Cog):
             ephemeral=True,
         )
 
-    @tickets_group.command(
-        name="cancel", description="[ADMIN] Cancel a ticket without applying points"
-    )
+    @tickets_group.command(name="cancel", description="[ADMIN] Cancel a ticket without applying points")
     @app_commands.describe(
         ticket_number="Ticket number (e.g., T050-003)",
         reason="Reason for cancellation",
     )
     @app_commands.check(check_ticketing_admin)
-    async def admin_ticket_cancel(
-        self, interaction: discord.Interaction, ticket_number: str, reason: str = ""
-    ) -> None:
+    async def admin_ticket_cancel(self, interaction: discord.Interaction, ticket_number: str, reason: str = "") -> None:
         """Cancel a ticket without point penalty."""
 
-        ticket = (
-            await Ticket.objects.select_related("team")
-            .filter(ticket_number=ticket_number)
-            .afirst()
-        )
+        ticket = await Ticket.objects.select_related("team").filter(ticket_number=ticket_number).afirst()
         if not ticket:
-            await interaction.response.send_message(
-                f"Ticket {ticket_number} not found", ephemeral=True
-            )
+            await interaction.response.send_message(f"Ticket {ticket_number} not found", ephemeral=True)
             return
 
-        if ticket.status == "resolved" or ticket.status == "cancelled":
+        if ticket.status in {"resolved", "cancelled"}:
             await interaction.response.send_message(
                 f"Ticket {ticket.ticket_number} is already {ticket.status}",
                 ephemeral=True,
@@ -446,7 +398,7 @@ class AdminTicketsCog(commands.Cog):
         try:
             await update_ticket_dashboard(self.bot, ticket)
         except Exception as e:
-            logger.error(f"Failed to update dashboard: {e}")
+            logger.exception(f"Failed to update dashboard: {e}")
 
         # Log to ops
         await log_to_ops_channel(
@@ -473,28 +425,18 @@ class AdminTicketsCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         ticket_number: str,
-        volunteer: Optional[
-            app_commands.Transform[discord.User, UserOrIdTransformer]
-        ] = None,
+        volunteer: app_commands.Transform[discord.User, UserOrIdTransformer] | None = None,
     ) -> None:
         """Reassign a ticket to a different volunteer."""
         await interaction.response.defer(ephemeral=True)
 
-        ticket = (
-            await Ticket.objects.select_related("team")
-            .filter(ticket_number=ticket_number)
-            .afirst()
-        )
+        ticket = await Ticket.objects.select_related("team").filter(ticket_number=ticket_number).afirst()
         if not ticket:
-            await interaction.followup.send(
-                f"Ticket {ticket_number} not found", ephemeral=True
-            )
+            await interaction.followup.send(f"Ticket {ticket_number} not found", ephemeral=True)
             return
 
         if ticket.status in ["resolved", "cancelled"]:
-            await interaction.followup.send(
-                f"Cannot reassign {ticket.status} ticket", ephemeral=True
-            )
+            await interaction.followup.send(f"Cannot reassign {ticket.status} ticket", ephemeral=True)
             return
 
         old_assignee = ticket.assigned_to_discord_username or "Unassigned"
@@ -542,34 +484,20 @@ class AdminTicketsCog(commands.Cog):
             f"• To: {new_assignee}",
         )
 
-    @tickets_group.command(
-        name="reopen", description="[ADMIN] Reopen a resolved ticket"
-    )
-    @app_commands.describe(
-        ticket_number="Ticket number (e.g., T050-003)", reason="Reason for reopening"
-    )
+    @tickets_group.command(name="reopen", description="[ADMIN] Reopen a resolved ticket")
+    @app_commands.describe(ticket_number="Ticket number (e.g., T050-003)", reason="Reason for reopening")
     @app_commands.check(check_ticketing_admin)
-    async def admin_ticket_reopen(
-        self, interaction: discord.Interaction, ticket_number: str, reason: str
-    ) -> None:
+    async def admin_ticket_reopen(self, interaction: discord.Interaction, ticket_number: str, reason: str) -> None:
         """Reopen a resolved ticket."""
         await interaction.response.defer(ephemeral=True)
 
-        ticket = (
-            await Ticket.objects.select_related("team")
-            .filter(ticket_number=ticket_number)
-            .afirst()
-        )
+        ticket = await Ticket.objects.select_related("team").filter(ticket_number=ticket_number).afirst()
         if not ticket:
-            await interaction.followup.send(
-                f"Ticket {ticket_number} not found", ephemeral=True
-            )
+            await interaction.followup.send(f"Ticket {ticket_number} not found", ephemeral=True)
             return
 
         if ticket.status != "resolved":
-            await interaction.followup.send(
-                f"Cannot reopen - ticket is {ticket.status}", ephemeral=True
-            )
+            await interaction.followup.send(f"Cannot reopen - ticket is {ticket.status}", ephemeral=True)
             return
 
         # Reopen ticket (only change status and clear resolved timestamp)

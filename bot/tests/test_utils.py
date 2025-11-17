@@ -2,14 +2,16 @@
 
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import discord
 import pytest
+
 from bot.utils import (
-    get_team_or_respond,
     get_team_member_discord_ids,
+    get_team_or_respond,
     log_to_ops_channel,
 )
-from team.models import Team, DiscordLink
+from team.models import DiscordLink, Team
 
 
 @pytest.mark.asyncio
@@ -45,9 +47,7 @@ class TestTeamHelpers:
         call_args = mock_interaction.response.send_message.call_args
         assert "not found" in call_args.args[0].lower()
 
-    async def test_get_team_or_respond_invalid_range(
-        self, mock_interaction: Any
-    ) -> None:
+    async def test_get_team_or_respond_invalid_range(self, mock_interaction: Any) -> None:
         """Test handling team number out of range."""
         result = await get_team_or_respond(mock_interaction, 51)
 
@@ -56,9 +56,7 @@ class TestTeamHelpers:
         call_args = mock_interaction.response.send_message.call_args
         assert "between 1 and 50" in call_args.args[0]
 
-    async def test_get_team_or_respond_skip_validation(
-        self, mock_interaction: Any
-    ) -> None:
+    async def test_get_team_or_respond_skip_validation(self, mock_interaction: Any) -> None:
         """Test skipping range validation."""
         result = await get_team_or_respond(mock_interaction, 99, validate_range=False)
 

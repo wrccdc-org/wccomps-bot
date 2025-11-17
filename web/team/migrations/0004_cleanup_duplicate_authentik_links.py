@@ -1,9 +1,10 @@
 # Migration to deactivate duplicate authentik_user_id links before adding constraint
+from typing import Any
 from django.db import migrations
 from django.utils import timezone
 
 
-def deactivate_duplicate_authentik_links(apps, schema_editor):
+def deactivate_duplicate_authentik_links(apps: Any, schema_editor: Any) -> None:
     """
     Deactivate all but the most recent active DiscordLink for each authentik_user_id.
     This prevents the unique constraint from failing on existing data.

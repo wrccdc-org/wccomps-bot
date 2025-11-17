@@ -2,12 +2,14 @@
 
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import discord
 import pytest
+
+from bot.discord_queue import DiscordQueueProcessor
 from core.models import DiscordTask
 from team.models import Team
 from ticketing.models import Ticket
-from bot.discord_queue import DiscordQueueProcessor
 
 
 @pytest.mark.asyncio
@@ -73,9 +75,7 @@ class TestTicketCreationWorkflow:
         bot.get_channel.return_value = category
 
         # Process task (simulating queue processor)
-        with patch(
-            "bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock
-        ):
+        with patch("bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock):
             processor = DiscordQueueProcessor(bot)
             await processor._handle_ticket_created_web(task)
 
@@ -120,9 +120,7 @@ class TestTicketCreationWorkflow:
 
         bot = AsyncMock(spec=discord.Client)
 
-        with patch(
-            "bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock
-        ) as mock_dashboard:
+        with patch("bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock) as mock_dashboard:
             processor = DiscordQueueProcessor(bot)
             await processor._handle_ticket_created_web(task)
 
@@ -161,9 +159,7 @@ class TestTicketResolutionWorkflow:
             assigned_to_discord_username="volunteer1",
         )
 
-        with patch(
-            "bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock
-        ):
+        with patch("bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock):
             cog = AdminTicketsCog(mock_bot)
             await cog.admin_ticket_resolve.callback(
                 cog,
@@ -205,9 +201,7 @@ class TestTicketResolutionWorkflow:
             status="open",
         )
 
-        with patch(
-            "bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock
-        ):
+        with patch("bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock):
             cog = AdminTicketsCog(mock_bot)
             await cog.admin_ticket_resolve.callback(
                 cog,
@@ -217,12 +211,7 @@ class TestTicketResolutionWorkflow:
                 points=10,
             )
 
-        history_entries = [
-            h
-            async for h in TicketHistory.objects.filter(
-                ticket=ticket, action="resolved"
-            )
-        ]
+        history_entries = [h async for h in TicketHistory.objects.filter(ticket=ticket, action="resolved")]
         assert len(history_entries) >= 1
 
         history = history_entries[-1]
@@ -253,9 +242,7 @@ class TestTicketResolutionWorkflow:
             status="open",
         )
 
-        with patch(
-            "bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock
-        ) as mock_dashboard:
+        with patch("bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock) as mock_dashboard:
             cog = AdminTicketsCog(mock_bot)
             await cog.admin_ticket_resolve.callback(
                 cog,
@@ -273,8 +260,9 @@ class TestTicketResolutionWorkflow:
         self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
     ) -> None:
         """Test that already resolved tickets cannot be re-resolved."""
-        from bot.cogs.admin_tickets import AdminTicketsCog
         from django.utils import timezone
+
+        from bot.cogs.admin_tickets import AdminTicketsCog
 
         mock_interaction.user.id = mock_admin_user._discord_id
 

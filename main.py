@@ -3,21 +3,20 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import discord
-from discord.ext import commands
 
 # Initialize Django before any imports that use Django models
 import django
+from discord.ext import commands
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wccomps.settings")
 django.setup()
 
-if TYPE_CHECKING:
-    from bot.competition_timer import CompetitionTimer
-    from bot.discord_queue import DiscordQueueProcessor
-    from bot.unified_dashboard import UnifiedDashboard
+from bot.competition_timer import CompetitionTimer
+from bot.discord_queue import DiscordQueueProcessor
+from bot.unified_dashboard import UnifiedDashboard
 
 # Configure logging
 logging.basicConfig(
@@ -41,9 +40,9 @@ class WCCompsBot(commands.Bot):
 
         super().__init__(command_prefix="!", intents=intents)
 
-        self.queue_processor: "DiscordQueueProcessor | None" = None
-        self.competition_timer: "CompetitionTimer | None" = None
-        self.unified_dashboard: "UnifiedDashboard | None" = None
+        self.queue_processor: DiscordQueueProcessor | None = None
+        self.competition_timer: CompetitionTimer | None = None
+        self.unified_dashboard: UnifiedDashboard | None = None
 
     async def setup_hook(self) -> None:
         """Setup hook called when bot is ready."""
@@ -71,14 +70,12 @@ class WCCompsBot(commands.Bot):
         logger.info(f"Registered {len(commands_list)} top-level commands:")
         for cmd in commands_list:
             if isinstance(cmd, discord.app_commands.Group):
-                logger.info(
-                    f"  - {cmd.name} (Group with {len(cmd.commands)} subcommands)"
-                )
+                logger.info(f"  - {cmd.name} (Group with {len(cmd.commands)} subcommands)")
             else:
                 logger.info(f"  - {cmd.name} (Command)")
 
         # Sync commands to guild
-        guild_id = int(os.environ.get("DISCORD_GUILD_ID", 0))
+        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
         if guild_id:
             guild = discord.Object(id=guild_id)
 
@@ -86,14 +83,12 @@ class WCCompsBot(commands.Bot):
             # Step 1: Fetch what Discord currently has
             try:
                 existing_commands = await self.tree.fetch_commands(guild=guild)
-                logger.info(
-                    f"Found {len(existing_commands)} existing commands on Discord"
-                )
+                logger.info(f"Found {len(existing_commands)} existing commands on Discord")
 
                 # Delete each command individually
-                for cmd in existing_commands:
-                    logger.info(f"Deleting command: {cmd.name}")
-                    await cmd.delete()
+                for existing_cmd in existing_commands:
+                    logger.info(f"Deleting command: {existing_cmd.name}")
+                    await existing_cmd.delete()
                 logger.info("Deleted all existing commands from Discord")
             except Exception as e:
                 logger.warning(f"Could not fetch/delete existing commands: {e}")
@@ -113,10 +108,6 @@ class WCCompsBot(commands.Bot):
 
     async def on_ready(self) -> None:
         """Called when bot is ready."""
-        from bot.competition_timer import CompetitionTimer
-        from bot.discord_queue import DiscordQueueProcessor
-        from bot.unified_dashboard import UnifiedDashboard
-
         if not self.user:
             logger.error("Bot user is None in on_ready")
             return
@@ -146,32 +137,32 @@ class WCCompsBot(commands.Bot):
 
     async def _refresh_ticket_buttons(self) -> None:
         """Refresh action buttons on all active ticket thread messages."""
+        from bot.ticket_dashboard import TicketActionView, format_ticket_embed
         from ticketing.models import Ticket
-        from bot.ticket_dashboard import format_ticket_embed, TicketActionView
 
         try:
             # Get all active tickets with threads
-            tickets = Ticket.objects.filter(
-                status__in=["open", "claimed"], discord_thread_id__isnull=False
-            )
+            tickets = Ticket.objects.filter(status__in=["open", "claimed"], discord_thread_id__isnull=False)
 
             tickets_list = [t async for t in tickets]
             if not tickets_list:
                 logger.info("No active tickets with threads to refresh")
                 return
 
-            logger.info(
-                f"Refreshing buttons on {len(tickets_list)} active ticket threads"
-            )
+            logger.info(f"Refreshing buttons on {len(tickets_list)} active ticket threads")
 
             refreshed = 0
             failed = 0
 
             for ticket in tickets_list:
                 try:
-                    logger.info(
-                        f"Processing ticket {ticket.ticket_number} (thread {ticket.discord_thread_id})"
-                    )
+                    logger.info(f"Processing ticket {ticket.ticket_number} (thread {ticket.discord_thread_id})")
+
+                    # Skip if no thread ID
+                    if not ticket.discord_thread_id:
+                        logger.warning(f"Ticket {ticket.ticket_number} has no thread ID")
+                        failed += 1
+                        continue
 
                     # Fetch the thread
                     thread = self.get_channel(ticket.discord_thread_id)
@@ -202,31 +193,21 @@ class WCCompsBot(commands.Bot):
                         refreshed += 1
                         logger.info(f"Refreshed ticket {ticket.ticket_number}")
                     else:
-                        logger.warning(
-                            f"No ticket message with embed found for ticket {ticket.ticket_number}"
-                        )
+                        logger.warning(f"No ticket message with embed found for ticket {ticket.ticket_number}")
 
                 except discord.NotFound:
-                    logger.warning(
-                        f"Thread {ticket.discord_thread_id} not found for ticket {ticket.ticket_number}"
-                    )
+                    logger.warning(f"Thread {ticket.discord_thread_id} not found for ticket {ticket.ticket_number}")
                     failed += 1
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to refresh buttons for ticket {ticket.ticket_number}: {e}"
-                    )
+                    logger.warning(f"Failed to refresh buttons for ticket {ticket.ticket_number}: {e}")
                     failed += 1
 
-            logger.info(
-                f"Button refresh complete: {refreshed} refreshed, {failed} failed"
-            )
+            logger.info(f"Button refresh complete: {refreshed} refreshed, {failed} failed")
 
         except Exception as e:
-            logger.error(f"Error refreshing ticket buttons: {e}")
+            logger.exception(f"Error refreshing ticket buttons: {e}")
 
-    async def on_command_error(
-        self, ctx: commands.Context[Any], error: Exception
-    ) -> None:
+    async def on_command_error(self, ctx: commands.Context[Any], error: Exception) -> None:
         """Handle command errors."""
         logger.error(f"Command error: {error}")
 
@@ -258,7 +239,7 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt")
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.exception(f"Fatal error: {e}")
         sys.exit(1)
 
 

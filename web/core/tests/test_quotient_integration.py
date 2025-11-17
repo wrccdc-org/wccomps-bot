@@ -1,16 +1,17 @@
 """Tests for Quotient API integration."""
 
-from typing import Any, Dict
-import pytest
+from typing import Any
 from unittest.mock import Mock, patch
+
+import pytest
 from quotient.client import (
-    QuotientClient,
     QuotientAPIError,
+    QuotientClient,
 )
 
 
 @pytest.fixture
-def mock_infrastructure() -> Dict[str, Any]:
+def mock_infrastructure() -> dict[str, Any]:
     """Create mock infrastructure data."""
     return {
         "boxes": [
@@ -43,9 +44,7 @@ def mock_infrastructure() -> Dict[str, Any]:
 class TestQuotientClient:
     """Test QuotientClient class."""
 
-    def test_get_infrastructure_success(
-        self, mock_infrastructure: Dict[str, Any]
-    ) -> None:
+    def test_get_infrastructure_success(self, mock_infrastructure: dict[str, Any]) -> None:
         """Test successful infrastructure fetch."""
         client = QuotientClient(base_url="http://test.local")
 
@@ -65,7 +64,7 @@ class TestQuotientClient:
         assert infrastructure.boxes[0].services[0].name == "http"
         assert infrastructure.event_name == "Test Competition"
 
-    def test_get_service_choices(self, mock_infrastructure: Dict[str, Any]) -> None:
+    def test_get_service_choices(self, mock_infrastructure: dict[str, Any]) -> None:
         """Test service choices generation."""
         client = QuotientClient(base_url="http://test.local")
 
@@ -83,7 +82,7 @@ class TestQuotientClient:
         assert choices[0]["box_ip"] == "10.0.1.20"
         assert choices[0]["service_type"] == "custom"
 
-    def test_get_box_names(self, mock_infrastructure: Dict[str, Any]) -> None:
+    def test_get_box_names(self, mock_infrastructure: dict[str, Any]) -> None:
         """Test box names list generation."""
         client = QuotientClient(base_url="http://test.local")
 
@@ -131,7 +130,7 @@ class TestQuotientClient:
 
         assert infrastructure is None
 
-    def test_caching(self, mock_infrastructure: Dict[str, Any]) -> None:
+    def test_caching(self, mock_infrastructure: dict[str, Any]) -> None:
         """Test that infrastructure is cached."""
         client = QuotientClient(base_url="http://test.local", cache_ttl=60)
 

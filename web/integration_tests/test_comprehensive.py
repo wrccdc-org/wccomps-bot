@@ -8,14 +8,15 @@ Run with: pytest -m integration
 """
 
 import os
+
 import pytest
-from django.test import Client
-from ticketing.models import Ticket
-from team.models import Team
-from person.models import Person
 from django.contrib.auth.models import User
+from django.test import Client
 from playwright.sync_api import Page, expect
 
+from person.models import Person
+from team.models import Team
+from ticketing.models import Ticket
 
 TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 pytestmark = [
@@ -67,11 +68,7 @@ class TestFullTicketWorkflow:
             assert ticket.claimed_by is None
 
             # Claim ticket
-            response = client.post(
-                reverse(
-                    "ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}
-                )
-            )
+            response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
             assert response.status_code in [200, 302]
 
             ticket.refresh_from_db()
@@ -80,18 +77,14 @@ class TestFullTicketWorkflow:
 
             # Add comment
             response = client.post(
-                reverse(
-                    "ops_ticket_comment", kwargs={"ticket_number": ticket.ticket_number}
-                ),
+                reverse("ops_ticket_comment", kwargs={"ticket_number": ticket.ticket_number}),
                 data={"comment": "Working on this ticket"},
             )
             assert response.status_code in [200, 302]
 
             # Resolve ticket
             response = client.post(
-                reverse(
-                    "ops_ticket_resolve", kwargs={"ticket_number": ticket.ticket_number}
-                ),
+                reverse("ops_ticket_resolve", kwargs={"ticket_number": ticket.ticket_number}),
                 data={
                     "resolution": "Issue resolved successfully",
                     "points": "10",
@@ -107,9 +100,7 @@ class TestFullTicketWorkflow:
             ticket.delete()
 
     @pytest.mark.browser
-    def test_complete_ticket_lifecycle_browser(
-        self, authenticated_page: Page, db, test_team_id
-    ):
+    def test_complete_ticket_lifecycle_browser(self, authenticated_page: Page, db, test_team_id):
         """Test full ticket workflow via browser."""
         from conftest import create_test_ticket
 
@@ -121,17 +112,13 @@ class TestFullTicketWorkflow:
             authenticated_page.goto(f"{base_url}/ops/tickets/")
 
             # Find ticket
-            expect(
-                authenticated_page.locator(f"text={ticket.ticket_number}")
-            ).to_be_visible()
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible()
 
             # Click on ticket to view details
             authenticated_page.click(f"text={ticket.ticket_number}")
 
             # Should navigate to detail page
-            expect(authenticated_page).to_have_url(
-                f"**/ops/ticket/{ticket.ticket_number}/**"
-            )
+            expect(authenticated_page).to_have_url(f"**/ops/ticket/{ticket.ticket_number}/**")
 
             # Page should render without errors
             expect(authenticated_page).not_to_have_text("500")
@@ -150,9 +137,7 @@ class TestAuthentikIntegration:
 
         # Try to list users (requires API token with permissions)
         try:
-            response = core_users_list.sync_detailed(
-                client=authentik_client, page_size=1
-            )
+            response = core_users_list.sync_detailed(client=authentik_client, page_size=1)
             assert response.status_code in [200, 403]  # 200 if authorized, 403 if not
         except Exception as e:
             pytest.fail(f"Authentik API connection failed: {e}")
@@ -162,9 +147,7 @@ class TestAuthentikIntegration:
         from authentik_client.api.core import core_groups_list
 
         try:
-            response = core_groups_list.sync_detailed(
-                client=authentik_client, page_size=10
-            )
+            response = core_groups_list.sync_detailed(client=authentik_client, page_size=10)
             assert response.status_code in [200, 403]
 
             if response.status_code == 200:
@@ -183,7 +166,6 @@ class TestDiscordIntegration:
         """Verify Discord bot can connect to API."""
         # This would require the bot to be running
         # Skip for now, but placeholder for future enhancement
-        pass
 
 
 class TestAttachmentHandling:
@@ -223,8 +205,8 @@ class TestAttachmentHandling:
 
     def test_attachment_upload(self, db, test_ticket, support_user):
         """Test file attachment upload."""
-        from django.urls import reverse
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.urls import reverse
 
         client = Client()
         client.force_login(support_user.user)
@@ -263,9 +245,10 @@ class TestAttachmentHandling:
 
     def test_attachment_download(self, db, test_ticket, support_user):
         """Test file attachment download."""
-        from django.urls import reverse
-        from ticketing.models import TicketAttachment
         from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.urls import reverse
+
+        from ticketing.models import TicketAttachment
 
         client = Client()
         client.force_login(support_user.user)
@@ -315,9 +298,7 @@ class TestEdgeCases:
 
         client = Client()
 
-        response = client.get(
-            reverse("ops_ticket_detail", kwargs={"ticket_number": "T-NONEXISTENT-999"})
-        )
+        response = client.get(reverse("ops_ticket_detail", kwargs={"ticket_number": "T-NONEXISTENT-999"}))
 
         # Should be 404 or 302 (redirect to login), not 500
         assert response.status_code in [404, 302]
@@ -328,9 +309,7 @@ class TestEdgeCases:
 
         client = Client()
 
-        response = client.get(
-            reverse("ops_school_info_edit", kwargs={"team_number": 9999})
-        )
+        response = client.get(reverse("ops_school_info_edit", kwargs={"team_number": 9999}))
 
         # Should be 404 or 302, not 500
         assert response.status_code in [404, 302]
@@ -351,18 +330,14 @@ class TestEdgeCases:
 
         try:
             # Create two users
-            user1 = User.objects.create_user(
-                username="claimer1", email="claimer1@example.com"
-            )
+            user1 = User.objects.create_user(username="claimer1", email="claimer1@example.com")
             person1 = Person.objects.create(
                 user=user1,
                 discord_id="666666666",
                 authentik_username="claimer1",
             )
 
-            user2 = User.objects.create_user(
-                username="claimer2", email="claimer2@example.com"
-            )
+            user2 = User.objects.create_user(username="claimer2", email="claimer2@example.com")
             person2 = Person.objects.create(
                 user=user2,
                 discord_id="777777777",
@@ -372,21 +347,13 @@ class TestEdgeCases:
             # User 1 claims
             client1 = Client()
             client1.force_login(user1)
-            response = client1.post(
-                reverse(
-                    "ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}
-                )
-            )
+            response = client1.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
             assert response.status_code in [200, 302]
 
             # User 2 tries to claim
             client2 = Client()
             client2.force_login(user2)
-            response = client2.post(
-                reverse(
-                    "ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}
-                )
-            )
+            response = client2.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
 
             # Should handle gracefully (not 500)
             assert response.status_code in [200, 302, 400, 409]

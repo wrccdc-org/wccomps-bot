@@ -1,11 +1,13 @@
 """Tests for Discord manager functionality."""
 
+from unittest.mock import AsyncMock, MagicMock
+
+import discord
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock
-import discord
-from team.models import Team
+
 from bot.discord_manager import DiscordManager
+from team.models import Team
 
 
 @pytest_asyncio.fixture
@@ -66,14 +68,10 @@ def mock_guild_with_base_roles():
         category.position = len(guild.categories)
         category.edit = AsyncMock()
         category.create_text_channel = AsyncMock(
-            return_value=MagicMock(
-                spec=discord.TextChannel, id=8000 + category_counter["value"]
-            )
+            return_value=MagicMock(spec=discord.TextChannel, id=8000 + category_counter["value"])
         )
         category.create_voice_channel = AsyncMock(
-            return_value=MagicMock(
-                spec=discord.VoiceChannel, id=9000 + category_counter["value"]
-            )
+            return_value=MagicMock(spec=discord.VoiceChannel, id=9000 + category_counter["value"])
         )
         guild.categories.append(category)
         category_counter["value"] += 1
@@ -89,35 +87,29 @@ def mock_guild_with_base_roles():
 class TestSetupTeamInfrastructure:
     """Test setup_team_infrastructure method."""
 
-    async def test_creates_role_with_correct_name(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_creates_role_with_correct_name(self, team, mock_guild_with_base_roles):
         """Test that a role is created with format 'Team XX'."""
         manager = DiscordManager(mock_guild_with_base_roles)
 
-        role, category = await manager.setup_team_infrastructure(team.team_number)
+        role, _category = await manager.setup_team_infrastructure(team.team_number)
 
         assert role is not None
         assert role.name == f"Team {team.team_number:02d}"
 
-    async def test_creates_category_with_correct_name(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_creates_category_with_correct_name(self, team, mock_guild_with_base_roles):
         """Test that a category is created with format 'team XX'."""
         manager = DiscordManager(mock_guild_with_base_roles)
 
-        role, category = await manager.setup_team_infrastructure(team.team_number)
+        _role, category = await manager.setup_team_infrastructure(team.team_number)
 
         assert category is not None
         assert category.name == f"team {team.team_number:02d}"
 
-    async def test_creates_channels_within_category(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_creates_channels_within_category(self, team, mock_guild_with_base_roles):
         """Test that text and voice channels are created."""
         manager = DiscordManager(mock_guild_with_base_roles)
 
-        role, category = await manager.setup_team_infrastructure(team.team_number)
+        _role, category = await manager.setup_team_infrastructure(team.team_number)
 
         # Verify create_text_channel was called with correct name
         category.create_text_channel.assert_called()
@@ -150,9 +142,7 @@ class TestSetupTeamInfrastructure:
         # Verify create_role was never called
         guild.create_role.assert_not_called()
 
-    async def test_idempotent_no_duplicates_created(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_idempotent_no_duplicates_created(self, team, mock_guild_with_base_roles):
         """Test that running setup twice does not create duplicate roles or categories."""
         manager = DiscordManager(mock_guild_with_base_roles)
         guild = mock_guild_with_base_roles
@@ -246,9 +236,7 @@ class TestSetupTeamInfrastructure:
 class TestAssignTeamRole:
     """Test assign_team_role method."""
 
-    async def test_assigns_team_role_successfully(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_assigns_team_role_successfully(self, team, mock_guild_with_base_roles):
         """Test successfully assigning team role to a member."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -271,9 +259,7 @@ class TestAssignTeamRole:
         # Verify the exact role and reason were passed
         member.add_roles.assert_called_once_with(role, reason="WCComps team assignment")
 
-    async def test_assigns_team_role_and_blueteam(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_assigns_team_role_and_blueteam(self, team, mock_guild_with_base_roles):
         """Test that both team role and Blueteam role are assigned."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -310,9 +296,7 @@ class TestAssignTeamRole:
         assert result is False
         member.add_roles.assert_not_called()
 
-    async def test_assign_team_role_no_discord_role_id(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_assign_team_role_no_discord_role_id(self, team, mock_guild_with_base_roles):
         """Test assigning role when team has no discord_role_id."""
         manager = DiscordManager(mock_guild_with_base_roles)
         member = MagicMock(spec=discord.Member)
@@ -324,9 +308,7 @@ class TestAssignTeamRole:
         assert result is False
         member.add_roles.assert_not_called()
 
-    async def test_assign_team_role_role_not_found_in_guild(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_assign_team_role_role_not_found_in_guild(self, team, mock_guild_with_base_roles):
         """Test assigning role when Discord role doesn't exist in guild."""
         manager = DiscordManager(mock_guild_with_base_roles)
         member = MagicMock(spec=discord.Member)
@@ -341,9 +323,7 @@ class TestAssignTeamRole:
         assert result is False
         member.add_roles.assert_not_called()
 
-    async def test_assign_team_role_permission_denied(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_assign_team_role_permission_denied(self, team, mock_guild_with_base_roles):
         """Test handling Forbidden error when assigning role."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -352,9 +332,7 @@ class TestAssignTeamRole:
         role, _ = await manager.setup_team_infrastructure(team.team_number)
 
         member = MagicMock(spec=discord.Member)
-        member.add_roles = AsyncMock(
-            side_effect=discord.errors.Forbidden(MagicMock(), "")
-        )
+        member.add_roles = AsyncMock(side_effect=discord.errors.Forbidden(MagicMock(), ""))
 
         result = await manager.assign_team_role(member, team.team_number)
 
@@ -368,9 +346,7 @@ class TestAssignTeamRole:
 class TestRemoveTeamRole:
     """Test remove_team_role method."""
 
-    async def test_removes_team_role_successfully(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_removes_team_role_successfully(self, team, mock_guild_with_base_roles):
         """Test successfully removing team role from a member."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -388,9 +364,7 @@ class TestRemoveTeamRole:
         # Verify the exact role and reason were passed
         member.remove_roles.assert_called_once_with(role, reason="WCComps team removal")
 
-    async def test_removes_team_role_and_blueteam(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_removes_team_role_and_blueteam(self, team, mock_guild_with_base_roles):
         """Test that both team role and Blueteam role are removed."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -429,9 +403,7 @@ class TestRemoveTeamRole:
         # Verify no roles were removed
         member.remove_roles.assert_not_called()
 
-    async def test_remove_team_role_no_discord_role_id(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_remove_team_role_no_discord_role_id(self, team, mock_guild_with_base_roles):
         """Test removing role when team has no discord_role_id."""
         manager = DiscordManager(mock_guild_with_base_roles)
         member = MagicMock(spec=discord.Member)
@@ -443,9 +415,7 @@ class TestRemoveTeamRole:
         # Verify no roles were removed
         member.remove_roles.assert_not_called()
 
-    async def test_remove_team_role_permission_denied(
-        self, team, mock_guild_with_base_roles
-    ):
+    async def test_remove_team_role_permission_denied(self, team, mock_guild_with_base_roles):
         """Test handling Forbidden error when removing role."""
         guild = mock_guild_with_base_roles
         manager = DiscordManager(guild)
@@ -455,9 +425,7 @@ class TestRemoveTeamRole:
 
         member = MagicMock(spec=discord.Member)
         member.roles = [role]
-        member.remove_roles = AsyncMock(
-            side_effect=discord.errors.Forbidden(MagicMock(), "")
-        )
+        member.remove_roles = AsyncMock(side_effect=discord.errors.Forbidden(MagicMock(), ""))
 
         result = await manager.remove_team_role(member, team.team_number)
 
@@ -570,9 +538,7 @@ class TestRemoveAllTeamRoles:
 
         # Create member that raises Forbidden error
         member = MagicMock(spec=discord.Member)
-        member.remove_roles = AsyncMock(
-            side_effect=discord.errors.Forbidden(MagicMock(), "")
-        )
+        member.remove_roles = AsyncMock(side_effect=discord.errors.Forbidden(MagicMock(), ""))
 
         role.members = [member]
 

@@ -1,8 +1,9 @@
 """Authentik API manager for application control."""
 
-from typing import Any, Optional
-import requests
 import logging
+from typing import Any
+
+import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -14,9 +15,9 @@ class AuthentikAPIError(Exception):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        response_text: Optional[str] = None,
-        url: Optional[str] = None,
+        status_code: int | None = None,
+        response_text: str | None = None,
+        url: str | None = None,
     ) -> None:
         self.message = message
         self.status_code = status_code
@@ -51,17 +52,13 @@ class AuthentikManager:
 
     def _log_request(self, method: str, url: str, **kwargs: Any) -> None:
         """Log HTTP request details (without sensitive headers)."""
-        safe_headers = {
-            k: v for k, v in kwargs.get("headers", {}).items() if k != "Authorization"
-        }
+        safe_headers = {k: v for k, v in kwargs.get("headers", {}).items() if k != "Authorization"}
         logger.debug(
             f"Authentik API Request: {method} {url} | Headers: {safe_headers} | "
             f"Params: {kwargs.get('params')} | Data: {kwargs.get('json')}"
         )
 
-    def _handle_response_error(
-        self, response: requests.Response, context: str
-    ) -> AuthentikAPIError:
+    def _handle_response_error(self, response: requests.Response, context: str) -> AuthentikAPIError:
         """Create detailed error from HTTP response."""
         try:
             error_data = response.json()
@@ -90,7 +87,7 @@ class AuthentikManager:
             url=response.url,
         )
 
-    def get_application_by_slug(self, slug: str) -> Optional[dict[str, Any]]:
+    def get_application_by_slug(self, slug: str) -> dict[str, Any] | None:
         """Get application details by slug."""
         url = f"{self.base_url}/api/v3/core/applications/"
         try:
@@ -112,20 +109,16 @@ class AuthentikManager:
             return app
         except requests.exceptions.HTTPError as e:
             error = self._handle_response_error(e.response, f"Get application '{slug}'")
-            logger.error(str(error))
+            logger.exception(str(error))
             return None
         except requests.exceptions.RequestException as e:
-            logger.error(f"Network error getting application '{slug}': {e}")
+            logger.exception(f"Network error getting application '{slug}': {e}")
             return None
         except Exception as e:
-            logger.error(
-                f"Unexpected error getting application '{slug}': {e}", exc_info=True
-            )
+            logger.error(f"Unexpected error getting application '{slug}': {e}", exc_info=True)
             return None
 
-    def get_blueteam_binding(
-        self, app_pk: str
-    ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+    def get_blueteam_binding(self, app_pk: str) -> tuple[dict[str, Any] | None, str | None]:
         """Get the BlueTeam group binding by querying application bindings.
 
         Args:
@@ -161,31 +154,30 @@ class AuthentikManager:
                     logger.debug(f"Found group binding: {group_name} (pk={binding_pk})")
 
                     if "blueteam" in group_name.lower():
-                        logger.info(
-                            f"Found blueteam group binding: {binding_pk} (group={group_name})"
-                        )
+                        logger.info(f"Found blueteam group binding: {binding_pk} (group={group_name})")
                         return binding, None
 
-            error_msg = f"No BlueTeam group binding found for application {app_pk}. Found {len(bindings)} binding(s) but none matched."
+            error_msg = (
+                f"No BlueTeam group binding found for application {app_pk}. "
+                f"Found {len(bindings)} binding(s) but none matched."
+            )
             logger.error(error_msg)
             return None, error_msg
 
         except requests.exceptions.HTTPError as e:
-            error = self._handle_response_error(
-                e.response, f"Query bindings for app {app_pk}"
-            )
-            logger.error(f"Failed to query bindings: {error}")
+            error = self._handle_response_error(e.response, f"Query bindings for app {app_pk}")
+            logger.exception(f"Failed to query bindings: {error}")
             return None, str(error)
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error querying bindings: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return None, error_msg
         except Exception as e:
             error_msg = f"Unexpected error querying bindings: {e}"
             logger.error(error_msg, exc_info=True)
             return None, error_msg
 
-    def get_blueteam_group(self, app_pk: str) -> tuple[Optional[str], Optional[str]]:
+    def get_blueteam_group(self, app_pk: str) -> tuple[str | None, str | None]:
         """Get the BlueTeam group PK from an application's bindings.
 
         Args:
@@ -218,12 +210,10 @@ class AuthentikManager:
 
         except Exception as e:
             error_msg = f"Error getting BlueTeam group: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return None, error_msg
 
-    def find_blueteam_group_from_any_app(
-        self, app_slugs: list[str]
-    ) -> tuple[Optional[str], Optional[str]]:
+    def find_blueteam_group_from_any_app(self, app_slugs: list[str]) -> tuple[str | None, str | None]:
         """Find the BlueTeam group by checking bindings across multiple apps.
 
         Args:
@@ -239,14 +229,10 @@ class AuthentikManager:
 
             group_pk, _ = self.get_blueteam_group(app["pk"])
             if group_pk:
-                logger.info(
-                    f"Found BlueTeam group {group_pk} from application '{slug}'"
-                )
+                logger.info(f"Found BlueTeam group {group_pk} from application '{slug}'")
                 return group_pk, None
 
-        error_msg = (
-            f"Could not find BlueTeam group in any of the applications: {app_slugs}"
-        )
+        error_msg = f"Could not find BlueTeam group in any of the applications: {app_slugs}"
         logger.error(error_msg)
         return None, error_msg
 
@@ -274,10 +260,10 @@ class AuthentikManager:
             logger.info(f"Set binding {binding_pk} to {state}")
             return True
         except Exception as e:
-            logger.error(f"Failed to update binding {binding.get('pk')}: {e}")
+            logger.exception(f"Failed to update binding {binding.get('pk')}: {e}")
             return False
 
-    def enable_application(self, app_slug: str) -> tuple[bool, Optional[str]]:
+    def enable_application(self, app_slug: str) -> tuple[bool, str | None]:
         """Enable application for blue teams by disabling the BlueTeam group binding.
 
         Returns:
@@ -310,17 +296,16 @@ class AuthentikManager:
             if success:
                 logger.info(f"✓ Application '{app_slug}' enabled for blue teams")
                 return True, None
-            else:
-                error_msg = f"Failed to disable binding for application '{app_slug}'"
-                logger.error(error_msg)
-                return False, error_msg
+            error_msg = f"Failed to disable binding for application '{app_slug}'"
+            logger.error(error_msg)
+            return False, error_msg
 
         except Exception as e:
-            error_msg = f"Unexpected error enabling application '{app_slug}': {str(e)}"
+            error_msg = f"Unexpected error enabling application '{app_slug}': {e!s}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
 
-    def disable_application(self, app_slug: str) -> tuple[bool, Optional[str]]:
+    def disable_application(self, app_slug: str) -> tuple[bool, str | None]:
         """Disable application for blue teams by enabling the BlueTeam group binding.
 
         Returns:
@@ -353,54 +338,45 @@ class AuthentikManager:
             if success:
                 logger.info(f"✓ Application '{app_slug}' disabled for blue teams")
                 return True, None
-            else:
-                error_msg = f"Failed to enable binding for application '{app_slug}'"
-                logger.error(error_msg)
-                return False, error_msg
+            error_msg = f"Failed to enable binding for application '{app_slug}'"
+            logger.error(error_msg)
+            return False, error_msg
 
         except Exception as e:
-            error_msg = f"Unexpected error disabling application '{app_slug}': {str(e)}"
+            error_msg = f"Unexpected error disabling application '{app_slug}': {e!s}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
 
-    def enable_applications(
-        self, app_slugs: list[str]
-    ) -> dict[str, tuple[bool, Optional[str]]]:
+    def enable_applications(self, app_slugs: list[str]) -> dict[str, tuple[bool, str | None]]:
         """Enable multiple applications for blue teams.
 
         Returns:
             dict mapping app_slug to (success, error_message)
         """
         logger.info(f"Enabling {len(app_slugs)} applications: {app_slugs}")
-        results: dict[str, tuple[bool, Optional[str]]] = {}
+        results: dict[str, tuple[bool, str | None]] = {}
         for slug in app_slugs:
             results[slug] = self.enable_application(slug)
 
         success_count = sum(1 for success, _ in results.values() if success)
-        logger.info(
-            f"Enable applications complete: {success_count}/{len(app_slugs)} succeeded"
-        )
+        logger.info(f"Enable applications complete: {success_count}/{len(app_slugs)} succeeded")
         return results
 
-    def disable_applications(
-        self, app_slugs: list[str]
-    ) -> dict[str, tuple[bool, Optional[str]]]:
+    def disable_applications(self, app_slugs: list[str]) -> dict[str, tuple[bool, str | None]]:
         """Disable multiple applications for blue teams.
 
         Returns:
             dict mapping app_slug to (success, error_message)
         """
         logger.info(f"Disabling {len(app_slugs)} applications: {app_slugs}")
-        results: dict[str, tuple[bool, Optional[str]]] = {}
+        results: dict[str, tuple[bool, str | None]] = {}
 
         # Disable each application
         for slug in app_slugs:
             results[slug] = self.disable_application(slug)
 
         success_count = sum(1 for success, _ in results.values() if success)
-        logger.info(
-            f"Disable applications complete: {success_count}/{len(app_slugs)} succeeded"
-        )
+        logger.info(f"Disable applications complete: {success_count}/{len(app_slugs)} succeeded")
         return results
 
     def update_user_discord_id(self, authentik_user_id: str, discord_id: int) -> bool:
@@ -416,12 +392,10 @@ class AuthentikManager:
             logger.info(f"Updated discord_id for Authentik user {authentik_user_id}")
             return True
         except Exception as e:
-            logger.error(
-                f"Failed to update discord_id for user {authentik_user_id}: {e}"
-            )
+            logger.exception(f"Failed to update discord_id for user {authentik_user_id}: {e}")
             return False
 
-    def revoke_user_sessions(self, username: str) -> tuple[bool, Optional[str], int]:
+    def revoke_user_sessions(self, username: str) -> tuple[bool, str | None, int]:
         """Revoke all active sessions for a user by username.
 
         Args:
@@ -481,14 +455,12 @@ class AuthentikManager:
             return True, None, revoked_count
 
         except requests.exceptions.HTTPError as e:
-            error = self._handle_response_error(
-                e.response, f"Revoke sessions for user {username}"
-            )
-            logger.error(str(error))
+            error = self._handle_response_error(e.response, f"Revoke sessions for user {username}")
+            logger.exception(str(error))
             return False, str(error), 0
         except requests.exceptions.RequestException as e:
             error_msg = f"Network error revoking sessions: {e}"
-            logger.error(error_msg)
+            logger.exception(error_msg)
             return False, error_msg, 0
         except Exception as e:
             error_msg = f"Unexpected error revoking sessions: {e}"

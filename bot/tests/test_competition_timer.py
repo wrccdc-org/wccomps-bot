@@ -1,12 +1,14 @@
 """Tests for competition timer background task."""
 
-from unittest.mock import AsyncMock, Mock, patch
 from datetime import timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
 import discord
 import pytest
 from django.utils import timezone
-from core.models import CompetitionConfig
+
 from bot.competition_timer import CompetitionTimer
+from core.models import CompetitionConfig
 
 
 @pytest.mark.asyncio
@@ -77,9 +79,11 @@ class TestCompetitionTimer:
             if check_count >= 2:
                 timer.running = False
 
-        with patch.object(timer, "_check_competition_start", side_effect=mock_check):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                await timer._check_loop()
+        with (
+            patch.object(timer, "_check_competition_start", side_effect=mock_check),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            await timer._check_loop()
 
         assert check_count == 2
 
@@ -95,13 +99,14 @@ class TestCompetitionTimer:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                raise Exception("Test error")
-            else:
-                timer.running = False
+                raise RuntimeError("Test error")
+            timer.running = False
 
-        with patch.object(timer, "_check_competition_start", side_effect=mock_check):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                await timer._check_loop()
+        with (
+            patch.object(timer, "_check_competition_start", side_effect=mock_check),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            await timer._check_loop()
 
         assert call_count == 2
 
@@ -136,14 +141,10 @@ class TestCompetitionTimer:
 
         with patch("bot.competition_timer.AuthentikManager") as mock_auth_manager_class:
             mock_auth_manager = Mock()
-            mock_auth_manager.enable_applications.side_effect = Exception(
-                "Authentik API error"
-            )
+            mock_auth_manager.enable_applications.side_effect = Exception("Authentik API error")
             mock_auth_manager_class.return_value = mock_auth_manager
 
-            with patch(
-                "bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock
-            ):
+            with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock):
                 # Should not raise exception
                 await timer._check_competition_start()
 
@@ -164,14 +165,10 @@ class TestCompetitionTimer:
 
         with patch("bot.competition_timer.AuthentikManager") as mock_auth_manager_class:
             mock_auth_manager = Mock()
-            mock_auth_manager.enable_applications.side_effect = Exception(
-                "Authentik API error"
-            )
+            mock_auth_manager.enable_applications.side_effect = Exception("Authentik API error")
             mock_auth_manager_class.return_value = mock_auth_manager
 
-            with patch(
-                "bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock
-            ) as mock_log:
+            with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock) as mock_log:
                 mock_log.side_effect = Exception("Discord API error")
 
                 # Should not raise exception

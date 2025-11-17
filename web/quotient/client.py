@@ -1,8 +1,9 @@
 """Client for Quotient scoring engine REST API."""
 
 import logging
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from functools import lru_cache
+
 import requests
 from django.conf import settings
 from django.core.cache import cache
@@ -25,14 +26,14 @@ class QuotientBox:
 
     name: str
     ip: str
-    services: List[QuotientService]
+    services: list[QuotientService]
 
 
 @dataclass
 class QuotientInfrastructure:
     """Complete infrastructure from Quotient."""
 
-    boxes: List[QuotientBox]
+    boxes: list[QuotientBox]
     event_name: str
     team_count: int
     api_version: str
@@ -59,8 +60,8 @@ class ServiceCheck:
     box_name: str
     service_name: str
     is_up: bool
-    response_time_ms: Optional[int]
-    error_message: Optional[str]
+    response_time_ms: int | None
+    error_message: str | None
     checked_at: str
 
 
@@ -72,15 +73,13 @@ class Inject:
     title: str
     description: str
     points: int
-    due_date: Optional[str]
+    due_date: str | None
     is_published: bool
-    team_submissions: Dict[int, str]  # team_number -> status (pending, graded, etc)
+    team_submissions: dict[int, str]  # team_number -> status (pending, graded, etc)
 
 
 class QuotientAPIError(Exception):
     """Raised when Quotient API returns an error."""
-
-    pass
 
 
 class QuotientClient:
@@ -88,8 +87,8 @@ class QuotientClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        fallback_url: Optional[str] = None,
+        base_url: str | None = None,
+        fallback_url: str | None = None,
         cache_ttl: int = 300,  # 5 minutes
     ):
         """
@@ -105,8 +104,8 @@ class QuotientClient:
         fallback = fallback_url or str(getattr(settings, "QUOTIENT_FALLBACK_URL", ""))
         self.fallback_url = fallback.rstrip("/")
         self.cache_ttl = cache_ttl
-        self.session: Optional[requests.Session] = None
-        self._active_url: Optional[str] = None
+        self.session: requests.Session | None = None
+        self._active_url: str | None = None
 
     def _get_session(self) -> requests.Session:
         """Get or create authenticated session."""
@@ -134,8 +133,8 @@ class QuotientClient:
                 logger.info(f"Authenticated with Quotient as {username}")
                 return self.session
             except requests.RequestException as e:
-                logger.error(f"Failed to authenticate with Quotient: {e}")
-                raise QuotientAPIError(f"Authentication failed: {e}")
+                logger.exception(f"Failed to authenticate with Quotient: {e}")
+                raise QuotientAPIError(f"Authentication failed: {e}") from e
 
         return self.session
 
@@ -145,9 +144,7 @@ class QuotientClient:
             return self._active_url
         return self.base_url
 
-    def get_infrastructure(
-        self, force_refresh: bool = False
-    ) -> Optional[QuotientInfrastructure]:
+    def get_infrastructure(self, force_refresh: bool = False) -> QuotientInfrastructure | None:
         """
         Fetch infrastructure from Quotient API.
 
@@ -161,7 +158,7 @@ class QuotientClient:
 
         # Check cache first
         if not force_refresh:
-            cached: Optional[QuotientInfrastructure] = cache.get(cache_key)
+            cached: QuotientInfrastructure | None = cache.get(cache_key)
             if cached:
                 logger.debug("Returning cached infrastructure")
                 return cached
@@ -171,7 +168,7 @@ class QuotientClient:
         if self.fallback_url:
             urls_to_try.append(self.fallback_url)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for url_attempt in urls_to_try:
             self._active_url = url_attempt
             # Reset session for new URL
@@ -215,17 +212,13 @@ class QuotientClient:
 
                 # Cache the result
                 cache.set(cache_key, infrastructure, self.cache_ttl)
-                logger.info(
-                    f"Fetched {len(boxes)} boxes from Quotient API at {url_attempt}"
-                )
+                logger.info(f"Fetched {len(boxes)} boxes from Quotient API at {url_attempt}")
 
                 return infrastructure
 
             except requests.RequestException as e:
                 last_error = e
-                logger.warning(
-                    f"Failed to fetch infrastructure from {url_attempt}: {e}"
-                )
+                logger.warning(f"Failed to fetch infrastructure from {url_attempt}: {e}")
                 continue
             except (KeyError, ValueError) as e:
                 last_error = e
@@ -233,12 +226,10 @@ class QuotientClient:
                 continue
 
         # All URLs failed
-        logger.error(
-            f"Failed to fetch infrastructure from all URLs. Last error: {last_error}"
-        )
+        logger.error(f"Failed to fetch infrastructure from all URLs. Last error: {last_error}")
         return None
 
-    def get_scores(self, force_refresh: bool = False) -> Optional[List[TeamScore]]:
+    def get_scores(self, force_refresh: bool = False) -> list[TeamScore] | None:
         """
         Fetch team scores from Quotient API.
 
@@ -251,7 +242,7 @@ class QuotientClient:
         cache_key = "quotient_scores"
 
         if not force_refresh:
-            cached: Optional[List[TeamScore]] = cache.get(cache_key)
+            cached: list[TeamScore] | None = cache.get(cache_key)
             if cached:
                 return cached
 
@@ -279,15 +270,13 @@ class QuotientClient:
             return scores
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch scores from Quotient: {e}")
+            logger.exception(f"Failed to fetch scores from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
-            logger.error(f"Failed to parse scores response: {e}")
+            logger.exception(f"Failed to parse scores response: {e}")
             return None
 
-    def get_service_checks(
-        self, team_number: Optional[int] = None
-    ) -> Optional[List[ServiceCheck]]:
+    def get_service_checks(self, team_number: int | None = None) -> list[ServiceCheck] | None:
         """
         Fetch service check results from Quotient API.
 
@@ -324,13 +313,13 @@ class QuotientClient:
             return checks
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch service checks from Quotient: {e}")
+            logger.exception(f"Failed to fetch service checks from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
-            logger.error(f"Failed to parse service checks response: {e}")
+            logger.exception(f"Failed to parse service checks response: {e}")
             return None
 
-    def get_injects(self) -> Optional[List[Inject]]:
+    def get_injects(self) -> list[Inject] | None:
         """
         Fetch injects from Quotient API.
 
@@ -338,7 +327,7 @@ class QuotientClient:
             List of Inject objects or None if unavailable
         """
         cache_key = "quotient_injects"
-        cached: Optional[List[Inject]] = cache.get(cache_key)
+        cached: list[Inject] | None = cache.get(cache_key)
         if cached:
             return cached
 
@@ -366,13 +355,13 @@ class QuotientClient:
             return injects
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch injects from Quotient: {e}")
+            logger.exception(f"Failed to fetch injects from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
-            logger.error(f"Failed to parse injects response: {e}")
+            logger.exception(f"Failed to parse injects response: {e}")
             return None
 
-    def get_service_choices(self) -> List[Dict[str, str]]:
+    def get_service_choices(self) -> list[dict[str, str]]:
         """
         Get formatted service choices for ticket dropdown.
 
@@ -383,23 +372,22 @@ class QuotientClient:
         if not infrastructure:
             return []
 
-        choices = []
-        for box in infrastructure.boxes:
-            for service in box.services:
-                choices.append(
-                    {
-                        "value": f"{box.name}:{service.name}",
-                        "label": f"{box.name} - {service.display_name}",
-                        "box_ip": box.ip,
-                        "box_name": box.name,
-                        "service_name": service.name,
-                        "service_type": service.type,
-                    }
-                )
+        choices = [
+            {
+                "value": f"{box.name}:{service.name}",
+                "label": f"{box.name} - {service.display_name}",
+                "box_ip": box.ip,
+                "box_name": box.name,
+                "service_name": service.name,
+                "service_type": service.type,
+            }
+            for box in infrastructure.boxes
+            for service in box.services
+        ]
 
         return sorted(choices, key=lambda x: x["label"])
 
-    def get_box_names(self) -> List[str]:
+    def get_box_names(self) -> list[str]:
         """Get list of all box names."""
         infrastructure = self.get_infrastructure()
         if not infrastructure:
@@ -419,13 +407,7 @@ class QuotientClient:
         logger.info("Cleared Quotient caches")
 
 
-# Global client instance
-_client: Optional[QuotientClient] = None
-
-
+@lru_cache(maxsize=1)
 def get_quotient_client() -> QuotientClient:
     """Get or create the global Quotient client instance."""
-    global _client
-    if _client is None:
-        _client = QuotientClient()
-    return _client
+    return QuotientClient()

@@ -1,7 +1,9 @@
 """Tests for Discord linking logic and uniqueness constraints."""
 
 import pytest
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+
 from team.models import DiscordLink, Team
 
 
@@ -36,14 +38,8 @@ class TestDiscordLinkUniqueness:
         assert not link2.is_active
 
         # Verify count
-        assert (
-            DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count()
-            == 2
-        )
-        assert (
-            DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
-            == 0
-        )
+        assert DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count() == 2
+        assert DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count() == 0
 
     def test_inactive_links_dont_conflict_with_active(self, db) -> None:
         """Test creating active link doesn't affect existing inactive links."""
@@ -77,18 +73,10 @@ class TestDiscordLinkUniqueness:
         assert link2.is_active
 
         # Verify counts
-        assert (
-            DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count()
-            == 1
-        )
-        assert (
-            DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
-            == 1
-        )
+        assert DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count() == 1
+        assert DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count() == 1
 
-    def test_creating_new_active_link_deactivates_old_history_preserved(
-        self, db
-    ) -> None:
+    def test_creating_new_active_link_deactivates_old_history_preserved(self, db) -> None:
         """Test creating new active link deactivates old one, but keeps history."""
         discord_id = 444444444
 
@@ -129,9 +117,7 @@ class TestDiscordLinkUniqueness:
         assert link3.is_active
 
         # All three should exist in database (history preserved)
-        all_links = DiscordLink.objects.filter(discord_id=discord_id).order_by(
-            "linked_at"
-        )
+        all_links = DiscordLink.objects.filter(discord_id=discord_id).order_by("linked_at")
         assert all_links.count() == 3
         assert list(all_links.values_list("discord_username", flat=True)) == [
             "user_v1",
@@ -365,16 +351,12 @@ class TestLinkingProperties:
     """Property-based tests for linking logic."""
 
     @given(
-        discord_id=st.integers(
-            min_value=100000000000000000, max_value=999999999999999999
-        ),
+        discord_id=st.integers(min_value=100000000000000000, max_value=999999999999999999),
         active_count=st.integers(min_value=0, max_value=5),
         inactive_count=st.integers(min_value=0, max_value=5),
     )
     @settings(max_examples=30)
-    def test_active_link_count_invariant(
-        self, discord_id: int, active_count: int, inactive_count: int
-    ):
+    def test_active_link_count_invariant(self, discord_id: int, active_count: int, inactive_count: int):
         """Property: at most one active link per discord_id at any time."""
         import uuid
 
@@ -382,7 +364,7 @@ class TestLinkingProperties:
         assume(not DiscordLink.objects.filter(discord_id=discord_id).exists())
 
         # Create inactive links
-        for i in range(inactive_count):
+        for _i in range(inactive_count):
             DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=f"inactive_{uuid.uuid4()}",
@@ -392,7 +374,7 @@ class TestLinkingProperties:
             )
 
         # Create active links (only last one should remain active)
-        for i in range(active_count):
+        for _i in range(active_count):
             DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=f"active_{uuid.uuid4()}",
@@ -402,9 +384,7 @@ class TestLinkingProperties:
             )
 
         # Property: exactly 0 or 1 active links
-        active_links = DiscordLink.objects.filter(
-            discord_id=discord_id, is_active=True
-        ).count()
+        active_links = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
         assert active_links in (0, 1)
 
         # Property: if we created any active links, exactly 1 should remain
@@ -412,8 +392,6 @@ class TestLinkingProperties:
             assert active_links == 1
 
         # Property: total inactive links equals inactive_count + (active_count - 1)
-        total_inactive = DiscordLink.objects.filter(
-            discord_id=discord_id, is_active=False
-        ).count()
+        total_inactive = DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count()
         if active_count > 0:
             assert total_inactive == inactive_count + (active_count - 1)

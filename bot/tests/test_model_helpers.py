@@ -2,8 +2,9 @@
 
 import pytest
 from django.core.exceptions import ValidationError
-from team.models import Team
+
 from bot.model_helpers import validated_create
+from team.models import Team
 
 
 @pytest.mark.asyncio

@@ -76,11 +76,12 @@ def cleanup_test_data():
     yield
 
     # Clean up test data after test
-    from ticketing.models import Ticket
-    from person.models import Person
     from django.contrib.auth import get_user_model
 
-    User = get_user_model()
+    from person.models import Person
+    from ticketing.models import Ticket
+
+    user_model = get_user_model()
 
     try:
         # Delete in correct order (respecting foreign keys)
@@ -95,7 +96,7 @@ def cleanup_test_data():
         test_persons.delete()
 
         # 4. Delete users
-        User.objects.filter(id__in=test_user_ids).delete()
+        user_model.objects.filter(id__in=test_user_ids).delete()
 
     except Exception as e:
         # Log cleanup errors but don't fail tests
@@ -136,7 +137,7 @@ def test_team_id(db):
     team_number = int(os.getenv("TEST_TEAM_ID", "50"))
 
     # Create team 50 if it doesn't exist
-    team, created = Team.objects.get_or_create(
+    _team, _created = Team.objects.get_or_create(
         team_number=team_number,
         defaults={
             "team_name": "Test Team 50",
@@ -279,8 +280,8 @@ def create_test_ticket(title: str, description: str = "Test ticket", team_id: in
     Create a test ticket in the database.
     Tickets are automatically marked with [INTEGRATION TEST] prefix.
     """
-    from ticketing.models import Ticket
     from team.models import Team
+    from ticketing.models import Ticket
 
     team = Team.objects.get(team_number=team_id)
 
@@ -306,15 +307,7 @@ def cleanup_test_tickets():
 
 def pytest_configure(config):
     """Register custom markers."""
-    config.addinivalue_line(
-        "markers", "critical: Critical tests that must pass on every deployment"
-    )
-    config.addinivalue_line(
-        "markers", "integration: Integration tests with real database and APIs"
-    )
-    config.addinivalue_line(
-        "markers", "browser: Browser-based UI tests using Playwright"
-    )
-    config.addinivalue_line(
-        "markers", "load: Load and stress tests for concurrency and performance"
-    )
+    config.addinivalue_line("markers", "critical: Critical tests that must pass on every deployment")
+    config.addinivalue_line("markers", "integration: Integration tests with real database and APIs")
+    config.addinivalue_line("markers", "browser: Browser-based UI tests using Playwright")
+    config.addinivalue_line("markers", "load: Load and stress tests for concurrency and performance")

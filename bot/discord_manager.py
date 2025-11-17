@@ -1,10 +1,12 @@
 """Discord channel and role management using Django ORM."""
 
-import discord
 import logging
 import re
-from typing import Optional, Tuple, Union
+from typing import Union
+
+import discord
 from django.conf import settings
+
 from team.models import Team
 
 logger = logging.getLogger(__name__)
@@ -16,14 +18,14 @@ class DiscordManager:
     def __init__(
         self,
         guild: discord.Guild,
-        bot: Optional[Union[discord.Client, "discord.ext.commands.Bot"]] = None,
+        bot: Union[discord.Client, "discord.ext.commands.Bot"] | None = None,
     ):
         self.guild = guild
         self.bot = bot
 
     async def setup_team_infrastructure(
         self, team_number: int
-    ) -> Tuple[Optional[discord.Role], Optional[discord.CategoryChannel]]:
+    ) -> tuple[discord.Role | None, discord.CategoryChannel | None]:
         """
         Set up Discord infrastructure for a team (idempotent with self-healing).
 
@@ -61,7 +63,7 @@ class DiscordManager:
 
         return role, category
 
-    async def _create_or_get_role(self, team_number: int) -> Optional[discord.Role]:
+    async def _create_or_get_role(self, team_number: int) -> discord.Role | None:
         """Create or get existing team role with format 'Team XX'."""
         role_name = f"Team {team_number:02d}"
 
@@ -120,12 +122,10 @@ class DiscordManager:
 
             return role
         except discord.errors.Forbidden:
-            logger.error(f"No permission to create role {role_name}")
+            logger.exception(f"No permission to create role {role_name}")
             return None
 
-    async def _create_team_category(
-        self, team_number: int, role: discord.Role
-    ) -> Optional[discord.CategoryChannel]:
+    async def _create_team_category(self, team_number: int, role: discord.Role) -> discord.CategoryChannel | None:
         """Create code-defined team category with channels (idempotent)."""
         category_name = f"team {team_number:02d}"
 
@@ -133,9 +133,7 @@ class DiscordManager:
         existing_category = discord.utils.get(self.guild.categories, name=category_name)
         if not existing_category:
             alt_category_name = f"team {team_number}"
-            existing_category = discord.utils.get(
-                self.guild.categories, name=alt_category_name
-            )
+            existing_category = discord.utils.get(self.guild.categories, name=alt_category_name)
 
         if existing_category:
             logger.info(f"Category {existing_category.name} already exists")
@@ -150,12 +148,8 @@ class DiscordManager:
             observers = discord.utils.get(self.guild.roles, name="WRCCDC Observers")
             orange_team = discord.utils.get(self.guild.roles, name="Orange Team")
             room_judge = discord.utils.get(self.guild.roles, name="WRCCDC Room Judge")
-            operations_team = discord.utils.get(
-                self.guild.roles, name="WRCCDC Operations Team"
-            )
-            server_owners = discord.utils.get(
-                self.guild.roles, name="WRCCDC Server Owners"
-            )
+            operations_team = discord.utils.get(self.guild.roles, name="WRCCDC Operations Team")
+            server_owners = discord.utils.get(self.guild.roles, name="WRCCDC Server Owners")
 
             # Default: hide from @everyone
             overwrites[self.guild.default_role] = discord.PermissionOverwrite(
@@ -169,9 +163,7 @@ class DiscordManager:
 
             # White Team: read and connect only
             if white_team:
-                overwrites[white_team] = discord.PermissionOverwrite(
-                    read_messages=True, connect=True
-                )
+                overwrites[white_team] = discord.PermissionOverwrite(read_messages=True, connect=True)
 
             # WRCCDC Observers: read only
             if observers:
@@ -202,7 +194,8 @@ class DiscordManager:
                 )
 
             # Create category
-            from typing import cast as type_cast, Any
+            from typing import Any
+            from typing import cast as type_cast
 
             category = await self.guild.create_category(
                 name=category_name,
@@ -214,9 +207,7 @@ class DiscordManager:
             text_channel = await category.create_text_channel(
                 f"team{team_number:02d}-chat", reason="WCComps team text channel"
             )
-            await category.create_voice_channel(
-                f"team{team_number:02d}-voice", reason="WCComps team voice channel"
-            )
+            await category.create_voice_channel(f"team{team_number:02d}-voice", reason="WCComps team voice channel")
 
             # Position category after the closest lower-numbered team category
             team_categories = []
@@ -235,15 +226,12 @@ class DiscordManager:
                     positioned = True
                     break
 
-            if not positioned:
+            if not positioned and team_categories:
                 # No lower-numbered team exists, so position before the lowest-numbered team
-                if team_categories:
-                    # team_categories is sorted reverse, so last item is lowest number
-                    lowest_team_cat = team_categories[-1][1]
-                    await category.edit(position=lowest_team_cat.position)
-                    logger.info(
-                        f"Positioned before team {team_categories[-1][0]} (no lower-numbered team)"
-                    )
+                # team_categories is sorted reverse, so last item is lowest number
+                lowest_team_cat = team_categories[-1][1]
+                await category.edit(position=lowest_team_cat.position)
+                logger.info(f"Positioned before team {team_categories[-1][0]} (no lower-numbered team)")
 
             logger.info(f"Created code-defined category for Team {team_number}")
 
@@ -255,19 +243,17 @@ class DiscordManager:
                     help_panels_cog = self.bot.get_cog("HelpPanelsCog")
                     if isinstance(help_panels_cog, HelpPanelsCog):
                         await help_panels_cog.post_team_ticket_panel(text_channel.id)
-                        logger.info(
-                            f"Posted ticket panel to team {team_number} channel"
-                        )
+                        logger.info(f"Posted ticket panel to team {team_number} channel")
                 except Exception as e:
                     logger.warning(f"Could not post ticket panel to team channel: {e}")
 
             return category
 
         except discord.errors.Forbidden:
-            logger.error(f"No permission to create category for Team {team_number}")
+            logger.exception(f"No permission to create category for Team {team_number}")
             return None
         except Exception as e:
-            logger.error(f"Error creating category: {e}")
+            logger.exception(f"Error creating category: {e}")
             return None
 
     async def assign_team_role(self, member: discord.Member, team_number: int) -> bool:
@@ -294,20 +280,16 @@ class DiscordManager:
                 roles_to_add.append(blueteam_role)
 
             await member.add_roles(*roles_to_add, reason="WCComps team assignment")
-            logger.info(
-                f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}"
-            )
+            logger.info(f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}")
             return True
         except discord.errors.Forbidden:
-            logger.error(f"No permission to assign role to {member}")
+            logger.exception(f"No permission to assign role to {member}")
             return False
         except Exception as e:
-            logger.error(f"Error assigning team role to {member}: {e}")
+            logger.exception(f"Error assigning team role to {member}: {e}")
             return False
 
-    async def assign_group_roles(
-        self, member: discord.Member, authentik_groups: list[str]
-    ) -> bool:
+    async def assign_group_roles(self, member: discord.Member, authentik_groups: list[str]) -> bool:
         """
         Assign Discord roles based on Authentik groups.
 
@@ -321,31 +303,23 @@ class DiscordManager:
                 if role:
                     roles_to_add.append(role)
                 else:
-                    logger.warning(
-                        f"Role {role_id} for group {group_name} not found in guild"
-                    )
+                    logger.warning(f"Role {role_id} for group {group_name} not found in guild")
 
         if not roles_to_add:
             return True
 
         try:
-            await member.add_roles(
-                *roles_to_add, reason="WCComps Authentik group assignment"
-            )
-            logger.info(
-                f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}"
-            )
+            await member.add_roles(*roles_to_add, reason="WCComps Authentik group assignment")
+            logger.info(f"Assigned {', '.join([r.name for r in roles_to_add])} to {member}")
             return True
         except discord.errors.Forbidden:
-            logger.error(f"No permission to assign roles to {member}")
+            logger.exception(f"No permission to assign roles to {member}")
             return False
         except Exception as e:
-            logger.error(f"Error assigning group roles to {member}: {e}")
+            logger.exception(f"Error assigning group roles to {member}: {e}")
             return False
 
-    async def remove_group_roles(
-        self, member: discord.Member, authentik_groups: list[str]
-    ) -> bool:
+    async def remove_group_roles(self, member: discord.Member, authentik_groups: list[str]) -> bool:
         """
         Remove Discord roles based on Authentik groups.
 
@@ -363,18 +337,14 @@ class DiscordManager:
             return True
 
         try:
-            await member.remove_roles(
-                *roles_to_remove, reason="WCComps account unlinked"
-            )
-            logger.info(
-                f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}"
-            )
+            await member.remove_roles(*roles_to_remove, reason="WCComps account unlinked")
+            logger.info(f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}")
             return True
         except discord.errors.Forbidden:
-            logger.error(f"No permission to remove roles from {member}")
+            logger.exception(f"No permission to remove roles from {member}")
             return False
         except Exception as e:
-            logger.error(f"Error removing group roles from {member}: {e}")
+            logger.exception(f"Error removing group roles from {member}: {e}")
             return False
 
     async def remove_team_role(self, member: discord.Member, team_number: int) -> bool:
@@ -398,12 +368,10 @@ class DiscordManager:
                 roles_to_remove.append(blueteam_role)
 
             await member.remove_roles(*roles_to_remove, reason="WCComps team removal")
-            logger.info(
-                f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}"
-            )
+            logger.info(f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}")
             return True
         except discord.errors.Forbidden:
-            logger.error(f"No permission to remove role from {member}")
+            logger.exception(f"No permission to remove role from {member}")
             return False
 
     async def remove_all_team_roles(self) -> int:
@@ -426,12 +394,10 @@ class DiscordManager:
                     if blueteam_role and blueteam_role in member.roles:
                         roles_to_remove.append(blueteam_role)
 
-                    await member.remove_roles(
-                        *roles_to_remove, reason="Competition ended"
-                    )
+                    await member.remove_roles(*roles_to_remove, reason="Competition ended")
                     removed_count += 1
                 except discord.errors.Forbidden:
-                    logger.error(f"No permission to remove role from {member}")
+                    logger.exception(f"No permission to remove role from {member}")
 
             if role.members:
                 logger.info(f"Removed {role.name} from members")
@@ -445,7 +411,7 @@ class DiscordManager:
                     await member.remove_roles(blueteam_role, reason="Competition ended")
                     blueteam_count += 1
                 except discord.errors.Forbidden:
-                    logger.error(f"No permission to remove Blueteam from {member}")
+                    logger.exception(f"No permission to remove Blueteam from {member}")
             logger.info(f"Removed Blueteam from {blueteam_count} members")
 
         return removed_count

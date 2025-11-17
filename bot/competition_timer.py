@@ -1,14 +1,16 @@
 """Competition timer background task to enable applications at start time."""
 
 import asyncio
+import contextlib
 import logging
-from typing import Optional
+
+import discord
+from asgiref.sync import sync_to_async
 from django.utils import timezone
-from core.models import CompetitionConfig
+
 from bot.authentik_manager import AuthentikManager
 from bot.utils import log_to_ops_channel
-from asgiref.sync import sync_to_async
-import discord
+from core.models import CompetitionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ class CompetitionTimer:
 
     def __init__(self, bot: discord.Client) -> None:
         self.bot = bot
-        self.task: Optional[asyncio.Task[None]] = None
+        self.task: asyncio.Task[None] | None = None
         self.running = False
 
     def start(self) -> None:
@@ -41,7 +43,7 @@ class CompetitionTimer:
             try:
                 await self._check_competition_start()
             except Exception as e:
-                logger.error(f"Error in competition timer check: {e}")
+                logger.exception(f"Error in competition timer check: {e}")
 
             # Check every minute
             await asyncio.sleep(60)
@@ -50,7 +52,7 @@ class CompetitionTimer:
         """Check if competition should start/end and enable/disable applications if needed."""
 
         @sync_to_async
-        def check_and_update() -> tuple[bool, bool, Optional[CompetitionConfig]]:
+        def check_and_update() -> tuple[bool, bool, CompetitionConfig | None]:
             try:
                 config = CompetitionConfig.get_config()
 
@@ -63,7 +65,7 @@ class CompetitionTimer:
                 should_disable = config.should_disable_applications()
                 return should_enable, should_disable, config
             except Exception as e:
-                logger.error(f"Error checking competition config: {e}")
+                logger.exception(f"Error checking competition config: {e}")
                 return False, False, None
 
         try:
@@ -74,15 +76,11 @@ class CompetitionTimer:
 
             # Handle competition start (enable applications)
             if should_enable:
-                logger.info(
-                    f"Competition start time reached! Enabling applications: {config.controlled_applications}"
-                )
+                logger.info(f"Competition start time reached! Enabling applications: {config.controlled_applications}")
 
                 # Enable applications via Authentik API
                 auth_manager = AuthentikManager()
-                results = auth_manager.enable_applications(
-                    config.controlled_applications
-                )
+                results = auth_manager.enable_applications(config.controlled_applications)
 
                 # Update config
                 @sync_to_async
@@ -94,11 +92,7 @@ class CompetitionTimer:
 
                 # Build result message with detailed error information
                 success_apps = [app for app, (success, _) in results.items() if success]
-                failed_apps = [
-                    (app, error)
-                    for app, (success, error) in results.items()
-                    if not success
-                ]
+                failed_apps = [(app, error) for app, (success, error) in results.items() if not success]
 
                 result_msg = "**Competition Started!**\n\n"
                 result_msg += f"Applications enabled: {len(success_apps)}/{len(config.controlled_applications)}\n"
@@ -119,15 +113,11 @@ class CompetitionTimer:
 
             # Handle competition end (disable applications)
             elif should_disable:
-                logger.info(
-                    f"Competition end time reached! Disabling applications: {config.controlled_applications}"
-                )
+                logger.info(f"Competition end time reached! Disabling applications: {config.controlled_applications}")
 
                 # Disable applications via Authentik API
                 auth_manager = AuthentikManager()
-                results = auth_manager.disable_applications(
-                    config.controlled_applications
-                )
+                results = auth_manager.disable_applications(config.controlled_applications)
 
                 # Update config
                 @sync_to_async
@@ -139,11 +129,7 @@ class CompetitionTimer:
 
                 # Build result message with detailed error information
                 success_apps = [app for app, (success, _) in results.items() if success]
-                failed_apps = [
-                    (app, error)
-                    for app, (success, error) in results.items()
-                    if not success
-                ]
+                failed_apps = [(app, error) for app, (success, error) in results.items() if not success]
 
                 result_msg = "**Competition Ended!**\n\n"
                 result_msg += f"Applications disabled: {len(success_apps)}/{len(config.controlled_applications)}\n"
@@ -163,11 +149,9 @@ class CompetitionTimer:
                 )
 
         except Exception as e:
-            logger.error(f"Failed to enable/disable competition applications: {e}")
-            try:
+            logger.exception(f"Failed to enable/disable competition applications: {e}")
+            with contextlib.suppress(Exception):
                 await log_to_ops_channel(
                     self.bot,
                     f"**Error enabling/disabling competition applications:** {e}",
                 )
-            except Exception:
-                pass

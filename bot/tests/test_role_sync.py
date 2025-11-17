@@ -27,11 +27,7 @@ class TestRoleSync:
         competition_guild.name = "Competition Guild"
         competition_guild.chunk = AsyncMock()
 
-        mock_bot.get_guild.side_effect = (
-            lambda gid: volunteer_guild
-            if gid == 404855247857778697
-            else competition_guild
-        )
+        mock_bot.get_guild.side_effect = lambda gid: volunteer_guild if gid == 404855247857778697 else competition_guild
 
         # Create mock roles
         volunteer_role = MagicMock(spec=discord.Role)
@@ -98,11 +94,7 @@ class TestRoleSync:
         competition_guild.name = "Competition Guild"
         competition_guild.chunk = AsyncMock()
 
-        mock_bot.get_guild.side_effect = (
-            lambda gid: volunteer_guild
-            if gid == 404855247857778697
-            else competition_guild
-        )
+        mock_bot.get_guild.side_effect = lambda gid: volunteer_guild if gid == 404855247857778697 else competition_guild
 
         # Create mock roles
         volunteer_role = MagicMock(spec=discord.Role)
@@ -166,11 +158,7 @@ class TestRoleSync:
         competition_guild.name = "Competition Guild"
         competition_guild.chunk = AsyncMock()
 
-        mock_bot.get_guild.side_effect = (
-            lambda gid: volunteer_guild
-            if gid == 404855247857778697
-            else competition_guild
-        )
+        mock_bot.get_guild.side_effect = lambda gid: volunteer_guild if gid == 404855247857778697 else competition_guild
 
         # Create mock roles
         volunteer_role = MagicMock(spec=discord.Role)

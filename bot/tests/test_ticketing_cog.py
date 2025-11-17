@@ -1,15 +1,16 @@
 """Tests for ticketing cog commands and listeners."""
 
+from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
+
 import discord
 import pytest
 import pytest_asyncio
-from datetime import timedelta
 from django.utils import timezone
 
-from team.models import Team, DiscordLink
-from ticketing.models import Ticket, TicketHistory, TicketComment
 from bot.cogs.ticketing import TicketingCog
+from team.models import DiscordLink, Team
+from ticketing.models import Ticket, TicketComment, TicketHistory
 
 
 @pytest.mark.asyncio
@@ -64,9 +65,7 @@ class TestTicketingCog:
         # Clean up
         cog.archive_threads_task.cancel()
 
-    async def test_archive_threads_task_archives_expired_tickets(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_archive_threads_task_archives_expired_tickets(self, cog: TicketingCog, team: Team) -> None:
         """Test background task archives tickets after grace period."""
         # Create ticket with thread scheduled for archiving in the past
         ticket = await Ticket.objects.acreate(
@@ -99,14 +98,10 @@ class TestTicketingCog:
         assert ticket.thread_archive_scheduled_at is None
 
         # Verify history entry created
-        history_exists = await TicketHistory.objects.filter(
-            ticket=ticket, action="thread_archived"
-        ).aexists()
+        history_exists = await TicketHistory.objects.filter(ticket=ticket, action="thread_archived").aexists()
         assert history_exists
 
-    async def test_archive_threads_task_skips_future_scheduled(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_archive_threads_task_skips_future_scheduled(self, cog: TicketingCog, team: Team) -> None:
         """Test background task skips tickets scheduled for future."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-002",
@@ -131,9 +126,7 @@ class TestTicketingCog:
         await ticket.arefresh_from_db()
         assert ticket.thread_archive_scheduled_at is not None
 
-    async def test_archive_threads_task_handles_missing_thread(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_archive_threads_task_handles_missing_thread(self, cog: TicketingCog, team: Team) -> None:
         """Test background task handles thread not found."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-003",
@@ -181,9 +174,7 @@ class TestTicketingCog:
         # No comment should be created
         assert await TicketComment.objects.acount() == initial_count
 
-    async def test_on_message_edit_ignores_bot_messages(
-        self, cog: TicketingCog
-    ) -> None:
+    async def test_on_message_edit_ignores_bot_messages(self, cog: TicketingCog) -> None:
         """Test on_message_edit ignores bot message edits."""
         before = Mock()
         after = AsyncMock(spec=discord.Message)
@@ -193,9 +184,7 @@ class TestTicketingCog:
         await cog.on_message_edit(before, after)
         # Should complete without error
 
-    async def test_on_message_edit_updates_comment(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_on_message_edit_updates_comment(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message_edit updates existing TicketComment."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-007",
@@ -231,9 +220,7 @@ class TestTicketingCog:
         await comment.arefresh_from_db()
         assert comment.comment_text == "Edited text"
 
-    async def test_on_message_delete_ignores_bot_messages(
-        self, cog: TicketingCog
-    ) -> None:
+    async def test_on_message_delete_ignores_bot_messages(self, cog: TicketingCog) -> None:
         """Test on_message_delete ignores bot message deletes."""
         message = AsyncMock(spec=discord.Message)
         message.author = Mock()
@@ -242,9 +229,7 @@ class TestTicketingCog:
         await cog.on_message_delete(message)
         # Should complete without error
 
-    async def test_on_message_delete_marks_comment_deleted(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_on_message_delete_marks_comment_deleted(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message_delete soft-deletes TicketComment."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-008",
@@ -278,17 +263,12 @@ class TestTicketingCog:
         await comment.arefresh_from_db()
         assert comment.comment_text == "[Message deleted]"
 
-    async def test_archive_threads_task_multiple_tickets(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_archive_threads_task_multiple_tickets(self, cog: TicketingCog, team: Team) -> None:
         """Test archiving multiple tickets with mixed expiration times."""
         # Create 5 tickets - 3 expired, 2 not expired
         tickets = []
         for i in range(5):
-            if i < 3:
-                scheduled_at = timezone.now() - timedelta(seconds=120)
-            else:
-                scheduled_at = timezone.now() + timedelta(minutes=5)
+            scheduled_at = timezone.now() - timedelta(seconds=120) if i < 3 else timezone.now() + timedelta(minutes=5)
 
             ticket = await Ticket.objects.acreate(
                 ticket_number=f"T042-{200 + i}",
@@ -321,9 +301,7 @@ class TestTicketingCog:
         for i in range(3, 5):
             mock_threads[tickets[i].discord_thread_id].edit.assert_not_called()
 
-    async def test_on_message_creates_comment(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_on_message_creates_comment(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message creates TicketComment for Discord messages."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-100",
@@ -354,9 +332,7 @@ class TestTicketingCog:
         assert await TicketComment.objects.acount() == initial_count + 1
 
         # Verify comment has correct data
-        comment = await TicketComment.objects.filter(
-            discord_message_id=message.id
-        ).afirst()
+        comment = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
         assert comment is not None
         assert comment.ticket_id == ticket.id
         assert comment.author_name == "testuser#1234"
@@ -364,9 +340,7 @@ class TestTicketingCog:
         assert comment.comment_text == "This is a test message"
         assert comment.discord_message_id == 999888777666
 
-    async def test_on_message_prevents_duplicate_comments(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_on_message_prevents_duplicate_comments(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message doesn't create duplicate comments."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-101",
@@ -405,9 +379,7 @@ class TestTicketingCog:
         # Should not create duplicate
         assert await TicketComment.objects.acount() == initial_count
 
-    async def test_on_message_ignores_empty_content(
-        self, cog: TicketingCog, team: Team
-    ) -> None:
+    async def test_on_message_ignores_empty_content(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message ignores messages with no text content."""
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-102",

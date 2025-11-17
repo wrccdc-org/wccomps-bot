@@ -1,13 +1,15 @@
 """Property-based tests using Hypothesis for Django models and business logic."""
 
-import pytest
 import uuid
 from datetime import timedelta
-from hypothesis import given, strategies as st, assume, settings
+
+import pytest
 from django.utils import timezone
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 from core.models import CompetitionConfig
-from team.models import Team, DiscordLink, LinkToken, LinkRateLimit
+from team.models import DiscordLink, LinkRateLimit, LinkToken, Team
 from ticketing.models import CommentRateLimit, Ticket
 
 
@@ -21,9 +23,7 @@ class TestTeamProperties:
         team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=50)
-    def test_team_is_full_property(
-        self, max_members: int, member_count: int, team_number: int
-    ):
+    def test_team_is_full_property(self, max_members: int, member_count: int, team_number: int):
         """Property: team.is_full() iff get_member_count() >= max_members."""
         # Skip if team number already exists (avoid UNIQUE constraint failures)
         assume(not Team.objects.filter(team_number=team_number).exists())
@@ -94,9 +94,7 @@ class TestDiscordLinkProperties:
             )
 
         # Property: should only have 1 active link
-        active_links = DiscordLink.objects.filter(
-            discord_id=discord_id, is_active=True
-        ).count()
+        active_links = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
         assert active_links == 1
 
         # Property: total links created equals link_count
@@ -142,7 +140,7 @@ class TestLinkRateLimitProperties:
         discord_id = hash(str(uuid.uuid4())) % 1000000000000000000 + 100000000000000000
 
         # Create attempts in the last hour
-        for i in range(attempts):
+        for _i in range(attempts):
             LinkRateLimit.objects.create(discord_id=discord_id)
 
         is_allowed, attempt_count = LinkRateLimit.check_rate_limit(discord_id)
@@ -156,23 +154,21 @@ class TestLinkRateLimitProperties:
         old_attempts=st.integers(min_value=0, max_value=10),
     )
     @settings(max_examples=50)
-    def test_rate_limit_only_counts_recent_attempts(
-        self, recent_attempts: int, old_attempts: int
-    ):
+    def test_rate_limit_only_counts_recent_attempts(self, recent_attempts: int, old_attempts: int):
         """Property: only attempts in last hour count toward rate limit."""
         discord_id = hash(str(uuid.uuid4())) % 1000000000000000000 + 100000000000000000
         now = timezone.now()
         two_hours_ago = now - timedelta(hours=2)
 
         # Create old attempts (should not count)
-        for i in range(old_attempts):
+        for _i in range(old_attempts):
             old_attempt = LinkRateLimit.objects.create(discord_id=discord_id)
             # Manually set the timestamp to 2 hours ago
             old_attempt.attempted_at = two_hours_ago
             old_attempt.save()
 
         # Create recent attempts (should count)
-        for i in range(recent_attempts):
+        for _i in range(recent_attempts):
             LinkRateLimit.objects.create(discord_id=discord_id)
 
         is_allowed, attempt_count = LinkRateLimit.check_rate_limit(discord_id)
@@ -220,7 +216,7 @@ class TestCommentRateLimitProperties:
         )
 
         # Create comments for this ticket
-        for i in range(ticket_comments):
+        for _i in range(ticket_comments):
             CommentRateLimit.objects.create(ticket=ticket, discord_id=discord_id)
 
         # Create comments for other tickets (to test user-level limit)
@@ -256,9 +252,7 @@ class TestCompetitionConfigProperties:
         currently_enabled=st.booleans(),
     )
     @settings(max_examples=50)
-    def test_should_enable_applications_property(
-        self, hours_from_now: float, currently_enabled: bool
-    ):
+    def test_should_enable_applications_property(self, hours_from_now: float, currently_enabled: bool):
         """Property: should_enable iff (now >= start_time AND not enabled)."""
         start_time = timezone.now() + timedelta(hours=hours_from_now)
 
@@ -278,9 +272,7 @@ class TestCompetitionConfigProperties:
     @settings(max_examples=20)
     def test_should_not_enable_without_start_time(self, currently_enabled: bool):
         """Property: should never enable if no start_time is set."""
-        config = CompetitionConfig.objects.create(
-            competition_start_time=None, applications_enabled=currently_enabled
-        )
+        config = CompetitionConfig.objects.create(competition_start_time=None, applications_enabled=currently_enabled)
 
         # Property: should never enable without a start time
         assert config.should_enable_applications() is False
@@ -297,9 +289,7 @@ class TestTeamTicketCounterProperties:
         team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=30)
-    def test_ticket_counter_never_negative(
-        self, initial_counter: int, team_number: int
-    ):
+    def test_ticket_counter_never_negative(self, initial_counter: int, team_number: int):
         """Property: ticket_counter is always >= 0."""
         # Skip if team number already exists
         assume(not Team.objects.filter(team_number=team_number).exists())
@@ -324,9 +314,7 @@ class TestInputValidationProperties:
             st.integers(min_value=-999999999999999999, max_value=-1),  # Negative
             st.just(0),  # Zero
             st.integers(min_value=1, max_value=99999999999999999),  # Too small
-            st.integers(
-                min_value=10000000000000000000, max_value=99999999999999999999
-            ),  # Too large
+            st.integers(min_value=10000000000000000000, max_value=99999999999999999999),  # Too large
         ),
     )
     @settings(max_examples=50)
@@ -347,9 +335,7 @@ class TestInputValidationProperties:
             # If it succeeded, the ID should be valid
             # Discord IDs are 17-19 digit positive integers
             assert discord_id > 0, f"Accepted invalid discord_id: {discord_id}"
-            assert discord_id >= 100000000000000000, (
-                f"Accepted too-small discord_id: {discord_id}"
-            )
+            assert discord_id >= 100000000000000000, f"Accepted too-small discord_id: {discord_id}"
         except Exception as e:
             # Exceptions are acceptable for invalid input
             # But should be specific validation errors, not crashes
@@ -413,9 +399,7 @@ class TestDataCorruptionProperties:
         team_number=st.integers(min_value=1, max_value=50),  # Valid range: 1-50
     )
     @settings(max_examples=30)
-    def test_team_member_count_never_negative_after_operations(
-        self, operations, team_number
-    ):
+    def test_team_member_count_never_negative_after_operations(self, operations, team_number):
         """Property: No sequence of operations makes member_count negative."""
         import uuid
 
@@ -465,13 +449,9 @@ class TestDataCorruptionProperties:
 
             # Property: member count is never negative
             count = team.get_member_count()
-            assert count >= 0, (
-                f"Member count went negative: {count} after operation '{op}'"
-            )
+            assert count >= 0, f"Member count went negative: {count} after operation '{op}'"
 
             # Property: member count never exceeds max_members
             # (This might find a bug if the uniqueness constraint isn't enforced properly)
             if count > team.max_members:
-                pytest.fail(
-                    f"Member count {count} exceeded max_members {team.max_members}"
-                )
+                pytest.fail(f"Member count {count} exceeded max_members {team.max_members}")

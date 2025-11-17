@@ -1,14 +1,16 @@
 """Team linking commands (/link, /team-info)."""
 
+import logging
+import secrets
+from datetime import timedelta
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import secrets
-import logging
-from datetime import timedelta
-from django.utils import timezone
 from django.conf import settings
-from team.models import DiscordLink, LinkToken, LinkRateLimit
+from django.utils import timezone
+
+from team.models import DiscordLink, LinkRateLimit, LinkToken
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +21,7 @@ class LinkingCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @app_commands.command(
-        name="link", description="Link your Discord account to your WCComps team"
-    )
+    @app_commands.command(name="link", description="Link your Discord account to your WCComps team")
     async def link_command(self, interaction: discord.Interaction) -> None:
         """Generate a link token for user authentication."""
 
@@ -44,17 +44,13 @@ class LinkingCog(commands.Cog):
 
         # Check if already linked
         existing_link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("team")
-            .afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
 
         if existing_link:
             # If linked but no team (orphaned link), deactivate it and proceed
             if not existing_link.team:
-                logger.warning(
-                    f"Found orphaned link for {interaction.user.id}, deactivating and allowing re-link"
-                )
+                logger.warning(f"Found orphaned link for {interaction.user.id}, deactivating and allowing re-link")
                 existing_link.is_active = False
                 existing_link.unlinked_at = timezone.now()
                 await existing_link.asave()
@@ -97,18 +93,14 @@ class LinkingCog(commands.Cog):
         embed.set_footer(text="Link expires in 15 minutes")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        logger.info(
-            f"Generated link token for {interaction.user} ({interaction.user.id})"
-        )
+        logger.info(f"Generated link token for {interaction.user} ({interaction.user.id})")
 
     @app_commands.command(name="team-info", description="View your team information")
     async def team_info_command(self, interaction: discord.Interaction) -> None:
         """Display user's team information."""
 
         link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("team")
-            .afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
 
         if not link or not link.team:
@@ -124,20 +116,12 @@ class LinkingCog(commands.Cog):
         member_count = await team.members.filter(is_active=True).acount()
 
         # Fetch all members
-        members = [
-            m async for m in team.members.filter(is_active=True).order_by("linked_at")
-        ]
+        members = [m async for m in team.members.filter(is_active=True).order_by("linked_at")]
 
-        embed = discord.Embed(
-            title=f"Team: {team.team_name}", color=discord.Color.green()
-        )
+        embed = discord.Embed(title=f"Team: {team.team_name}", color=discord.Color.green())
         embed.add_field(name="Team Number", value=f"#{team.team_number}", inline=True)
-        embed.add_field(
-            name="Members", value=f"{member_count}/{team.max_members}", inline=True
-        )
-        embed.add_field(
-            name="Authentik Account", value=link.authentik_username, inline=False
-        )
+        embed.add_field(name="Members", value=f"{member_count}/{team.max_members}", inline=True)
+        embed.add_field(name="Authentik Account", value=link.authentik_username, inline=False)
 
         if members:
             # Build member list, respecting Discord's 1024 char field limit
@@ -158,13 +142,9 @@ class LinkingCog(commands.Cog):
                 remaining = len(members) - shown_count
                 member_list += f"... and {remaining} more"
 
-            embed.add_field(
-                name="Team Members", value=member_list.strip(), inline=False
-            )
+            embed.add_field(name="Team Members", value=member_list.strip(), inline=False)
 
-        embed.set_footer(
-            text=f"Linked {discord.utils.format_dt(link.linked_at, style='R')}"
-        )
+        embed.set_footer(text=f"Linked {discord.utils.format_dt(link.linked_at, style='R')}")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

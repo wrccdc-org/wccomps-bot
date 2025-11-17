@@ -1,14 +1,16 @@
 """Tests for unified dashboard functionality."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import discord
 import pytest
 from django.utils import timezone
+
+from bot.unified_dashboard import DashboardControlView, UnifiedDashboard
 from core.models import BotState, DashboardUpdate
-from ticketing.models import Ticket
 from team.models import Team
-from bot.unified_dashboard import UnifiedDashboard, DashboardControlView
+from ticketing.models import Ticket
 
 
 @pytest.mark.asyncio
@@ -72,24 +74,22 @@ class TestUnifiedDashboard:
 
         bot.get_channel.return_value = mock_channel
 
-        with patch.object(
-            dashboard, "_update_dashboard", new_callable=AsyncMock
-        ) as mock_update:
-            with patch("bot.unified_dashboard.settings") as mock_settings:
-                mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
+        with (
+            patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock) as mock_update,
+            patch("bot.unified_dashboard.settings") as mock_settings,
+        ):
+            mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
 
-                await dashboard._initialize_dashboard()
+            await dashboard._initialize_dashboard()
 
-                assert dashboard.dashboard_message_id == 8888
-                assert dashboard.dashboard_channel_id == 9999
-                mock_channel.send.assert_called_once()
-                mock_update.assert_called_once()
+            assert dashboard.dashboard_message_id == 8888
+            assert dashboard.dashboard_channel_id == 9999
+            mock_channel.send.assert_called_once()
+            mock_update.assert_called_once()
 
-                # Verify state saved
-                msg_state = await BotState.objects.aget(
-                    key="unified_dashboard_message_id"
-                )
-                assert msg_state.value == "8888"
+            # Verify state saved
+            msg_state = await BotState.objects.aget(key="unified_dashboard_message_id")
+            assert msg_state.value == "8888"
 
     async def test_initialize_dashboard_reconnects_existing(self) -> None:
         """Test _initialize_dashboard reconnects to existing message."""
@@ -107,9 +107,7 @@ class TestUnifiedDashboard:
 
         bot.get_channel.return_value = mock_channel
 
-        with patch.object(
-            dashboard, "_update_dashboard", new_callable=AsyncMock
-        ) as mock_update:
+        with patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock) as mock_update:
             await dashboard._initialize_dashboard()
 
             assert dashboard.dashboard_message_id == 7777
@@ -133,21 +131,21 @@ class TestUnifiedDashboard:
 
         mock_response = Mock()
         mock_response.status = 404
-        mock_channel.fetch_message = AsyncMock(
-            side_effect=discord.NotFound(mock_response, "message")
-        )
+        mock_channel.fetch_message = AsyncMock(side_effect=discord.NotFound(mock_response, "message"))
 
         # First call returns None (old channel), second returns new channel
         bot.get_channel.side_effect = [mock_channel, mock_channel]
 
-        with patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock):
-            with patch("bot.unified_dashboard.settings") as mock_settings:
-                mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
+        with (
+            patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock),
+            patch("bot.unified_dashboard.settings") as mock_settings,
+        ):
+            mock_settings.DISCORD_TICKET_QUEUE_CHANNEL_ID = 9999
 
-                await dashboard._initialize_dashboard()
+            await dashboard._initialize_dashboard()
 
-                assert dashboard.dashboard_message_id == 3333
-                mock_channel.send.assert_called_once()
+            assert dashboard.dashboard_message_id == 3333
+            mock_channel.send.assert_called_once()
 
     async def test_check_and_update_updates_when_needed(self) -> None:
         """Test _check_and_update triggers update when flag is set."""
@@ -156,9 +154,7 @@ class TestUnifiedDashboard:
 
         await DashboardUpdate.objects.acreate(needs_update=True)
 
-        with patch.object(
-            dashboard, "_update_dashboard", new_callable=AsyncMock
-        ) as mock_update:
+        with patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock) as mock_update:
             await dashboard._check_and_update()
 
             mock_update.assert_called_once()
@@ -175,9 +171,7 @@ class TestUnifiedDashboard:
 
         await DashboardUpdate.objects.acreate(needs_update=False)
 
-        with patch.object(
-            dashboard, "_update_dashboard", new_callable=AsyncMock
-        ) as mock_update:
+        with patch.object(dashboard, "_update_dashboard", new_callable=AsyncMock) as mock_update:
             await dashboard._check_and_update()
 
             mock_update.assert_not_called()
@@ -187,9 +181,7 @@ class TestUnifiedDashboard:
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
 
-        team = await Team.objects.acreate(
-            team_number=1, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=1, team_name="Test Team", max_members=5)
 
         ticket = await Ticket.objects.acreate(
             ticket_number="T001-001",
@@ -209,9 +201,7 @@ class TestUnifiedDashboard:
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
 
-        team = await Team.objects.acreate(
-            team_number=2, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=2, team_name="Test Team", max_members=5)
 
         ticket = await Ticket.objects.acreate(
             ticket_number="T002-001",
@@ -232,9 +222,7 @@ class TestUnifiedDashboard:
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
 
-        team = await Team.objects.acreate(
-            team_number=3, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=3, team_name="Test Team", max_members=5)
 
         ticket = await Ticket.objects.acreate(
             ticket_number="T003-001",
@@ -255,9 +243,7 @@ class TestUnifiedDashboard:
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
 
-        team = await Team.objects.acreate(
-            team_number=4, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=4, team_name="Test Team", max_members=5)
 
         ticket = await Ticket.objects.acreate(
             ticket_number="T004-001",
@@ -278,9 +264,7 @@ class TestUnifiedDashboard:
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
 
-        team = await Team.objects.acreate(
-            team_number=5, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=5, team_name="Test Team", max_members=5)
 
         ticket = await Ticket.objects.acreate(
             ticket_number="T005-001",
@@ -376,9 +360,7 @@ class TestUnifiedDashboard:
         dashboard.dashboard_message_id = 1111
         dashboard.dashboard_channel_id = 2222
 
-        team = await Team.objects.acreate(
-            team_number=10, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=10, team_name="Test Team", max_members=5)
 
         await Ticket.objects.acreate(
             ticket_number="T010-001",
@@ -415,9 +397,7 @@ class TestUnifiedDashboard:
         dashboard.dashboard_channel_id = 2222
         dashboard.sort_by = "stale"
 
-        team = await Team.objects.acreate(
-            team_number=11, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=11, team_name="Test Team", max_members=5)
 
         await Ticket.objects.acreate(
             ticket_number="T011-001",
@@ -461,13 +441,9 @@ class TestUnifiedDashboard:
         dashboard.dashboard_channel_id = 2222
         dashboard.sort_by = "team"
 
-        team_a = await Team.objects.acreate(
-            team_number=20, team_name="Alpha Team", max_members=5
-        )
+        team_a = await Team.objects.acreate(team_number=20, team_name="Alpha Team", max_members=5)
 
-        team_b = await Team.objects.acreate(
-            team_number=21, team_name="Bravo Team", max_members=5
-        )
+        team_b = await Team.objects.acreate(team_number=21, team_name="Bravo Team", max_members=5)
 
         await Ticket.objects.acreate(
             ticket_number="T021-001",
@@ -509,9 +485,7 @@ class TestUnifiedDashboard:
         dashboard.dashboard_channel_id = 2222
         dashboard.filter_status = "open"
 
-        team = await Team.objects.acreate(
-            team_number=30, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=30, team_name="Test Team", max_members=5)
 
         await Ticket.objects.acreate(
             ticket_number="T030-001",
@@ -556,9 +530,7 @@ class TestUnifiedDashboard:
         dashboard.dashboard_channel_id = 2222
         dashboard.filter_status = "claimed"
 
-        team = await Team.objects.acreate(
-            team_number=31, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=31, team_name="Test Team", max_members=5)
 
         await Ticket.objects.acreate(
             ticket_number="T031-001",
@@ -605,9 +577,7 @@ class TestUnifiedDashboard:
         mock_channel = MagicMock(spec=discord.TextChannel)
         mock_response = Mock()
         mock_response.status = 404
-        mock_channel.fetch_message = AsyncMock(
-            side_effect=discord.NotFound(mock_response, "message")
-        )
+        mock_channel.fetch_message = AsyncMock(side_effect=discord.NotFound(mock_response, "message"))
 
         bot.get_channel.return_value = mock_channel
 

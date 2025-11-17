@@ -49,22 +49,12 @@ class Team(models.Model):
             self.authentik_group = f"WCComps_BlueTeam{self.team_number:02d}"
 
         # Validate team_number range (1-50)
-        if self.team_number is not None:
-            if self.team_number < 1 or self.team_number > 50:
-                raise ValidationError(
-                    {
-                        "team_number": f"Team number must be between 1 and 50, got {self.team_number}"
-                    }
-                )
+        if self.team_number is not None and (self.team_number < 1 or self.team_number > 50):
+            raise ValidationError({"team_number": f"Team number must be between 1 and 50, got {self.team_number}"})
 
         # Validate max_members (must be positive)
-        if self.max_members is not None:
-            if self.max_members < 1:
-                raise ValidationError(
-                    {
-                        "max_members": f"Team must have at least 1 member, got {self.max_members}"
-                    }
-                )
+        if self.max_members is not None and self.max_members < 1:
+            raise ValidationError({"max_members": f"Team must have at least 1 member, got {self.max_members}"})
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save to run validation."""
@@ -89,9 +79,7 @@ class DiscordLink(models.Model):
     discord_username = models.CharField(max_length=255)
     authentik_username = models.CharField(max_length=255)
     authentik_user_id = models.CharField(max_length=255)
-    team = models.ForeignKey(
-        Team, on_delete=models.CASCADE, related_name="members", null=True, blank=True
-    )
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members", null=True, blank=True)
     is_active = models.BooleanField(default=True)
     linked_at = models.DateTimeField(auto_now_add=True)
     unlinked_at = models.DateTimeField(null=True, blank=True)
@@ -121,9 +109,9 @@ class DiscordLink(models.Model):
         if self.is_active:
             # Deactivate any existing active link for this discord_id
             # (one Discord user can only have one active link at a time)
-            DiscordLink.objects.filter(
-                discord_id=self.discord_id, is_active=True
-            ).exclude(pk=self.pk).update(is_active=False, unlinked_at=timezone.now())
+            DiscordLink.objects.filter(discord_id=self.discord_id, is_active=True).exclude(pk=self.pk).update(
+                is_active=False, unlinked_at=timezone.now()
+            )
 
             # Do NOT deactivate links based on authentik_user_id because blue teams
             # share a single Authentik account (multiple Discord users -> same authentik_user_id)
@@ -201,9 +189,7 @@ class LinkRateLimit(models.Model):
         one_hour_ago = timezone.now() - timedelta(hours=1)
 
         # Count attempts in last hour
-        recent_attempts = cls.objects.filter(
-            discord_id=discord_id, attempted_at__gte=one_hour_ago
-        ).count()
+        recent_attempts = cls.objects.filter(discord_id=discord_id, attempted_at__gte=one_hour_ago).count()
 
         return recent_attempts < 5, recent_attempts
 
@@ -211,9 +197,7 @@ class LinkRateLimit(models.Model):
 class SchoolInfo(models.Model):
     """School information for teams (GoldTeam only)."""
 
-    team = models.OneToOneField(
-        Team, on_delete=models.CASCADE, related_name="school_info"
-    )
+    team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name="school_info")
     school_name = models.CharField(max_length=255)
     contact_email = models.EmailField()
     secondary_email = models.EmailField(blank=True)

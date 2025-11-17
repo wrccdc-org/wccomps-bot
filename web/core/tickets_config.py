@@ -1,12 +1,12 @@
 """Ticket categories and configuration."""
 
-from typing import TypedDict, Optional
+from typing import TypedDict
 
 
 class TicketTagConfig(TypedDict):
     display_name: str
     description: str
-    auto_action: Optional[str]
+    auto_action: str | None
     color: str
 
 

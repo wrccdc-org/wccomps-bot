@@ -17,9 +17,7 @@ class AdminCog(commands.Cog):
     """General admin commands."""
 
     # Create admin command group as class attribute
-    admin_group = app_commands.Group(
-        name="admin", description="General administrative commands"
-    )
+    admin_group = app_commands.Group(name="admin", description="General administrative commands")
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -45,9 +43,7 @@ class AdminCog(commands.Cog):
             role_sync = RoleSyncManager(self.bot)
 
             # Perform sync
-            await interaction.followup.send(
-                "Starting role synchronization...", ephemeral=True
-            )
+            await interaction.followup.send("Starting role synchronization...", ephemeral=True)
 
             stats = await role_sync.sync_roles()
 
@@ -69,9 +65,7 @@ class AdminCog(commands.Cog):
                 for change in changes[:20]:
                     result_msg += f"{change}\n"
                 if len(changes) > 20:
-                    result_msg += (
-                        f"\n... and {len(changes) - 20} more (check logs for full list)"
-                    )
+                    result_msg += f"\n... and {len(changes) - 20} more (check logs for full list)"
 
             await interaction.followup.send(result_msg, ephemeral=True)
 
@@ -96,9 +90,7 @@ class AdminCog(commands.Cog):
 
         except Exception as e:
             logger.error(f"Role sync failed: {e}", exc_info=True)
-            await interaction.followup.send(
-                f"Role sync failed: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Role sync failed: {e!s}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:

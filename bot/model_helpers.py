@@ -1,7 +1,8 @@
 """Helper functions for safe model creation with validation."""
 
 import logging
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
+
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.db.models import Model
@@ -11,7 +12,7 @@ T = TypeVar("T", bound=Model)
 logger = logging.getLogger(__name__)
 
 
-async def validated_create(model_class: Type[T], **kwargs: Any) -> T:
+async def validated_create(model_class: type[T], **kwargs: Any) -> T:
     """
     Create a model instance with full validation before saving.
 
@@ -47,9 +48,7 @@ async def validated_create(model_class: Type[T], **kwargs: Any) -> T:
             instance.full_clean()
         except ValidationError as e:
             # Log detailed error for debugging
-            logger.error(
-                f"Validation failed for {model_class.__name__}: {e.message_dict}"
-            )
+            logger.exception(f"Validation failed for {model_class.__name__}: {e.message_dict}")
             raise
 
         # Save to database

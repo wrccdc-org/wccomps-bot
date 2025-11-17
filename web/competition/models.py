@@ -1,8 +1,9 @@
 """Competition app models - Manage competition lifecycle and configuration."""
 
+from datetime import timedelta
+
 from django.db import models
 from django.utils import timezone
-from typing import Optional
 
 
 class Competition(models.Model):
@@ -70,7 +71,7 @@ class Competition(models.Model):
         help_text="When competition was paused (if currently paused)",
     )
     total_paused_duration = models.DurationField(
-        default=timezone.timedelta,
+        default=timedelta,
         help_text="Total accumulated pause time",
     )
 
@@ -132,7 +133,7 @@ class Competition(models.Model):
         """Check if competition has ended."""
         return self.status == "completed"
 
-    def get_elapsed_time(self) -> Optional[timezone.timedelta]:
+    def get_elapsed_time(self) -> timedelta | None:
         """
         Calculate elapsed competition time, excluding pauses.
 
@@ -152,10 +153,9 @@ class Competition(models.Model):
             end_point = timezone.now()
 
         # Calculate elapsed time minus pauses
-        elapsed = end_point - self.actual_start_time - self.total_paused_duration
-        return elapsed
+        return end_point - self.actual_start_time - self.total_paused_duration
 
-    def get_remaining_time(self) -> Optional[timezone.timedelta]:
+    def get_remaining_time(self) -> timedelta | None:
         """
         Calculate remaining competition time.
 
@@ -173,7 +173,7 @@ class Competition(models.Model):
         scheduled_duration = self.scheduled_end_time - self.scheduled_start_time
         remaining = scheduled_duration - elapsed
 
-        return remaining if remaining > timezone.timedelta(0) else timezone.timedelta(0)
+        return remaining if remaining > timedelta(0) else timedelta(0)
 
     def start_competition(self) -> None:
         """Start the competition (transition to active)."""

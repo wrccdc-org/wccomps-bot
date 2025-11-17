@@ -6,9 +6,9 @@ catching JavaScript errors, rendering bugs, and OAuth flow issues.
 """
 
 import os
+
 import pytest
 from playwright.sync_api import Page, expect
-
 
 # Skip all tests if ticketing is not enabled
 TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
@@ -23,9 +23,7 @@ pytestmark = [
 class TestAuthentikOAuthFlow:
     """Test full OAuth login flow with Authentik."""
 
-    def test_login_flow_completes_successfully(
-        self, page: Page, authentik_credentials, live_server_url
-    ):
+    def test_login_flow_completes_successfully(self, page: Page, authentik_credentials, live_server_url):
         """Complete OAuth login flow from start to finish."""
         # Navigate to application
         page.goto(live_server_url)
@@ -49,9 +47,7 @@ class TestAuthentikOAuthFlow:
         # Verify user is logged in (check for logout link or username)
         expect(page.locator("text=Logout")).to_be_visible(timeout=5000)
 
-    def test_login_preserves_redirect_url(
-        self, page: Page, authentik_credentials, live_server_url
-    ):
+    def test_login_preserves_redirect_url(self, page: Page, authentik_credentials, live_server_url):
         """Login should redirect back to originally requested page."""
         base_url = live_server_url
 
@@ -85,9 +81,7 @@ class TestAuthentikOAuthFlow:
 class TestOpsTicketDashboard:
     """Test ops ticket dashboard rendering and functionality."""
 
-    def test_ops_dashboard_renders_without_errors(
-        self, authenticated_page: Page, live_server_url
-    ):
+    def test_ops_dashboard_renders_without_errors(self, authenticated_page: Page, live_server_url):
         """Ops dashboard should render without 500 errors."""
         base_url = live_server_url
 
@@ -101,9 +95,7 @@ class TestOpsTicketDashboard:
         # Should show ticket list or empty state
         expect(authenticated_page.locator("body")).to_be_visible()
 
-    def test_ops_dashboard_displays_tickets(
-        self, authenticated_page: Page, db, live_server_url
-    ):
+    def test_ops_dashboard_displays_tickets(self, authenticated_page: Page, db, live_server_url):
         """Ops dashboard should display ticket list."""
         base_url = live_server_url
 
@@ -115,9 +107,7 @@ class TestOpsTicketDashboard:
         authenticated_page.goto(f"{base_url}/ops/tickets/")
 
         # Should display the ticket
-        expect(
-            authenticated_page.locator(f"text={ticket.ticket_number}")
-        ).to_be_visible(timeout=5000)
+        expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
 
         # Cleanup
         ticket.delete()
@@ -155,9 +145,7 @@ class TestTicketOperations:
         yield ticket
         ticket.delete()
 
-    def test_claim_ticket_from_dashboard(
-        self, authenticated_page: Page, test_ticket, db, live_server_url
-    ):
+    def test_claim_ticket_from_dashboard(self, authenticated_page: Page, test_ticket, db, live_server_url):
         """Claiming a ticket from dashboard should work."""
         base_url = live_server_url
 
@@ -180,18 +168,15 @@ class TestTicketOperations:
 
             # Should not show error
             expect(authenticated_page.locator("body")).not_to_contain_text("500")
-            expect(authenticated_page.locator("body")).not_to_contain_text(
-                "Server Error"
-            )
+            expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
 
-    def test_resolve_ticket_with_points(
-        self, authenticated_page: Page, test_ticket, db, live_server_url
-    ):
+    def test_resolve_ticket_with_points(self, authenticated_page: Page, test_ticket, db, live_server_url):
         """Resolving a ticket with points should work."""
         base_url = live_server_url
 
         # Claim ticket first via API
         from django.contrib.auth.models import User
+
         from person.models import Person
 
         # Get or create test user
@@ -215,9 +200,7 @@ class TestTicketOperations:
 
         # Fill in resolution form
         if authenticated_page.locator('textarea[name="resolution"]').is_visible():
-            authenticated_page.fill(
-                'textarea[name="resolution"]', "Test resolution via browser"
-            )
+            authenticated_page.fill('textarea[name="resolution"]', "Test resolution via browser")
             authenticated_page.fill('input[name="points"]', "5")
 
             # Submit
@@ -228,9 +211,7 @@ class TestTicketOperations:
 
             # Should not show error
             expect(authenticated_page.locator("body")).not_to_contain_text("500")
-            expect(authenticated_page.locator("body")).not_to_contain_text(
-                "Server Error"
-            )
+            expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
 
         # Cleanup
         person.delete()
@@ -307,17 +288,11 @@ class TestJavaScriptErrors:
         page.wait_for_timeout(2000)  # Wait for JS to load
 
         # Should not have critical errors (warnings are OK)
-        critical_errors = [
-            err
-            for err in console_errors
-            if "failed" in err.lower() or "undefined" in err.lower()
-        ]
+        critical_errors = [err for err in console_errors if "failed" in err.lower() or "undefined" in err.lower()]
 
         assert len(critical_errors) == 0, f"JavaScript errors found: {critical_errors}"
 
-    def test_no_console_errors_on_ops_dashboard(
-        self, authenticated_page: Page, live_server_url
-    ):
+    def test_no_console_errors_on_ops_dashboard(self, authenticated_page: Page, live_server_url):
         """Ops dashboard should not have JavaScript errors."""
         base_url = live_server_url
 
@@ -332,11 +307,7 @@ class TestJavaScriptErrors:
         authenticated_page.goto(f"{base_url}/ops/tickets/")
         authenticated_page.wait_for_timeout(2000)
 
-        critical_errors = [
-            err
-            for err in console_errors
-            if "failed" in err.lower() or "undefined" in err.lower()
-        ]
+        critical_errors = [err for err in console_errors if "failed" in err.lower() or "undefined" in err.lower()]
 
         assert len(critical_errors) == 0, f"JavaScript errors found: {critical_errors}"
 
