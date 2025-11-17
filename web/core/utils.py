@@ -1,15 +1,15 @@
 """Utility functions for WCComps core functionality."""
 
-from typing import Optional, Any, TYPE_CHECKING
-from django.contrib.auth.models import User
-from allauth.socialaccount.models import SocialAccount, SocialLogin
 import re
+from typing import Any
 
-if TYPE_CHECKING:
-    from team.models import Team
+from allauth.socialaccount.models import SocialAccount, SocialLogin
+from django.contrib.auth.models import User
+
+from team.models import Team
 
 
-def get_authentik_data(user: User) -> tuple[str, list[str], Optional[str]]:
+def get_authentik_data(user: User) -> tuple[str, list[str], str | None]:
     """
     Extract Authentik username, groups, and user ID from a Django user.
 
@@ -36,9 +36,7 @@ def get_authentik_data(user: User) -> tuple[str, list[str], Optional[str]]:
         )
 
         # Extract groups (can be in userinfo.groups or groups)
-        groups = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get(
-            "groups", []
-        )
+        groups = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
 
         return username, groups, social_account.uid
 
@@ -57,15 +55,13 @@ def get_authentik_data_from_sociallogin(sociallogin: SocialLogin) -> list[str]:
         list: List of Authentik group names
     """
     extra_data: dict[str, Any] = sociallogin.account.extra_data
-    groups: list[str] = extra_data.get("userinfo", {}).get(
-        "groups", []
-    ) or extra_data.get("groups", [])
+    groups: list[str] = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
     return groups
 
 
 def get_team_from_groups(
     groups: list[str],
-) -> tuple[Optional["Team"], Optional[int], bool]:
+) -> tuple[Team | None, int | None, bool]:
     """
     Extract team information from Authentik groups.
 
@@ -78,7 +74,6 @@ def get_team_from_groups(
             - team_number: Team number (1-50) or None
             - is_team_account: Boolean indicating if user is in a team group
     """
-    from team.models import Team
 
     for group in groups:
         team_match = re.match(r"^WCComps_BlueTeam(\d+)$", group)
@@ -113,7 +108,5 @@ def check_permissions(user: User, groups: list[str]) -> dict[str, bool]:
         "is_admin": user.is_staff or user.is_superuser,
         "is_ticketing_admin": "WCComps_Ticketing_Admin" in groups,
         "is_ticketing_support": "WCComps_Ticketing_Support" in groups,
-        "is_gold_team": "WCComps_GoldTeam" in groups
-        or user.is_staff
-        or user.is_superuser,
+        "is_gold_team": "WCComps_GoldTeam" in groups or user.is_staff or user.is_superuser,
     }

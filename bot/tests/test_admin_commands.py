@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
+
+from bot.cogs.admin_competition import AdminCompetitionCog
+from bot.cogs.admin_teams import AdminTeamsCog
 from core.models import AuditLog
 from team.models import DiscordLink, Team
-
-from bot.cogs.admin_teams import AdminTeamsCog
-from bot.cogs.admin_competition import AdminCompetitionCog
 
 
 @pytest.mark.asyncio
@@ -17,18 +17,14 @@ from bot.cogs.admin_competition import AdminCompetitionCog
 class TestAdminCommands:
     """Test admin commands."""
 
-    async def test_admin_teams_command(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_admin_teams_command(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        await Team.objects.acreate(
-            team_number=10, team_name="Team Alpha", max_members=5
-        )
+        await Team.objects.acreate(team_number=10, team_name="Team Alpha", max_members=5)
         await Team.objects.acreate(team_number=11, team_name="Team Beta", max_members=5)
 
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_teams.callback(cog, mock_interaction)
+        await cog.admin_teams.callback(mock_interaction)
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
@@ -43,34 +39,30 @@ class TestAdminCommands:
         mock_interaction.user.id = 123456789
 
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_teams.callback(cog, mock_interaction)
+        await cog.admin_teams.callback(mock_interaction)
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "Admin permissions required" in call_args.args[0]
         assert call_args.kwargs.get("ephemeral") is True
 
-    async def test_admin_team_info_command(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_admin_team_info_command(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         mock_interaction.user.id = mock_admin_user._discord_id
 
         await Team.objects.acreate(team_number=12, team_name="Test Team", max_members=5)
 
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_team_info.callback(cog, mock_interaction, team_number=12)
+        await cog.admin_team_info.callback(mock_interaction, team_number=12)
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "embed" in call_args.kwargs
 
-    async def test_admin_team_info_not_found(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_admin_team_info_not_found(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         mock_interaction.user.id = mock_admin_user._discord_id
 
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_team_info.callback(cog, mock_interaction, team_number=42)
+        await cog.admin_team_info.callback(mock_interaction, team_number=42)
 
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
@@ -99,9 +91,7 @@ class TestAdminCommands:
         mock_reset_password.return_value = (True, "")
 
         cog = AdminCompetitionCog(mock_bot)
-        await cog.admin_reset_blueteam_passwords.callback(
-            cog, mock_interaction, team_numbers="1-3"
-        )
+        await cog.admin_reset_blueteam_passwords.callback(mock_interaction, team_numbers="1-3")
 
         # Verify password was generated for each team
         assert mock_generate_password.call_count == 3
@@ -141,9 +131,7 @@ class TestAdminCommands:
         cog = AdminCompetitionCog(mock_bot)
 
         # Should handle error gracefully
-        await cog.admin_reset_blueteam_passwords.callback(
-            cog, mock_interaction, team_numbers="1-3"
-        )
+        await cog.admin_reset_blueteam_passwords.callback(mock_interaction, team_numbers="1-3")
 
         # Verify error was communicated
         assert mock_interaction.followup.send.called, "Should send error message"
@@ -220,12 +208,8 @@ class TestAdminCommands:
             if did == 111111111
             else (member2_discord if did == 222222222 else None)
         )
-        mock_interaction.guild.get_role = MagicMock(
-            side_effect=lambda rid: team_role if rid == 1001 else None
-        )
-        mock_interaction.guild.get_channel = MagicMock(
-            side_effect=lambda cid: category if cid == 2001 else None
-        )
+        mock_interaction.guild.get_role = MagicMock(side_effect=lambda rid: team_role if rid == 1001 else None)
+        mock_interaction.guild.get_channel = MagicMock(side_effect=lambda cid: category if cid == 2001 else None)
 
         # Setup mocks for role removal
         mock_safe_remove_role.return_value = None
@@ -247,9 +231,7 @@ class TestAdminCommands:
 
         # Execute command
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_remove_team.callback(
-            cog, mock_interaction, team_number=team_number
-        )
+        await cog.admin_remove_team.callback(mock_interaction, team_number=team_number)
 
         # Verify response was sent
         mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
@@ -333,9 +315,7 @@ class TestAdminCommands:
         blueteam_role.id = 525444104763736075
         blueteam_role.name = "Blueteam"
 
-        mock_interaction.guild.get_role.side_effect = lambda role_id: (
-            team_role if role_id == 1001 else blueteam_role
-        )
+        mock_interaction.guild.get_role.side_effect = lambda role_id: (team_role if role_id == 1001 else blueteam_role)
 
         # Mock member
         member_mock = AsyncMock(spec=discord.Member)
@@ -354,7 +334,7 @@ class TestAdminCommands:
         ):
             cog = AdminTeamsCog(mock_bot)
             # Pass member ID as string
-            await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
+            await cog.admin_unlink.callback(mock_interaction, str(member_id))
 
             # Verify link was deactivated
             updated_link = await DiscordLink.objects.aget(discord_id=member_id)
@@ -373,9 +353,7 @@ class TestAdminCommands:
             assert call_args[0][1] == mock_interaction.guild
 
             # Verify audit log was created
-            audit_logs = [
-                log async for log in AuditLog.objects.filter(action="user_unlinked")
-            ]
+            audit_logs = [log async for log in AuditLog.objects.filter(action="user_unlinked")]
             assert len(audit_logs) == 1
             audit_log = audit_logs[0]
             assert audit_log.admin_user == str(mock_interaction.user)
@@ -410,15 +388,13 @@ class TestAdminCommands:
         mock_interaction.guild.get_member.return_value = member_mock
 
         cog = AdminTeamsCog(mock_bot)
-        await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
+        await cog.admin_unlink.callback(mock_interaction, str(member_id))
 
         # Verify appropriate error message
         mock_interaction.response.defer.assert_called_once()
         mock_interaction.followup.send.assert_called_once()
         call_args = mock_interaction.followup.send.call_args
-        assert (
-            "not linked to any team" in call_args.args[0] or "❌" in call_args.args[0]
-        )
+        assert "not linked to any team" in call_args.args[0] or "❌" in call_args.args[0]
         assert call_args.kwargs.get("ephemeral") is True
 
     async def test_admin_unlink_user_not_in_server(
@@ -456,7 +432,7 @@ class TestAdminCommands:
             patch("bot.cogs.admin_teams.log_to_ops_channel"),
         ):
             cog = AdminTeamsCog(mock_bot)
-            await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
+            await cog.admin_unlink.callback(mock_interaction, str(member_id))
 
             # Since guild is None, command should return error early
             # Link should NOT be deactivated

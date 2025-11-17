@@ -1,10 +1,11 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
-from typing import Optional, Tuple, cast
+from typing import cast
+
+from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from asgiref.sync import sync_to_async
 
 from core.tickets_config import TICKET_CATEGORIES
 from team.models import Team
@@ -17,7 +18,7 @@ def create_ticket_atomic(
     title: str,
     description: str = "",
     hostname: str = "",
-    ip_address: Optional[str] = None,
+    ip_address: str | None = None,
     service_name: str = "",
     actor_username: str = "system",
 ) -> Ticket:
@@ -85,7 +86,7 @@ async def acreate_ticket_atomic(
     title: str,
     description: str = "",
     hostname: str = "",
-    ip_address: Optional[str] = None,
+    ip_address: str | None = None,
     service_name: str = "",
     actor_username: str = "discord",
 ) -> Ticket:
@@ -127,11 +128,11 @@ async def acreate_ticket_atomic(
 def claim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
-    discord_id: Optional[int] = None,
-    discord_username: Optional[str] = None,
-    authentik_username: Optional[str] = None,
-    authentik_user_id: Optional[str] = None,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
     """
     Claim a ticket atomically with race condition protection.
 
@@ -182,11 +183,11 @@ def claim_ticket_atomic(
 async def aclaim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
-    discord_id: Optional[int] = None,
-    discord_username: Optional[str] = None,
-    authentik_username: Optional[str] = None,
-    authentik_user_id: Optional[str] = None,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
     """
     Async version of claim_ticket_atomic.
 
@@ -203,7 +204,7 @@ async def aclaim_ticket_atomic(
     """
 
     @sync_to_async
-    def claim_atomic() -> Tuple[Optional[Ticket], Optional[str]]:
+    def claim_atomic() -> tuple[Ticket | None, str | None]:
         return claim_ticket_atomic(
             ticket_id=ticket_id,
             actor_username=actor_username,
@@ -220,12 +221,12 @@ def resolve_ticket_atomic(
     ticket_id: int,
     actor_username: str,
     resolution_notes: str = "",
-    points_override: Optional[int] = None,
-    discord_id: Optional[int] = None,
-    discord_username: Optional[str] = None,
-    authentik_username: Optional[str] = None,
-    authentik_user_id: Optional[str] = None,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+    points_override: int | None = None,
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
     """
     Resolve a ticket atomically.
 
@@ -274,7 +275,7 @@ def resolve_ticket_atomic(
                     f"This category requires a point value between {min_pts} and {max_pts}.",
                 )
             # Use default for fixed categories
-            point_penalty = cast(int, cat_info.get("points", 0))
+            point_penalty = cat_info.get("points", 0)
 
         # Update ticket
         ticket.status = "resolved"
@@ -323,12 +324,12 @@ async def aresolve_ticket_atomic(
     ticket_id: int,
     actor_username: str,
     resolution_notes: str = "",
-    points_override: Optional[int] = None,
-    discord_id: Optional[int] = None,
-    discord_username: Optional[str] = None,
-    authentik_username: Optional[str] = None,
-    authentik_user_id: Optional[str] = None,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+    points_override: int | None = None,
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
     """
     Async version of resolve_ticket_atomic.
 
@@ -347,7 +348,7 @@ async def aresolve_ticket_atomic(
     """
 
     @sync_to_async
-    def resolve_atomic() -> Tuple[Optional[Ticket], Optional[str]]:
+    def resolve_atomic() -> tuple[Ticket | None, str | None]:
         return resolve_ticket_atomic(
             ticket_id=ticket_id,
             actor_username=actor_username,
@@ -365,7 +366,7 @@ async def aresolve_ticket_atomic(
 def unclaim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+) -> tuple[Ticket | None, str | None]:
     """
     Unclaim a ticket atomically.
 
@@ -408,7 +409,7 @@ def unclaim_ticket_atomic(
 async def aunclaim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
-) -> Tuple[Optional[Ticket], Optional[str]]:
+) -> tuple[Ticket | None, str | None]:
     """
     Async version of unclaim_ticket_atomic.
 
@@ -421,7 +422,7 @@ async def aunclaim_ticket_atomic(
     """
 
     @sync_to_async
-    def unclaim_atomic() -> Tuple[Optional[Ticket], Optional[str]]:
+    def unclaim_atomic() -> tuple[Ticket | None, str | None]:
         return unclaim_ticket_atomic(
             ticket_id=ticket_id,
             actor_username=actor_username,

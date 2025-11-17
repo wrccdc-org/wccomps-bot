@@ -3,8 +3,10 @@
 import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
+
 import discord
 import pytest
+
 from bot.discord_manager import DiscordManager
 from bot.discord_queue import DiscordQueueProcessor
 from core.models import DiscordTask
@@ -185,7 +187,7 @@ class TestConcurrentQueueProcessing:
         def get_member(member_id: int) -> Any:
             if member_id == 111111111:
                 return member1
-            elif member_id == 222222222:
+            if member_id == 222222222:
                 return member2
             return None
 

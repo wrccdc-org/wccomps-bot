@@ -1,13 +1,16 @@
 """Tests for ticket attachment upload and download functionality."""
 
 import os
-from typing import Any, Dict, Generator, Tuple
+from collections.abc import Generator
+from typing import Any
+
 import pytest
-from django.test import Client
+from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.files.uploadedfile import SimpleUploadedFile
-from allauth.socialaccount.models import SocialApp, SocialAccount
+from django.test import Client
+
 from team.models import Team
 from ticketing.models import Ticket, TicketAttachment
 
@@ -24,7 +27,7 @@ def enable_ticketing() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def setup_teams() -> Tuple[Team, Team]:
+def setup_teams() -> tuple[Team, Team]:
     """Create test teams."""
     team1 = Team.objects.create(
         team_name="Team Alpha",
@@ -42,14 +45,12 @@ def setup_teams() -> Tuple[Team, Team]:
 
 
 @pytest.fixture
-def setup_users_and_auth(setup_teams: Tuple[Team, Team]) -> Dict[str, Any]:
+def setup_users_and_auth(setup_teams: tuple[Team, Team]) -> dict[str, Any]:
     """Create test users with authentication and groups."""
     team1, team2 = setup_teams
 
     # Create or get default site
-    site = Site.objects.get_or_create(
-        id=1, defaults={"domain": "testserver", "name": "Test Site"}
-    )[0]
+    site = Site.objects.get_or_create(id=1, defaults={"domain": "testserver", "name": "Test Site"})[0]
 
     # Create social app for Authentik
     social_app = SocialApp.objects.create(
@@ -103,7 +104,7 @@ def setup_users_and_auth(setup_teams: Tuple[Team, Team]) -> Dict[str, Any]:
 
 
 @pytest.fixture
-def setup_tickets(setup_users_and_auth: Dict[str, Any]) -> Dict[str, Any]:
+def setup_tickets(setup_users_and_auth: dict[str, Any]) -> dict[str, Any]:
     """Create test tickets."""
     data = setup_users_and_auth
 
@@ -134,7 +135,7 @@ def setup_tickets(setup_users_and_auth: Dict[str, Any]) -> Dict[str, Any]:
 class TestTeamAttachmentUpload:
     """Test team member attachment upload functionality."""
 
-    def test_upload_success(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_upload_success(self, setup_tickets: dict[str, Any]) -> None:
         """Test successful file upload by team member."""
         data = setup_tickets
         client = Client()
@@ -142,9 +143,7 @@ class TestTeamAttachmentUpload:
 
         # Create a test file
         file_content = b"Test file content"
-        test_file = SimpleUploadedFile(
-            "test.txt", file_content, content_type="text/plain"
-        )
+        test_file = SimpleUploadedFile("test.txt", file_content, content_type="text/plain")
 
         response = client.post(
             f"/tickets/{data['ticket1'].id}/attachment/upload/",
@@ -163,7 +162,7 @@ class TestTeamAttachmentUpload:
         assert bytes(attachment.file_data) == file_content
         assert attachment.uploaded_by == "team1_user"
 
-    def test_upload_file_too_large(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_upload_file_too_large(self, setup_tickets: dict[str, Any]) -> None:
         """Test upload fails when file exceeds 10MB limit."""
         data = setup_tickets
         client = Client()
@@ -184,7 +183,7 @@ class TestTeamAttachmentUpload:
         # No attachment should be created
         assert TicketAttachment.objects.filter(ticket=data["ticket1"]).count() == 0
 
-    def test_upload_no_file_provided(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_upload_no_file_provided(self, setup_tickets: dict[str, Any]) -> None:
         """Test upload fails when no file is provided."""
         data = setup_tickets
         client = Client()
@@ -198,16 +197,14 @@ class TestTeamAttachmentUpload:
         assert response.status_code == 400
         assert b"No file provided" in response.content
 
-    def test_upload_wrong_team_denied(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_upload_wrong_team_denied(self, setup_tickets: dict[str, Any]) -> None:
         """Test team member cannot upload to another team's ticket."""
         data = setup_tickets
         client = Client()
         client.force_login(data["team1_user"])
 
         # Try to upload to team2's ticket
-        test_file = SimpleUploadedFile(
-            "test.txt", b"content", content_type="text/plain"
-        )
+        test_file = SimpleUploadedFile("test.txt", b"content", content_type="text/plain")
 
         response = client.post(
             f"/tickets/{data['ticket2'].id}/attachment/upload/",
@@ -217,7 +214,7 @@ class TestTeamAttachmentUpload:
         assert response.status_code == 404
         assert TicketAttachment.objects.filter(ticket=data["ticket2"]).count() == 0
 
-    def test_upload_method_not_allowed(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_upload_method_not_allowed(self, setup_tickets: dict[str, Any]) -> None:
         """Test GET request to upload endpoint returns 405."""
         data = setup_tickets
         client = Client()
@@ -227,9 +224,7 @@ class TestTeamAttachmentUpload:
 
         assert response.status_code == 405
 
-    def test_upload_unauthenticated_redirects(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_upload_unauthenticated_redirects(self, setup_tickets: dict[str, Any]) -> None:
         """Test unauthenticated user is redirected to login."""
         data = setup_tickets
         client = Client()
@@ -249,7 +244,7 @@ class TestTeamAttachmentUpload:
 class TestTeamAttachmentDownload:
     """Test team member attachment download functionality."""
 
-    def test_download_success(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_download_success(self, setup_tickets: dict[str, Any]) -> None:
         """Test successful file download by team member."""
         data = setup_tickets
 
@@ -266,9 +261,7 @@ class TestTeamAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(
-            f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         assert response["Content-Type"] == "application/pdf"
@@ -276,7 +269,7 @@ class TestTeamAttachmentDownload:
         assert b"test.pdf" in response["Content-Disposition"].encode()
         assert response.content == file_content
 
-    def test_download_wrong_team_denied(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_download_wrong_team_denied(self, setup_tickets: dict[str, Any]) -> None:
         """Test team member cannot download another team's attachment."""
         data = setup_tickets
 
@@ -293,13 +286,11 @@ class TestTeamAttachmentDownload:
         client.force_login(data["team1_user"])
 
         # Try to download team2's attachment
-        response = client.get(
-            f"/tickets/{data['ticket2'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket2'].id}/attachment/{attachment.id}/")
 
         assert response.status_code == 404
 
-    def test_download_attachment_not_found(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_download_attachment_not_found(self, setup_tickets: dict[str, Any]) -> None:
         """Test download fails when attachment doesn't exist."""
         data = setup_tickets
         client = Client()
@@ -309,9 +300,7 @@ class TestTeamAttachmentDownload:
 
         assert response.status_code == 404
 
-    def test_download_special_characters_in_filename(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_download_special_characters_in_filename(self, setup_tickets: dict[str, Any]) -> None:
         """Test download handles filenames with special characters safely."""
         data = setup_tickets
 
@@ -327,9 +316,7 @@ class TestTeamAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(
-            f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Django's content_disposition_header should properly escape the filename
@@ -340,16 +327,14 @@ class TestTeamAttachmentDownload:
 class TestOpsAttachmentUpload:
     """Test ops team attachment upload functionality."""
 
-    def test_ops_upload_success(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_ops_upload_success(self, setup_tickets: dict[str, Any]) -> None:
         """Test successful file upload by ops team member."""
         data = setup_tickets
         client = Client()
         client.force_login(data["ops_user"])
 
         file_content = b"Ops uploaded file"
-        test_file = SimpleUploadedFile(
-            "ops_file.txt", file_content, content_type="text/plain"
-        )
+        test_file = SimpleUploadedFile("ops_file.txt", file_content, content_type="text/plain")
 
         response = client.post(
             f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/upload/",
@@ -366,7 +351,7 @@ class TestOpsAttachmentUpload:
         assert attachment.filename == "ops_file.txt"
         assert attachment.uploaded_by == "ops_user"
 
-    def test_ops_upload_any_team_ticket(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_ops_upload_any_team_ticket(self, setup_tickets: dict[str, Any]) -> None:
         """Test ops team can upload to any team's ticket."""
         data = setup_tickets
         client = Client()
@@ -391,9 +376,7 @@ class TestOpsAttachmentUpload:
         assert TicketAttachment.objects.filter(ticket=data["ticket1"]).count() == 1
         assert TicketAttachment.objects.filter(ticket=data["ticket2"]).count() == 1
 
-    def test_ops_upload_access_denied_for_team_member(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_ops_upload_access_denied_for_team_member(self, setup_tickets: dict[str, Any]) -> None:
         """Test regular team member cannot access ops upload endpoint."""
         data = setup_tickets
         client = Client()
@@ -407,7 +390,7 @@ class TestOpsAttachmentUpload:
 
         assert response.status_code == 403
 
-    def test_ops_upload_ticket_not_found(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_ops_upload_ticket_not_found(self, setup_tickets: dict[str, Any]) -> None:
         """Test upload fails when ticket doesn't exist."""
         data = setup_tickets
         client = Client()
@@ -426,7 +409,7 @@ class TestOpsAttachmentUpload:
 class TestOpsAttachmentDownload:
     """Test ops team attachment download functionality."""
 
-    def test_ops_download_success(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_ops_download_success(self, setup_tickets: dict[str, Any]) -> None:
         """Test successful file download by ops team member."""
         data = setup_tickets
 
@@ -442,18 +425,14 @@ class TestOpsAttachmentDownload:
         client = Client()
         client.force_login(data["ops_user"])
 
-        response = client.get(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         assert response["Content-Type"] == "application/pdf"
         assert b"ops_download.pdf" in response["Content-Disposition"].encode()
         assert response.content == file_content
 
-    def test_ops_download_any_team_attachment(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_ops_download_any_team_attachment(self, setup_tickets: dict[str, Any]) -> None:
         """Test ops team can download attachments from any team's ticket."""
         data = setup_tickets
 
@@ -478,22 +457,16 @@ class TestOpsAttachmentDownload:
         client.force_login(data["ops_user"])
 
         # Download from team1
-        response1 = client.get(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{att1.id}/"
-        )
+        response1 = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{att1.id}/")
         assert response1.status_code == 200
         assert response1.content == b"Team1 file"
 
         # Download from team2
-        response2 = client.get(
-            f"/ops/ticket/{data['ticket2'].ticket_number}/attachment/{att2.id}/"
-        )
+        response2 = client.get(f"/ops/ticket/{data['ticket2'].ticket_number}/attachment/{att2.id}/")
         assert response2.status_code == 200
         assert response2.content == b"Team2 file"
 
-    def test_ops_download_access_denied_for_team_member(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_ops_download_access_denied_for_team_member(self, setup_tickets: dict[str, Any]) -> None:
         """Test regular team member cannot access ops download endpoint."""
         data = setup_tickets
 
@@ -508,23 +481,17 @@ class TestOpsAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 403
 
-    def test_ops_download_attachment_not_found(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_ops_download_attachment_not_found(self, setup_tickets: dict[str, Any]) -> None:
         """Test download fails when attachment doesn't exist."""
         data = setup_tickets
         client = Client()
         client.force_login(data["ops_user"])
 
-        response = client.get(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/99999/"
-        )
+        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/99999/")
 
         assert response.status_code == 404
 
@@ -533,9 +500,7 @@ class TestOpsAttachmentDownload:
 class TestAttachmentSecurity:
     """Test security aspects of attachment handling."""
 
-    def test_filename_with_newlines_sanitized(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_filename_with_newlines_sanitized(self, setup_tickets: dict[str, Any]) -> None:
         """Test that filenames with newlines don't cause header injection."""
         data = setup_tickets
 
@@ -555,9 +520,7 @@ class TestAttachmentSecurity:
         # This should raise BadHeaderError from Django, resulting in 500
         # or the content_disposition_header function should sanitize it
         try:
-            response = client.get(
-                f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-            )
+            response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
             # If it doesn't error, check that headers are safe
             disposition = response.get("Content-Disposition", "")
             # Should not contain literal newlines
@@ -567,9 +530,7 @@ class TestAttachmentSecurity:
             # BadHeaderError is expected for malicious headers
             assert "BadHeaderError" in str(type(e)) or "newline" in str(e).lower()
 
-    def test_content_disposition_always_attachment(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_content_disposition_always_attachment(self, setup_tickets: dict[str, Any]) -> None:
         """Test that Content-Disposition is always 'attachment' to prevent execution."""
         data = setup_tickets
 
@@ -586,16 +547,14 @@ class TestAttachmentSecurity:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(
-            f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Content-Disposition should force download, not inline rendering
         assert b"attachment" in response["Content-Disposition"].encode()
         # The HTML shouldn't be executed by browser due to attachment disposition
 
-    def test_large_filename_handled(self, setup_tickets: Dict[str, Any]) -> None:
+    def test_large_filename_handled(self, setup_tickets: dict[str, Any]) -> None:
         """Test that very long filenames are handled properly."""
         data = setup_tickets
 
@@ -612,16 +571,12 @@ class TestAttachmentSecurity:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(
-            f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Should still work despite long filename
 
-    def test_directory_traversal_in_upload_filename(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_directory_traversal_in_upload_filename(self, setup_tickets: dict[str, Any]) -> None:
         """Test that filenames with directory traversal characters are sanitized."""
         data = setup_tickets
         client = Client()
@@ -640,9 +595,7 @@ class TestAttachmentSecurity:
 
         for malicious_filename, expected_basename in traversal_tests:
             file_content = b"Malicious content"
-            test_file = SimpleUploadedFile(
-                malicious_filename, file_content, content_type="text/plain"
-            )
+            test_file = SimpleUploadedFile(malicious_filename, file_content, content_type="text/plain")
 
             response = client.post(
                 f"/tickets/{data['ticket1'].id}/attachment/upload/",
@@ -654,9 +607,7 @@ class TestAttachmentSecurity:
 
             # Verify Django stripped the path and only stored the basename
             # This prevents directory traversal attacks
-            attachment = TicketAttachment.objects.filter(
-                ticket=data["ticket1"], filename=expected_basename
-            ).first()
+            attachment = TicketAttachment.objects.filter(ticket=data["ticket1"], filename=expected_basename).first()
             assert attachment is not None, (
                 f"Expected basename '{expected_basename}' not found for input '{malicious_filename}'"
             )
@@ -666,9 +617,7 @@ class TestAttachmentSecurity:
             # Clean up for next iteration
             attachment.delete()
 
-    def test_directory_traversal_cannot_read_arbitrary_files(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_directory_traversal_cannot_read_arbitrary_files(self, setup_tickets: dict[str, Any]) -> None:
         """Test that we can't use attachment download to read arbitrary system files."""
         data = setup_tickets
         client = Client()
@@ -707,9 +656,7 @@ class TestAttachmentSecurity:
                 assert b"/etc/passwd" not in response_final.content
                 assert b"root:" not in response_final.content
 
-    def test_path_traversal_in_stored_filename_safe_on_download(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_path_traversal_in_stored_filename_safe_on_download(self, setup_tickets: dict[str, Any]) -> None:
         """Test that even if we store a filename with path traversal, download is safe."""
         data = setup_tickets
 
@@ -729,9 +676,7 @@ class TestAttachmentSecurity:
         client.force_login(data["team1_user"])
 
         # Download the attachment
-        response = client.get(
-            f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/"
-        )
+        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
 
         # Should succeed - we're serving from database, not filesystem
         assert response.status_code == 200
@@ -744,9 +689,7 @@ class TestAttachmentSecurity:
         # The filename should be present but safely encoded
         # The traversal characters should not cause the browser to save to a different directory
 
-    def test_absolute_path_in_upload_filename(
-        self, setup_tickets: Dict[str, Any]
-    ) -> None:
+    def test_absolute_path_in_upload_filename(self, setup_tickets: dict[str, Any]) -> None:
         """Test that absolute paths in filenames are sanitized to basename only."""
         data = setup_tickets
         client = Client()
@@ -761,9 +704,7 @@ class TestAttachmentSecurity:
         ]
 
         for abs_path, expected_basename in absolute_path_tests:
-            test_file = SimpleUploadedFile(
-                abs_path, b"Overwrite attempt", content_type="text/html"
-            )
+            test_file = SimpleUploadedFile(abs_path, b"Overwrite attempt", content_type="text/html")
 
             response = client.post(
                 f"/tickets/{data['ticket1'].id}/attachment/upload/",
@@ -775,12 +716,8 @@ class TestAttachmentSecurity:
 
             # Verify Django stripped the absolute path and only stored the basename
             # This prevents file overwrite attacks on the filesystem
-            attachment = TicketAttachment.objects.filter(
-                ticket=data["ticket1"], filename=expected_basename
-            ).first()
-            assert attachment is not None, (
-                f"Expected basename '{expected_basename}' not found for input '{abs_path}'"
-            )
+            attachment = TicketAttachment.objects.filter(ticket=data["ticket1"], filename=expected_basename).first()
+            assert attachment is not None, f"Expected basename '{expected_basename}' not found for input '{abs_path}'"
             assert attachment.filename == expected_basename
             # File data is safely stored in database, not written to the absolute path
             assert bytes(attachment.file_data) == b"Overwrite attempt"

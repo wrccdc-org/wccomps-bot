@@ -46,9 +46,7 @@ class DiscordTask(models.Model):
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES)
-    ticket = models.ForeignKey(
-        "ticketing.Ticket", null=True, blank=True, on_delete=models.CASCADE
-    )
+    ticket = models.ForeignKey("ticketing.Ticket", null=True, blank=True, on_delete=models.CASCADE)
     payload = models.JSONField(default=dict)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     retry_count = models.IntegerField(default=0)
@@ -95,20 +93,14 @@ class CompetitionConfig(models.Model):
     """Competition configuration and timing."""
 
     # Team settings
-    max_team_members = models.IntegerField(
-        default=10, help_text="Maximum members per team"
-    )
+    max_team_members = models.IntegerField(default=10, help_text="Maximum members per team")
 
     # Competition timing
     competition_start_time = models.DateTimeField(
         null=True, blank=True, help_text="When applications should be enabled"
     )
-    competition_end_time = models.DateTimeField(
-        null=True, blank=True, help_text="When applications should be disabled"
-    )
-    applications_enabled = models.BooleanField(
-        default=False, help_text="Whether applications are currently enabled"
-    )
+    competition_end_time = models.DateTimeField(null=True, blank=True, help_text="When applications should be disabled")
+    applications_enabled = models.BooleanField(default=False, help_text="Whether applications are currently enabled")
 
     # Application slugs to control
     controlled_applications = models.JSONField(
@@ -119,9 +111,7 @@ class CompetitionConfig(models.Model):
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_check = models.DateTimeField(
-        null=True, blank=True, help_text="Last time background task checked"
-    )
+    last_check = models.DateTimeField(null=True, blank=True, help_text="Last time background task checked")
 
     class Meta:
         verbose_name = "Competition Configuration"
@@ -136,10 +126,7 @@ class CompetitionConfig(models.Model):
         """Check if applications should be enabled based on current time."""
         if not self.competition_start_time:
             return False
-        return (
-            timezone.now() >= self.competition_start_time
-            and not self.applications_enabled
-        )
+        return timezone.now() >= self.competition_start_time and not self.applications_enabled
 
     def should_disable_applications(self) -> bool:
         """Check if applications should be disabled based on current time."""

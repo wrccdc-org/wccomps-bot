@@ -1,6 +1,7 @@
 """Admin configuration for team app."""
 
 from django.contrib import admin
+from django.http import HttpRequest
 
 from .models import (
     DiscordLink,
@@ -13,7 +14,7 @@ from .models import (
 
 
 @admin.register(Team)
-class TeamAdmin(admin.ModelAdmin):
+class TeamAdmin(admin.ModelAdmin[Team]):
     list_display = [
         "team_number",
         "team_name",
@@ -27,15 +28,14 @@ class TeamAdmin(admin.ModelAdmin):
     ordering = ["team_number"]
     readonly_fields = ["created_at", "updated_at", "ticket_counter"]
 
-    def member_count(self, obj):
+    @admin.display(description="Members")
+    def member_count(self, obj: Team) -> int:
         """Display member count."""
         return obj.get_member_count()
 
-    member_count.short_description = "Members"
-
 
 @admin.register(DiscordLink)
-class DiscordLinkAdmin(admin.ModelAdmin):
+class DiscordLinkAdmin(admin.ModelAdmin[DiscordLink]):
     list_display = [
         "discord_username",
         "authentik_username",
@@ -50,7 +50,7 @@ class DiscordLinkAdmin(admin.ModelAdmin):
 
 
 @admin.register(LinkToken)
-class LinkTokenAdmin(admin.ModelAdmin):
+class LinkTokenAdmin(admin.ModelAdmin[LinkToken]):
     list_display = ["token", "discord_username", "used", "expires_at", "created_at"]
     list_filter = ["used", "expires_at"]
     search_fields = ["discord_username", "token"]
@@ -59,7 +59,7 @@ class LinkTokenAdmin(admin.ModelAdmin):
 
 
 @admin.register(LinkAttempt)
-class LinkAttemptAdmin(admin.ModelAdmin):
+class LinkAttemptAdmin(admin.ModelAdmin[LinkAttempt]):
     list_display = [
         "discord_username",
         "authentik_username",
@@ -72,26 +72,26 @@ class LinkAttemptAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at"]
     ordering = ["-created_at"]
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """Disable adding link attempts manually."""
         return False
 
 
 @admin.register(LinkRateLimit)
-class LinkRateLimitAdmin(admin.ModelAdmin):
+class LinkRateLimitAdmin(admin.ModelAdmin[LinkRateLimit]):
     list_display = ["discord_id", "attempted_at"]
     list_filter = ["attempted_at"]
     search_fields = ["discord_id"]
     readonly_fields = ["attempted_at"]
     ordering = ["-attempted_at"]
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """Disable adding rate limits manually."""
         return False
 
 
 @admin.register(SchoolInfo)
-class SchoolInfoAdmin(admin.ModelAdmin):
+class SchoolInfoAdmin(admin.ModelAdmin[SchoolInfo]):
     list_display = [
         "school_name",
         "team",

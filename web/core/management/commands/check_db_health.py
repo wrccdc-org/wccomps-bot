@@ -1,17 +1,16 @@
 """Check database health - verify all models exist and are queryable."""
 
+import sys
+from typing import Any, Protocol, cast
+
+from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.apps import apps
-from typing import Any, cast, TYPE_CHECKING
-import sys
 
-if TYPE_CHECKING:
-    from typing import Protocol
 
-    class ModelWithObjects(Protocol):
-        objects: Any
-        __name__: str
+class ModelWithObjects(Protocol):
+    objects: Any
+    __name__: str
 
 
 class Command(BaseCommand):
@@ -47,9 +46,7 @@ class Command(BaseCommand):
             plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
             if plan:
                 errors.append(f"Unapplied migrations: {len(plan)} pending")
-                self.stdout.write(
-                    self.style.ERROR(f"✗ {len(plan)} unapplied migrations found:")
-                )
+                self.stdout.write(self.style.ERROR(f"✗ {len(plan)} unapplied migrations found:"))
                 for migration, _ in plan:
                     self.stdout.write(f"  - {migration}")
             else:
@@ -81,9 +78,10 @@ class Command(BaseCommand):
         # Check 4: Critical queries
         self.stdout.write("Testing critical queries...")
         try:
-            from team.models import Team, DiscordLink
-            from ticketing.models import Ticket
             from allauth.socialaccount.models import SocialAccount
+
+            from team.models import DiscordLink, Team
+            from ticketing.models import Ticket
 
             # Test queries that views depend on
             Team.objects.count()
@@ -102,15 +100,19 @@ class Command(BaseCommand):
         # Check 5: Test critical view imports
         self.stdout.write("Testing view imports...")
         try:
-            from core import views
-            from core import utils
+            from core import utils, views
 
-            # Try to import key functions
-            utils.get_authentik_data
-            utils.get_team_from_groups
-            utils.check_permissions
-            views.home
-            views.team_tickets
+            # Verify key functions exist
+            if not callable(utils.get_authentik_data):
+                raise RuntimeError("utils.get_authentik_data is not callable")
+            if not callable(utils.get_team_from_groups):
+                raise RuntimeError("utils.get_team_from_groups is not callable")
+            if not callable(utils.check_permissions):
+                raise RuntimeError("utils.check_permissions is not callable")
+            if not callable(views.home):
+                raise RuntimeError("views.home is not callable")
+            if not callable(views.team_tickets):
+                raise RuntimeError("views.team_tickets is not callable")
 
             self.stdout.write(self.style.SUCCESS("✓ View imports OK"))
         except Exception as e:
@@ -123,20 +125,21 @@ class Command(BaseCommand):
         # Check 6: Test template syntax
         self.stdout.write("Testing template syntax...")
         try:
-            from django.template import loader
-            from django.conf import settings
             import os
+            from pathlib import Path
+
+            from django.conf import settings
+            from django.template import loader
 
             # Discover all templates dynamically
             templates_config = cast(list[dict[str, Any]], settings.TEMPLATES)
             templates_dir = cast(str, templates_config[0]["DIRS"][0])
             template_files = []
-            for root, dirs, files in os.walk(templates_dir):
+            for root, _dirs, files in os.walk(templates_dir):
                 for file in files:
                     if file.endswith(".html"):
-                        rel_path = os.path.relpath(
-                            os.path.join(root, file), templates_dir
-                        )
+                        full_path = Path(root) / file
+                        rel_path = os.path.relpath(full_path, templates_dir)
                         template_files.append(rel_path)
 
             template_errors = []
@@ -155,11 +158,7 @@ class Command(BaseCommand):
                     errors.append(error_msg)
                     self.stdout.write(self.style.ERROR(f"✗ {error_msg}"))
             else:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"✓ Template syntax OK ({len(template_files)} templates tested)"
-                    )
-                )
+                self.stdout.write(self.style.SUCCESS(f"✓ Template syntax OK ({len(template_files)} templates tested)"))
         except Exception as e:
             error_msg = f"Template test failed: {e}"
             errors.append(error_msg)

@@ -54,8 +54,6 @@ dev = [
     "pytest-playwright>=0.4.0",
     "playwright>=1.40.0",
     "hypothesis[django]>=6.100",
-    "pylint>=3.0",
-    "pylint-django>=2.6",
     "mypy>=1.13",
     "django-stubs>=5.1.1",
     "types-requests>=2.32",
@@ -91,4 +89,51 @@ markers = [
     "browser: Browser-based UI tests using Playwright",
     "load: Load and stress tests for concurrency and performance",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "*.pyc",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "migrations",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes (unused imports, undefined names, etc.)
+    "I",      # isort (import sorting)
+    "UP",     # pyupgrade (modern Python syntax)
+    "B",      # flake8-bugbear (common mistakes)
+    "C4",     # flake8-comprehensions (better list/dict comprehensions)
+    "PIE",    # flake8-pie (misc lints)
+    "SIM",    # flake8-simplify (simplification suggestions)
+    "T10",    # flake8-debugger (no forgotten breakpoints)
+    "N",      # pep8-naming (naming conventions)
+    "Q",      # flake8-quotes (consistent quotes)
+    "S",      # flake8-bandit (security issues)
+    "ASYNC",  # flake8-async (async/await correctness)
+    "DTZ",    # flake8-datetimez (timezone awareness)
+    "ERA",    # eradicate (no commented-out code)
+    "PTH",    # flake8-use-pathlib (use pathlib)
+    "PERF",   # performance improvements
+]
+ignore = [
+    "E402",    # module level import not at top (django.setup pattern)
+    "DTZ007",  # strptime without %z (we parse naive then add timezone)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106", "S110", "S311"]
+"**/test_*.py" = ["S101", "S105", "S106", "S110", "S311"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bot", "web", "core", "team", "person", "ticketing", "competition"]
 

@@ -1,9 +1,10 @@
 """Tests for shared ticket creation utilities."""
 
 import pytest
+
 from team.models import Team
 from ticketing.models import TicketHistory
-from ticketing.utils import create_ticket_atomic, acreate_ticket_atomic
+from ticketing.utils import acreate_ticket_atomic, create_ticket_atomic
 
 
 @pytest.mark.django_db

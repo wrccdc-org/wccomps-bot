@@ -1,12 +1,21 @@
 """Role synchronization between volunteer and competition Discord guilds."""
 
 import logging
-from typing import Optional
+from typing import TypedDict
 
 import discord
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+class RoleSyncStats(TypedDict):
+    """Statistics for role synchronization."""
+
+    roles_added: int
+    roles_removed: int
+    errors: int
+    changes: list[str]
 
 
 class RoleSyncManager:
@@ -23,7 +32,7 @@ class RoleSyncManager:
         self.competition_guild_id = settings.COMPETITION_GUILD_ID
         self.role_mappings = settings.ROLE_SYNC_MAPPING
 
-    def _get_guilds(self) -> tuple[Optional[discord.Guild], Optional[discord.Guild]]:
+    def _get_guilds(self) -> tuple[discord.Guild | None, discord.Guild | None]:
         """Get volunteer and competition guild objects.
 
         Returns:
@@ -39,7 +48,7 @@ class RoleSyncManager:
 
         return volunteer_guild, competition_guild
 
-    async def sync_roles(self) -> dict[str, int | list[str]]:
+    async def sync_roles(self) -> RoleSyncStats:
         """Synchronize roles from volunteer guild to competition guild.
 
         This performs one-way sync: volunteer guild -> competition guild.
@@ -53,7 +62,7 @@ class RoleSyncManager:
         if not volunteer_guild or not competition_guild:
             return {"roles_added": 0, "roles_removed": 0, "errors": 1, "changes": []}
 
-        stats: dict[str, int | list[str]] = {
+        stats: RoleSyncStats = {
             "roles_added": 0,
             "roles_removed": 0,
             "errors": 0,
@@ -62,12 +71,8 @@ class RoleSyncManager:
 
         logger.info("=" * 80)
         logger.info("ROLE SYNC STARTED")
-        logger.info(
-            f"Volunteer Guild: {volunteer_guild.name} (ID: {volunteer_guild.id})"
-        )
-        logger.info(
-            f"Competition Guild: {competition_guild.name} (ID: {competition_guild.id})"
-        )
+        logger.info(f"Volunteer Guild: {volunteer_guild.name} (ID: {volunteer_guild.id})")
+        logger.info(f"Competition Guild: {competition_guild.name} (ID: {competition_guild.id})")
         logger.info(f"Role Mappings: {len(self.role_mappings)} configured")
         for v_role_id, c_role_id in self.role_mappings.items():
             logger.info(f"  - {v_role_id} -> {c_role_id}")
@@ -88,7 +93,7 @@ class RoleSyncManager:
                     f"Error syncing role {volunteer_role_id} -> {competition_role_id}: {e}",
                     exc_info=True,
                 )
-                stats["errors"] = stats["errors"] + 1  # type: ignore
+                stats["errors"] = stats["errors"] + 1
 
         logger.info("=" * 80)
         logger.info("ROLE SYNC COMPLETE")
@@ -107,7 +112,7 @@ class RoleSyncManager:
         competition_guild: discord.Guild,
         volunteer_role_id: int,
         competition_role_id: int,
-        stats: dict[str, int | list[str]],
+        stats: RoleSyncStats,
     ) -> None:
         """Sync a single role pair between guilds.
 
@@ -122,15 +127,11 @@ class RoleSyncManager:
         competition_role = competition_guild.get_role(competition_role_id)
 
         if not volunteer_role:
-            logger.warning(
-                f"Volunteer role {volunteer_role_id} not found in {volunteer_guild.name}"
-            )
+            logger.warning(f"Volunteer role {volunteer_role_id} not found in {volunteer_guild.name}")
             return
 
         if not competition_role:
-            logger.warning(
-                f"Competition role {competition_role_id} not found in {competition_guild.name}"
-            )
+            logger.warning(f"Competition role {competition_role_id} not found in {competition_guild.name}")
             return
 
         logger.info("-" * 80)
@@ -141,10 +142,7 @@ class RoleSyncManager:
 
         # Get members with role in volunteer guild
         volunteer_members_with_role = {m.id for m in volunteer_role.members}
-        logger.info(
-            f"Members with {volunteer_role.name} in volunteer guild: "
-            f"{len(volunteer_members_with_role)}"
-        )
+        logger.info(f"Members with {volunteer_role.name} in volunteer guild: {len(volunteer_members_with_role)}")
         if volunteer_members_with_role:
             logger.debug(f"  Member IDs: {volunteer_members_with_role}")
 
@@ -152,9 +150,7 @@ class RoleSyncManager:
         # We need to check all members because we may need to remove roles
         logger.info("Chunking competition guild to get all members...")
         await competition_guild.chunk()
-        logger.info(
-            f"Competition guild has {len(competition_guild.members)} total members"
-        )
+        logger.info(f"Competition guild has {len(competition_guild.members)} total members")
 
         members_checked = 0
         members_skipped_bot = 0
@@ -173,8 +169,7 @@ class RoleSyncManager:
                 has_role = competition_role in member.roles
 
                 logger.debug(
-                    f"Checking {member.name} (ID: {member.id}): "
-                    f"should_have={should_have_role}, has={has_role}"
+                    f"Checking {member.name} (ID: {member.id}): should_have={should_have_role}, has={has_role}"
                 )
 
                 if should_have_role and not has_role:
@@ -189,8 +184,8 @@ class RoleSyncManager:
                     )
                     change_msg = f"Added {competition_role.name} to {member.name} ({member.display_name})"
                     logger.info(f"✓ {change_msg}")
-                    stats["roles_added"] = stats["roles_added"] + 1  # type: ignore
-                    stats["changes"].append(f"✓ {change_msg}")  # type: ignore
+                    stats["roles_added"] = stats["roles_added"] + 1
+                    stats["changes"].append(f"✓ {change_msg}")
 
                 elif not should_have_role and has_role:
                     # Remove role
@@ -204,36 +199,27 @@ class RoleSyncManager:
                     )
                     change_msg = f"Removed {competition_role.name} from {member.name} ({member.display_name})"
                     logger.info(f"✗ {change_msg}")
-                    stats["roles_removed"] = stats["roles_removed"] + 1  # type: ignore
-                    stats["changes"].append(f"✗ {change_msg}")  # type: ignore
+                    stats["roles_removed"] = stats["roles_removed"] + 1
+                    stats["changes"].append(f"✗ {change_msg}")
 
                 else:
                     # No action needed - member already in correct state
                     members_no_action += 1
-                    logger.debug(
-                        f"No action needed for {member.name} (ID: {member.id}): "
-                        f"already in correct state"
-                    )
+                    logger.debug(f"No action needed for {member.name} (ID: {member.id}): already in correct state")
 
             except discord.errors.Forbidden as e:
                 error_msg = f"Missing permissions to modify roles for {member.name} (ID: {member.id}): {e}"
-                logger.error(error_msg)
-                stats["errors"] = stats["errors"] + 1  # type: ignore
-                stats["changes"].append(f"⚠ {error_msg}")  # type: ignore
+                logger.exception(error_msg)
+                stats["errors"] = stats["errors"] + 1
+                stats["changes"].append(f"⚠ {error_msg}")
             except Exception as e:
-                error_msg = (
-                    f"Error syncing role for {member.name} (ID: {member.id}): {e}"
-                )
+                error_msg = f"Error syncing role for {member.name} (ID: {member.id}): {e}"
                 logger.error(error_msg, exc_info=True)
-                stats["errors"] = stats["errors"] + 1  # type: ignore
-                stats["changes"].append(f"⚠ {error_msg}")  # type: ignore
+                stats["errors"] = stats["errors"] + 1
+                stats["changes"].append(f"⚠ {error_msg}")
 
-        logger.info(
-            f"Role pair sync complete: {volunteer_role.name} -> {competition_role.name}"
-        )
-        logger.info(
-            f"  Total members in competition guild: {len(competition_guild.members)}"
-        )
+        logger.info(f"Role pair sync complete: {volunteer_role.name} -> {competition_role.name}")
+        logger.info(f"  Total members in competition guild: {len(competition_guild.members)}")
         logger.info(f"  Bot members skipped: {members_skipped_bot}")
         logger.info(f"  Human members checked: {members_checked}")
         logger.info(f"  Members already in correct state: {members_no_action}")

@@ -1,8 +1,9 @@
 """Middleware to enforce Authentik authentication on all pages."""
 
-from typing import Callable
-from django.shortcuts import redirect
+from collections.abc import Callable
+
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 
 
 class AuthentikRequiredMiddleware:

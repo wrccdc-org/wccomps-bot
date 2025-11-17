@@ -1,15 +1,17 @@
 """Tests for ticket dashboard functionality."""
 
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from django.test import TestCase
-from team.models import Team
-from ticketing.models import Ticket
+
 from bot.ticket_dashboard import (
     format_ticket_embed,
     post_ticket_to_dashboard,
     update_ticket_dashboard,
 )
+from team.models import Team
+from ticketing.models import Ticket
 
 
 @pytest.mark.django_db(transaction=True)
@@ -26,6 +28,7 @@ class TicketDashboardTest(TestCase):
     def test_format_ticket_embed_comprehensive(self) -> None:
         """Test formatting ticket embeds with various states and categories."""
         from django.utils import timezone as tz
+
         from core.tickets_config import TICKET_CATEGORIES
 
         # Test basic open ticket
@@ -100,9 +103,7 @@ class TestDashboardUpdate:
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
-        team = await Team.objects.acreate(
-            team_number=27, team_name="Test Team", authentik_group="test"
-        )
+        team = await Team.objects.acreate(team_number=27, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T001",
             team=team,
@@ -121,9 +122,7 @@ class TestDashboardUpdate:
         bot = MagicMock()
         bot.unified_dashboard = None
 
-        team = await Team.objects.acreate(
-            team_number=28, team_name="Test Team", authentik_group="test"
-        )
+        team = await Team.objects.acreate(team_number=28, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T002",
             team=team,
@@ -142,9 +141,7 @@ class TestDashboardUpdate:
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
-        team = await Team.objects.acreate(
-            team_number=29, team_name="Test Team", authentik_group="test"
-        )
+        team = await Team.objects.acreate(team_number=29, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T003",
             team=team,

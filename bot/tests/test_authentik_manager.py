@@ -1,11 +1,13 @@
 """Tests for Authentik API manager."""
 
 from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
-from bot.authentik_manager import AuthentikManager, AuthentikAPIError
+from bot.authentik_manager import AuthentikAPIError, AuthentikManager
 
 
 class TestAuthentikAPIError:
@@ -148,9 +150,7 @@ class TestAuthentikManager:
 
             assert app is None
 
-    def test_get_application_by_slug_http_error(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_get_application_by_slug_http_error(self, manager: AuthentikManager) -> None:
         """Test HTTP error handling during application retrieval."""
         mock_response = Mock()
         mock_response.status_code = 500
@@ -159,17 +159,13 @@ class TestAuthentikManager:
         mock_response.json.side_effect = Exception("Not JSON")
 
         with patch("requests.get", return_value=mock_response) as mock_get:
-            mock_response.raise_for_status = Mock(
-                side_effect=requests.exceptions.HTTPError(response=mock_response)
-            )
+            mock_response.raise_for_status = Mock(side_effect=requests.exceptions.HTTPError(response=mock_response))
             app = manager.get_application_by_slug("test-app")
 
             assert app is None
             mock_get.assert_called_once()
 
-    def test_get_application_by_slug_network_error(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_get_application_by_slug_network_error(self, manager: AuthentikManager) -> None:
         """Test network error handling during application retrieval."""
         with patch(
             "requests.get",
@@ -223,9 +219,7 @@ class TestAuthentikManager:
             assert error is not None
             assert "No BlueTeam group binding found" in error
 
-    def test_get_blueteam_binding_empty_results(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_get_blueteam_binding_empty_results(self, manager: AuthentikManager) -> None:
         """Test BlueTeam binding with no results."""
         mock_response = Mock()
         mock_response.json.return_value = {"results": []}
@@ -270,9 +264,7 @@ class TestAuthentikManager:
             assert error is not None
             assert "No BlueTeam group found" in error
 
-    def test_find_blueteam_group_from_first_app(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_find_blueteam_group_from_first_app(self, manager: AuthentikManager) -> None:
         """Test finding BlueTeam group from first application."""
         app_slugs = ["netbird", "scoring", "vault"]
 
@@ -290,9 +282,7 @@ class TestAuthentikManager:
             assert error is None
             mock_get_app.assert_called_once_with("netbird")
 
-    def test_find_blueteam_group_from_second_app(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_find_blueteam_group_from_second_app(self, manager: AuthentikManager) -> None:
         """Test finding BlueTeam group from second application."""
         app_slugs = ["netbird", "scoring", "vault"]
 
@@ -312,9 +302,7 @@ class TestAuthentikManager:
             assert group_pk == "group-blueteam-123"
             assert error is None
 
-    def test_find_blueteam_group_not_found_any_app(
-        self, manager: AuthentikManager
-    ) -> None:
+    def test_find_blueteam_group_not_found_any_app(self, manager: AuthentikManager) -> None:
         """Test BlueTeam group not found in any application."""
         app_slugs = ["netbird", "scoring"]
 
@@ -451,7 +439,7 @@ class TestAuthentikManager:
     def test_enable_applications_property(self, slugs: list[str]) -> None:
         """Property: enable_applications processes all slugs."""
         # Filter out duplicates and invalid slugs
-        slugs = list(set(s for s in slugs if s.strip()))
+        slugs = list({s for s in slugs if s.strip()})
         assume(len(slugs) > 0)
 
         with patch("bot.authentik_manager.settings") as mock_settings:
@@ -483,7 +471,7 @@ class TestAuthentikManager:
     @settings(max_examples=30)
     def test_disable_applications_property(self, slugs: list[str]) -> None:
         """Property: disable_applications processes all slugs."""
-        slugs = list(set(s for s in slugs if s.strip()))
+        slugs = list({s for s in slugs if s.strip()})
         assume(len(slugs) > 0)
 
         with patch("bot.authentik_manager.settings") as mock_settings:

@@ -1,5 +1,7 @@
 from typing import Any
+
 import pytest
+
 from bot.discord_manager import DiscordManager
 from team.models import Team
 
@@ -7,9 +9,7 @@ from team.models import Team
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestEndCompetition:
-    async def test_end_competition_workflow_removes_team_roles(
-        self, mock_discord_guild: Any, db: Any
-    ) -> None:
+    async def test_end_competition_workflow_removes_team_roles(self, mock_discord_guild: Any, db: Any) -> None:
         await Team.objects.acreate(
             team_number=1,
             team_name="BlueTeam01",

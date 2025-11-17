@@ -1,15 +1,17 @@
 """Ticketing commands for team support."""
 
+import logging
+from typing import Any
+
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-import logging
-from typing import Any
 from django.utils import timezone
-from team.models import DiscordLink
-from ticketing.models import Ticket, TicketHistory, TicketAttachment, TicketComment
-from core.tickets_config import TICKET_CATEGORIES
+
 from bot.ticket_dashboard import post_ticket_to_dashboard
+from core.tickets_config import TICKET_CATEGORIES
+from team.models import DiscordLink
+from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
 logger = logging.getLogger(__name__)
 
@@ -69,56 +71,40 @@ class TicketingCog(commands.Cog):
                         details={"archived_at": str(now)},
                     )
 
-                    logger.info(
-                        f"Archived thread for ticket #{ticket.id} (60s grace period expired)"
-                    )
+                    logger.info(f"Archived thread for ticket #{ticket.id} (60s grace period expired)")
 
                 except Exception as e:
-                    logger.error(
-                        f"Failed to archive thread for ticket #{ticket.id}: {e}"
-                    )
+                    logger.exception(f"Failed to archive thread for ticket #{ticket.id}: {e}")
                     # Clear scheduled time on error to avoid retrying
                     ticket.thread_archive_scheduled_at = None
                     await ticket.asave()
 
         except Exception as e:
-            logger.error(f"Error in archive_threads_task: {e}")
+            logger.exception(f"Error in archive_threads_task: {e}")
 
     @archive_threads_task.before_loop
     async def before_archive_threads_task(self) -> None:
         """Wait for bot to be ready before starting task."""
         await self.bot.wait_until_ready()
 
-    @app_commands.command(
-        name="ticket", description="[BLUE TEAM] Create a support ticket for your team"
-    )
-    @app_commands.describe(
-        category="Type of support needed", description="Describe the issue or request"
-    )
+    @app_commands.command(name="ticket", description="[BLUE TEAM] Create a support ticket for your team")
+    @app_commands.describe(category="Type of support needed", description="Describe the issue or request")
     @app_commands.choices(
         category=[
-            app_commands.Choice(
-                name=f"{cat['display_name']} ({cat.get('points', 0)}pt)", value=cat_id
-            )
+            app_commands.Choice(name=f"{cat['display_name']} ({cat.get('points', 0)}pt)", value=cat_id)
             for cat_id, cat in TICKET_CATEGORIES.items()
             if cat.get("user_creatable", True)
         ]
     )
-    async def create_ticket(
-        self, interaction: discord.Interaction, category: str, description: str
-    ) -> None:
+    async def create_ticket(self, interaction: discord.Interaction, category: str, description: str) -> None:
         """Create a support ticket."""
         if not interaction.guild:
-            await interaction.response.send_message(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
             return
 
         # Check if user is linked to a team
         link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("team")
-            .afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
 
         if not link:
@@ -143,9 +129,7 @@ class TicketingCog(commands.Cog):
         # Get category info
         cat_info = TICKET_CATEGORIES.get(category)
         if not cat_info:
-            await interaction.response.send_message(
-                "Invalid ticket category.", ephemeral=True
-            )
+            await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
         # For box-reset, use description as hostname
@@ -165,27 +149,22 @@ class TicketingCog(commands.Cog):
 
         # Create thread in team's category
         if link.team.discord_category_id:
-            try:
-                team_category = interaction.guild.get_channel(
-                    link.team.discord_category_id
-                )
-                if team_category and isinstance(team_category, discord.CategoryChannel):
-                    # Find the team's text channel within the category
-                    chat_channel = None
-                    for channel in team_category.channels:
-                        if (
-                            isinstance(channel, discord.TextChannel)
-                            and "chat" in channel.name.lower()
-                        ):
-                            chat_channel = channel
-                            break
+            # Find and validate category/channel before entering try block
+            team_category = interaction.guild.get_channel(link.team.discord_category_id)
+            if team_category and isinstance(team_category, discord.CategoryChannel):
+                # Find the team's text channel within the category
+                chat_channel = None
+                for channel in team_category.channels:
+                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                        chat_channel = channel
+                        break
 
-                    if not chat_channel:
-                        logger.warning(
-                            f"No text channel found in category {team_category.name}"
-                        )
-                        raise Exception("No text channel found in team category")
+                if not chat_channel:
+                    logger.warning(f"No text channel found in category {team_category.name}")
+                    raise RuntimeError("No text channel found in team category")
 
+                # Now do Discord API calls with error handling
+                try:
                     thread = await chat_channel.create_thread(
                         name=f"{ticket.ticket_number} - Team {link.team.team_number:02d} - {ticket.title[:60]}",
                         auto_archive_duration=10080,  # 7 days
@@ -212,14 +191,12 @@ class TicketingCog(commands.Cog):
                             if member:
                                 await thread.add_user(member)
                         except Exception as e:
-                            logger.warning(
-                                f"Failed to add member {member_id} to thread: {e}"
-                            )
+                            logger.warning(f"Failed to add member {member_id} to thread: {e}")
 
                     # Send initial message in thread with action buttons
                     from bot.ticket_dashboard import (
-                        format_ticket_embed,
                         TicketActionView,
+                        format_ticket_embed,
                     )
 
                     embed_thread = format_ticket_embed(ticket)
@@ -231,19 +208,15 @@ class TicketingCog(commands.Cog):
                         view=view,
                     )
 
-                    logger.info(
-                        f"Created thread {thread.id} for ticket #{ticket.ticket_number}"
-                    )
-            except Exception as e:
-                logger.error(
-                    f"Failed to create thread for ticket {ticket.ticket_number}: {e}"
-                )
+                    logger.info(f"Created thread {thread.id} for ticket #{ticket.ticket_number}")
+                except Exception as e:
+                    logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
 
         # Post to dashboard
         try:
             await post_ticket_to_dashboard(self.bot, ticket)
         except Exception as e:
-            logger.error(f"Failed to post ticket to dashboard: {e}")
+            logger.exception(f"Failed to post ticket to dashboard: {e}")
 
         # Send confirmation
         embed = discord.Embed(
@@ -254,9 +227,7 @@ class TicketingCog(commands.Cog):
         embed.add_field(name="Ticket Number", value=ticket.ticket_number, inline=True)
         embed.add_field(name="Status", value="Open", inline=True)
         embed.add_field(name="Team", value=link.team.team_name, inline=True)
-        embed.add_field(
-            name="Point Cost", value=f"{cat_info.get('points', 0)} points", inline=True
-        )
+        embed.add_field(name="Point Cost", value=f"{cat_info.get('points', 0)} points", inline=True)
         embed.add_field(name="Description", value=description, inline=False)
 
         # Add file attachment guidance
@@ -270,9 +241,7 @@ class TicketingCog(commands.Cog):
         embed.set_footer(text="Volunteers will be notified in #ticket-queue")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        logger.info(
-            f"Ticket {ticket.ticket_number} created by {interaction.user} for {link.team.team_name}"
-        )
+        logger.info(f"Ticket {ticket.ticket_number} created by {interaction.user} for {link.team.team_name}")
 
     def _format_point_impact(self, cat_info: dict[str, Any]) -> str:
         """Format point impact message."""
@@ -297,19 +266,16 @@ class TicketingCog(commands.Cog):
             return
 
         # Get ticket by thread ID
-        ticket = await Ticket.objects.filter(
-            discord_thread_id=message.channel.id
-        ).afirst()
+        ticket = await Ticket.objects.filter(discord_thread_id=message.channel.id).afirst()
         if not ticket:
             return
 
         # Check rate limit for comments
-        from ticketing.models import CommentRateLimit
         from asgiref.sync import sync_to_async
 
-        is_allowed, reason = await sync_to_async(CommentRateLimit.check_rate_limit)(
-            ticket.id, message.author.id
-        )
+        from ticketing.models import CommentRateLimit
+
+        is_allowed, reason = await sync_to_async(CommentRateLimit.check_rate_limit)(ticket.id, message.author.id)
 
         if not is_allowed:
             try:
@@ -318,25 +284,19 @@ class TicketingCog(commands.Cog):
                     f"{message.author.mention} {reason}. Please slow down.",
                     delete_after=10,
                 )
-                logger.warning(
-                    f"Rate limit exceeded for user {message.author.id} on ticket #{ticket.id}"
-                )
+                logger.warning(f"Rate limit exceeded for user {message.author.id} on ticket #{ticket.id}")
                 return
             except discord.Forbidden:
                 logger.warning("Cannot delete message due to permissions")
                 return
 
         # Record comment attempt for rate limiting
-        await CommentRateLimit.objects.acreate(
-            ticket=ticket, discord_id=message.author.id
-        )
+        await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=message.author.id)
 
         # Save message as comment in database (for web interface visibility)
         if message.content:  # Only save if there's text content
             # Check if this message is already saved (prevent duplicates)
-            existing = await TicketComment.objects.filter(
-                discord_message_id=message.id
-            ).afirst()
+            existing = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
 
             if not existing:
                 await TicketComment.objects.acreate(
@@ -354,7 +314,8 @@ class TicketingCog(commands.Cog):
                 # Limit file size to 10MB
                 if attachment.size > 10 * 1024 * 1024:
                     await message.channel.send(
-                        f"{message.author.mention} File `{attachment.filename}` is too large (max 10MB). Please use a file sharing service.",
+                        f"{message.author.mention} File `{attachment.filename}` is too large (max 10MB). "
+                        "Please use a file sharing service.",
                         delete_after=30,
                     )
                     continue
@@ -372,26 +333,21 @@ class TicketingCog(commands.Cog):
                         uploaded_by=str(message.author),
                     )
 
-                    logger.info(
-                        f"Stored attachment {attachment.filename} for ticket #{ticket.id}"
-                    )
+                    logger.info(f"Stored attachment {attachment.filename} for ticket #{ticket.id}")
 
                     # React to confirm upload
                     await message.add_reaction("📎")
 
                 except Exception as e:
-                    logger.error(
-                        f"Failed to store attachment {attachment.filename}: {e}"
-                    )
+                    logger.exception(f"Failed to store attachment {attachment.filename}: {e}")
                     await message.channel.send(
-                        f"{message.author.mention} Failed to store attachment `{attachment.filename}`. Please try again.",
+                        f"{message.author.mention} Failed to store attachment `{attachment.filename}`. "
+                        "Please try again.",
                         delete_after=30,
                     )
 
     @commands.Cog.listener()
-    async def on_message_edit(
-        self, before: discord.Message, after: discord.Message
-    ) -> None:
+    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
         """Sync message edits to TicketComment."""
         # Ignore bot messages
         if after.author.bot:
@@ -402,18 +358,14 @@ class TicketingCog(commands.Cog):
             return
 
         # Get ticket by thread ID
-        ticket = await Ticket.objects.filter(
-            discord_thread_id=after.channel.id
-        ).afirst()
+        ticket = await Ticket.objects.filter(discord_thread_id=after.channel.id).afirst()
         if not ticket:
             return
 
         # Find comment by message ID
         from ticketing.models import TicketComment
 
-        comment = await TicketComment.objects.filter(
-            ticket=ticket, discord_message_id=after.id
-        ).afirst()
+        comment = await TicketComment.objects.filter(ticket=ticket, discord_message_id=after.id).afirst()
 
         if comment:
             # Update comment text
@@ -434,32 +386,24 @@ class TicketingCog(commands.Cog):
             return
 
         # Get ticket by thread ID
-        ticket = await Ticket.objects.filter(
-            discord_thread_id=message.channel.id
-        ).afirst()
+        ticket = await Ticket.objects.filter(discord_thread_id=message.channel.id).afirst()
         if not ticket:
             return
 
         # Find comment by message ID
         from ticketing.models import TicketComment
 
-        comment = await TicketComment.objects.filter(
-            ticket=ticket, discord_message_id=message.id
-        ).afirst()
+        comment = await TicketComment.objects.filter(ticket=ticket, discord_message_id=message.id).afirst()
 
         if comment:
             # Mark as deleted (soft delete)
             comment.comment_text = "[Message deleted]"
             await comment.asave()
 
-            logger.info(
-                f"Marked comment {comment.id} as deleted for ticket #{ticket.id}"
-            )
+            logger.info(f"Marked comment {comment.id} as deleted for ticket #{ticket.id}")
 
 
-async def post_comment_to_discord(
-    bot: commands.Bot, comment: TicketComment
-) -> discord.Message | None:
+async def post_comment_to_discord(bot: commands.Bot, comment: TicketComment) -> discord.Message | None:
     """
     Post a TicketComment to the ticket's Discord thread.
 
@@ -471,9 +415,7 @@ async def post_comment_to_discord(
     # Get ticket and thread
     ticket = comment.ticket
     if not ticket.discord_thread_id:
-        logger.warning(
-            f"Cannot post comment to Discord: ticket #{ticket.id} has no thread"
-        )
+        logger.warning(f"Cannot post comment to Discord: ticket #{ticket.id} has no thread")
         return None
 
     # Get thread
@@ -484,12 +426,10 @@ async def post_comment_to_discord(
             thread = await bot.fetch_channel(ticket.discord_thread_id)
 
         if not thread:
-            logger.error(
-                f"Thread {ticket.discord_thread_id} not found for ticket #{ticket.id}"
-            )
+            logger.error(f"Thread {ticket.discord_thread_id} not found for ticket #{ticket.id}")
             return None
     except Exception as e:
-        logger.error(f"Failed to get thread {ticket.discord_thread_id}: {e}")
+        logger.exception(f"Failed to get thread {ticket.discord_thread_id}: {e}")
         return None
 
     # Format comment message
@@ -506,9 +446,7 @@ async def post_comment_to_discord(
                 discord.StageChannel,
             ),
         ):
-            logger.error(
-                f"Channel {ticket.discord_thread_id} is not a messageable channel"
-            )
+            logger.error(f"Channel {ticket.discord_thread_id} is not a messageable channel")
             return None
         message = await thread.send(message_content)
 
@@ -516,13 +454,11 @@ async def post_comment_to_discord(
         comment.discord_message_id = message.id
         await comment.asave()
 
-        logger.info(
-            f"Posted comment to Discord thread {thread.id} (message {message.id})"
-        )
+        logger.info(f"Posted comment to Discord thread {thread.id} (message {message.id})")
         return message
 
     except Exception as e:
-        logger.error(f"Failed to post comment to Discord: {e}")
+        logger.exception(f"Failed to post comment to Discord: {e}")
         return None
 
 

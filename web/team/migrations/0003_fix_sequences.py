@@ -1,9 +1,10 @@
 """Fix PostgreSQL sequences that got out of sync from data imports."""
 
+from typing import Any
 from django.db import migrations
 
 
-def fix_sequences(apps, schema_editor):
+def fix_sequences(apps: Any, schema_editor: Any) -> None:
     """Reset all sequences to match their table's max ID."""
     if schema_editor.connection.vendor != "postgresql":
         return

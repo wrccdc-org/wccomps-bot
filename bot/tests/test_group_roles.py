@@ -2,8 +2,10 @@
 
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
+
 import discord
 import pytest
+
 from bot.discord_manager import DiscordManager
 from bot.discord_queue import DiscordQueueProcessor
 from core.models import DiscordTask
@@ -51,16 +53,14 @@ class TestGroupRoleAssignment:
         def get_role(role_id: int) -> Any:
             if role_id == 647838503505362957:
                 return whiteteam_role
-            elif role_id == 647878925040615446:
+            if role_id == 647878925040615446:
                 return orangeteam_role
             return None
 
         guild.get_role = MagicMock(side_effect=get_role)
 
         manager = DiscordManager(guild)
-        success = await manager.assign_group_roles(
-            member, ["WCComps_WhiteTeam", "WCComps_OrangeTeam"]
-        )
+        success = await manager.assign_group_roles(member, ["WCComps_WhiteTeam", "WCComps_OrangeTeam"])
 
         assert success is True
         member.add_roles.assert_called_once()
@@ -90,9 +90,7 @@ class TestGroupRoleAssignment:
         manager = DiscordManager(guild)
 
         with patch("bot.discord_manager.logger") as mock_logger:
-            success = await manager.assign_group_roles(
-                member, ["WCComps_WhiteTeam", "WCComps_BlackTeam"]
-            )
+            success = await manager.assign_group_roles(member, ["WCComps_WhiteTeam", "WCComps_BlackTeam"])
 
             mock_logger.warning.assert_called_once()
 
@@ -153,9 +151,7 @@ class TestGroupRoleRemoval:
         guild.get_role = MagicMock(side_effect=lambda rid: role_map.get(rid))
 
         manager = DiscordManager(guild)
-        success = await manager.remove_group_roles(
-            member, ["WCComps_BlackTeam", "WCComps_OrangeTeam"]
-        )
+        success = await manager.remove_group_roles(member, ["WCComps_BlackTeam", "WCComps_OrangeTeam"])
 
         assert success is True
         member.remove_roles.assert_called_once()
@@ -248,9 +244,7 @@ class TestGroupRoleQueueProcessing:
         guild = MagicMock(spec=discord.Guild)
         guild.id = 525435725123158026
         guild.get_member = MagicMock(return_value=None)
-        guild.fetch_member = AsyncMock(
-            side_effect=discord.NotFound(MagicMock(), "Member not found")
-        )
+        guild.fetch_member = AsyncMock(side_effect=discord.NotFound(MagicMock(), "Member not found"))
         bot.guilds = [guild]
 
         processor = DiscordQueueProcessor(bot)

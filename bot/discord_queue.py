@@ -1,18 +1,19 @@
 """Discord task queue processor for rate limit resilience."""
 
-import logging
 import asyncio
-from typing import Optional
+import logging
 from datetime import timedelta
-from django.utils import timezone
+
+import discord
+from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
+
+from bot.discord_manager import DiscordManager
 from core.models import DiscordTask
 from team.models import Team
 from ticketing.models import Ticket, TicketComment
-from bot.discord_manager import DiscordManager
-from asgiref.sync import sync_to_async
-import discord
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,9 @@ class DiscordQueueProcessor:
 
     def __init__(self, bot: discord.Client) -> None:
         self.bot = bot
-        self.discord_manager: Optional[DiscordManager] = None
+        self.discord_manager: DiscordManager | None = None
         self.running = False
-        self.task: Optional[asyncio.Task[None]] = None
+        self.task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
         """Start the queue processor as an async task."""
@@ -33,7 +34,7 @@ class DiscordQueueProcessor:
         self.running = True
 
         # Initialize discord manager with the configured guild
-        guild_id = int(os.environ.get("DISCORD_GUILD_ID", 0))
+        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
         if guild_id:
             guild = self.bot.get_guild(guild_id)
             if guild:
@@ -62,7 +63,7 @@ class DiscordQueueProcessor:
             try:
                 await self._process_pending_tasks()
             except Exception as e:
-                logger.error(f"Error in queue processor: {e}")
+                logger.exception(f"Error in queue processor: {e}")
 
             await asyncio.sleep(2)  # Poll every 2 seconds
 
@@ -117,11 +118,7 @@ class DiscordQueueProcessor:
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
-                await sync_to_async(
-                    lambda: setattr(
-                        task, "error_message", f"Unknown task type: {task.task_type}"
-                    )
-                )()
+                await sync_to_async(lambda: setattr(task, "error_message", f"Unknown task type: {task.task_type}"))()
                 await sync_to_async(task.save)()
                 return
 
@@ -161,20 +158,17 @@ class DiscordQueueProcessor:
                     task.status = "failed"
                     task.save()
                     return "failed", task.max_retries
-                else:
-                    # Exponential backoff
-                    backoff_seconds = min(2**task.retry_count, 300)  # Max 5 minutes
-                    task.next_retry_at = timezone.now() + timedelta(
-                        seconds=backoff_seconds
-                    )
-                    task.status = "pending"
-                    task.save()
-                    return "retry", backoff_seconds
+                # Exponential backoff
+                backoff_seconds = min(2**task.retry_count, 300)  # Max 5 minutes
+                task.next_retry_at = timezone.now() + timedelta(seconds=backoff_seconds)
+                task.status = "pending"
+                task.save()
+                return "retry", backoff_seconds
 
             result, value = await handle_error(error)
 
             if result == "failed":
-                logger.error(f"Task {task.id} failed after {value} retries: {error}")
+                logger.exception(f"Task {task.id} failed after {value} retries: {error}")
                 # Alert to ops channel
                 try:
                     from bot.utils import log_to_ops_channel
@@ -184,16 +178,14 @@ class DiscordQueueProcessor:
                         f"Task {task.id} ({task.task_type}) failed after {value} retries: {error}",
                     )
                 except Exception as log_error:
-                    logger.error(f"Failed to log error to ops channel: {log_error}")
+                    logger.exception(f"Failed to log error to ops channel: {log_error}")
             else:
-                logger.warning(
-                    f"Task {task.id} failed (attempt {task.retry_count}), retrying in {value}s"
-                )
+                logger.warning(f"Task {task.id} failed (attempt {task.retry_count}), retrying in {value}s")
 
     async def _handle_assign_role(self, task: DiscordTask) -> None:
         """Handle assign_role task."""
         if not self.discord_manager:
-            raise Exception("Discord manager not initialized")
+            raise RuntimeError("Discord manager not initialized")
 
         discord_id = task.payload.get("discord_id")
         team_number = task.payload.get("team_number")
@@ -222,7 +214,7 @@ class DiscordQueueProcessor:
                 )
                 return
             except Exception as e:
-                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                logger.exception(f"Failed to fetch member {discord_id}: {e}")
                 raise
 
         # Set up team infrastructure if needed
@@ -238,14 +230,14 @@ class DiscordQueueProcessor:
         # Assign role
         success = await self.discord_manager.assign_team_role(member, team_number)
         if not success:
-            raise Exception(f"Failed to assign role to {member}")
+            raise RuntimeError(f"Failed to assign role to {member}")
 
         logger.info(f"Assigned team {team_number} role to {member}")
 
     async def _handle_assign_group_roles(self, task: DiscordTask) -> None:
         """Handle assign_group_roles task."""
         if not self.discord_manager:
-            raise Exception("Discord manager not initialized")
+            raise RuntimeError("Discord manager not initialized")
 
         discord_id = task.payload.get("discord_id")
         authentik_groups = task.payload.get("authentik_groups", [])
@@ -261,27 +253,23 @@ class DiscordQueueProcessor:
             try:
                 member = await guild.fetch_member(discord_id)
             except discord.NotFound:
-                logger.warning(
-                    f"Member {discord_id} not found in guild, skipping group role assignment"
-                )
+                logger.warning(f"Member {discord_id} not found in guild, skipping group role assignment")
                 return
             except Exception as e:
-                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                logger.exception(f"Failed to fetch member {discord_id}: {e}")
                 raise
 
         # Assign group-based roles
-        success = await self.discord_manager.assign_group_roles(
-            member, authentik_groups
-        )
+        success = await self.discord_manager.assign_group_roles(member, authentik_groups)
         if not success:
-            raise Exception(f"Failed to assign group roles to {member}")
+            raise RuntimeError(f"Failed to assign group roles to {member}")
 
         logger.info(f"Assigned group roles to {member}")
 
     async def _handle_remove_role(self, task: DiscordTask) -> None:
         """Handle remove_role task."""
         if not self.discord_manager:
-            raise Exception("Discord manager not initialized")
+            raise RuntimeError("Discord manager not initialized")
 
         discord_id = task.payload.get("discord_id")
         team_number = task.payload.get("team_number")
@@ -297,34 +285,30 @@ class DiscordQueueProcessor:
             try:
                 member = await guild.fetch_member(discord_id)
             except discord.NotFound:
-                logger.warning(
-                    f"Member {discord_id} not in guild, skipping role removal"
-                )
+                logger.warning(f"Member {discord_id} not in guild, skipping role removal")
                 return
             except Exception as e:
-                logger.error(f"Failed to fetch member {discord_id}: {e}")
+                logger.exception(f"Failed to fetch member {discord_id}: {e}")
                 raise
 
         success = await self.discord_manager.remove_team_role(member, team_number)
         if not success:
-            raise Exception(f"Failed to remove role from {member}")
+            raise RuntimeError(f"Failed to remove role from {member}")
 
         logger.info(f"Removed team {team_number} role from {member}")
 
     async def _handle_setup_team_infrastructure(self, task: DiscordTask) -> None:
         """Handle setup_team_infrastructure task."""
         if not self.discord_manager:
-            raise Exception("Discord manager not initialized")
+            raise RuntimeError("Discord manager not initialized")
 
         team_number = task.payload.get("team_number")
         if not team_number:
             raise ValueError("Missing team_number in payload")
 
-        role, category = await self.discord_manager.setup_team_infrastructure(
-            team_number
-        )
+        role, category = await self.discord_manager.setup_team_infrastructure(team_number)
         if not role or not category:
-            raise Exception(f"Failed to setup infrastructure for team {team_number}")
+            raise RuntimeError(f"Failed to setup infrastructure for team {team_number}")
 
         logger.info(f"Set up infrastructure for team {team_number}")
 
@@ -341,6 +325,7 @@ class DiscordQueueProcessor:
     async def _handle_ticket_created_web(self, task: DiscordTask) -> None:
         """Handle ticket creation from web UI - create thread and post to dashboard."""
         import time
+
         from bot.ticket_dashboard import post_ticket_to_dashboard
 
         start_time = time.time()
@@ -353,44 +338,35 @@ class DiscordQueueProcessor:
             return Ticket.objects.select_related("team").get(id=ticket_id)
 
         ticket = await get_ticket()
-        logger.info(
-            f"Ticket {ticket.ticket_number}: DB fetch took {time.time() - start_time:.3f}s"
-        )
+        logger.info(f"Ticket {ticket.ticket_number}: DB fetch took {time.time() - start_time:.3f}s")
 
         # Check if thread already exists (from previous retry)
         if ticket.discord_thread_id:
-            logger.info(
-                f"Thread already exists for ticket {ticket.ticket_number}, updating dashboard"
-            )
+            logger.info(f"Thread already exists for ticket {ticket.ticket_number}, updating dashboard")
             # Still trigger dashboard update
             await post_ticket_to_dashboard(self.bot, ticket)
             return
 
         # Try to create thread in team's category
         if ticket.team.discord_category_id:
-            try:
-                category = self.bot.get_channel(ticket.team.discord_category_id)
-                if not category:
-                    logger.warning(
-                        f"Category {ticket.team.discord_category_id} not found for team {ticket.team.team_name}"
-                    )
-                elif isinstance(category, discord.CategoryChannel):
-                    # Find the team's text channel within the category
-                    chat_channel = None
-                    for channel in category.channels:
-                        if (
-                            isinstance(channel, discord.TextChannel)
-                            and "chat" in channel.name.lower()
-                        ):
-                            chat_channel = channel
-                            break
+            # Find and validate category/channel before entering try block
+            category = self.bot.get_channel(ticket.team.discord_category_id)
+            if not category:
+                logger.warning(f"Category {ticket.team.discord_category_id} not found for team {ticket.team.team_name}")
+            elif isinstance(category, discord.CategoryChannel):
+                # Find the team's text channel within the category
+                chat_channel = None
+                for channel in category.channels:
+                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                        chat_channel = channel
+                        break
 
-                    if not chat_channel:
-                        logger.warning(
-                            f"No text channel found in category {category.name}"
-                        )
-                        raise Exception("No text channel found in team category")
+                if not chat_channel:
+                    logger.warning(f"No text channel found in category {category.name}")
+                    raise RuntimeError("No text channel found in team category")
 
+                # Now do Discord API calls with error handling
+                try:
                     # Create thread in the team's text channel
                     thread_start = time.time()
                     thread = await chat_channel.create_thread(
@@ -410,9 +386,7 @@ class DiscordQueueProcessor:
 
                     save_start = time.time()
                     await save_thread_id()
-                    logger.info(
-                        f"Ticket {ticket.ticket_number}: Save thread ID took {time.time() - save_start:.3f}s"
-                    )
+                    logger.info(f"Ticket {ticket.ticket_number}: Save thread ID took {time.time() - save_start:.3f}s")
 
                     # Add all linked team members to thread
                     from bot.utils import get_team_member_discord_ids
@@ -430,17 +404,16 @@ class DiscordQueueProcessor:
                             if member:
                                 await thread.add_user(member)
                         except Exception as e:
-                            logger.warning(
-                                f"Failed to add member {member_id} to thread: {e}"
-                            )
+                            logger.warning(f"Failed to add member {member_id} to thread: {e}")
                     logger.info(
-                        f"Ticket {ticket.ticket_number}: Add {len(team_member_ids)} members took {time.time() - add_start:.3f}s"
+                        f"Ticket {ticket.ticket_number}: Add {len(team_member_ids)} members "
+                        f"took {time.time() - add_start:.3f}s"
                     )
 
                     # Send initial message in thread with action buttons
                     from bot.ticket_dashboard import (
-                        format_ticket_embed,
                         TicketActionView,
+                        format_ticket_embed,
                     )
 
                     embed = format_ticket_embed(ticket)
@@ -452,29 +425,22 @@ class DiscordQueueProcessor:
                         embed=embed,
                         view=view,
                     )
-                    logger.info(
-                        f"Ticket {ticket.ticket_number}: Send message took {time.time() - send_start:.3f}s"
-                    )
+                    logger.info(f"Ticket {ticket.ticket_number}: Send message took {time.time() - send_start:.3f}s")
 
                     # Pin the ticket message to the thread
                     pin_start = time.time()
                     try:
                         await message.pin()
-                        logger.info(
-                            f"Ticket {ticket.ticket_number}: Pin message took {time.time() - pin_start:.3f}s"
-                        )
+                        logger.info(f"Ticket {ticket.ticket_number}: Pin message took {time.time() - pin_start:.3f}s")
                     except Exception as pin_error:
-                        logger.warning(
-                            f"Failed to pin ticket message in thread {thread.id}: {pin_error}"
-                        )
+                        logger.warning(f"Failed to pin ticket message in thread {thread.id}: {pin_error}")
 
                     logger.info(
-                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web (total: {time.time() - start_time:.3f}s)"
+                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web "
+                        f"(total: {time.time() - start_time:.3f}s)"
                     )
-            except Exception as e:
-                logger.error(
-                    f"Failed to create thread for ticket {ticket.ticket_number}: {e}"
-                )
+                except Exception as e:
+                    logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
         else:
             logger.warning(
                 f"Team {ticket.team.team_name} has no category, ticket will appear in dashboard without thread"
@@ -483,9 +449,7 @@ class DiscordQueueProcessor:
         # Always update dashboard, even if thread creation failed
         dashboard_start = time.time()
         await post_ticket_to_dashboard(self.bot, ticket)
-        logger.info(
-            f"Ticket {ticket.ticket_number}: Dashboard update took {time.time() - dashboard_start:.3f}s"
-        )
+        logger.info(f"Ticket {ticket.ticket_number}: Dashboard update took {time.time() - dashboard_start:.3f}s")
 
     async def _handle_post_comment(self, task: DiscordTask) -> None:
         """Handle posting a comment from web to Discord thread."""
@@ -512,15 +476,11 @@ class DiscordQueueProcessor:
             try:
                 thread = await self.bot.fetch_channel(ticket.discord_thread_id)
             except Exception as e:
-                raise ValueError(
-                    f"Could not find thread {ticket.discord_thread_id}: {e}"
-                )
+                raise ValueError(f"Could not find thread {ticket.discord_thread_id}: {e}") from e
 
         # Type guard for sendable channels
         if not isinstance(thread, (discord.TextChannel, discord.Thread)):
-            raise ValueError(
-                f"Channel {ticket.discord_thread_id} is not a text channel or thread"
-            )
+            raise TypeError(f"Channel {ticket.discord_thread_id} is not a text channel or thread")
 
         # Format message
         message_content = f"**{comment.author_name}**\n{comment.comment_text}"
@@ -536,9 +496,7 @@ class DiscordQueueProcessor:
 
         await save_message_id()
 
-        logger.info(
-            f"Posted comment {comment_id} to thread {thread.id} (message {message.id})"
-        )
+        logger.info(f"Posted comment {comment_id} to thread {thread.id} (message {message.id})")
 
     async def _handle_add_user_to_thread(self, task: DiscordTask) -> None:
         """Add a user to a Discord thread."""
@@ -554,11 +512,11 @@ class DiscordQueueProcessor:
             try:
                 thread = await self.bot.fetch_channel(thread_id)
             except Exception as e:
-                raise ValueError(f"Could not find thread {thread_id}: {e}")
+                raise ValueError(f"Could not find thread {thread_id}: {e}") from e
 
         # Type guard for threads
         if not isinstance(thread, discord.Thread):
-            raise ValueError(f"Channel {thread_id} is not a thread")
+            raise TypeError(f"Channel {thread_id} is not a thread")
 
         # Get user
         user = self.bot.get_user(discord_id)
@@ -566,7 +524,7 @@ class DiscordQueueProcessor:
             try:
                 user = await self.bot.fetch_user(discord_id)
             except Exception as e:
-                raise ValueError(f"Could not find user {discord_id}: {e}")
+                raise ValueError(f"Could not find user {discord_id}: {e}") from e
 
         # Add user to thread
         await thread.add_user(user)

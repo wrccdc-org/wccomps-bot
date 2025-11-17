@@ -1,11 +1,13 @@
 """Permission checking for Discord bot commands."""
 
-from typing import TypedDict
-import discord
-from team.models import DiscordLink
-from allauth.socialaccount.models import SocialAccount
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import TypedDict
+
+import discord
+from allauth.socialaccount.models import SocialAccount
+
+from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
 
@@ -32,23 +34,20 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
     """
     try:
         # Check cache first
-        now = datetime.now()
+        now = datetime.now(UTC)
         if discord_user_id in _permission_cache:
             cached = _permission_cache[discord_user_id]
             if cached["expires_at"] > now:
                 logger.debug(f"Permission cache hit for {discord_user_id}")
                 return cached["groups"]
-            else:
-                # Cache expired, remove it
-                del _permission_cache[discord_user_id]
+            # Cache expired, remove it
+            del _permission_cache[discord_user_id]
 
         # Use DiscordLink table for all permission checks
         # (Authentik API discord_id attribute is unreliable)
         try:
             logger.info(f"Checking DiscordLink table for {discord_user_id}")
-            discord_link = DiscordLink.objects.filter(
-                discord_id=discord_user_id, is_active=True
-            ).first()
+            discord_link = DiscordLink.objects.filter(discord_id=discord_user_id, is_active=True).first()
 
             if not discord_link:
                 logger.info(f"No DiscordLink found for {discord_user_id}")
@@ -66,27 +65,17 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
             ).first()
 
             if not social_account:
-                logger.warning(
-                    f"No SocialAccount found for authentik_username={discord_link.authentik_username}"
-                )
+                logger.warning(f"No SocialAccount found for authentik_username={discord_link.authentik_username}")
                 return []
 
-            logger.info(
-                f"Found SocialAccount for {discord_user_id}: user_id={social_account.user_id}"
-            )
+            logger.info(f"Found SocialAccount for {discord_user_id}: user_id={social_account.user_id}")
 
             # Groups are nested in id_token or userinfo from OIDC response
             # Check each location deterministically
             groups = []
-            if (
-                "id_token" in social_account.extra_data
-                and "groups" in social_account.extra_data["id_token"]
-            ):
+            if "id_token" in social_account.extra_data and "groups" in social_account.extra_data["id_token"]:
                 groups = social_account.extra_data["id_token"]["groups"]
-            elif (
-                "userinfo" in social_account.extra_data
-                and "groups" in social_account.extra_data["userinfo"]
-            ):
+            elif "userinfo" in social_account.extra_data and "groups" in social_account.extra_data["userinfo"]:
                 groups = social_account.extra_data["userinfo"]["groups"]
             elif "groups" in social_account.extra_data:
                 groups = social_account.extra_data["groups"]
@@ -95,7 +84,7 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
         except Exception as db_error:
             # If we're in async context, database queries won't work
             # Fall back to API-only permission checking
-            logger.error(f"Database query failed (likely async context): {db_error}")
+            logger.exception(f"Database query failed (likely async context): {db_error}")
             return []
 
         # Cache the result
@@ -106,9 +95,7 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
 
         return groups
     except Exception as e:
-        logger.warning(
-            f"Error getting Authentik groups for Discord user {discord_user_id}: {e}"
-        )
+        logger.warning(f"Error getting Authentik groups for Discord user {discord_user_id}: {e}")
         return []
 
 
@@ -136,7 +123,7 @@ async def is_admin_async(interaction: discord.Interaction) -> bool:
         authentik_groups = await get_authentik_groups_async(interaction.user.id)
         return "WCComps_Discord_Admin" in authentik_groups
     except Exception as e:
-        logger.error(f"Failed to check Authentik groups for admin permission: {e}")
+        logger.exception(f"Failed to check Authentik groups for admin permission: {e}")
         return False
 
 
@@ -154,9 +141,7 @@ async def can_manage_tickets_async(interaction: discord.Interaction) -> bool:
         authentik_groups = await get_authentik_groups_async(interaction.user.id)
         return "WCComps_Ticketing_Admin" in authentik_groups
     except Exception as e:
-        logger.error(
-            f"Failed to check Authentik groups for ticketing admin permission: {e}"
-        )
+        logger.exception(f"Failed to check Authentik groups for ticketing admin permission: {e}")
         return False
 
 
@@ -174,9 +159,7 @@ async def can_support_tickets_async(interaction: discord.Interaction) -> bool:
         authentik_groups = await get_authentik_groups_async(interaction.user.id)
         return "WCComps_Ticketing_Support" in authentik_groups
     except Exception as e:
-        logger.error(
-            f"Failed to check Authentik groups for ticketing support permission: {e}"
-        )
+        logger.exception(f"Failed to check Authentik groups for ticketing support permission: {e}")
         return False
 
 
@@ -194,7 +177,7 @@ async def is_gold_team_async(interaction: discord.Interaction) -> bool:
         authentik_groups = await get_authentik_groups_async(interaction.user.id)
         return "WCComps_GoldTeam" in authentik_groups
     except Exception as e:
-        logger.error(f"Failed to check Authentik groups for GoldTeam permission: {e}")
+        logger.exception(f"Failed to check Authentik groups for GoldTeam permission: {e}")
         return False
 
 
@@ -202,12 +185,11 @@ async def get_permission_level_async(interaction: discord.Interaction) -> str:
     """Get user's permission level for logging (async version)."""
     if await is_admin_async(interaction):
         return "admin"
-    elif await can_manage_tickets_async(interaction):
+    if await can_manage_tickets_async(interaction):
         return "ticketing_admin"
-    elif await can_support_tickets_async(interaction):
+    if await can_support_tickets_async(interaction):
         return "ticketing_support"
-    else:
-        return "none"
+    return "none"
 
 
 # Permission check functions for use with @app_commands.check()

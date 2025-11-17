@@ -1,22 +1,24 @@
 """Admin commands for team management."""
 
+import logging
+import re
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import logging
-import re
 from django.utils import timezone
-from core.models import AuditLog
-from team.models import Team, DiscordLink
-from bot.utils import (
-    log_to_ops_channel,
-    get_team_or_respond,
-    safe_remove_role,
-    remove_blueteam_role,
-)
-from bot.permissions import check_admin
-from bot.authentik_utils import generate_blueteam_password, reset_blueteam_password
+
 from bot.authentik_manager import AuthentikManager
+from bot.authentik_utils import generate_blueteam_password, reset_blueteam_password
+from bot.permissions import check_admin
+from bot.utils import (
+    get_team_or_respond,
+    log_to_ops_channel,
+    remove_blueteam_role,
+    safe_remove_role,
+)
+from core.models import AuditLog
+from team.models import DiscordLink, Team
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,7 @@ class AdminTeamsCog(commands.Cog):
     """Admin commands for team management."""
 
     # Create teams command group as class attribute
-    teams_group = app_commands.Group(
-        name="teams", description="Team management commands"
-    )
+    teams_group = app_commands.Group(name="teams", description="Team management commands")
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -56,20 +56,14 @@ class AdminTeamsCog(commands.Cog):
                 inline=False,
             )
         else:
-            embed.description = (
-                f"{len(team_statuses)} teams total (use /teams info for details)"
-            )
+            embed.description = f"{len(team_statuses)} teams total (use /teams info for details)"
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @teams_group.command(
-        name="info", description="[ADMIN] Get detailed info about a specific team"
-    )
+    @teams_group.command(name="info", description="[ADMIN] Get detailed info about a specific team")
     @app_commands.describe(team_number="Team number (1-50)")
     @app_commands.check(check_admin)
-    async def admin_team_info(
-        self, interaction: discord.Interaction, team_number: int
-    ) -> None:
+    async def admin_team_info(self, interaction: discord.Interaction, team_number: int) -> None:
         """Get detailed information about a team."""
         team = await get_team_or_respond(interaction, team_number)
         if not team:
@@ -77,26 +71,17 @@ class AdminTeamsCog(commands.Cog):
 
         member_count = await team.members.filter(is_active=True).acount()
         # Fetch all members
-        members = [
-            m async for m in team.members.filter(is_active=True).order_by("linked_at")
-        ]
+        members = [m async for m in team.members.filter(is_active=True).order_by("linked_at")]
 
-        embed = discord.Embed(
-            title=f"{team.team_name} Details", color=discord.Color.blue()
-        )
+        embed = discord.Embed(title=f"{team.team_name} Details", color=discord.Color.blue())
         embed.add_field(name="Team Number", value=f"#{team.team_number}", inline=True)
-        embed.add_field(
-            name="Members", value=f"{member_count}/{team.max_members}", inline=True
-        )
-        embed.add_field(
-            name="Authentik Group", value=team.authentik_group, inline=False
-        )
+        embed.add_field(name="Members", value=f"{member_count}/{team.max_members}", inline=True)
+        embed.add_field(name="Authentik Group", value=team.authentik_group, inline=False)
 
         if members:
             # Build member list, respecting Discord's 1024 char field limit
             member_lines = [
-                f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.authentik_username}`"
-                for m in members
+                f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.authentik_username}`" for m in members
             ]
 
             member_list = ""
@@ -114,9 +99,7 @@ class AdminTeamsCog(commands.Cog):
                 remaining = len(members) - shown_count
                 member_list += f"... and {remaining} more"
 
-            embed.add_field(
-                name="Team Members", value=member_list.strip(), inline=False
-            )
+            embed.add_field(name="Team Members", value=member_list.strip(), inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -124,18 +107,14 @@ class AdminTeamsCog(commands.Cog):
         name="unlink",
         description="[ADMIN] Unlink one or more Discord users from their teams",
     )
-    @app_commands.describe(
-        users="User mention(s), ID(s), or space-separated list of multiple users"
-    )
+    @app_commands.describe(users="User mention(s), ID(s), or space-separated list of multiple users")
     @app_commands.check(check_admin)
     async def admin_unlink(self, interaction: discord.Interaction, users: str) -> None:
         """Unlink one or more Discord users from their teams."""
         await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.followup.send(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.followup.send("This command must be used in a guild", ephemeral=True)
             return
 
         # Parse user IDs from the input string (mentions or raw IDs)
@@ -170,9 +149,7 @@ class AdminTeamsCog(commands.Cog):
 
                 # Check if user is linked
                 link = await (
-                    DiscordLink.objects.filter(discord_id=user_id, is_active=True)
-                    .select_related("team")
-                    .afirst()
+                    DiscordLink.objects.filter(discord_id=user_id, is_active=True).select_related("team").afirst()
                 )
 
                 if not link:
@@ -226,7 +203,7 @@ class AdminTeamsCog(commands.Cog):
                 success_count += 1
 
             except Exception as e:
-                logger.error(f"Error unlinking user {user_id}: {e}")
+                logger.exception(f"Error unlinking user {user_id}: {e}")
                 results.append(f"❌ User ID {user_id}: Error - {str(e)[:50]}")
                 error_count += 1
 
@@ -257,7 +234,8 @@ class AdminTeamsCog(commands.Cog):
             await interaction.followup.send(summary, ephemeral=True)
             await log_to_ops_channel(
                 self.bot,
-                f"Bulk Unlink: {interaction.user.mention} unlinked {success_count} user(s) (Processed: {len(user_ids)}, Failed: {error_count})",
+                f"Bulk Unlink: {interaction.user.mention} unlinked {success_count} user(s) "
+                f"(Processed: {len(user_ids)}, Failed: {error_count})",
             )
 
     @teams_group.command(
@@ -266,31 +244,23 @@ class AdminTeamsCog(commands.Cog):
     )
     @app_commands.describe(team_number="Team number (1-50)")
     @app_commands.check(check_admin)
-    async def admin_remove_team(
-        self, interaction: discord.Interaction, team_number: int
-    ) -> None:
+    async def admin_remove_team(self, interaction: discord.Interaction, team_number: int) -> None:
         """Remove a team's Discord infrastructure and unlink all members."""
         # Note: can't use get_team_or_respond here because we defer() before validation
         if team_number < 1 or team_number > 50:
-            await interaction.response.send_message(
-                "Team number must be between 1 and 50", ephemeral=True
-            )
+            await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
 
         team = await Team.objects.filter(team_number=team_number).afirst()
         if not team:
-            await interaction.followup.send(
-                f"Team {team_number} not found", ephemeral=True
-            )
+            await interaction.followup.send(f"Team {team_number} not found", ephemeral=True)
             return
 
         guild = interaction.guild
         if not guild:
-            await interaction.response.send_message(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
             return
 
         removed_items = []
@@ -338,9 +308,7 @@ class AdminTeamsCog(commands.Cog):
                 target_entity="discord_link",
                 target_id=link.discord_id,
                 details={
-                    "discord_username": str(member)
-                    if member
-                    else f"ID:{link.discord_id}",
+                    "discord_username": str(member) if member else f"ID:{link.discord_id}",
                     "team_name": team.team_name,
                     "authentik_username": link.authentik_username,
                     "reason": "team_removed",
@@ -354,32 +322,26 @@ class AdminTeamsCog(commands.Cog):
                 # Delete all channels in category first
                 for channel in category.channels:
                     try:
-                        await channel.delete(
-                            reason=f"Team {team_number} removed by {interaction.user}"
-                        )
+                        await channel.delete(reason=f"Team {team_number} removed by {interaction.user}")
                     except Exception as e:
-                        logger.error(f"Failed to delete channel {channel.name}: {e}")
+                        logger.exception(f"Failed to delete channel {channel.name}: {e}")
 
                 # Delete category
                 try:
-                    await category.delete(
-                        reason=f"Team {team_number} removed by {interaction.user}"
-                    )
+                    await category.delete(reason=f"Team {team_number} removed by {interaction.user}")
                     removed_items.append("category")
                 except Exception as e:
-                    logger.error(f"Failed to delete category: {e}")
+                    logger.exception(f"Failed to delete category: {e}")
 
         # Delete role
         if team.discord_role_id:
             role = guild.get_role(team.discord_role_id)
             if role:
                 try:
-                    await role.delete(
-                        reason=f"Team {team_number} removed by {interaction.user}"
-                    )
+                    await role.delete(reason=f"Team {team_number} removed by {interaction.user}")
                     removed_items.append("role")
                 except Exception as e:
-                    logger.error(f"Failed to delete role: {e}")
+                    logger.exception(f"Failed to delete role: {e}")
 
         # Clear Discord IDs from database
         team.discord_role_id = None
@@ -415,7 +377,7 @@ class AdminTeamsCog(commands.Cog):
 
     @teams_group.command(
         name="reset",
-        description="[ADMIN] Comprehensive team reset: unlink users, reset password, revoke sessions, recreate channels",
+        description="[ADMIN] Team reset: unlink users, reset password, revoke sessions, recreate channels",
     )
     @app_commands.describe(
         team_number="Team number (1-50)",
@@ -428,26 +390,20 @@ class AdminTeamsCog(commands.Cog):
         team_number: int,
         recreate_channels: bool = True,
     ) -> None:
-        """Comprehensive team reset: unlinks users, resets password, revokes sessions, and optionally recreates infrastructure."""
+        """Team reset: unlinks users, resets password, revokes sessions, and optionally recreates infrastructure."""
         if team_number < 1 or team_number > 50:
-            await interaction.response.send_message(
-                "Team number must be between 1 and 50", ephemeral=True
-            )
+            await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
 
         if not interaction.guild:
-            await interaction.followup.send(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.followup.send("This command must be used in a guild", ephemeral=True)
             return
 
         team = await Team.objects.filter(team_number=team_number).afirst()
         if not team:
-            await interaction.followup.send(
-                f"Team {team_number} not found", ephemeral=True
-            )
+            await interaction.followup.send(f"Team {team_number} not found", ephemeral=True)
             return
 
         results = []
@@ -490,9 +446,7 @@ class AdminTeamsCog(commands.Cog):
                 target_entity="discord_link",
                 target_id=link.discord_id,
                 details={
-                    "discord_username": str(member)
-                    if member
-                    else f"ID:{link.discord_id}",
+                    "discord_username": str(member) if member else f"ID:{link.discord_id}",
                     "team_name": team.team_name,
                     "authentik_username": link.authentik_username,
                     "reason": "team_reset",
@@ -505,9 +459,7 @@ class AdminTeamsCog(commands.Cog):
         from asgiref.sync import sync_to_async
 
         generated_password = generate_blueteam_password()
-        success, error = await sync_to_async(reset_blueteam_password)(
-            team_number, generated_password
-        )
+        success, error = await sync_to_async(reset_blueteam_password)(team_number, generated_password)
         new_password = None
         if success:
             results.append("✓ Reset Authentik password")
@@ -518,9 +470,9 @@ class AdminTeamsCog(commands.Cog):
         # Step 3: Revoke all sessions
         auth_manager = AuthentikManager()
         username = f"team{team_number:02d}"
-        session_success, session_error, sessions_revoked = await sync_to_async(
-            auth_manager.revoke_user_sessions
-        )(username)
+        session_success, session_error, sessions_revoked = await sync_to_async(auth_manager.revoke_user_sessions)(
+            username
+        )
         if session_success:
             results.append(f"✓ Revoked {sessions_revoked} active session(s)")
         else:
@@ -537,33 +489,25 @@ class AdminTeamsCog(commands.Cog):
                 if category and isinstance(category, discord.CategoryChannel):
                     for channel in category.channels:
                         try:
-                            await channel.delete(
-                                reason=f"Team {team_number} reset by {interaction.user}"
-                            )
+                            await channel.delete(reason=f"Team {team_number} reset by {interaction.user}")
                         except Exception as e:
-                            logger.error(
-                                f"Failed to delete channel {channel.name}: {e}"
-                            )
+                            logger.exception(f"Failed to delete channel {channel.name}: {e}")
 
                     try:
-                        await category.delete(
-                            reason=f"Team {team_number} reset by {interaction.user}"
-                        )
+                        await category.delete(reason=f"Team {team_number} reset by {interaction.user}")
                         deleted_items.append("category")
                     except Exception as e:
-                        logger.error(f"Failed to delete category: {e}")
+                        logger.exception(f"Failed to delete category: {e}")
 
             # Delete role
             if team.discord_role_id:
                 role = guild.get_role(team.discord_role_id)
                 if role:
                     try:
-                        await role.delete(
-                            reason=f"Team {team_number} reset by {interaction.user}"
-                        )
+                        await role.delete(reason=f"Team {team_number} reset by {interaction.user}")
                         deleted_items.append("role")
                     except Exception as e:
-                        logger.error(f"Failed to delete role: {e}")
+                        logger.exception(f"Failed to delete role: {e}")
 
             # Clear Discord IDs
             team.discord_role_id = None
@@ -577,14 +521,10 @@ class AdminTeamsCog(commands.Cog):
             from bot.discord_manager import DiscordManager
 
             discord_manager = DiscordManager(guild, self.bot)
-            role, category = await discord_manager.setup_team_infrastructure(
-                team_number
-            )
+            role, category = await discord_manager.setup_team_infrastructure(team_number)
 
             if role and category:
-                results.append(
-                    f"✓ Recreated role and category with {len(category.channels)} channels"
-                )
+                results.append(f"✓ Recreated role and category with {len(category.channels)} channels")
             elif role:
                 results.append("✓ Recreated role (category creation failed)")
             elif category:

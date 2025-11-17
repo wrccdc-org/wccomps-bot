@@ -3,10 +3,12 @@
 from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
+
 import pytest
-from bot.cogs.linking import LinkingCog
-from team.models import DiscordLink, LinkToken, LinkRateLimit, Team
 from django.utils import timezone
+
+from bot.cogs.linking import LinkingCog
+from team.models import DiscordLink, LinkRateLimit, LinkToken, Team
 
 
 @pytest.mark.asyncio
@@ -14,9 +16,7 @@ from django.utils import timezone
 class TestLinkTokenGeneration:
     """Test link token generation via /link command."""
 
-    async def test_link_command_generates_token(
-        self, mock_interaction: Any, mock_bot: Any
-    ) -> None:
+    async def test_link_command_generates_token(self, mock_interaction: Any, mock_bot: Any) -> None:
         """Test that /link command creates valid token."""
         cog = LinkingCog(mock_bot)
 
@@ -28,9 +28,7 @@ class TestLinkTokenGeneration:
         mock_interaction.response.send_message.assert_called_once()
 
         # Verify token was created
-        token = await LinkToken.objects.filter(
-            discord_id=mock_interaction.user.id
-        ).afirst()
+        token = await LinkToken.objects.filter(discord_id=mock_interaction.user.id).afirst()
         assert token is not None
         assert token.discord_username == str(mock_interaction.user)
         assert not token.used
@@ -42,9 +40,7 @@ class TestLinkTokenGeneration:
         assert embed is not None
         assert f"token={token.token}" in embed.description
 
-    async def test_link_command_already_linked(
-        self, mock_interaction: Any, mock_bot: Any
-    ) -> None:
+    async def test_link_command_already_linked(self, mock_interaction: Any, mock_bot: Any) -> None:
         """Test that /link command rejects already linked users."""
         team = await Team.objects.acreate(
             team_number=10,
@@ -67,9 +63,7 @@ class TestLinkTokenGeneration:
         call_args = mock_interaction.response.send_message.call_args
         assert "already linked" in call_args.args[0].lower()
 
-    async def test_link_command_rate_limiting(
-        self, mock_interaction: Any, mock_bot: Any
-    ) -> None:
+    async def test_link_command_rate_limiting(self, mock_interaction: Any, mock_bot: Any) -> None:
         """Test that /link command enforces rate limiting."""
         # Create 5 recent link attempts (limit is 5 per hour)
         for _ in range(5):
@@ -82,9 +76,7 @@ class TestLinkTokenGeneration:
         call_args = mock_interaction.response.send_message.call_args
         assert "rate limit" in call_args.args[0].lower()
 
-    async def test_link_command_with_orphaned_link(
-        self, mock_interaction: Any, mock_bot: Any
-    ) -> None:
+    async def test_link_command_with_orphaned_link(self, mock_interaction: Any, mock_bot: Any) -> None:
         """Test that /link command allows relinking when user has orphaned link (no team)."""
         # Create orphaned link (linked but no team)
         discord_id = mock_interaction.user.id
@@ -147,9 +139,7 @@ class TestLinkTokenValidation:
         )
 
         # Attempting to get unused token should fail
-        unused_token = await LinkToken.objects.filter(
-            token=token.token, used=False
-        ).afirst()
+        unused_token = await LinkToken.objects.filter(token=token.token, used=False).afirst()
         assert unused_token is None
 
 
@@ -195,9 +185,7 @@ class TestDiscordLinkCreation:
 
         # Check that attempting to link same Discord ID again finds existing link
         existing_link = (
-            await DiscordLink.objects.filter(discord_id=444444444, is_active=True)
-            .select_related("team")
-            .afirst()
+            await DiscordLink.objects.filter(discord_id=444444444, is_active=True).select_related("team").afirst()
         )
         assert existing_link is not None
         assert existing_link.team == team

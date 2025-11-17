@@ -1,9 +1,11 @@
 """Wipe all competition data (nuclear option)."""
 
 from typing import Any
+
 from django.core.management.base import BaseCommand, CommandParser
-from core.models import AuditLog, DiscordTask, BotState, DashboardUpdate
-from team.models import Team, DiscordLink, LinkToken, LinkAttempt
+
+from core.models import AuditLog, BotState, DashboardUpdate, DiscordTask
+from team.models import DiscordLink, LinkAttempt, LinkToken, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
 
@@ -20,10 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         if not options["confirm"]:
             self.stdout.write(
-                self.style.ERROR(
-                    "This command will DELETE ALL competition data!\n"
-                    "Run with --confirm to proceed."
-                )
+                self.style.ERROR("This command will DELETE ALL competition data!\nRun with --confirm to proceed.")
             )
             return
 

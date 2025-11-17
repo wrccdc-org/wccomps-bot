@@ -1,25 +1,27 @@
 """Admin commands for competition and account management."""
 
+import csv
+import io
+import logging
+import re
+from typing import Any
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import logging
-import re
-import csv
-import io
-from typing import Any, Optional
 from django.conf import settings
 from django.utils import timezone
-from core.models import AuditLog, CompetitionConfig
-from team.models import Team, DiscordLink
-from bot.utils import log_to_ops_channel
+
 from bot.authentik_utils import (
-    toggle_all_blueteam_accounts,
     generate_blueteam_password,
-    reset_blueteam_password,
     parse_team_range,
+    reset_blueteam_password,
+    toggle_all_blueteam_accounts,
 )
 from bot.permissions import check_admin
+from bot.utils import log_to_ops_channel
+from core.models import AuditLog, CompetitionConfig
+from team.models import DiscordLink, Team
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +38,7 @@ class AdminCompetitionCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @competition_group.command(
-        name="end-competition", description="[ADMIN] End competition and cleanup"
-    )
+    @competition_group.command(name="end-competition", description="[ADMIN] End competition and cleanup")
     @app_commands.check(check_admin)
     async def admin_end_competition(self, interaction: discord.Interaction) -> None:
         """End competition: clear channels, remove roles, deactivate links."""
@@ -50,9 +50,7 @@ class AdminCompetitionCog(commands.Cog):
             ephemeral=True,
         )
 
-        logger.info(
-            f"admin_end_competition: Sent initial response to {interaction.user.id}"
-        )
+        logger.info(f"admin_end_competition: Sent initial response to {interaction.user.id}")
 
         async def cleanup() -> None:
             try:
@@ -65,9 +63,9 @@ class AdminCompetitionCog(commands.Cog):
                 # Get all links to deactivate
                 links_to_deactivate = [
                     link
-                    async for link in DiscordLink.objects.filter(
-                        is_active=True, team__isnull=False
-                    ).select_related("team")
+                    async for link in DiscordLink.objects.filter(is_active=True, team__isnull=False).select_related(
+                        "team"
+                    )
                 ]
 
                 # Deactivate each link individually and create audit log
@@ -86,24 +84,18 @@ class AdminCompetitionCog(commands.Cog):
                         target_id=link.discord_id,
                         details={
                             "discord_id": link.discord_id,
-                            "team_name": link.team.team_name
-                            if link.team
-                            else "Unknown",
+                            "team_name": link.team.team_name if link.team else "Unknown",
                             "authentik_username": link.authentik_username,
                             "reason": "competition_ended",
                         },
                     )
 
-                await log_to_ops_channel(
-                    self.bot, f"Deactivated {deactivated} team member links"
-                )
+                await log_to_ops_channel(self.bot, f"Deactivated {deactivated} team member links")
 
                 # Delete ALL team categories/channels (including Team 01)
                 guild = interaction.guild
                 if not guild:
-                    await interaction.followup.send(
-                        "Error: Guild not found", ephemeral=True
-                    )
+                    await interaction.followup.send("Error: Guild not found", ephemeral=True)
                     return
 
                 deleted_count = 0
@@ -118,23 +110,17 @@ class AdminCompetitionCog(commands.Cog):
                             deleted_count += 1
                             logger.info(f"Deleted {category.name}")
                         except Exception as e:
-                            logger.error(f"Failed to delete {category.name}: {e}")
+                            logger.exception(f"Failed to delete {category.name}: {e}")
 
-                await log_to_ops_channel(
-                    self.bot, f"Deleted {deleted_count} team categories"
-                )
+                await log_to_ops_channel(self.bot, f"Deleted {deleted_count} team categories")
 
                 from bot.discord_manager import DiscordManager
 
                 discord_manager = DiscordManager(guild, self.bot)
                 removed_count = await discord_manager.remove_all_team_roles()
-                await log_to_ops_channel(
-                    self.bot, f"Removed roles from {removed_count} members"
-                )
+                await log_to_ops_channel(self.bot, f"Removed roles from {removed_count} members")
 
-                await Team.objects.all().aupdate(
-                    discord_category_id=None, discord_role_id=None
-                )
+                await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
                 # Clear competition config to prevent auto-start/end on restart
                 config = await CompetitionConfig.objects.afirst()
@@ -146,9 +132,7 @@ class AdminCompetitionCog(commands.Cog):
 
                 # Disable all team accounts in Authentik
                 if settings.AUTHENTIK_TOKEN:
-                    disabled_count, failed_count = await toggle_all_blueteam_accounts(
-                        is_active=False
-                    )
+                    disabled_count, failed_count = await toggle_all_blueteam_accounts(is_active=False)
                     msg = f"Disabled {disabled_count} team accounts"
                     if failed_count > 0:
                         msg += f" ({failed_count} failed)"
@@ -178,7 +162,7 @@ class AdminCompetitionCog(commands.Cog):
                     f"• Disabled {disabled_count} team accounts",
                 )
             except Exception as e:
-                logger.error(f"Cleanup error: {e}")
+                logger.exception(f"Cleanup error: {e}")
                 await log_to_ops_channel(self.bot, f"Cleanup Error: {e}")
 
         self.bot.loop.create_task(cleanup())
@@ -189,7 +173,7 @@ class AdminCompetitionCog(commands.Cog):
     )
     @app_commands.check(check_admin)
     async def admin_reset_blueteam_passwords(
-        self, interaction: discord.Interaction, team_numbers: Optional[str] = None
+        self, interaction: discord.Interaction, team_numbers: str | None = None
     ) -> None:
         """Reset passwords for blueteam accounts and export CSV.
 
@@ -199,9 +183,7 @@ class AdminCompetitionCog(commands.Cog):
         """
 
         if not settings.AUTHENTIK_TOKEN:
-            await interaction.response.send_message(
-                "Error: AUTHENTIK_TOKEN not configured in settings", ephemeral=True
-            )
+            await interaction.response.send_message("Error: AUTHENTIK_TOKEN not configured in settings", ephemeral=True)
             return
 
         # If resetting all 50 teams, require confirmation
@@ -233,9 +215,7 @@ class AdminCompetitionCog(commands.Cog):
                 ) -> None:
                     self.confirmed = False
                     self.stop()
-                    await button_interaction.response.send_message(
-                        "Password reset cancelled.", ephemeral=True
-                    )
+                    await button_interaction.response.send_message("Password reset cancelled.", ephemeral=True)
 
             view = PasswordResetConfirmView()
             await interaction.response.send_message(
@@ -254,9 +234,7 @@ class AdminCompetitionCog(commands.Cog):
             if not view.confirmed:
                 return
 
-            await interaction.followup.send(
-                "Resetting all 50 team passwords...", ephemeral=True
-            )
+            await interaction.followup.send("Resetting all 50 team passwords...", ephemeral=True)
         else:
             await interaction.response.defer(ephemeral=True)
 
@@ -282,9 +260,7 @@ class AdminCompetitionCog(commands.Cog):
         # Reset passwords in Authentik
         failed_resets = []
         for team_num, username, password in password_list:
-            success, error = await sync_to_async(reset_blueteam_password)(
-                team_num, password
-            )
+            success, error = await sync_to_async(reset_blueteam_password)(team_num, password)
             if not success:
                 failed_resets.append((username, error))
 
@@ -293,7 +269,7 @@ class AdminCompetitionCog(commands.Cog):
         writer = csv.writer(csv_buffer)
         writer.writerow(["Username", "Password"])
 
-        for team_num, username, password in password_list:
+        for _team_num, username, password in password_list:
             writer.writerow([username, password])
 
         csv_buffer.seek(0)
@@ -330,9 +306,7 @@ class AdminCompetitionCog(commands.Cog):
         )
 
         success_count = team_count - len(failed_resets)
-        result_msg = (
-            f"Password reset complete\n• Success: {success_count}/{team_count}\n"
-        )
+        result_msg = f"Password reset complete\n• Success: {success_count}/{team_count}\n"
         if failed_resets:
             result_msg += f"• Failed: {len(failed_resets)}/{team_count}\n"
         result_msg += "\nCSV file attached with all credentials."
@@ -343,9 +317,7 @@ class AdminCompetitionCog(commands.Cog):
             ephemeral=True,
         )
 
-        logger.info(
-            f"Password reset performed by {interaction.user}. Failed: {len(failed_resets)}"
-        )
+        logger.info(f"Password reset performed by {interaction.user}. Failed: {len(failed_resets)}")
 
     @competition_group.command(
         name="toggle-blueteams",
@@ -359,14 +331,10 @@ class AdminCompetitionCog(commands.Cog):
         ]
     )
     @app_commands.check(check_admin)
-    async def admin_toggle_blueteams(
-        self, interaction: discord.Interaction, action: app_commands.Choice[str]
-    ) -> None:
+    async def admin_toggle_blueteams(self, interaction: discord.Interaction, action: app_commands.Choice[str]) -> None:
         """Enable or disable all blue team accounts in Authentik."""
         if not settings.AUTHENTIK_TOKEN:
-            await interaction.response.send_message(
-                "Error: AUTHENTIK_TOKEN not configured in settings", ephemeral=True
-            )
+            await interaction.response.send_message("Error: AUTHENTIK_TOKEN not configured in settings", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -403,35 +371,22 @@ class AdminCompetitionCog(commands.Cog):
         # Send response
         message = f"✅ {action_capitalized} {success_count}/50 blue team accounts"
         if failed_count > 0:
-            message += (
-                f"\n❌ Failed: {failed_count}/50\n\nCheck logs for error details."
-            )
+            message += f"\n❌ Failed: {failed_count}/50\n\nCheck logs for error details."
 
         await interaction.followup.send(message, ephemeral=True)
 
-        logger.info(
-            f"Blue team accounts {action_past} by {interaction.user}. Failed: {failed_count}"
-        )
+        logger.info(f"Blue team accounts {action_past} by {interaction.user}. Failed: {failed_count}")
 
-    @competition_group.command(
-        name="set-max-members", description="[ADMIN] Set maximum team members globally"
-    )
+    @competition_group.command(name="set-max-members", description="[ADMIN] Set maximum team members globally")
     @app_commands.describe(max_members="Maximum members per team (1-20)")
     @app_commands.check(check_admin)
-    async def admin_set_max_members(
-        self, interaction: discord.Interaction, max_members: int
-    ) -> None:
+    async def admin_set_max_members(self, interaction: discord.Interaction, max_members: int) -> None:
         """Set global maximum team members."""
         if max_members < 1 or max_members > 20:
-            await interaction.response.send_message(
-                "Maximum members must be between 1 and 20.", ephemeral=True
-            )
+            await interaction.response.send_message("Maximum members must be between 1 and 20.", ephemeral=True)
             return
 
-        config = (
-            await CompetitionConfig.objects.afirst()
-            or await CompetitionConfig.objects.acreate()
-        )
+        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
         old_max = config.max_team_members
         config.max_team_members = max_members
         await config.asave()
@@ -454,9 +409,7 @@ class AdminCompetitionCog(commands.Cog):
         # Log to ops
         await log_to_ops_channel(
             self.bot,
-            f"Max Team Members Updated by {interaction.user.mention}\n"
-            f"• Old: {old_max}\n"
-            f"• New: {max_members}",
+            f"Max Team Members Updated by {interaction.user.mention}\n• Old: {old_max}\n• New: {max_members}",
         )
 
         await interaction.response.send_message(
@@ -494,11 +447,18 @@ class AdminCompetitionCog(commands.Cog):
         from zoneinfo import ZoneInfo
 
         try:
-            # Parse datetime string as naive
-            naive_time = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            # Parse and validate format
+            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
 
-            # Apply the specified timezone
-            local_time = naive_time.replace(tzinfo=ZoneInfo(timezone_name))
+            # Construct timezone-aware datetime from parsed components
+            local_time = datetime(
+                dt.year,
+                dt.month,
+                dt.day,
+                dt.hour,
+                dt.minute,
+                tzinfo=ZoneInfo(timezone_name),
+            )
 
             # Convert to UTC for storage
             start_time = local_time.astimezone(ZoneInfo("UTC"))
@@ -517,10 +477,7 @@ class AdminCompetitionCog(commands.Cog):
             return
 
         # Get or create config
-        config = (
-            await CompetitionConfig.objects.afirst()
-            or await CompetitionConfig.objects.acreate()
-        )
+        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
 
         # Set default controlled applications if not already set
         if not config.controlled_applications:
@@ -588,11 +545,18 @@ class AdminCompetitionCog(commands.Cog):
         from zoneinfo import ZoneInfo
 
         try:
-            # Parse datetime string as naive
-            naive_time = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+            # Parse and validate format
+            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
 
-            # Apply the specified timezone
-            local_time = naive_time.replace(tzinfo=ZoneInfo(timezone_name))
+            # Construct timezone-aware datetime from parsed components
+            local_time = datetime(
+                dt.year,
+                dt.month,
+                dt.day,
+                dt.hour,
+                dt.minute,
+                tzinfo=ZoneInfo(timezone_name),
+            )
 
             # Convert to UTC for storage
             end_time = local_time.astimezone(ZoneInfo("UTC"))
@@ -611,10 +575,7 @@ class AdminCompetitionCog(commands.Cog):
             return
 
         # Get or create config
-        config = (
-            await CompetitionConfig.objects.afirst()
-            or await CompetitionConfig.objects.acreate()
-        )
+        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
 
         # Set default controlled applications if not already set
         if not config.controlled_applications:
@@ -661,10 +622,7 @@ class AdminCompetitionCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
-        config = (
-            await CompetitionConfig.objects.afirst()
-            or await CompetitionConfig.objects.acreate()
-        )
+        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
 
         if not config.controlled_applications:
             await interaction.followup.send(
@@ -691,9 +649,7 @@ class AdminCompetitionCog(commands.Cog):
 
         # Build result message with detailed errors
         success_apps = [app for app, (success, _) in app_results.items() if success]
-        failed_apps = [
-            (app, error) for app, (success, error) in app_results.items() if not success
-        ]
+        failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
 
         # Create audit log with detailed results
         await AuditLog.objects.acreate(
@@ -707,7 +663,7 @@ class AdminCompetitionCog(commands.Cog):
                 "apps_failed_count": len(failed_apps),
                 "accounts_enabled": enabled_count,
                 "accounts_failed": failed_count,
-                "errors": {app: error for app, error in failed_apps},
+                "errors": dict(failed_apps),
             },
         )
 
@@ -736,28 +692,19 @@ class AdminCompetitionCog(commands.Cog):
         name="set-apps",
         description="[ADMIN] Set which Authentik applications to control",
     )
-    @app_commands.describe(
-        app_slugs="Comma-separated list of application slugs (e.g., netbird,scoring)"
-    )
+    @app_commands.describe(app_slugs="Comma-separated list of application slugs (e.g., netbird,scoring)")
     @app_commands.check(check_admin)
-    async def admin_competition_set_apps(
-        self, interaction: discord.Interaction, app_slugs: str
-    ) -> None:
+    async def admin_competition_set_apps(self, interaction: discord.Interaction, app_slugs: str) -> None:
         """Set which applications to control."""
 
         # Parse slugs
         slugs = [s.strip() for s in app_slugs.split(",") if s.strip()]
 
         if not slugs:
-            await interaction.response.send_message(
-                "Please provide at least one application slug.", ephemeral=True
-            )
+            await interaction.response.send_message("Please provide at least one application slug.", ephemeral=True)
             return
 
-        config = (
-            await CompetitionConfig.objects.afirst()
-            or await CompetitionConfig.objects.acreate()
-        )
+        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
         config.controlled_applications = slugs
         await config.asave()
 
@@ -775,13 +722,10 @@ class AdminCompetitionCog(commands.Cog):
         # Log to ops
         await log_to_ops_channel(
             self.bot,
-            f"Competition Applications Configured by {interaction.user.mention}\n"
-            f"• Applications: {', '.join(slugs)}",
+            f"Competition Applications Configured by {interaction.user.mention}\n• Applications: {', '.join(slugs)}",
         )
 
-        await interaction.response.send_message(
-            f"Controlled applications set to: {', '.join(slugs)}", ephemeral=True
-        )
+        await interaction.response.send_message(f"Controlled applications set to: {', '.join(slugs)}", ephemeral=True)
 
     @competition_group.command(
         name="broadcast",
@@ -792,18 +736,14 @@ class AdminCompetitionCog(commands.Cog):
         message="Message to broadcast",
     )
     @app_commands.check(check_admin)
-    async def admin_broadcast(
-        self, interaction: discord.Interaction, target: str, message: str
-    ) -> None:
+    async def admin_broadcast(self, interaction: discord.Interaction, target: str, message: str) -> None:
         """Broadcast a message to announcement channel or team channels."""
 
         await interaction.response.defer(ephemeral=True)
 
         guild = interaction.guild
         if not guild:
-            await interaction.followup.send(
-                "This command must be used in a guild", ephemeral=True
-            )
+            await interaction.followup.send("This command must be used in a guild", ephemeral=True)
             return
 
         target_lower = target.lower().strip()
@@ -834,28 +774,18 @@ class AdminCompetitionCog(commands.Cog):
                 # Log to ops
                 await log_to_ops_channel(
                     self.bot,
-                    f"Broadcast to Announcements by {interaction.user.mention}\n"
-                    f"Message: {message[:100]}...",
+                    f"Broadcast to Announcements by {interaction.user.mention}\nMessage: {message[:100]}...",
                 )
 
-                await interaction.followup.send(
-                    "Broadcast sent to announcements channel", ephemeral=True
-                )
+                await interaction.followup.send("Broadcast sent to announcements channel", ephemeral=True)
             except Exception as e:
-                logger.error(f"Failed to broadcast to announcements: {e}")
-                await interaction.followup.send(
-                    f"Failed to send broadcast: {e}", ephemeral=True
-                )
+                logger.exception(f"Failed to broadcast to announcements: {e}")
+                await interaction.followup.send(f"Failed to send broadcast: {e}", ephemeral=True)
             return
 
-        elif target_lower == "all-teams":
+        if target_lower == "all-teams":
             # Broadcast to all team chat channels
-            teams = [
-                t
-                async for t in Team.objects.filter(is_active=True).order_by(
-                    "team_number"
-                )
-            ]
+            teams = [t async for t in Team.objects.filter(is_active=True).order_by("team_number")]
             team_numbers = [t.team_number for t in teams]
 
         else:
@@ -890,35 +820,26 @@ class AdminCompetitionCog(commands.Cog):
 
                 category = guild.get_channel(team.discord_category_id)
                 if not category or not isinstance(category, discord.CategoryChannel):
-                    failed_channels.append(
-                        f"Team {team_number:02d} (category not found)"
-                    )
+                    failed_channels.append(f"Team {team_number:02d} (category not found)")
                     continue
 
                 # Find chat channel in category
                 chat_channel = None
                 for channel in category.channels:
-                    if (
-                        isinstance(channel, discord.TextChannel)
-                        and "chat" in channel.name.lower()
-                    ):
+                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
                         chat_channel = channel
                         break
 
                 if not chat_channel:
-                    failed_channels.append(
-                        f"Team {team_number:02d} (chat channel not found)"
-                    )
+                    failed_channels.append(f"Team {team_number:02d} (chat channel not found)")
                     continue
 
                 # Send message
-                await chat_channel.send(
-                    f"**Announcement from {interaction.user.name}:**\n\n{message}"
-                )
+                await chat_channel.send(f"**Announcement from {interaction.user.name}:**\n\n{message}")
                 sent_count += 1
 
             except Exception as e:
-                logger.error(f"Failed to broadcast to team {team_number}: {e}")
+                logger.exception(f"Failed to broadcast to team {team_number}: {e}")
                 failed_channels.append(f"Team {team_number:02d} ({str(e)[:50]})")
                 continue
 
@@ -953,9 +874,7 @@ class AdminCompetitionCog(commands.Cog):
         if failed_channels:
             result_msg += f"\n• Failed: {len(failed_channels)}"
             if len(failed_channels) <= 10:
-                result_msg += "\n\nFailed channels:\n" + "\n".join(
-                    [f"• {fc}" for fc in failed_channels]
-                )
+                result_msg += "\n\nFailed channels:\n" + "\n".join([f"• {fc}" for fc in failed_channels])
             else:
                 result_msg += "\n\nFailed channels (first 10):\n" + "\n".join(
                     [f"• {fc}" for fc in failed_channels[:10]]

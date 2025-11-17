@@ -1,11 +1,13 @@
 """Ticket dashboard management for #ticket-queue channel."""
 
-from typing import Optional, Any, cast
-import discord
 import logging
+from typing import Any, cast
+
+import discord
 from django.utils import timezone
-from ticketing.models import Ticket
+
 from core.tickets_config import TICKET_CATEGORIES
+from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,7 @@ def get_ticket_color(status: str) -> discord.Color:
         "open": discord.Color.red(),
         "claimed": discord.Color.orange(),
         "resolved": discord.Color.green(),
-        "cancelled": discord.Color.dark_gray(),  # type: ignore[misc]
+        "cancelled": discord.Color.dark_grey(),
     }
     return colors.get(status, discord.Color.default())
 
@@ -100,7 +102,7 @@ async def update_ticket_dashboard(bot: Any, ticket: Ticket) -> None:
 class TicketActionView(discord.ui.View):
     """Action buttons for ticket dashboard."""
 
-    def __init__(self, ticket_id: int, thread_url: Optional[str] = None) -> None:
+    def __init__(self, ticket_id: int, thread_url: str | None = None) -> None:
         super().__init__(timeout=None)
         self.ticket_id = ticket_id
 
@@ -115,9 +117,7 @@ class TicketActionView(discord.ui.View):
                 )
             )
 
-    async def _get_ticket_id_from_interaction(
-        self, interaction: discord.Interaction
-    ) -> Optional[int]:
+    async def _get_ticket_id_from_interaction(self, interaction: discord.Interaction) -> int | None:
         """Extract ticket ID from interaction message or instance variable."""
         import re
 
@@ -134,9 +134,7 @@ class TicketActionView(discord.ui.View):
                 if match:
                     ticket_number = match.group(1).strip()
                     # Look up ticket by ticket_number
-                    ticket = await Ticket.objects.filter(
-                        ticket_number=ticket_number
-                    ).afirst()
+                    ticket = await Ticket.objects.filter(ticket_number=ticket_number).afirst()
                     if ticket:
                         return ticket.id
 
@@ -148,9 +146,7 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_claim_persistent",
         row=1,
     )
-    async def claim_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
 
@@ -183,9 +179,7 @@ class TicketActionView(discord.ui.View):
         )
 
         if error or ticket is None:
-            await interaction.response.send_message(
-                error or "Failed to claim ticket.", ephemeral=True
-            )
+            await interaction.response.send_message(error or "Failed to claim ticket.", ephemeral=True)
             return
 
         # Update dashboard
@@ -196,15 +190,11 @@ class TicketActionView(discord.ui.View):
             try:
                 thread = interaction.client.get_channel(ticket.discord_thread_id)
                 if not thread:
-                    thread = await interaction.client.fetch_channel(
-                        ticket.discord_thread_id
-                    )
+                    thread = await interaction.client.fetch_channel(ticket.discord_thread_id)
                 if thread and isinstance(thread, discord.Thread):
                     await thread.add_user(interaction.user)
             except Exception as e:
-                logger.warning(
-                    f"Failed to add user {interaction.user.id} to thread {ticket.discord_thread_id}: {e}"
-                )
+                logger.warning(f"Failed to add user {interaction.user.id} to thread {ticket.discord_thread_id}: {e}")
 
         await interaction.response.send_message(
             f"You have claimed ticket {ticket.ticket_number}.",
@@ -217,9 +207,7 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_resolve_persistent",
         row=1,
     )
-    async def resolve_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def resolve_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
         """Show resolve modal with category dropdown and notes."""
         from bot.permissions import can_support_tickets_async
 
@@ -247,9 +235,7 @@ class TicketActionView(discord.ui.View):
             return
 
         if ticket.status == "resolved":
-            await interaction.response.send_message(
-                "This ticket is already resolved.", ephemeral=True
-            )
+            await interaction.response.send_message("This ticket is already resolved.", ephemeral=True)
             return
 
         # Show resolve modal
@@ -262,13 +248,12 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_cancel_persistent",
         row=2,
     )
-    async def cancel_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
         """Cancel an unclaimed ticket (team members only)."""
+        from asgiref.sync import sync_to_async
+
         from team.models import DiscordLink
         from ticketing.models import TicketHistory
-        from asgiref.sync import sync_to_async
 
         # Extract ticket_id from message embed or instance variable
         ticket_id = await self._get_ticket_id_from_interaction(interaction)
@@ -281,35 +266,27 @@ class TicketActionView(discord.ui.View):
 
         # Check if user is linked to a team
         @sync_to_async
-        def get_team_link() -> Optional[DiscordLink]:
+        def get_team_link() -> DiscordLink | None:
             return (
-                DiscordLink.objects.filter(
-                    discord_id=interaction.user.id, is_active=True
-                )
+                DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
                 .select_related("team")
                 .first()
             )
 
         link = await get_team_link()
         if not link or not link.team:
-            await interaction.response.send_message(
-                "You must be linked to a team to cancel tickets.", ephemeral=True
-            )
+            await interaction.response.send_message("You must be linked to a team to cancel tickets.", ephemeral=True)
             return
 
         # Get ticket
-        ticket = (
-            await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
-        )
+        ticket = await Ticket.objects.select_related("team").filter(id=ticket_id).afirst()
         if not ticket:
             await interaction.response.send_message("Ticket not found.", ephemeral=True)
             return
 
         # Verify ticket belongs to user's team
         if ticket.team.id != link.team.id:
-            await interaction.response.send_message(
-                "This ticket does not belong to your team.", ephemeral=True
-            )
+            await interaction.response.send_message("This ticket does not belong to your team.", ephemeral=True)
             return
 
         # Only allow cancellation if unclaimed
@@ -403,9 +380,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
             try:
                 points_override = int(self.points.value.strip())
             except ValueError:
-                await interaction.response.send_message(
-                    "Invalid point value. Must be a number.", ephemeral=True
-                )
+                await interaction.response.send_message("Invalid point value. Must be a number.", ephemeral=True)
                 return
 
             # Validate range for variable categories
@@ -432,9 +407,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         )
 
         if error or ticket is None:
-            await interaction.response.send_message(
-                error or "Failed to resolve ticket.", ephemeral=True
-            )
+            await interaction.response.send_message(error or "Failed to resolve ticket.", ephemeral=True)
             return
 
         # Update dashboard

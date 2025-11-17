@@ -16,8 +16,10 @@ Including another URLconf
 """
 
 import os
+
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+
 from core import views
 
 # Check if ticketing is enabled (default: False, using external system)
@@ -55,9 +57,7 @@ if TICKETING_ENABLED:
             views.ticket_comment,
             name="ticket_comment",
         ),
-        path(
-            "tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"
-        ),
+        path("tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"),
         path(
             "tickets/<int:ticket_id>/attachment/upload/",
             views.ticket_attachment_upload,

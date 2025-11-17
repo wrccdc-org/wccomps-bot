@@ -10,9 +10,9 @@ import pkgutil
 from pathlib import Path
 from typing import Any
 
+import discord
 import pytest
 import pytest_asyncio
-import discord
 from discord.ext import commands
 
 import bot.cogs
@@ -37,7 +37,7 @@ def extract_commands_from_cog(cog_name: str) -> dict[str, Any]:
 
     # Find the cog class
     cog_class = None
-    for name, obj in inspect.getmembers(module, inspect.isclass):
+    for _name, obj in inspect.getmembers(module, inspect.isclass):
         if issubclass(obj, commands.Cog) and obj != commands.Cog:
             cog_class = obj
             break
@@ -95,18 +95,14 @@ class TestCommandRegistration:
         cog_modules = discover_cogs()
         return {cog: extract_commands_from_cog(cog) for cog in cog_modules}
 
-    async def test_01_all_cogs_load_without_errors(
-        self, bot_with_cogs, expected_cogs
-    ) -> None:
+    async def test_01_all_cogs_load_without_errors(self, bot_with_cogs, expected_cogs) -> None:
         """Test that all cogs can be loaded without errors."""
         bot = bot_with_cogs
 
         # Verify all discovered cogs are loaded
         for cog_module, cog_info in expected_cogs.items():
             if cog_info["cog_class"]:
-                assert cog_info["cog_class"] in bot.cogs, (
-                    f"Cog {cog_info['cog_class']} from {cog_module} not loaded"
-                )
+                assert cog_info["cog_class"] in bot.cogs, f"Cog {cog_info['cog_class']} from {cog_module} not loaded"
 
     async def test_02_admin_group_registered(self, bot_with_cogs) -> None:
         """Test that the admin command groups are registered."""
@@ -116,32 +112,18 @@ class TestCommandRegistration:
         commands_list = bot.tree.get_commands()
         admin_group = next((cmd for cmd in commands_list if cmd.name == "admin"), None)
         teams_group = next((cmd for cmd in commands_list if cmd.name == "teams"), None)
-        tickets_group = next(
-            (cmd for cmd in commands_list if cmd.name == "tickets"), None
-        )
-        competition_group = next(
-            (cmd for cmd in commands_list if cmd.name == "competition"), None
-        )
+        tickets_group = next((cmd for cmd in commands_list if cmd.name == "tickets"), None)
+        competition_group = next((cmd for cmd in commands_list if cmd.name == "competition"), None)
 
         assert admin_group is not None, "Admin group not found in command tree"
         assert teams_group is not None, "Teams group not found in command tree"
         assert tickets_group is not None, "Tickets group not found in command tree"
-        assert competition_group is not None, (
-            "Competition group not found in command tree"
-        )
+        assert competition_group is not None, "Competition group not found in command tree"
 
-        assert isinstance(admin_group, discord.app_commands.Group), (
-            "Admin command is not a group"
-        )
-        assert isinstance(teams_group, discord.app_commands.Group), (
-            "Teams command is not a group"
-        )
-        assert isinstance(tickets_group, discord.app_commands.Group), (
-            "Tickets command is not a group"
-        )
-        assert isinstance(competition_group, discord.app_commands.Group), (
-            "Competition command is not a group"
-        )
+        assert isinstance(admin_group, discord.app_commands.Group), "Admin command is not a group"
+        assert isinstance(teams_group, discord.app_commands.Group), "Teams command is not a group"
+        assert isinstance(tickets_group, discord.app_commands.Group), "Tickets command is not a group"
+        assert isinstance(competition_group, discord.app_commands.Group), "Competition command is not a group"
 
     async def test_03_admin_group_has_commands(self, bot_with_cogs) -> None:
         """Test that admin groups have commands registered."""
@@ -150,12 +132,8 @@ class TestCommandRegistration:
         commands_list = bot.tree.get_commands()
         admin_group = next((cmd for cmd in commands_list if cmd.name == "admin"), None)
         teams_group = next((cmd for cmd in commands_list if cmd.name == "teams"), None)
-        tickets_group = next(
-            (cmd for cmd in commands_list if cmd.name == "tickets"), None
-        )
-        competition_group = next(
-            (cmd for cmd in commands_list if cmd.name == "competition"), None
-        )
+        tickets_group = next((cmd for cmd in commands_list if cmd.name == "tickets"), None)
+        competition_group = next((cmd for cmd in commands_list if cmd.name == "competition"), None)
 
         assert admin_group is not None
         assert teams_group is not None
@@ -165,12 +143,8 @@ class TestCommandRegistration:
         # Verify each group has commands
         assert len(admin_group.commands) > 0, "Admin group exists but has no commands"
         assert len(teams_group.commands) > 0, "Teams group exists but has no commands"
-        assert len(tickets_group.commands) > 0, (
-            "Tickets group exists but has no commands"
-        )
-        assert len(competition_group.commands) > 0, (
-            "Competition group exists but has no commands"
-        )
+        assert len(tickets_group.commands) > 0, "Tickets group exists but has no commands"
+        assert len(competition_group.commands) > 0, "Competition group exists but has no commands"
 
     async def test_04_admin_subgroups_exist(self, bot_with_cogs) -> None:
         """Test that command groups are flat (no nested subgroups needed)."""
@@ -179,11 +153,7 @@ class TestCommandRegistration:
         # With the new structure, we have flat command groups (admin, teams, tickets, competition)
         # No subgroups are expected, so this test just verifies the groups exist at top level
         commands_list = bot.tree.get_commands()
-        group_names = [
-            cmd.name
-            for cmd in commands_list
-            if isinstance(cmd, discord.app_commands.Group)
-        ]
+        group_names = [cmd.name for cmd in commands_list if isinstance(cmd, discord.app_commands.Group)]
 
         # Verify all four expected groups are present
         assert "admin" in group_names, "Admin group not found at top level"
@@ -198,15 +168,9 @@ class TestCommandRegistration:
         commands_list = bot.tree.get_commands()
 
         # Verify we have top-level commands beyond admin
-        top_level_commands = [
-            cmd
-            for cmd in commands_list
-            if not isinstance(cmd, discord.app_commands.Group)
-        ]
+        top_level_commands = [cmd for cmd in commands_list if not isinstance(cmd, discord.app_commands.Group)]
 
-        assert len(top_level_commands) > 0, (
-            "No top-level user commands found (only groups exist)"
-        )
+        assert len(top_level_commands) > 0, "No top-level user commands found (only groups exist)"
 
     async def test_06_no_duplicate_command_groups(self, bot_with_cogs) -> None:
         """Test that there are no duplicate command groups after loading all cogs."""
@@ -239,9 +203,7 @@ class TestCommandRegistration:
             # Check subcommands if it's a group
             if isinstance(cmd, discord.app_commands.Group):
                 for subcmd in cmd.commands:
-                    assert subcmd.description, (
-                        f"Subcommand {cmd.name}/{subcmd.name} has no description"
-                    )
+                    assert subcmd.description, f"Subcommand {cmd.name}/{subcmd.name} has no description"
 
                     # Check nested subgroups
                     if isinstance(subcmd, discord.app_commands.Group):
@@ -266,6 +228,4 @@ class TestCommandRegistration:
         assert len(all_commands) > 0, "No commands found when walking tree"
 
         # Verify we have commands (without hardcoding exact count)
-        assert len(all_commands) >= 10, (
-            f"Expected at least 10 commands, found {len(all_commands)}"
-        )
+        assert len(all_commands) >= 10, f"Expected at least 10 commands, found {len(all_commands)}"

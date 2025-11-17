@@ -1,7 +1,7 @@
 """Help panels cog - persistent button panels for blue teams."""
 
 import logging
-from typing import Union
+from typing import Any, cast
 
 import discord
 from discord.ext import commands
@@ -57,9 +57,7 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
 
         # Check if user is linked to a team
         link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("team")
-            .afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
 
         if not link or not link.team:
@@ -105,9 +103,7 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
 
         except Exception as e:
             logger.error(f"Failed to create ticket: {e}", exc_info=True)
-            await interaction.followup.send(
-                f"Failed to create ticket: {str(e)}", ephemeral=True
-            )
+            await interaction.followup.send(f"Failed to create ticket: {e!s}", ephemeral=True)
 
 
 class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
@@ -201,9 +197,7 @@ class ConsultationModal(discord.ui.Modal, title="Consultation Request"):
         await modal._create_ticket(
             interaction,
             description=self.description.value,
-            hostname=self.hostname.value
-            if self.category_id == "blackteam-handson-consultation"
-            else "",
+            hostname=self.hostname.value if self.category_id == "blackteam-handson-consultation" else "",
         )
 
 
@@ -259,16 +253,10 @@ class CategorySelect(discord.ui.Select["TicketCategoryView"]):
     async def callback(self, interaction: discord.Interaction) -> None:
         """Handle category selection."""
         category_id = self.values[0]
-        bot = self.view.bot  # type: ignore
+        bot = cast(TicketCategoryView, self.view).bot
 
         # Show appropriate modal based on category
-        modal: Union[
-            ServiceScoringModal,
-            BoxResetModal,
-            ScoringServiceCheckModal,
-            ConsultationModal,
-            OtherModal,
-        ]
+        modal: ServiceScoringModal | BoxResetModal | ScoringServiceCheckModal | ConsultationModal | OtherModal
         if category_id == "service-scoring-validation":
             modal = ServiceScoringModal(bot)
         elif category_id == "box-reset":
@@ -295,34 +283,54 @@ class TicketCategoryView(discord.ui.View):
         self.add_item(CategorySelect())
 
 
+class LinkButton(discord.ui.Button["TeamHelpView"]):
+    """Button for linking account."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.primary,
+            label="🔗 Link Account",
+            custom_id="help_panel:link",
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Handle link account button click."""
+        if not self.view:
+            raise RuntimeError("Button callback invoked without view")
+        await self.view.link_account(interaction)
+
+
+class TicketButton(discord.ui.Button["TeamHelpView"]):
+    """Button for creating ticket."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            style=discord.ButtonStyle.success,
+            label="🎫 Create Ticket",
+            custom_id="help_panel:ticket",
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Handle create ticket button click."""
+        if not self.view:
+            raise RuntimeError("Button callback invoked without view")
+        await self.view.create_ticket(interaction)
+
+
 class TeamHelpView(discord.ui.View):
     """Persistent view with help buttons for blue teams."""
 
-    def __init__(
-        self, bot: commands.Bot, show_link: bool = True, show_ticket: bool = True
-    ):
+    def __init__(self, bot: commands.Bot, show_link: bool = True, show_ticket: bool = True):
         super().__init__(timeout=None)
         self.bot = bot
 
         # Add link button if requested
         if show_link:
-            link_button: discord.ui.Button[TeamHelpView] = discord.ui.Button(
-                style=discord.ButtonStyle.primary,
-                label="🔗 Link Account",
-                custom_id="help_panel:link",
-            )
-            link_button.callback = self.link_account  # type: ignore
-            self.add_item(link_button)
+            self.add_item(LinkButton())
 
         # Add ticket button if requested
         if show_ticket:
-            ticket_button: discord.ui.Button[TeamHelpView] = discord.ui.Button(
-                style=discord.ButtonStyle.success,
-                label="🎫 Create Ticket",
-                custom_id="help_panel:ticket",
-            )
-            ticket_button.callback = self.create_ticket  # type: ignore
-            self.add_item(ticket_button)
+            self.add_item(TicketButton())
 
     async def link_account(self, interaction: discord.Interaction) -> None:
         """Handle link account button click."""
@@ -331,13 +339,11 @@ class TeamHelpView(discord.ui.View):
 
         cog = self.bot.get_cog("LinkingCog")
         if not isinstance(cog, LinkingCog):
-            await interaction.response.send_message(
-                "Linking system is not available.", ephemeral=True
-            )
+            await interaction.response.send_message("Linking system is not available.", ephemeral=True)
             return
 
         # Call the link command logic
-        await cog.link_command.callback(cog, interaction)  # type: ignore
+        await cast(Any, cog.link_command.callback)(cog, interaction)
 
     async def create_ticket(self, interaction: discord.Interaction) -> None:
         """Handle create ticket button click - show category selection."""
@@ -395,7 +401,7 @@ class HelpPanelsCog(commands.Cog):
                 await message.delete()
                 logger.info(f"Deleted message from {message.author} in #link channel")
             except discord.HTTPException as e:
-                logger.error(f"Failed to delete message in #link: {e}")
+                logger.exception(f"Failed to delete message in #link: {e}")
 
     async def _post_link_panel(self, channel_id: int) -> None:
         """Post the link account panel to a channel."""
@@ -428,12 +434,11 @@ class HelpPanelsCog(commands.Cog):
 
         # Check if we already posted a panel (look for bot's recent messages)
         async for message in channel.history(limit=10):
-            if message.author == self.bot.user and message.embeds:
-                if message.embeds[0].title == embed.title:
-                    # Update existing message
-                    await message.edit(embed=embed, view=view)
-                    logger.info(f"Updated link panel in channel {channel_id}")
-                    return
+            if message.author == self.bot.user and message.embeds and message.embeds[0].title == embed.title:
+                # Update existing message
+                await message.edit(embed=embed, view=view)
+                logger.info(f"Updated link panel in channel {channel_id}")
+                return
 
         # Post new message
         await channel.send(embed=embed, view=view)
@@ -443,14 +448,12 @@ class HelpPanelsCog(commands.Cog):
         """Post the ticket creation panel to a channel."""
         channel = self.bot.get_channel(channel_id)
         if not channel or not isinstance(channel, discord.TextChannel):
-            logger.warning(
-                f"Ticket channel {channel_id} not found or not a text channel"
-            )
+            logger.warning(f"Ticket channel {channel_id} not found or not a text channel")
             return
 
         # Build category list
         categories_text = []
-        for cat_id, cat_info in TICKET_CATEGORIES.items():
+        for cat_info in TICKET_CATEGORIES.values():
             if cat_info.get("user_creatable", True):
                 points = cat_info.get("points", 0)
                 categories_text.append(f"• **{cat_info['display_name']}** - {points}pt")
@@ -469,12 +472,11 @@ class HelpPanelsCog(commands.Cog):
 
         # Check if we already posted a panel
         async for message in channel.history(limit=10):
-            if message.author == self.bot.user and message.embeds:
-                if message.embeds[0].title == embed.title:
-                    # Update existing message
-                    await message.edit(embed=embed, view=view)
-                    logger.info(f"Updated ticket panel in channel {channel_id}")
-                    return
+            if message.author == self.bot.user and message.embeds and message.embeds[0].title == embed.title:
+                # Update existing message
+                await message.edit(embed=embed, view=view)
+                logger.info(f"Updated ticket panel in channel {channel_id}")
+                return
 
         # Post new message
         await channel.send(embed=embed, view=view)

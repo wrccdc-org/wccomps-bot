@@ -1,27 +1,29 @@
 """Views for WCComps linking and OAuth."""
 
-from django.shortcuts import render, redirect
+import logging
+from typing import Any, Protocol, cast
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpRequest
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import content_disposition_header
-from django.db import transaction
-from django.contrib import messages
-from team.models import LinkToken, DiscordLink, Team, LinkAttempt, SchoolInfo
-from ticketing.models import Ticket, TicketComment, TicketHistory, TicketAttachment
+
 from core.models import DiscordTask
+from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
+from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+
+from .auth_utils import get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
-from .utils import get_authentik_data, get_team_from_groups, check_permissions
-from django.contrib.auth.models import User
-import logging
-from typing import Any, cast, TYPE_CHECKING
+from .utils import get_authentik_data, get_team_from_groups
 
-if TYPE_CHECKING:
-    from typing import Protocol
 
-    class ModelWithObjects(Protocol):
-        objects: Any
-        __name__: str
+class ModelWithObjects(Protocol):
+    objects: Any
+    __name__: str
 
 
 logger = logging.getLogger(__name__)
@@ -34,10 +36,10 @@ def home(request: HttpRequest) -> HttpResponse:
 
     # Get Authentik data
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
+    _authentik_username, groups, _ = get_authentik_data(user)
 
     # Get team information
-    team, _, is_team = get_team_from_groups(groups)
+    _team, _, is_team = get_team_from_groups(groups)
 
     # Check if ticketing is enabled
     ticketing_enabled = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
@@ -49,13 +51,10 @@ def home(request: HttpRequest) -> HttpResponse:
     # Everyone else goes to ops pages
     if ticketing_enabled:
         return redirect("ops_ticket_list")
-    else:
-        # Ticketing disabled - redirect to school info or group role mappings
-        permissions = check_permissions(user, groups)
-        if permissions.get("is_gold_team"):
-            return redirect("ops_school_info")
-        else:
-            return redirect("ops_group_role_mappings")
+    # Ticketing disabled - redirect to school info or group role mappings
+    if has_permission(user, "gold_team"):
+        return redirect("ops_school_info")
+    return redirect("ops_group_role_mappings")
 
 
 def link_initiate(request: HttpRequest) -> HttpResponse:
@@ -84,23 +83,22 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
             "link_error.html",
             {
                 "error": "Token expired",
-                "message": "This link has expired (15 minute limit). Please use /link in Discord to generate a new one.",
+                "message": (
+                    "This link has expired (15 minute limit). Please use /link in Discord to generate a new one."
+                ),
             },
         )
 
     # Pass token through OAuth redirect via next parameter
     # This is more reliable than session storage which django-allauth may clear
-    return redirect(
-        f"/accounts/oidc/authentik/login/?next=/auth/callback?token={link_token.token}"
-    )
+    return redirect(f"/accounts/oidc/authentik/login/?next=/auth/callback?token={link_token.token}")
 
 
 @login_required
 def link_callback(request: HttpRequest) -> HttpResponse:
     """Handle OAuth callback after Authentik authentication."""
     # Clear any django-allauth success messages (we show our own)
-    storage = messages.get_messages(request)
-    storage.used = True  # type: ignore[union-attr]
+    list(messages.get_messages(request))
 
     user = cast(User, request.user)
     try:
@@ -129,7 +127,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             "link_error.html",
             {
                 "error": "Invalid request",
-                "message": "Missing authentication state. Please start the linking process again with /link in Discord.",
+                "message": (
+                    "Missing authentication state. Please start the linking process again with /link in Discord."
+                ),
             },
         )
 
@@ -142,7 +142,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             "link_error.html",
             {
                 "error": "Invalid or expired token",
-                "message": "This link has expired or been used already. Please use /link in Discord to generate a new one.",
+                "message": (
+                    "This link has expired or been used already. Please use /link in Discord to generate a new one."
+                ),
             },
         )
 
@@ -153,7 +155,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             "link_error.html",
             {
                 "error": "Token expired",
-                "message": "This link has expired (15 minute limit). Please use /link in Discord to generate a new one.",
+                "message": (
+                    "This link has expired (15 minute limit). Please use /link in Discord to generate a new one."
+                ),
             },
         )
 
@@ -169,9 +173,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     # For team accounts, multiple Discord users can link to the same Authentik account (shared team account)
     # For non-team accounts (admins/support), enforce one-to-one mapping
     if not is_team_account:
-        existing_link = DiscordLink.objects.filter(
-            authentik_user_id=authentik_user_id, is_active=True
-        ).first()
+        existing_link = DiscordLink.objects.filter(authentik_user_id=authentik_user_id, is_active=True).first()
 
         if existing_link and existing_link.discord_id != discord_id:
             # This Authentik account is already linked to a different Discord account
@@ -188,9 +190,12 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 "link_error.html",
                 {
                     "error": "Account already linked",
-                    "message": f"This Authentik account ({authentik_username}) is already linked to Discord user {existing_link.discord_username}. "
-                    f"Each Authentik account can only be linked to one Discord account at a time. "
-                    f"Please contact an administrator if you need to unlink the previous account.",
+                    "message": (
+                        f"This Authentik account ({authentik_username}) is already linked to "
+                        f"Discord user {existing_link.discord_username}. "
+                        "Each Authentik account can only be linked to one Discord account at a time. "
+                        "Please contact an administrator if you need to unlink the previous account."
+                    ),
                 },
             )
 
@@ -202,9 +207,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
 
             auth_manager = AuthentikManager()
             auth_manager.update_user_discord_id(authentik_user_id, discord_id)
-            logger.info(
-                f"Stored discord_id {discord_id} in Authentik for user {authentik_username}"
-            )
+            logger.info(f"Stored discord_id {discord_id} in Authentik for user {authentik_username}")
         except Exception as e:
             logger.warning(
                 f"Could not store discord_id in Authentik (permissions issue): {e}. "
@@ -232,7 +235,10 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                     "link_error.html",
                     {
                         "error": "Team full",
-                        "message": f"{team.team_name} is full ({team.get_member_count()}/{team.max_members} members). Please contact an administrator.",
+                        "message": (
+                            f"{team.team_name} is full ({team.get_member_count()}/{team.max_members} members). "
+                            "Please contact an administrator."
+                        ),
                     },
                 )
 
@@ -323,14 +329,10 @@ def link_callback(request: HttpRequest) -> HttpResponse:
         # Create Discord task to log team member link
         DiscordTask.objects.create(
             task_type="log_to_channel",
-            payload={
-                "message": f"User Linked: <@{discord_id}> ({discord_username}) → **{team.team_name}**"
-            },
+            payload={"message": f"User Linked: <@{discord_id}> ({discord_username}) → **{team.team_name}**"},
             status="pending",
         )
-        logger.info(
-            f"Successfully linked {discord_username} ({discord_id}) to {team.team_name}"
-        )
+        logger.info(f"Successfully linked {discord_username} ({discord_id}) to {team.team_name}")
     else:
         # Log non-team link (support/admin)
         DiscordTask.objects.create(
@@ -340,9 +342,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             },
             status="pending",
         )
-        logger.info(
-            f"Successfully linked {discord_username} ({discord_id}) to {authentik_username}"
-        )
+        logger.info(f"Successfully linked {discord_username} ({discord_id}) to {authentik_username}")
 
     # Clear any session data (no longer used, but clean up just in case)
     request.session.pop("pending_link_discord_id", None)
@@ -365,8 +365,8 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
     """View all tickets for user's team."""
     # Get user's team from Authentik groups
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    team, team_number, is_team = get_team_from_groups(groups)
+    _authentik_username, groups, _ = get_authentik_data(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
         return render(
@@ -413,8 +413,8 @@ def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """View details of a specific ticket."""
     # Get user's team from Authentik groups
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    team, team_number, is_team = get_team_from_groups(groups)
+    _authentik_username, groups, _ = get_authentik_data(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
         return render(
@@ -471,7 +471,7 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Get user's team
     user = cast(User, request.user)
     authentik_username, groups, _ = get_authentik_data(user)
-    team, team_number, is_team = get_team_from_groups(groups)
+    team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
         return HttpResponse("Access denied", status=403)
@@ -490,14 +490,12 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Check rate limit
     from ticketing.models import CommentRateLimit
 
-    user_id = user.id
-    assert user_id is not None
-    is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user_id)
+    is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
     if not is_allowed:
         return HttpResponse(reason, status=429)
 
     # Record rate limit
-    CommentRateLimit.objects.create(ticket=ticket, discord_id=user_id)
+    CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
     # Create comment
     comment = TicketComment.objects.create(
@@ -646,9 +644,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 status="pending",
             )
 
-            logger.info(
-                f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}"
-            )
+            logger.info(f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}")
 
             return redirect("ticket_detail", ticket_id=ticket.id)
 
@@ -664,7 +660,9 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
-                    "error": f"Failed to create ticket: {str(e)}. Please try again or contact support if the problem persists.",
+                    "error": (
+                        f"Failed to create ticket: {e!s}. Please try again or contact support if the problem persists."
+                    ),
                     "form_data": request.POST,
                 },
             )
@@ -692,7 +690,7 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Get user's team from Authentik groups
     user = cast(User, request.user)
     authentik_username, groups, _ = get_authentik_data(user)
-    team, team_number, is_team = get_team_from_groups(groups)
+    team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
         return render(
@@ -792,17 +790,13 @@ def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpRespon
         uploaded_by=authentik_username,
     )
 
-    logger.info(
-        f"Attachment {uploaded_file.name} uploaded to ticket #{ticket_id} by {authentik_username}"
-    )
+    logger.info(f"Attachment {uploaded_file.name} uploaded to ticket #{ticket_id} by {authentik_username}")
 
     return redirect("ticket_detail", ticket_id=ticket_id)
 
 
 @login_required
-def ticket_attachment_download(
-    request: HttpRequest, ticket_id: int, attachment_id: int
-) -> HttpResponse:
+def ticket_attachment_download(request: HttpRequest, ticket_id: int, attachment_id: int) -> HttpResponse:
     """Download an attachment from a ticket (team members only)."""
     # Get user's team
     user = cast(User, request.user)
@@ -814,18 +808,14 @@ def ticket_attachment_download(
 
     # Get attachment (ticket must belong to user's team)
     try:
-        attachment = TicketAttachment.objects.select_related(
-            "ticket", "ticket__team"
-        ).get(id=attachment_id, ticket_id=ticket_id, ticket__team=team)
+        attachment = TicketAttachment.objects.select_related("ticket", "ticket__team").get(
+            id=attachment_id, ticket_id=ticket_id, ticket__team=team
+        )
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
 
-    response = HttpResponse(
-        bytes(attachment.file_data), content_type=attachment.mime_type
-    )
-    response["Content-Disposition"] = str(
-        content_disposition_header(as_attachment=True, filename=attachment.filename)
-    )
+    response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
+    response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
     return response
 
 
@@ -836,13 +826,10 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
 
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check permissions
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return render(
             request,
             "tickets_error.html",
@@ -936,11 +923,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         cat_info = TICKET_CATEGORIES.get(ticket.category, {})
 
         # Check if ticket is stale (claimed >30min)
-        is_stale = (
-            ticket.status == "claimed"
-            and ticket.assigned_at
-            and ticket.assigned_at < thirty_minutes_ago
-        )
+        is_stale = ticket.status == "claimed" and ticket.assigned_at and ticket.assigned_at < thirty_minutes_ago
 
         tickets_with_info.append(
             {
@@ -962,6 +945,9 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         .distinct()
         .order_by("assigned_to_discord_username")
     )
+
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
 
     return render(
         request,
@@ -990,13 +976,10 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """View detailed ticket information for operations team."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check permissions
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return render(
             request,
             "tickets_error.html",
@@ -1041,6 +1024,9 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     page_filter = request.GET.get("page", "")
     page_size = request.GET.get("page_size", "")
 
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
+
     return render(
         request,
         "ops_ticket_detail.html",
@@ -1075,12 +1061,9 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     try:
@@ -1095,13 +1078,11 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
     # Check rate limit
     from ticketing.models import CommentRateLimit
 
-    user_id = user.id
-    assert user_id is not None
-    is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user_id)
+    is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
     if not is_allowed:
         return HttpResponse(reason, status=429)
 
-    CommentRateLimit.objects.create(ticket=ticket, discord_id=user_id)
+    CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
     # Create comment
     comment = TicketComment.objects.create(
@@ -1122,9 +1103,7 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
         status="pending",
     )
 
-    logger.info(
-        f"Comment posted on ticket {ticket_number} by {authentik_username} (ops)"
-    )
+    logger.info(f"Comment posted on ticket {ticket_number} by {authentik_username} (ops)")
 
     return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
@@ -1136,32 +1115,23 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     # Get ticket to find ID
     try:
-        ticket_obj = Ticket.objects.select_related("team").get(
-            ticket_number=ticket_number
-        )
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
     # Try to find Discord link (optional for web UI)
     try:
         if authentik_user_id:
-            discord_link = DiscordLink.objects.get(
-                authentik_user_id=authentik_user_id, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
         else:
-            discord_link = DiscordLink.objects.get(
-                authentik_username=authentik_username, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1206,19 +1176,14 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     # Get ticket to find ID
     try:
-        ticket_obj = Ticket.objects.select_related("team").get(
-            ticket_number=ticket_number
-        )
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
@@ -1244,19 +1209,14 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     # Get ticket to find ID
     try:
-        ticket_obj = Ticket.objects.select_related("team").get(
-            ticket_number=ticket_number
-        )
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
@@ -1274,13 +1234,9 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     # Try to find Discord link (optional for web UI)
     try:
         if authentik_user_id:
-            discord_link = DiscordLink.objects.get(
-                authentik_user_id=authentik_user_id, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
         else:
-            discord_link = DiscordLink.objects.get(
-                authentik_username=authentik_username, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1315,10 +1271,9 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_admin"):
+    if not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied - requires ticketing admin role", status=403)
 
     # Get ticket
@@ -1352,8 +1307,7 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     )
 
     logger.info(
-        f"Ticket {ticket_number} reopened by {authentik_username}"
-        + (f": {reopen_reason}" if reopen_reason else "")
+        f"Ticket {ticket_number} reopened by {authentik_username}" + (f": {reopen_reason}" if reopen_reason else "")
     )
     return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
 
@@ -1365,12 +1319,9 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     ticket_numbers = request.POST.get("ticket_numbers", "").split(",")
@@ -1382,13 +1333,9 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     # Try to find Discord link (optional for web UI)
     try:
         if authentik_user_id:
-            discord_link = DiscordLink.objects.get(
-                authentik_user_id=authentik_user_id, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
         else:
-            discord_link = DiscordLink.objects.get(
-                authentik_username=authentik_username, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1430,12 +1377,9 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     ticket_numbers = request.POST.get("ticket_numbers", "").split(",")
@@ -1447,13 +1391,9 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     # Try to find Discord link (optional for web UI)
     try:
         if authentik_user_id:
-            discord_link = DiscordLink.objects.get(
-                authentik_user_id=authentik_user_id, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
         else:
-            discord_link = DiscordLink.objects.get(
-                authentik_username=authentik_username, is_active=True
-            )
+            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1490,20 +1430,15 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def ops_ticket_attachment_upload(
-    request: HttpRequest, ticket_number: str
-) -> HttpResponse:
+def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Upload an attachment to a ticket (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     try:
@@ -1536,25 +1471,17 @@ def ops_ticket_attachment_upload(
         uploaded_by=authentik_username,
     )
 
-    logger.info(
-        f"Attachment {uploaded_file.name} uploaded to ticket {ticket_number} by {authentik_username}"
-    )
+    logger.info(f"Attachment {uploaded_file.name} uploaded to ticket {ticket_number} by {authentik_username}")
 
     return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
 
 @login_required
-def ops_ticket_attachment_download(
-    request: HttpRequest, ticket_number: str, attachment_id: int
-) -> HttpResponse:
+def ops_ticket_attachment_download(request: HttpRequest, ticket_number: str, attachment_id: int) -> HttpResponse:
     """Download an attachment from a ticket (operations team only)."""
     user = cast(User, request.user)
-    _, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
 
-    if not permissions.get("is_ticketing_support") and not permissions.get(
-        "is_ticketing_admin"
-    ):
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
     try:
@@ -1564,12 +1491,8 @@ def ops_ticket_attachment_download(
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
 
-    response = HttpResponse(
-        bytes(attachment.file_data), content_type=attachment.mime_type
-    )
-    response["Content-Disposition"] = str(
-        content_disposition_header(as_attachment=True, filename=attachment.filename)
-    )
+    response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
+    response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
     return response
 
 
@@ -1578,17 +1501,18 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
     """View and edit school information (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is GoldTeam
-    if not permissions.get("is_gold_team"):
+    if not has_permission(user, "gold_team"):
         return render(
             request,
             "tickets_error.html",
             {
                 "error": "Access denied",
-                "message": "You do not have permission to access school information. This requires WCComps_GoldTeam role.",
+                "message": (
+                    "You do not have permission to access school information. This requires WCComps_GoldTeam role."
+                ),
             },
         )
 
@@ -1604,6 +1528,9 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
             school_info = None
 
         teams_with_info.append({"team": team, "school_info": school_info})
+
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
 
     return render(
         request,
@@ -1623,11 +1550,10 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
     """Edit school information for a team (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is GoldTeam
-    if not permissions.get("is_gold_team"):
+    if not has_permission(user, "gold_team"):
         return render(
             request,
             "tickets_error.html",
@@ -1655,6 +1581,9 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
         school_info = team.school_info
     except SchoolInfo.DoesNotExist:
         school_info = None
+
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
 
     if request.method == "POST":
         school_name = request.POST.get("school_name", "").strip()
@@ -1707,9 +1636,7 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
                 updated_by=authentik_username,
             )
 
-        logger.info(
-            f"School info updated for Team {team_number} by {authentik_username}"
-        )
+        logger.info(f"School info updated for Team {team_number} by {authentik_username}")
 
         return redirect("ops_school_info")
 
@@ -1729,9 +1656,10 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
 
 def custom_logout(request: HttpRequest) -> HttpResponse:
     """Custom logout view that ends both Django and Authentik SSO sessions."""
-    from django.contrib.auth import logout
-    from django.conf import settings
     from urllib.parse import urlencode
+
+    from django.conf import settings
+    from django.contrib.auth import logout
 
     # Clear Django session
     logout(request)
@@ -1761,11 +1689,10 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     """View team membership status and linked users (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
-    permissions = check_permissions(user, groups)
+    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is GoldTeam
-    if not permissions.get("is_gold_team"):
+    if not has_permission(user, "gold_team"):
         return render(
             request,
             "tickets_error.html",
@@ -1781,9 +1708,7 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     team_status = []
     for team in teams:
         # Get active links for this team
-        links = DiscordLink.objects.filter(team=team, is_active=True).select_related(
-            "team"
-        )
+        links = DiscordLink.objects.filter(team=team, is_active=True).select_related("team")
 
         # Format member list
         members = [
@@ -1805,6 +1730,9 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
             }
         )
 
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
+
     return render(
         request,
         "ops_group_role_mappings.html",
@@ -1820,9 +1748,10 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
 
 def health_check(request: HttpRequest) -> HttpResponse:
     """Health check endpoint for monitoring - tests database connectivity and model queries."""
-    from django.db import connection
-    from django.apps import apps
     import json
+
+    from django.apps import apps
+    from django.db import connection
 
     errors = []
 
@@ -1831,7 +1760,7 @@ def health_check(request: HttpRequest) -> HttpResponse:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
     except Exception as e:
-        errors.append(f"Database connection: {str(e)}")
+        errors.append(f"Database connection: {e!s}")
 
     # Check all models are queryable
     core_models = apps.get_app_config("core").get_models()

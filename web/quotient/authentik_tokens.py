@@ -2,7 +2,8 @@
 
 import logging
 import time
-from typing import Optional
+from functools import lru_cache
+
 import requests
 from django.conf import settings
 from django.core.cache import cache
@@ -16,8 +17,8 @@ class AuthentikTokenManager:
     def __init__(
         self,
         authentik_url: str = "https://auth.wccomps.org",
-        oauth_client_id: Optional[str] = None,
-        oauth_client_secret: Optional[str] = None,
+        oauth_client_id: str | None = None,
+        oauth_client_secret: str | None = None,
     ):
         """
         Initialize Authentik token manager.
@@ -28,14 +29,10 @@ class AuthentikTokenManager:
             oauth_client_secret: OAuth client secret for client credentials flow
         """
         self.authentik_url = authentik_url.rstrip("/")
-        self.oauth_client_id = oauth_client_id or getattr(
-            settings, "QUOTIENT_OAUTH_CLIENT_ID", ""
-        )
-        self.oauth_client_secret = oauth_client_secret or getattr(
-            settings, "QUOTIENT_OAUTH_CLIENT_SECRET", ""
-        )
+        self.oauth_client_id = oauth_client_id or getattr(settings, "QUOTIENT_OAUTH_CLIENT_ID", "")
+        self.oauth_client_secret = oauth_client_secret or getattr(settings, "QUOTIENT_OAUTH_CLIENT_SECRET", "")
 
-    def get_service_account_id_token(self) -> Optional[str]:
+    def get_service_account_id_token(self) -> str | None:
         """
         Get an access token for machine-to-machine authentication.
 
@@ -59,8 +56,7 @@ class AuthentikTokenManager:
         # Validate configuration
         if not all([self.oauth_client_id, self.oauth_client_secret]):
             logger.error(
-                "Missing required configuration for token generation. "
-                "Need: oauth_client_id, oauth_client_secret"
+                "Missing required configuration for token generation. Need: oauth_client_id, oauth_client_secret"
             )
             return None
 
@@ -74,11 +70,11 @@ class AuthentikTokenManager:
                 logger.info(f"Obtained M2M token (expires in {expires_in}s)")
                 return token
         except Exception as e:
-            logger.error(f"Failed to get ID token: {e}")
+            logger.exception(f"Failed to get ID token: {e}")
 
         return None
 
-    def _get_id_token_via_client_credentials(self) -> tuple[Optional[str], int]:
+    def _get_id_token_via_client_credentials(self) -> tuple[str | None, int]:
         """
         Get access token using OAuth2 Client Credentials flow.
 
@@ -115,19 +111,14 @@ class AuthentikTokenManager:
             return access_token, expires_in
 
         except requests.RequestException as e:
-            logger.error(f"Client credentials request failed: {e}")
+            logger.exception(f"Client credentials request failed: {e}")
             if hasattr(e, "response") and e.response is not None:
-                logger.error(f"Response body: {e.response.text[:200]}")
+                logger.exception(f"Response body: {e.response.text[:200]}")
             return None, 0
 
 
 # Global instance
-_token_manager: Optional[AuthentikTokenManager] = None
-
-
+@lru_cache(maxsize=1)
 def get_token_manager() -> AuthentikTokenManager:
     """Get or create global token manager instance."""
-    global _token_manager
-    if _token_manager is None:
-        _token_manager = AuthentikTokenManager()
-    return _token_manager
+    return AuthentikTokenManager()

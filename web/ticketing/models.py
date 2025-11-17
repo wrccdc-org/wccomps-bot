@@ -15,9 +15,7 @@ class Ticket(models.Model):
 
     # Identity
     ticket_number = models.CharField(max_length=20, unique=True)
-    team = models.ForeignKey(
-        "team.Team", on_delete=models.CASCADE, related_name="tickets"
-    )
+    team = models.ForeignKey("team.Team", on_delete=models.CASCADE, related_name="tickets")
 
     # Content
     category = models.CharField(max_length=50)
@@ -32,9 +30,7 @@ class Ticket(models.Model):
 
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="open")
-    tags = models.JSONField(
-        default=list, blank=True
-    )  # e.g., ['operations-issue', 'escalated']
+    tags = models.JSONField(default=list, blank=True)  # e.g., ['operations-issue', 'escalated']
 
     # Assignment
     assigned_to_discord_id = models.BigIntegerField(null=True, blank=True)
@@ -78,9 +74,7 @@ class Ticket(models.Model):
 class TicketAttachment(models.Model):
     """File attachment for ticket."""
 
-    ticket = models.ForeignKey(
-        Ticket, on_delete=models.CASCADE, related_name="attachments"
-    )
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="attachments")
     file_data = models.BinaryField()
     filename = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=100)
@@ -97,9 +91,7 @@ class TicketAttachment(models.Model):
 class TicketComment(models.Model):
     """Comment on ticket (bidirectional with Discord)."""
 
-    ticket = models.ForeignKey(
-        Ticket, on_delete=models.CASCADE, related_name="comments"
-    )
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comments")
     author_name = models.CharField(max_length=255)
     author_discord_id = models.BigIntegerField(null=True, blank=True)
     comment_text = models.TextField()
@@ -154,14 +146,13 @@ class CommentRateLimit(models.Model):
         Returns: (is_allowed, reason_if_blocked)
         """
         from datetime import timedelta
+
         from django.utils import timezone
 
         one_minute_ago = timezone.now() - timedelta(minutes=1)
 
         # Check ticket-level rate limit (5 comments per minute)
-        ticket_comments = cls.objects.filter(
-            ticket_id=ticket_id, posted_at__gte=one_minute_ago
-        ).count()
+        ticket_comments = cls.objects.filter(ticket_id=ticket_id, posted_at__gte=one_minute_ago).count()
 
         if ticket_comments >= 5:
             return (
@@ -170,9 +161,7 @@ class CommentRateLimit(models.Model):
             )
 
         # Check user-level rate limit (10 comments per minute across all tickets)
-        user_comments = cls.objects.filter(
-            discord_id=discord_id, posted_at__gte=one_minute_ago
-        ).count()
+        user_comments = cls.objects.filter(discord_id=discord_id, posted_at__gte=one_minute_ago).count()
 
         if user_comments >= 10:
             return (

@@ -8,15 +8,16 @@ Run with: pytest -m load
 """
 
 import os
-import pytest
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from django.test import Client
-from ticketing.models import Ticket
-from team.models import Team
-from person.models import Person
-from django.contrib.auth.models import User
 
+import pytest
+from django.contrib.auth.models import User
+from django.test import Client
+
+from person.models import Person
+from team.models import Team
+from ticketing.models import Ticket
 
 TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 pytestmark = [
@@ -139,9 +140,7 @@ class TestConnectionPoolLimits:
         # Now verify system still works
         client = Client()
         response = client.get(reverse("health_check"))
-        assert response.status_code == 200, (
-            "System didn't recover after connection pool stress"
-        )
+        assert response.status_code == 200, "System didn't recover after connection pool stress"
 
 
 class TestConcurrentTicketOperations:
@@ -219,12 +218,8 @@ class TestConcurrentTicketOperations:
             futures = []
             for i, person in enumerate(support_users):
                 # Each person claims 2 tickets
-                futures.append(
-                    executor.submit(claim_ticket, person, test_tickets[i * 2])
-                )
-                futures.append(
-                    executor.submit(claim_ticket, person, test_tickets[i * 2 + 1])
-                )
+                futures.append(executor.submit(claim_ticket, person, test_tickets[i * 2]))
+                futures.append(executor.submit(claim_ticket, person, test_tickets[i * 2 + 1]))
 
             results = [future.result() for future in as_completed(futures)]
 
@@ -234,17 +229,13 @@ class TestConcurrentTicketOperations:
             assert status_code in [200, 302], f"Expected 200/302, got {status_code}"
 
         # Verify all tickets were claimed
-        claimed_count = sum(
-            1
-            for ticket in test_tickets
-            if Ticket.objects.get(id=ticket.id).claimed_by is not None
-        )
+        claimed_count = sum(1 for ticket in test_tickets if Ticket.objects.get(id=ticket.id).claimed_by is not None)
         assert claimed_count == 20, f"Only {claimed_count}/20 tickets were claimed"
 
     def test_rapid_ticket_list_queries(self, db):
         """Rapid ticket list queries should not cause N+1 problems."""
-        from django.urls import reverse
         from django.db import connection
+        from django.urls import reverse
 
         user = User.objects.create_user(
             username="rapid_query_user",
@@ -278,9 +269,7 @@ class TestConcurrentTicketOperations:
 
             # Query count should be consistent (no N+1 problem)
             # Allow some variation, but should not grow with each request
-            assert max(query_counts) - min(query_counts) < 5, (
-                f"Query counts vary too much: {query_counts}"
-            )
+            assert max(query_counts) - min(query_counts) < 5, f"Query counts vary too much: {query_counts}"
 
         finally:
             person.delete()

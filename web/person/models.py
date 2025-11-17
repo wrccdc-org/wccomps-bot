@@ -1,7 +1,9 @@
 """Person app models - User profiles with Authentik integration."""
 
-from django.db import models
+from typing import Any
+
 from django.contrib.auth.models import User
+from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -140,6 +142,7 @@ class Person(models.Model):
         Should be called periodically or when user data changes.
         """
         from allauth.socialaccount.models import SocialAccount
+
         from core.utils import get_authentik_data
 
         try:
@@ -154,7 +157,7 @@ class Person(models.Model):
 
 
 @receiver(post_save, sender=User)
-def create_or_update_person(sender, instance, created, **kwargs):
+def create_or_update_person(sender: type[User], instance: User, created: bool, **kwargs: Any) -> None:
     """
     Automatically create/update Person when User is created/updated.
 
@@ -166,8 +169,7 @@ def create_or_update_person(sender, instance, created, **kwargs):
             user=instance,
             authentik_username=instance.username,
         )
-    else:
-        # Update existing Person if it exists
-        if hasattr(instance, "person"):
-            # Trigger update timestamp
-            instance.person.save()
+    # Update existing Person if it exists
+    elif hasattr(instance, "person"):
+        # Trigger update timestamp
+        instance.person.save()

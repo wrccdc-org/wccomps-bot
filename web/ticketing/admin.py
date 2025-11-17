@@ -1,33 +1,34 @@
 """Admin configuration for ticketing app."""
 
 from typing import Any
+
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse
 
 from .models import (
+    CommentRateLimit,
     Ticket,
     TicketAttachment,
     TicketComment,
     TicketHistory,
-    CommentRateLimit,
 )
 
 
-class TicketAttachmentInline(admin.TabularInline):
+class TicketAttachmentInline(admin.TabularInline[TicketAttachment, Ticket]):
     model = TicketAttachment
     extra = 0
     readonly_fields = ["uploaded_at", "uploaded_by", "filename", "mime_type"]
     fields = ["filename", "mime_type", "uploaded_by", "uploaded_at"]
 
 
-class TicketCommentInline(admin.TabularInline):
+class TicketCommentInline(admin.TabularInline[TicketComment, Ticket]):
     model = TicketComment
     extra = 0
     readonly_fields = ["posted_at", "author_name"]
     fields = ["author_name", "comment_text", "posted_at"]
 
 
-class TicketHistoryInline(admin.TabularInline):
+class TicketHistoryInline(admin.TabularInline[TicketHistory, Ticket]):
     model = TicketHistory
     extra = 0
     readonly_fields = ["timestamp", "action", "actor_username"]
@@ -35,7 +36,7 @@ class TicketHistoryInline(admin.TabularInline):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(admin.ModelAdmin[Ticket]):
     list_display = [
         "ticket_number",
         "team",
@@ -154,9 +155,7 @@ class TicketAdmin(admin.ModelAdmin):
                     ticket.assigned_to_discord_username or "",
                     ticket.points_charged,
                     ticket.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    ticket.resolved_at.strftime("%Y-%m-%d %H:%M:%S")
-                    if ticket.resolved_at
-                    else "",
+                    ticket.resolved_at.strftime("%Y-%m-%d %H:%M:%S") if ticket.resolved_at else "",
                     ticket.resolution_notes or "",
                     ticket.duration_notes or "",
                 ]
@@ -166,7 +165,7 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketAttachment)
-class TicketAttachmentAdmin(admin.ModelAdmin):
+class TicketAttachmentAdmin(admin.ModelAdmin[TicketAttachment]):
     list_display = ["filename", "ticket", "uploaded_by", "uploaded_at"]
     list_filter = ["uploaded_at"]
     search_fields = ["filename", "ticket__ticket_number"]
@@ -175,7 +174,7 @@ class TicketAttachmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketComment)
-class TicketCommentAdmin(admin.ModelAdmin):
+class TicketCommentAdmin(admin.ModelAdmin[TicketComment]):
     list_display = ["ticket", "author_name", "posted_at"]
     list_filter = ["posted_at"]
     search_fields = ["ticket__ticket_number", "author_name", "comment_text"]
@@ -184,7 +183,7 @@ class TicketCommentAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketHistory)
-class TicketHistoryAdmin(admin.ModelAdmin):
+class TicketHistoryAdmin(admin.ModelAdmin[TicketHistory]):
     list_display = ["ticket", "action", "actor_username", "timestamp"]
     list_filter = ["action", "timestamp"]
     search_fields = ["ticket__ticket_number", "actor_username"]
@@ -193,13 +192,13 @@ class TicketHistoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(CommentRateLimit)
-class CommentRateLimitAdmin(admin.ModelAdmin):
+class CommentRateLimitAdmin(admin.ModelAdmin[CommentRateLimit]):
     list_display = ["ticket", "discord_id", "posted_at"]
     list_filter = ["posted_at"]
     search_fields = ["ticket__ticket_number", "discord_id"]
     ordering = ["-posted_at"]
     readonly_fields = ["posted_at"]
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         """Disable adding rate limits manually."""
         return False

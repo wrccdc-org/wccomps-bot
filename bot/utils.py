@@ -1,10 +1,12 @@
 """Utility functions for the bot."""
 
 import logging
+from typing import Optional
+
 import discord
-from typing import Optional, Tuple
-from django.conf import settings
 from asgiref.sync import sync_to_async
+from django.conf import settings
+
 from core.models import AuditLog
 from team.models import Team
 from ticketing.models import Ticket, TicketHistory
@@ -12,9 +14,7 @@ from ticketing.models import Ticket, TicketHistory
 logger = logging.getLogger(__name__)
 
 
-async def log_to_ops_channel(
-    bot: discord.Client, message: str, embed: Optional[discord.Embed] = None
-) -> None:
+async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.Embed | None = None) -> None:
     """Log a message to the operations channel."""
     try:
         channel_id = settings.DISCORD_LOG_CHANNEL_ID
@@ -37,7 +37,7 @@ async def log_to_ops_channel(
         else:
             logger.error(f"Channel {channel_id} is not a text channel or thread")
     except Exception as e:
-        logger.error(f"Failed to log to ops channel: {e}")
+        logger.exception(f"Failed to log to ops channel: {e}")
 
 
 def format_team_name(team_number: int) -> str:
@@ -72,23 +72,17 @@ async def get_team_or_respond(
     from team.models import Team
 
     if validate_range and (team_number < 1 or team_number > 50):
-        await interaction.response.send_message(
-            "Team number must be between 1 and 50", ephemeral=True
-        )
+        await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
         return None
 
     team = await Team.objects.filter(team_number=team_number).afirst()
     if not team:
-        await interaction.response.send_message(
-            f"Team {team_number} not found", ephemeral=True
-        )
+        await interaction.response.send_message(f"Team {team_number} not found", ephemeral=True)
         return None
     return team
 
 
-async def safe_remove_role(
-    member: discord.Member, role: discord.Role, reason: Optional[str] = None
-) -> bool:
+async def safe_remove_role(member: discord.Member, role: discord.Role, reason: str | None = None) -> bool:
     """
     Safely remove a role from a member, catching permission errors.
 
@@ -105,13 +99,11 @@ async def safe_remove_role(
         logger.warning(f"Permission denied removing role {role.name} from {member}")
         return False
     except Exception as e:
-        logger.error(f"Error removing role {role.name} from {member}: {e}")
+        logger.exception(f"Error removing role {role.name} from {member}: {e}")
         return False
 
 
-async def safe_add_role(
-    member: discord.Member, role: discord.Role, reason: Optional[str] = None
-) -> bool:
+async def safe_add_role(member: discord.Member, role: discord.Role, reason: str | None = None) -> bool:
     """
     Safely add a role to a member, catching permission errors.
 
@@ -128,13 +120,11 @@ async def safe_add_role(
         logger.warning(f"Permission denied adding role {role.name} to {member}")
         return False
     except Exception as e:
-        logger.error(f"Error adding role {role.name} to {member}: {e}")
+        logger.exception(f"Error adding role {role.name} to {member}: {e}")
         return False
 
 
-async def remove_blueteam_role(
-    member: discord.Member, guild: discord.Guild, reason: Optional[str] = None
-) -> bool:
+async def remove_blueteam_role(member: discord.Member, guild: discord.Guild, reason: str | None = None) -> bool:
     """
     Remove Blueteam role from a member if they have it.
 
@@ -154,7 +144,7 @@ def log_action(
     details: str | dict[str, str],
     ticket: Optional["Ticket"] = None,
     team: Optional["Team"] = None,
-) -> Tuple["AuditLog", Optional["TicketHistory"]]:
+) -> tuple["AuditLog", Optional["TicketHistory"]]:
     """
     Create audit log and optionally ticket history for an action.
 
@@ -215,7 +205,7 @@ async def safe_post_to_dashboard(bot: discord.Client, ticket: "Ticket") -> bool:
         await post_ticket_to_dashboard(bot, ticket)
         return True
     except Exception as e:
-        logger.error(f"Failed to post ticket to dashboard: {e}")
+        logger.exception(f"Failed to post ticket to dashboard: {e}")
         return False
 
 
@@ -230,6 +220,4 @@ def get_team_member_discord_ids(team: Team) -> list[int]:
     Returns:
         List of Discord IDs as integers
     """
-    return list(
-        team.members.filter(is_active=True).values_list("discord_id", flat=True)
-    )
+    return list(team.members.filter(is_active=True).values_list("discord_id", flat=True))

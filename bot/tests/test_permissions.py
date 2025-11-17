@@ -1,25 +1,27 @@
 """Tests for permission checking functionality."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
+
 import discord
 import pytest
-from team.models import DiscordLink, Team
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
+
 from bot.permissions import (
     _get_authentik_groups_sync,
     _permission_cache,
-    is_admin_async,
     can_manage_tickets_async,
     can_support_tickets_async,
-    is_gold_team_async,
-    get_permission_level_async,
     check_admin,
+    check_gold_team,
     check_ticketing_admin,
     check_ticketing_support,
-    check_gold_team,
+    get_permission_level_async,
+    is_admin_async,
+    is_gold_team_async,
 )
+from team.models import DiscordLink, Team
 
 
 @pytest.mark.django_db(transaction=True)
@@ -37,7 +39,7 @@ class TestPermissionCache:
 
         _permission_cache[discord_id] = {
             "groups": groups,
-            "expires_at": datetime.now() + timedelta(minutes=5),
+            "expires_at": datetime.now(UTC) + timedelta(minutes=5),
         }
 
         result = _get_authentik_groups_sync(discord_id)
@@ -60,7 +62,7 @@ class TestPermissionCache:
 
         _permission_cache[discord_id] = {
             "groups": groups,
-            "expires_at": datetime.now() - timedelta(minutes=1),
+            "expires_at": datetime.now(UTC) - timedelta(minutes=1),
         }
 
         _get_authentik_groups_sync(discord_id)
@@ -100,9 +102,7 @@ class TestGetAuthentikGroups:
 
     def test_groups_from_id_token(self) -> None:
         """Test extracting groups from id_token in extra_data."""
-        team = Team.objects.create(
-            team_number=2, team_name="Test Team 2", max_members=5
-        )
+        team = Team.objects.create(team_number=2, team_name="Test Team 2", max_members=5)
 
         user = User.objects.create_user(username="testuser2")
 
@@ -110,9 +110,7 @@ class TestGetAuthentikGroups:
             user=user,
             provider="authentik",
             uid="test-uid-2",
-            extra_data={
-                "id_token": {"groups": ["WCComps_Discord_Admin", "WCComps_BlueTeam02"]}
-            },
+            extra_data={"id_token": {"groups": ["WCComps_Discord_Admin", "WCComps_BlueTeam02"]}},
         )
 
         discord_link = DiscordLink.objects.create(
@@ -130,9 +128,7 @@ class TestGetAuthentikGroups:
 
     def test_groups_from_userinfo(self) -> None:
         """Test extracting groups from userinfo in extra_data."""
-        team = Team.objects.create(
-            team_number=3, team_name="Test Team 3", max_members=5
-        )
+        team = Team.objects.create(team_number=3, team_name="Test Team 3", max_members=5)
 
         user = User.objects.create_user(username="testuser3")
 
@@ -140,11 +136,7 @@ class TestGetAuthentikGroups:
             user=user,
             provider="authentik",
             uid="test-uid-3",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_Ticketing_Admin", "WCComps_BlueTeam03"]
-                }
-            },
+            extra_data={"userinfo": {"groups": ["WCComps_Ticketing_Admin", "WCComps_BlueTeam03"]}},
         )
 
         discord_link = DiscordLink.objects.create(
@@ -162,9 +154,7 @@ class TestGetAuthentikGroups:
 
     def test_groups_from_root_extra_data(self) -> None:
         """Test extracting groups from root of extra_data."""
-        team = Team.objects.create(
-            team_number=4, team_name="Test Team 4", max_members=5
-        )
+        team = Team.objects.create(team_number=4, team_name="Test Team 4", max_members=5)
 
         user = User.objects.create_user(username="testuser4")
 
@@ -190,9 +180,7 @@ class TestGetAuthentikGroups:
 
     def test_groups_cached_after_first_query(self) -> None:
         """Test that groups are cached after first query."""
-        team = Team.objects.create(
-            team_number=5, team_name="Test Team 5", max_members=5
-        )
+        team = Team.objects.create(team_number=5, team_name="Test Team 5", max_members=5)
 
         user = User.objects.create_user(username="testuser5")
 
@@ -241,9 +229,7 @@ class TestPermissionChecks:
 
     async def test_is_admin_async_with_admin_group(self) -> None:
         """Test is_admin_async returns True for admin users."""
-        team = await Team.objects.acreate(
-            team_number=10, team_name="Admin Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=10, team_name="Admin Team", max_members=5)
 
         user = await User.objects.acreate(username="admin_user")
 
@@ -296,9 +282,7 @@ class TestPermissionChecks:
 
     async def test_can_manage_tickets_async_with_admin(self) -> None:
         """Test can_manage_tickets_async returns True for admins."""
-        team = await Team.objects.acreate(
-            team_number=11, team_name="Admin Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=11, team_name="Admin Team", max_members=5)
 
         user = await User.objects.acreate(username="admin_user2")
 
@@ -327,9 +311,7 @@ class TestPermissionChecks:
 
     async def test_can_manage_tickets_async_with_ticketing_admin(self) -> None:
         """Test can_manage_tickets_async returns True for ticketing admins."""
-        team = await Team.objects.acreate(
-            team_number=12, team_name="Ticketing Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=12, team_name="Ticketing Team", max_members=5)
 
         user = await User.objects.acreate(username="ticketing_admin")
 
@@ -362,20 +344,20 @@ class TestPermissionChecks:
         interaction.user = Mock()
         interaction.user.id = 1313131313
 
-        with patch("bot.permissions.is_admin_async", return_value=False):
-            with patch(
+        with (
+            patch("bot.permissions.is_admin_async", return_value=False),
+            patch(
                 "bot.permissions.get_authentik_groups_async",
                 side_effect=Exception("Test error"),
-            ):
-                result = await can_manage_tickets_async(interaction)
+            ),
+        ):
+            result = await can_manage_tickets_async(interaction)
 
-                assert result is False
+            assert result is False
 
     async def test_can_support_tickets_async_with_support_group(self) -> None:
         """Test can_support_tickets_async returns True for support users."""
-        team = await Team.objects.acreate(
-            team_number=13, team_name="Support Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=13, team_name="Support Team", max_members=5)
 
         user = await User.objects.acreate(username="support_user")
 
@@ -408,21 +390,21 @@ class TestPermissionChecks:
         interaction.user = Mock()
         interaction.user.id = 1515151515
 
-        with patch("bot.permissions.is_admin_async", return_value=False):
-            with patch("bot.permissions.can_manage_tickets_async", return_value=False):
-                with patch(
-                    "bot.permissions.get_authentik_groups_async",
-                    side_effect=Exception("Test error"),
-                ):
-                    result = await can_support_tickets_async(interaction)
+        with (
+            patch("bot.permissions.is_admin_async", return_value=False),
+            patch("bot.permissions.can_manage_tickets_async", return_value=False),
+            patch(
+                "bot.permissions.get_authentik_groups_async",
+                side_effect=Exception("Test error"),
+            ),
+        ):
+            result = await can_support_tickets_async(interaction)
 
-                    assert result is False
+            assert result is False
 
     async def test_is_gold_team_async_with_gold_team_group(self) -> None:
         """Test is_gold_team_async returns True for gold team users."""
-        team = await Team.objects.acreate(
-            team_number=14, team_name="Gold Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=14, team_name="Gold Team", max_members=5)
 
         user = await User.objects.acreate(username="gold_user")
 
@@ -455,20 +437,20 @@ class TestPermissionChecks:
         interaction.user = Mock()
         interaction.user.id = 1717171717
 
-        with patch("bot.permissions.is_admin_async", return_value=False):
-            with patch(
+        with (
+            patch("bot.permissions.is_admin_async", return_value=False),
+            patch(
                 "bot.permissions.get_authentik_groups_async",
                 side_effect=Exception("Test error"),
-            ):
-                result = await is_gold_team_async(interaction)
+            ),
+        ):
+            result = await is_gold_team_async(interaction)
 
-                assert result is False
+            assert result is False
 
     async def test_get_permission_level_async_admin(self) -> None:
         """Test get_permission_level_async returns 'admin' for admins."""
-        team = await Team.objects.acreate(
-            team_number=15, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=15, team_name="Test Team", max_members=5)
 
         user = await User.objects.acreate(username="admin_level")
 
@@ -497,9 +479,7 @@ class TestPermissionChecks:
 
     async def test_get_permission_level_async_ticketing_admin(self) -> None:
         """Test get_permission_level_async returns 'ticketing_admin'."""
-        team = await Team.objects.acreate(
-            team_number=16, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=16, team_name="Test Team", max_members=5)
 
         user = await User.objects.acreate(username="ticketing_level")
 
@@ -528,9 +508,7 @@ class TestPermissionChecks:
 
     async def test_get_permission_level_async_ticketing_support(self) -> None:
         """Test get_permission_level_async returns 'ticketing_support'."""
-        team = await Team.objects.acreate(
-            team_number=17, team_name="Test Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=17, team_name="Test Team", max_members=5)
 
         user = await User.objects.acreate(username="support_level")
 
@@ -579,9 +557,7 @@ class TestPermissionCheckFunctions:
 
     async def test_check_admin_allows_admin(self) -> None:
         """Test check_admin allows admin users."""
-        team = await Team.objects.acreate(
-            team_number=20, team_name="Admin Team", max_members=5
-        )
+        team = await Team.objects.acreate(team_number=20, team_name="Admin Team", max_members=5)
 
         user = await User.objects.acreate(username="check_admin_user")
 

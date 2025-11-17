@@ -1,12 +1,15 @@
 """Admin configuration for person app."""
 
+from typing import Any
+
 from django.contrib import admin
 from django.http import HttpRequest
+
 from .models import Person
 
 
 @admin.register(Person)
-class PersonAdmin(admin.ModelAdmin):
+class PersonAdmin(admin.ModelAdmin[Person]):
     """Admin interface for Person profiles."""
 
     list_display = [
@@ -59,6 +62,7 @@ class PersonAdmin(admin.ModelAdmin):
         ),
     )
 
+    @admin.display(description="Team")
     def team_display(self, obj: Person) -> str:
         """Display team number or role."""
         team_num = obj.get_team_number()
@@ -66,8 +70,7 @@ class PersonAdmin(admin.ModelAdmin):
             return f"Team {team_num}"
         return "-"
 
-    team_display.short_description = "Team"
-
+    @admin.display(description="Staff Role")
     def staff_role_display(self, obj: Person) -> str:
         """Display staff role if applicable."""
         roles = []
@@ -83,28 +86,25 @@ class PersonAdmin(admin.ModelAdmin):
             roles.append("Black")
         return ", ".join(roles) if roles else "-"
 
-    staff_role_display.short_description = "Staff Role"
-
+    @admin.display(description="Authentik Groups")
     def authentik_groups_display(self, obj: Person) -> str:
         """Display Authentik groups as comma-separated list."""
         if obj.authentik_groups:
             return ", ".join(obj.authentik_groups)
         return "No groups"
 
-    authentik_groups_display.short_description = "Authentik Groups"
-
     def has_add_permission(self, request: HttpRequest) -> bool:
         """Disable manual creation (auto-created via signal)."""
         return False
 
-    def has_delete_permission(self, request: HttpRequest, obj=None) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         """Disable deletion (managed via User model)."""
         return False
 
     actions = ["refresh_from_authentik"]
 
     @admin.action(description="Refresh Authentik data for selected users")
-    def refresh_from_authentik(self, request: HttpRequest, queryset):
+    def refresh_from_authentik(self, request: HttpRequest, queryset: Any) -> None:
         """Refresh cached Authentik data from SocialAccount."""
         count = 0
         for person in queryset:
