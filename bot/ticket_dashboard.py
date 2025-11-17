@@ -302,6 +302,7 @@ class TicketActionView(discord.ui.View):
         ticket.status = "cancelled"
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = f"Cancelled by {interaction.user}"
+        ticket.points_charged = 0
 
         # Schedule thread archiving if Discord thread exists
         if ticket.discord_thread_id:
