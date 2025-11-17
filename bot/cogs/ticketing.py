@@ -132,6 +132,14 @@ class TicketingCog(commands.Cog):
             await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
+        # For box-reset, validate hostname is provided
+        if category == "box-reset" and not description.strip():
+            await interaction.response.send_message(
+                "Box reset requires a hostname.\nPlease specify which box to reset in the description field.",
+                ephemeral=True,
+            )
+            return
+
         # For box-reset, use description as hostname
         hostname = description if category == "box-reset" else ""
 
