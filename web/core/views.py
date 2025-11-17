@@ -730,6 +730,7 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
     ticket.status = "cancelled"
     ticket.resolved_at = timezone.now()
     ticket.resolution_notes = f"Cancelled by {authentik_username} via web interface"
+    ticket.points_charged = 0
     ticket.save()
 
     # Create history entry
