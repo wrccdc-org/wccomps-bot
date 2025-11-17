@@ -374,6 +374,7 @@ class AdminTicketsCog(commands.Cog):
         ticket.status = "cancelled"
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = reason or "Cancelled by admin"
+        ticket.points_charged = 0
         if not ticket.assigned_to_discord_id:
             ticket.assigned_to_discord_id = interaction.user.id
             ticket.assigned_to_discord_username = str(interaction.user)
