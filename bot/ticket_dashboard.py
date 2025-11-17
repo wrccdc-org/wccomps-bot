@@ -249,9 +249,10 @@ class TicketActionView(discord.ui.View):
         row=2,
     )
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
-        """Cancel an unclaimed ticket (team members only)."""
+        """Cancel an unclaimed ticket."""
         from asgiref.sync import sync_to_async
 
+        from bot.permissions import can_support_tickets_async
         from team.models import DiscordLink
         from ticketing.models import TicketHistory
 
@@ -264,6 +265,9 @@ class TicketActionView(discord.ui.View):
             )
             return
 
+        # Check if user is ops or team member
+        is_ops = await can_support_tickets_async(interaction)
+
         # Check if user is linked to a team
         @sync_to_async
         def get_team_link() -> DiscordLink | None:
@@ -274,8 +278,13 @@ class TicketActionView(discord.ui.View):
             )
 
         link = await get_team_link()
-        if not link or not link.team:
-            await interaction.response.send_message("You must be linked to a team to cancel tickets.", ephemeral=True)
+        is_team_member = link and link.team
+
+        if not is_ops and not is_team_member:
+            await interaction.response.send_message(
+                "You must be a team member or ops to cancel tickets.",
+                ephemeral=True,
+            )
             return
 
         # Get ticket
@@ -284,8 +293,8 @@ class TicketActionView(discord.ui.View):
             await interaction.response.send_message("Ticket not found.", ephemeral=True)
             return
 
-        # Verify ticket belongs to user's team
-        if ticket.team.id != link.team.id:
+        # If team member (not ops), verify ticket belongs to their team
+        if is_team_member and not is_ops and ticket.team.id != link.team.id:
             await interaction.response.send_message("This ticket does not belong to your team.", ephemeral=True)
             return
 
