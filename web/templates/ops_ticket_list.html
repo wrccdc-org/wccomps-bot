@@ -182,10 +182,12 @@
                                     {% csrf_token %}
                                     <c-button type="submit">Resolve</c-button>
                                 </form>
+                                {% if item.ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
                                 <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" style="display: inline;">
                                     {% csrf_token %}
                                     <c-button type="submit">Unclaim</c-button>
                                 </form>
+                                {% endif %}
                             {% endif %}
                         </td>
                     </tr>
