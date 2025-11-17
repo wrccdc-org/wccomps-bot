@@ -1035,6 +1035,7 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
             "auto_refresh": True,
             "ticket": ticket,
             "category_name": cat_info.get("display_name", ticket.category),
+            "categories": TICKET_CATEGORIES,
             "comments": comments,
             "history": history,
             "attachments": attachments,
@@ -1310,6 +1311,70 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
         f"Ticket {ticket_number} reopened by {authentik_username}" + (f": {reopen_reason}" if reopen_reason else "")
     )
     return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+
+
+@login_required
+def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Change ticket category."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+
+    if not has_permission(user, "ticketing_support"):
+        return HttpResponse("Access denied", status=403)
+
+    # Get ticket
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    # Check if user has claimed the ticket or is admin
+    is_admin = has_permission(user, "ticketing_admin")
+    has_claimed = ticket.assigned_to_authentik_username == authentik_username
+
+    if not is_admin and not has_claimed:
+        return HttpResponse("You must claim the ticket first", status=403)
+
+    # Get new category
+    new_category = request.POST.get("new_category", "").strip()
+    if not new_category or new_category not in TICKET_CATEGORIES:
+        return HttpResponse("Invalid category", status=400)
+
+    old_category = ticket.category
+    if old_category == new_category:
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+
+    old_cat_info = TICKET_CATEGORIES.get(old_category, {})
+    new_cat_info = TICKET_CATEGORIES.get(new_category, {})
+
+    # Update category
+    ticket.category = new_category
+    ticket.save()
+
+    # Create history entry
+    TicketHistory.objects.create(
+        ticket=ticket,
+        action="category_changed",
+        actor_username=authentik_username,
+        details={
+            "old_category": old_category,
+            "old_category_name": old_cat_info.get("display_name", old_category),
+            "new_category": new_category,
+            "new_category_name": new_cat_info.get("display_name", new_category),
+            "old_points": old_cat_info.get("points", 0),
+            "new_points": new_cat_info.get("points", 0),
+        },
+    )
+
+    logger.info(
+        f"Ticket {ticket_number} category changed by {authentik_username}: "
+        f"{old_cat_info.get('display_name', old_category)} → {new_cat_info.get('display_name', new_category)}"
+    )
+
+    return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
 
 @login_required
