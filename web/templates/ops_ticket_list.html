@@ -164,6 +164,8 @@
                         <td class="field-assigned">
                             {% if item.ticket.assigned_to_discord_username %}
                                 {{ item.ticket.assigned_to_discord_username }}
+                            {% elif item.ticket.assigned_to_authentik_username %}
+                                {{ item.ticket.assigned_to_authentik_username }}
                             {% else %}
                                 Unassigned
                             {% endif %}

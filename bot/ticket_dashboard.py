@@ -52,6 +52,12 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
             value=f"<@{ticket.assigned_to_discord_id}> ({ticket.assigned_to_discord_username})",
             inline=False,
         )
+    elif ticket.assigned_to_authentik_username:
+        embed.add_field(
+            name="Assigned To",
+            value=f"{ticket.assigned_to_authentik_username} (web user)",
+            inline=False,
+        )
 
     # Point impact
     points = cat_info.get("points", 0)
