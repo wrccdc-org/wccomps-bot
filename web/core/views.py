@@ -840,9 +840,9 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         )
 
     # Get filter parameters
-    status_filter = request.GET.get("status", "all")
+    status_filter = request.GET.get("status", "all") or "all"
     team_filter = request.GET.get("team", "")
-    category_filter = request.GET.get("category", "all")
+    category_filter = request.GET.get("category", "all") or "all"
     assignee_filter = request.GET.get("assignee", "")
     search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
