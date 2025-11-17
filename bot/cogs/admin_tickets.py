@@ -413,6 +413,81 @@ class AdminTicketsCog(commands.Cog):
         )
 
     @tickets_group.command(
+        name="change-category",
+        description="[ADMIN] Change the category of a ticket",
+    )
+    @app_commands.describe(
+        ticket_number="Ticket number (e.g., T050-003)",
+        new_category="New category for the ticket",
+    )
+    @app_commands.choices(
+        new_category=[
+            app_commands.Choice(name=cat["display_name"], value=cat_id) for cat_id, cat in TICKET_CATEGORIES.items()
+        ]
+    )
+    @app_commands.check(check_ticketing_admin)
+    async def admin_change_category(
+        self, interaction: discord.Interaction, ticket_number: str, new_category: str
+    ) -> None:
+        """Change the category of a ticket."""
+        ticket = await Ticket.objects.select_related("team").filter(ticket_number=ticket_number).afirst()
+        if not ticket:
+            await interaction.response.send_message(f"Ticket {ticket_number} not found", ephemeral=True)
+            return
+
+        old_category = ticket.category
+        if old_category == new_category:
+            await interaction.response.send_message(
+                f"Ticket {ticket.ticket_number} is already in category {new_category}",
+                ephemeral=True,
+            )
+            return
+
+        old_cat_info = TICKET_CATEGORIES.get(old_category, {})
+        new_cat_info = TICKET_CATEGORIES.get(new_category, {})
+
+        # Update category
+        ticket.category = new_category
+        await ticket.asave()
+
+        # Create history entry
+        await TicketHistory.objects.acreate(
+            ticket=ticket,
+            action="category_changed",
+            actor_username=str(interaction.user),
+            details={
+                "old_category": old_category,
+                "old_category_name": old_cat_info.get("display_name", old_category),
+                "new_category": new_category,
+                "new_category_name": new_cat_info.get("display_name", new_category),
+                "old_points": old_cat_info.get("points", 0),
+                "new_points": new_cat_info.get("points", 0),
+            },
+        )
+
+        # Update dashboard
+        try:
+            await update_ticket_dashboard(self.bot, ticket)
+        except Exception as e:
+            logger.exception(f"Failed to update dashboard: {e}")
+
+        # Log to ops
+        old_cat_name = old_cat_info.get("display_name", old_category)
+        new_cat_name = new_cat_info.get("display_name", new_category)
+
+        await log_to_ops_channel(
+            self.bot,
+            f"Ticket Category Changed: {ticket.ticket_number} for **{ticket.team.team_name}**\n"
+            f"Changed by {interaction.user.mention}: {old_cat_name} → {new_cat_name}\n"
+            f"Point impact: {old_cat_info.get('points', 0)}pt → {new_cat_info.get('points', 0)}pt",
+        )
+
+        await interaction.response.send_message(
+            f"Changed {ticket.ticket_number} from {old_cat_name} to {new_cat_name}",
+            ephemeral=True,
+        )
+
+    @tickets_group.command(
         name="reassign",
         description="[ADMIN] Reassign a ticket to a different volunteer",
     )
