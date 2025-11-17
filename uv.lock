@@ -1753,6 +1753,7 @@ dependencies = [
     { name = "django-allauth" },
     { name = "django-cotton" },
     { name = "django-crispy-forms" },
+    { name = "django-stubs" },
     { name = "gunicorn" },
     { name = "psycopg2-binary" },
     { name = "pyjwt" },
@@ -1773,7 +1774,6 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "django-stubs" },
     { name = "hypothesis", extra = ["django"] },
     { name = "mypy" },
     { name = "playwright" },
@@ -1798,6 +1798,7 @@ requires-dist = [
     { name = "django-allauth", specifier = ">=0.57" },
     { name = "django-cotton", specifier = ">=0.9" },
     { name = "django-crispy-forms", specifier = ">=2.1" },
+    { name = "django-stubs", specifier = ">=5.1.1" },
     { name = "gunicorn", specifier = ">=21.2" },
     { name = "psycopg2-binary", specifier = ">=2.9.9" },
     { name = "pyjwt", specifier = ">=2.8.0" },
@@ -1814,7 +1815,6 @@ provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "django-stubs", specifier = ">=5.1.1" },
     { name = "hypothesis", extras = ["django"], specifier = ">=6.100" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "playwright", specifier = ">=1.40.0" },
