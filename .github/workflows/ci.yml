@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: wccomps
+          POSTGRES_PASSWORD: wccomps
+          POSTGRES_DB: wccomps_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Check code formatting
+        run: |
+          uv run ruff format --check .
+
+      - name: Run linting
+        run: |
+          uv run ruff check .
+
+      - name: Run type checking
+        run: |
+          DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ --exclude 'bot/tests/.*' --exclude 'web/tests/.*' --exclude 'web/integration_tests/.*'
+
+      - name: Check for unapplied migrations
+        run: |
+          cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py makemigrations --check --dry-run
+        env:
+          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
+
+      - name: Collect static files
+        run: |
+          cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput
+        env:
+          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
+          SECRET_KEY: test-secret-key-for-ci
+
+      - name: Run tests
+        run: |
+          uv run pytest -m critical --tb=short -v
+        env:
+          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
+          DJANGO_SETTINGS_MODULE: wccomps.settings
+          USE_POSTGRES_FOR_TESTS: "1"
+          TICKETING_ENABLED: "true"
+          PYTHONPATH: ${{ github.workspace }}/web:${{ github.workspace }}
+          SECRET_KEY: test-secret-key-for-ci
