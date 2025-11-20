@@ -89,6 +89,10 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
             },
         )
 
+    # Store token in session for CSRF protection
+    request.session["pending_link_token"] = link_token.token
+    request.session["pending_link_discord_id"] = link_token.discord_id
+
     # Pass token through OAuth redirect via next parameter
     # This is more reliable than session storage which django-allauth may clear
     return redirect(f"/accounts/oidc/authentik/login/?next=/auth/callback?token={link_token.token}")
@@ -129,6 +133,25 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 "error": "Invalid request",
                 "message": (
                     "Missing authentication state. Please start the linking process again with /link in Discord."
+                ),
+            },
+        )
+
+    # CSRF protection: verify token matches what was stored in session during initiation
+    session_token = request.session.get("pending_link_token")
+    if not session_token or session_token != url_token:
+        logger.warning(
+            f"CSRF attempt detected: session token '{session_token}' != url token '{url_token}' "
+            f"for user {authentik_username}"
+        )
+        return render(
+            request,
+            "link_error.html",
+            {
+                "error": "Security verification failed",
+                "message": (
+                    "The linking request could not be verified. This may be a CSRF attack attempt. "
+                    "Please start the linking process again with /link in Discord."
                 ),
             },
         )
@@ -344,7 +367,8 @@ def link_callback(request: HttpRequest) -> HttpResponse:
         )
         logger.info(f"Successfully linked {discord_username} ({discord_id}) to {authentik_username}")
 
-    # Clear any session data (no longer used, but clean up just in case)
+    # Clear session data used for CSRF protection
+    request.session.pop("pending_link_token", None)
     request.session.pop("pending_link_discord_id", None)
 
     return render(
@@ -1226,7 +1250,9 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     user = cast(User, request.user)
     authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
-    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
+    is_ticketing_admin = has_permission(user, "ticketing_admin")
+
+    if not (has_permission(user, "ticketing_support") or is_ticketing_admin):
         return HttpResponse("Access denied", status=403)
 
     # Get ticket to find ID
@@ -1234,6 +1260,13 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
+
+    # Verify ownership: only the assigned user or admins can resolve
+    if not is_ticketing_admin and ticket_obj.assigned_to_authentik_username != authentik_username:
+        return HttpResponse(
+            "Access denied: Only the assigned support member or administrators can resolve this ticket",
+            status=403,
+        )
 
     resolution_notes = request.POST.get("resolution_notes", "").strip()
     points_override_str = request.POST.get("points_override", "").strip()
