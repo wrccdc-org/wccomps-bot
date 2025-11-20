@@ -101,8 +101,12 @@ class TestOAuthCallback:
             expires_at=timezone.now() + timedelta(minutes=15),
         )
 
-        # Call OAuth callback with token
+        # Call link_initiate first to set up session (CSRF protection)
         client = Client()
+        response = client.get(reverse("link_initiate"), {"token": link_token.token})
+        assert response.status_code == 302  # Should redirect to OAuth
+
+        # Now login and call the callback
         client.force_login(user)
 
         try:
@@ -143,6 +147,66 @@ class TestOAuthCallback:
         # Should return 400 without token
         assert response.status_code == 400
         assert b"Missing token" in response.content
+
+    def test_link_callback_csrf_protection(self, db, test_team_id):
+        """Link callback should reject tokens that weren't initiated in the current session (CSRF protection)."""
+        import random
+        import uuid
+        from datetime import timedelta
+
+        from allauth.socialaccount.models import SocialAccount
+        from django.utils import timezone
+
+        from team.models import LinkToken, Team
+
+        # Create authenticated user
+        unique_id = str(uuid.uuid4())[:8]
+        username = f"test_csrf_{unique_id}"
+        user = User.objects.create_user(username=username, email=f"{username}@example.com")
+
+        team = Team.objects.get(team_number=test_team_id)
+        SocialAccount.objects.create(
+            user=user,
+            provider="authentik",
+            uid=f"test_uid_csrf_{unique_id}",
+            extra_data={
+                "userinfo": {
+                    "preferred_username": username,
+                    "groups": [f"WCComps_{team.authentik_group}"],
+                },
+            },
+        )
+
+        # Create attacker's LinkToken
+        attacker_discord_id = random.randint(100000000000000000, 999999999999999999)
+        attacker_token = LinkToken.objects.create(
+            token=str(uuid.uuid4()),
+            discord_id=attacker_discord_id,
+            discord_username=f"attacker_{unique_id}",
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+
+        # Attacker tries to trick victim into visiting callback with attacker's token
+        # Victim is logged in but hasn't initiated linking
+        client = Client()
+        client.force_login(user)
+
+        # Direct callback access without going through initiate (CSRF attack attempt)
+        response = client.get(reverse("link_callback"), {"token": attacker_token.token})
+
+        # Should reject - CSRF protection
+        assert response.status_code == 200  # Renders error page
+        assert b"Security verification failed" in response.content or b"CSRF" in response.content
+
+        # Verify token was NOT marked as used
+        attacker_token.refresh_from_db()
+        assert attacker_token.used is False
+
+        # Verify no DiscordLink was created
+        from team.models import DiscordLink
+
+        discord_link = DiscordLink.objects.filter(discord_id=attacker_discord_id).first()
+        assert discord_link is None, "DiscordLink should NOT have been created via CSRF attack"
 
 
 class TestTicketOperations:
@@ -286,6 +350,59 @@ class TestTicketOperations:
         # Verify ticket was resolved
         test_ticket.refresh_from_db()
         assert test_ticket.status == "resolved"
+
+    def test_ticket_resolve_requires_ownership(self, db, test_ticket, support_user, django_user_model):
+        """Non-admin support users should only be able to resolve tickets they claimed."""
+        import uuid
+
+        from allauth.socialaccount.models import SocialAccount
+
+        # Create another support user
+        unique_id = str(uuid.uuid4())[:8]
+        other_username = f"other_support_{unique_id}"
+        other_user = django_user_model.objects.create_user(
+            username=other_username, email=f"{other_username}@example.com"
+        )
+
+        SocialAccount.objects.create(
+            user=other_user,
+            provider="authentik",
+            uid=f"other_support_uid_{unique_id}",
+            extra_data={
+                "userinfo": {
+                    "preferred_username": other_username,
+                    "groups": ["WCComps_Ticketing_Support"],
+                },
+            },
+        )
+
+        # First user claims the ticket
+        test_ticket.status = "claimed"
+        test_ticket.assigned_to_discord_id = support_user.discord_id
+        test_ticket.assigned_to_authentik_username = support_user.authentik_username
+        test_ticket.save()
+
+        # Second support user tries to resolve (should fail - not their ticket)
+        client = Client()
+        client.force_login(other_user)
+
+        response = client.post(
+            reverse(
+                "ops_ticket_resolve",
+                kwargs={"ticket_number": test_ticket.ticket_number},
+            ),
+            data={
+                "resolution_notes": "Trying to resolve someone else's ticket",
+            },
+        )
+
+        # Should be denied
+        assert response.status_code == 403
+        assert b"Access denied" in response.content
+
+        # Verify ticket was NOT resolved
+        test_ticket.refresh_from_db()
+        assert test_ticket.status == "claimed"
 
 
 class TestConcurrentOperations:

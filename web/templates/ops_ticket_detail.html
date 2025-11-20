@@ -98,6 +98,7 @@
                 </form>
             </div>
             {% elif ticket.status == 'claimed' %}
+            {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
                 {% csrf_token %}
                 <div style="margin-bottom: 15px;">
@@ -114,12 +115,16 @@
                     <c-button type="submit" variant="success">✓ Resolve Ticket</c-button>
                 </div>
             </form>
-            {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
                 <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" style="display: inline;">
                     {% csrf_token %}
                     <c-button type="submit">Unclaim</c-button>
                 </form>
+            </div>
+            {% else %}
+            <div style="padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
+                <strong>⚠️ Ticket Claimed by Another User</strong>
+                <p style="margin: 5px 0 0 0;">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
             </div>
             {% endif %}
             {% elif ticket.status == 'resolved' and is_ticketing_admin %}
