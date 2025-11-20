@@ -3,7 +3,6 @@
 from typing import Any
 
 from django.db import migrations
-from psycopg2 import sql
 
 
 def fix_sequences(apps: Any, schema_editor: Any) -> None:
@@ -23,11 +22,8 @@ def fix_sequences(apps: Any, schema_editor: Any) -> None:
 
         for seq_name, table_name in sequences:
             # Get max ID, default to 1 if table is empty (setval doesn't accept 0)
-            query = sql.SQL("SELECT setval({seq}, (SELECT COALESCE(MAX(id), 1) FROM {table}), false);").format(
-                seq=sql.Literal(seq_name),
-                table=sql.Identifier(table_name),
-            )
-            cursor.execute(query)
+            query = f"SELECT setval(%s, (SELECT COALESCE(MAX(id), 1) FROM {table_name}), false);"
+            cursor.execute(query, [seq_name])
 
 
 class Migration(migrations.Migration):
