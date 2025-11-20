@@ -7,10 +7,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.utils.http import content_disposition_header
+from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme
 
 from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
@@ -492,7 +492,7 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
     if not is_allowed:
-        return HttpResponse(reason, status=429)
+        return JsonResponse({"error": reason}, status=429)
 
     # Record rate limit
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
@@ -1082,7 +1082,7 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
     if not is_allowed:
-        return HttpResponse(reason, status=429)
+        return JsonResponse({"error": reason}, status=429)
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
@@ -1168,7 +1168,10 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         )
 
     logger.info(f"Ticket {ticket_number} claimed by {authentik_username}")
-    return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_ticket_list")
 
 
 @login_required
@@ -1208,7 +1211,10 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse(error or "Failed to unclaim ticket", status=400)
 
     logger.info(f"Ticket {ticket_number} unclaimed by {authentik_username}")
-    return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_ticket_list")
 
 
 @login_required
@@ -1270,7 +1276,10 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse(error or "Failed to resolve ticket", status=400)
 
     logger.info(f"Ticket {ticket_number} resolved by {authentik_username}")
-    return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_ticket_list")
 
 
 @login_required
@@ -1318,7 +1327,10 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     logger.info(
         f"Ticket {ticket_number} reopened by {authentik_username}" + (f": {reopen_reason}" if reopen_reason else "")
     )
-    return redirect(request.META.get("HTTP_REFERER", "ops_ticket_list"))
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_ticket_list")
 
 
 @login_required
