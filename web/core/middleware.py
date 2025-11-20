@@ -4,7 +4,6 @@ from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
-from django.utils.http import url_has_allowed_host_and_scheme
 
 
 class AuthentikRequiredMiddleware:
