@@ -13,6 +13,9 @@ IMPLEMENTATION_STATUS.md
 .pytest_cache
 .ruff_cache
 .mypy_cache
+.coverage
+htmlcov
+.hypothesis
 .claude
 *.db
 *.sqlite3
