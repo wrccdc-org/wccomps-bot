@@ -1548,6 +1548,57 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
+    """Clear all tickets and reset counters (admin only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, _groups, _ = get_authentik_data(user)
+
+    if not has_permission(user, "ticketing_admin"):
+        return HttpResponse("Access denied - admin only", status=403)
+
+    from django.db import transaction
+
+    from core.models import AuditLog
+    from team.models import Team
+    from ticketing.models import TicketAttachment, TicketComment, TicketHistory
+
+    # Get counts before deletion
+    ticket_count = Ticket.objects.count()
+    attachment_count = TicketAttachment.objects.count()
+    comment_count = TicketComment.objects.count()
+    history_count = TicketHistory.objects.count()
+    teams_to_reset = Team.objects.filter(ticket_counter__gt=0).count()
+
+    with transaction.atomic():
+        # Delete all tickets (CASCADE handles related data)
+        Ticket.objects.all().delete()
+
+        # Reset team ticket counters
+        Team.objects.filter(ticket_counter__gt=0).update(ticket_counter=0)
+
+        # Create audit log
+        AuditLog.objects.create(
+            action="clear_tickets",
+            admin_user=authentik_username,
+            target_entity="tickets",
+            target_id=0,
+            details={
+                "tickets_deleted": ticket_count,
+                "attachments_deleted": attachment_count,
+                "comments_deleted": comment_count,
+                "history_deleted": history_count,
+                "teams_reset": teams_to_reset,
+            },
+        )
+
+    logger.info(f"Cleared all tickets ({ticket_count}) by {authentik_username}")
+    return redirect("ops_ticket_list")
+
+
+@login_required
 def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Upload an attachment to a ticket (operations team only)."""
     if request.method != "POST":

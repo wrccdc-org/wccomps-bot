@@ -80,6 +80,11 @@ if TICKETING_ENABLED:
             name="ops_tickets_bulk_resolve",
         ),
         path(
+            "ops/tickets/clear-all/",
+            views.ops_tickets_clear_all,
+            name="ops_tickets_clear_all",
+        ),
+        path(
             "ops/ticket/<str:ticket_number>/",
             views.ops_ticket_detail,
             name="ops_ticket_detail",
