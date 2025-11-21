@@ -426,3 +426,340 @@ class TestTicketingCog:
 
         # Should not create comment for non-ticket thread
         assert await TicketComment.objects.acount() == initial_count
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestTicketCommand:
+    """Test the /ticket slash command."""
+
+    @pytest_asyncio.fixture
+    async def bot(self) -> AsyncMock:
+        """Create mock bot instance."""
+        bot = AsyncMock(spec=discord.Client)
+        bot.wait_until_ready = AsyncMock()
+        bot.get_channel = Mock(return_value=None)
+        return bot
+
+    @pytest_asyncio.fixture
+    async def cog(self, bot: AsyncMock) -> TicketingCog:
+        """Create TicketingCog instance."""
+        cog = TicketingCog(bot)
+        cog.archive_threads_task.cancel()
+        return cog
+
+    @pytest_asyncio.fixture
+    async def team(self) -> Team:
+        """Create test team with Discord infrastructure."""
+        return await Team.objects.acreate(
+            team_number=50,
+            team_name="Test Team 50",
+            authentik_group="WCComps_BlueTeam50",
+            discord_category_id=9876543210,
+            max_members=5,
+        )
+
+    @pytest_asyncio.fixture
+    async def discord_link(self, team: Team) -> DiscordLink:
+        """Create test Discord link for team member."""
+        return await DiscordLink.objects.acreate(
+            team=team,
+            discord_id=555666777888,
+            discord_username="teammember#9999",
+            authentik_username="teammember",
+            is_active=True,
+        )
+
+    @pytest_asyncio.fixture
+    def interaction(self, discord_link: DiscordLink) -> AsyncMock:
+        """Create mock interaction for team member."""
+        interaction = AsyncMock(spec=discord.Interaction)
+        interaction.user = Mock()
+        interaction.user.id = discord_link.discord_id
+        interaction.user.name = "teammember"
+        interaction.user.__str__ = Mock(return_value="teammember#9999")
+        interaction.guild = Mock(spec=discord.Guild)
+        interaction.guild.id = 525435725123158026
+        interaction.response = AsyncMock()
+        interaction.followup = AsyncMock()
+        return interaction
+
+    async def test_create_ticket_user_not_linked(self, cog: TicketingCog) -> None:
+        """Test /ticket command when user is not linked."""
+        interaction = AsyncMock(spec=discord.Interaction)
+        interaction.user = Mock()
+        interaction.user.id = 999999999999  # Not linked
+        interaction.guild = Mock(spec=discord.Guild)
+        interaction.response = AsyncMock()
+
+        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="web-01")
+
+        # Should send error message
+        interaction.response.send_message.assert_called_once()
+        args = interaction.response.send_message.call_args
+        assert "must be linked" in args[0][0].lower()
+        assert args[1]["ephemeral"] is True
+
+    async def test_create_ticket_user_not_on_team(self, cog: TicketingCog) -> None:
+        """Test /ticket command when user is linked but not on a team (admin)."""
+        # Create admin link (no team)
+        admin_link = await DiscordLink.objects.acreate(
+            discord_id=888777666555,
+            discord_username="admin#1234",
+            authentik_username="admin",
+            team=None,  # Admin - no team
+            is_active=True,
+        )
+
+        interaction = AsyncMock(spec=discord.Interaction)
+        interaction.user = Mock()
+        interaction.user.id = admin_link.discord_id
+        interaction.guild = Mock(spec=discord.Guild)
+        interaction.response = AsyncMock()
+
+        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="web-01")
+
+        # Should send error message
+        interaction.response.send_message.assert_called_once()
+        args = interaction.response.send_message.call_args
+        assert "blue team competitors only" in args[0][0].lower()
+        assert "administrator or support member" in args[0][0].lower()
+
+    async def test_create_ticket_invalid_category(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket with invalid category."""
+        from unittest.mock import patch
+
+        # Mock TICKET_CATEGORIES without the category
+        with patch("bot.cogs.ticketing.TICKET_CATEGORIES", {"valid-category": {"display_name": "Valid"}}):
+            await cog.create_ticket.callback(cog, interaction, category="invalid-category", description="test")
+
+            # Should send error message
+            interaction.response.send_message.assert_called_once()
+            args = interaction.response.send_message.call_args
+            assert "invalid" in args[0][0].lower()
+
+    async def test_create_ticket_box_reset_requires_hostname(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket box-reset requires hostname in description."""
+        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="   ")  # Empty/whitespace
+
+        # Should send error message
+        interaction.response.send_message.assert_called_once()
+        args = interaction.response.send_message.call_args
+        assert "requires a hostname" in args[0][0].lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestRateLimiting:
+    """Test rate limiting for ticket comments."""
+
+    @pytest_asyncio.fixture
+    async def bot(self) -> AsyncMock:
+        """Create mock bot instance."""
+        bot = AsyncMock(spec=discord.Client)
+        return bot
+
+    @pytest_asyncio.fixture
+    async def cog(self, bot: AsyncMock) -> TicketingCog:
+        """Create TicketingCog instance."""
+        cog = TicketingCog(bot)
+        cog.archive_threads_task.cancel()
+        return cog
+
+    @pytest_asyncio.fixture
+    async def team(self) -> Team:
+        """Create test team."""
+        return await Team.objects.acreate(
+            team_number=25,
+            team_name="Rate Limit Team",
+            authentik_group="WCComps_BlueTeam25",
+        )
+
+    @pytest_asyncio.fixture
+    async def ticket(self, team: Team) -> Ticket:
+        """Create test ticket."""
+        return await Ticket.objects.acreate(
+            ticket_number="T025-500",
+            team=team,
+            category="service-check",
+            title="Rate Limit Test",
+            description="Test",
+            status="open",
+            discord_thread_id=1234567890123,
+        )
+
+    async def test_rate_limit_per_ticket_enforced(self, cog: TicketingCog, ticket: Ticket) -> None:
+        """Test rate limit: 5 comments per minute per ticket."""
+        from ticketing.models import CommentRateLimit
+
+        # Create 5 rate limit entries for this ticket (at the limit)
+        for i in range(5):
+            await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=111222333 + i)
+
+        # Create message from a user
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 999888777  # Different user
+        message.author.mention = "<@999888777>"
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.channel.send = AsyncMock()
+        message.content = "This should be rate limited"
+        message.attachments = []
+        message.delete = AsyncMock()
+
+        await cog.on_message(message)
+
+        # Message should be deleted
+        message.delete.assert_called_once()
+
+        # Rate limit message should be sent
+        message.channel.send.assert_called_once()
+        args = message.channel.send.call_args
+        assert "rate limit" in args[0][0].lower()
+
+    async def test_rate_limit_per_user_enforced(self, cog: TicketingCog, ticket: Ticket, team: Team) -> None:
+        """Test rate limit: 10 comments per minute per user."""
+        from ticketing.models import CommentRateLimit
+
+        # Create 10 rate limit entries for same user (user-level limit is 10/min)
+        user_id = 555444333
+        for i in range(10):
+            await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=user_id)
+
+        # Try to comment on the original ticket
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = user_id
+        message.id = 444555666777  # Add message ID
+        message.author.mention = f"<@{user_id}>"
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.channel.send = AsyncMock()
+        message.content = "User rate limited"
+        message.attachments = []
+        message.delete = AsyncMock()
+
+        await cog.on_message(message)
+
+        # Message should be deleted due to user-level rate limit
+        message.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestAttachmentHandling:
+    """Test file attachment handling."""
+
+    @pytest_asyncio.fixture
+    async def bot(self) -> AsyncMock:
+        """Create mock bot instance."""
+        return AsyncMock(spec=discord.Client)
+
+    @pytest_asyncio.fixture
+    async def cog(self, bot: AsyncMock) -> TicketingCog:
+        """Create TicketingCog instance."""
+        cog = TicketingCog(bot)
+        cog.archive_threads_task.cancel()
+        return cog
+
+    @pytest_asyncio.fixture
+    async def team(self) -> Team:
+        """Create test team."""
+        return await Team.objects.acreate(
+            team_number=35,
+            team_name="Attachment Team",
+            authentik_group="WCComps_BlueTeam35",
+        )
+
+    @pytest_asyncio.fixture
+    async def ticket(self, team: Team) -> Ticket:
+        """Create test ticket."""
+        return await Ticket.objects.acreate(
+            ticket_number="T035-600",
+            team=team,
+            category="service-check",
+            title="Attachment Test",
+            description="Test",
+            status="open",
+            discord_thread_id=5555666677778888,
+        )
+
+    async def test_attachment_saved_successfully(self, cog: TicketingCog, ticket: Ticket) -> None:
+        """Test that valid attachments are saved to database."""
+        from ticketing.models import TicketAttachment
+
+        # Mock attachment
+        attachment = AsyncMock(spec=discord.Attachment)
+        attachment.filename = "screenshot.png"
+        attachment.size = 1024 * 100  # 100KB
+        attachment.content_type = "image/png"
+        attachment.read = AsyncMock(return_value=b"\x89PNG\r\n\x1a\n" + b"fake image data")
+
+        # Mock message
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.id = 777888999000  # Add message ID
+        message.author.__str__ = Mock(return_value="user#1234")
+        message.channel = Mock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.content = "Here's the screenshot"
+        message.attachments = [attachment]
+        message.add_reaction = AsyncMock()
+
+        initial_count = await TicketAttachment.objects.acount()
+        await cog.on_message(message)
+
+        # Verify attachment saved
+        assert await TicketAttachment.objects.acount() == initial_count + 1
+
+        # Verify attachment data
+        saved = await TicketAttachment.objects.filter(ticket=ticket).afirst()
+        assert saved is not None
+        assert saved.filename == "screenshot.png"
+        assert saved.mime_type == "image/png"
+        assert saved.file_data.startswith(b"\x89PNG")
+
+        # Verify reaction added
+        message.add_reaction.assert_called_once_with("📎")
+
+    async def test_attachment_size_limit_enforced(self, cog: TicketingCog, ticket: Ticket) -> None:
+        """Test that attachments > 10MB are rejected."""
+        from ticketing.models import TicketAttachment
+
+        # Mock large attachment (11MB)
+        attachment = AsyncMock(spec=discord.Attachment)
+        attachment.filename = "huge_video.mp4"
+        attachment.size = 11 * 1024 * 1024  # 11MB
+        attachment.content_type = "video/mp4"
+
+        # Mock message
+        message = AsyncMock(spec=discord.Message)
+        message.author = Mock()
+        message.author.bot = False
+        message.author.id = 123456789
+        message.author.mention = "<@123456789>"
+        message.channel = AsyncMock(spec=discord.Thread)
+        message.channel.id = ticket.discord_thread_id
+        message.content = ""
+        message.attachments = [attachment]
+
+        initial_count = await TicketAttachment.objects.acount()
+        await cog.on_message(message)
+
+        # Attachment should NOT be saved
+        assert await TicketAttachment.objects.acount() == initial_count
+
+        # Error message should be sent
+        message.channel.send.assert_called_once()
+        args = message.channel.send.call_args
+        assert "too large" in args[0][0].lower()
+        assert "10mb" in args[0][0].lower()
