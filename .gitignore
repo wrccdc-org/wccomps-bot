@@ -14,7 +14,6 @@ htmlcov/
 .vscode/
 .idea/
 .claude
-.rsyncignore
 DESIGN.md
 DEPLOYMENT.md
 TESTING.md
