@@ -2,7 +2,7 @@
 
 import logging
 from datetime import timedelta
-from typing import cast
+from typing import Self, cast
 
 import discord
 from discord import app_commands
@@ -609,6 +609,103 @@ class AdminTicketsCog(commands.Cog):
             f"Ticket reopened by {interaction.user.mention}\n"
             f"• Ticket: {ticket.ticket_number} ({ticket.team.team_name})\n"
             f"• Reason: {reason}{refund_msg}",
+        )
+
+    @tickets_group.command(name="clear", description="[ADMIN] Delete all tickets and reset counters")
+    @app_commands.check(check_ticketing_admin)
+    async def admin_ticket_clear(self, interaction: discord.Interaction) -> None:
+        """Delete all tickets and reset team counters."""
+        from asgiref.sync import sync_to_async
+
+        from core.models import AuditLog
+        from team.models import Team
+        from ticketing.models import TicketAttachment, TicketComment, TicketHistory
+
+        # Get counts
+        ticket_count = await Ticket.objects.acount()
+        attachment_count = await TicketAttachment.objects.acount()
+        comment_count = await TicketComment.objects.acount()
+        history_count = await TicketHistory.objects.acount()
+        teams_to_reset = await Team.objects.filter(ticket_counter__gt=0).acount()
+
+        if ticket_count == 0:
+            await interaction.response.send_message("No tickets to clear", ephemeral=True)
+            return
+
+        # Create confirmation view
+        class ConfirmView(discord.ui.View):
+            def __init__(self) -> None:
+                super().__init__(timeout=60)
+                self.value: bool | None = None
+
+            @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger)
+            async def confirm(self, button_interaction: discord.Interaction, button: discord.ui.Button[Self]) -> None:
+                self.value = True
+                self.stop()
+
+            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+            async def cancel(self, button_interaction: discord.Interaction, button: discord.ui.Button[Self]) -> None:
+                self.value = False
+                self.stop()
+
+        view = ConfirmView()
+        await interaction.response.send_message(
+            f"**WARNING: This will DELETE ALL TICKETS**\n\n"
+            f"• Tickets: {ticket_count}\n"
+            f"• Attachments: {attachment_count}\n"
+            f"• Comments: {comment_count}\n"
+            f"• History: {history_count}\n"
+            f"• Teams to reset: {teams_to_reset}\n\n"
+            f"This action cannot be undone. Are you sure?",
+            view=view,
+            ephemeral=True,
+        )
+
+        await view.wait()
+
+        if view.value is None:
+            await interaction.edit_original_response(content="Timed out", view=None)
+            return
+
+        if not view.value:
+            await interaction.edit_original_response(content="Cancelled", view=None)
+            return
+
+        # Delete tickets
+        @sync_to_async
+        def clear_tickets() -> None:
+            from django.db import transaction
+
+            with transaction.atomic():
+                Ticket.objects.all().delete()
+                Team.objects.filter(ticket_counter__gt=0).update(ticket_counter=0)
+                AuditLog.objects.create(
+                    action="clear_tickets",
+                    admin_user=str(interaction.user),
+                    target_entity="tickets",
+                    target_id=0,
+                    details={
+                        "tickets_deleted": ticket_count,
+                        "attachments_deleted": attachment_count,
+                        "comments_deleted": comment_count,
+                        "history_deleted": history_count,
+                        "teams_reset": teams_to_reset,
+                    },
+                )
+
+        await clear_tickets()
+
+        await interaction.edit_original_response(
+            content=f"✅ Cleared all tickets\n• Deleted {ticket_count} tickets\n• Reset {teams_to_reset} team counters",
+            view=None,
+        )
+
+        # Log to ops
+        await log_to_ops_channel(
+            self.bot,
+            f"🗑️ All tickets cleared by {interaction.user.mention}\n"
+            f"• Tickets deleted: {ticket_count}\n"
+            f"• Teams reset: {teams_to_reset}",
         )
 
 
