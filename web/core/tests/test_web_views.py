@@ -240,7 +240,9 @@ class TestTicketViewAuthorization:
         response = client.get(reverse("ticket_detail", args=[team2_ticket.id]))
 
         # Should be forbidden or not found (NOT 200 OK)
-        assert response.status_code in [403, 404], f"IDOR BUG: Team 1 accessed Team 2's ticket! Status: {response.status_code}"
+        assert response.status_code in [403, 404], (
+            f"IDOR BUG: Team 1 accessed Team 2's ticket! Status: {response.status_code}"
+        )
 
     @pytest.mark.asyncio
     async def test_cannot_comment_on_other_team_ticket(
@@ -267,7 +269,9 @@ class TestTicketViewAuthorization:
         )
 
         # Should be forbidden or not found
-        assert response.status_code in [403, 404], f"IDOR BUG: Team 1 commented on Team 2's ticket! Status: {response.status_code}"
+        assert response.status_code in [403, 404], (
+            f"IDOR BUG: Team 1 commented on Team 2's ticket! Status: {response.status_code}"
+        )
 
     @pytest.mark.asyncio
     async def test_cannot_cancel_other_team_ticket(
@@ -292,7 +296,9 @@ class TestTicketViewAuthorization:
         response = client.post(reverse("ticket_cancel", args=[team2_ticket.id]))
 
         # Should be forbidden or not found
-        assert response.status_code in [403, 404], f"IDOR BUG: Team 1 cancelled Team 2's ticket! Status: {response.status_code}"
+        assert response.status_code in [403, 404], (
+            f"IDOR BUG: Team 1 cancelled Team 2's ticket! Status: {response.status_code}"
+        )
 
         # Verify ticket is still open
         await team2_ticket.arefresh_from_db()
@@ -481,9 +487,7 @@ class TestFileUploadDownloadViews:
         )
 
         client.force_login(user)
-        response = client.get(
-            reverse("ticket_attachment_download", args=[ticket.id, attachment.id])
-        )
+        response = client.get(reverse("ticket_attachment_download", args=[ticket.id, attachment.id]))
 
         # Should succeed
         assert response.status_code == 200

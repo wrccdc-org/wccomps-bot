@@ -59,9 +59,7 @@ class TestDiscordIDTypeConsistency:
         parsed = int(as_string)
 
         # Property: Round-trip preserves value
-        assert parsed == discord_id, (
-            f"Round-trip failed: {discord_id} → '{as_string}' → {parsed}"
-        )
+        assert parsed == discord_id, f"Round-trip failed: {discord_id} → '{as_string}' → {parsed}"
 
         # Property: String representation has correct length
         assert len(as_string) in range(17, 19), (  # Discord IDs are 17-18 digits
@@ -301,13 +299,8 @@ class TestDiscordIDUniquenessConstraints:
         )
 
         # Property: Only one is active
-        active_count = DiscordLink.objects.filter(
-            discord_id=discord_id,
-            is_active=True
-        ).count()
-        assert active_count == 1, (
-            f"Should have exactly 1 active link, found {active_count}"
-        )
+        active_count = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
+        assert active_count == 1, f"Should have exactly 1 active link, found {active_count}"
 
         # Property: Most recent is active
         link1.refresh_from_db()

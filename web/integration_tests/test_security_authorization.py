@@ -177,7 +177,9 @@ class TestInsecureDirectObjectReferences:
 
             # Should require authentication (302) or show not found (404)
             # Should NOT show unauthorized data (200)
-            assert response.status in [302, 404, 403, 401], f"Unexpected status {response.status} for ticket {ticket_id}"
+            assert response.status in [302, 404, 403, 401], (
+                f"Unexpected status {response.status} for ticket {ticket_id}"
+            )
 
     def test_ticket_number_idor_protected(self, page: Page, db, live_server_url):
         """Ticket numbers should not allow unauthorized access."""

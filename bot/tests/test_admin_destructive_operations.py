@@ -138,8 +138,7 @@ class TestEndCompetitionSafety:
         for link in data["team_links"]:
             await link.arefresh_from_db()
             assert not link.is_active, (
-                f"BUG: Team member link still active! "
-                f"discord_id={link.discord_id}, username={link.discord_username}"
+                f"BUG: Team member link still active! discord_id={link.discord_id}, username={link.discord_username}"
             )
             assert link.unlinked_at is not None, "unlinked_at should be set"
 
@@ -191,9 +190,8 @@ class TestEndCompetitionSafety:
 
         # Verify audit log details
         recent_audits = [
-            audit async for audit in AuditLog.objects.filter(
-                action="user_unlinked"
-            ).order_by("-created_at")[:team_link_count]
+            audit
+            async for audit in AuditLog.objects.filter(action="user_unlinked").order_by("-created_at")[:team_link_count]
         ]
 
         for audit in recent_audits:
@@ -279,12 +277,8 @@ class TestEndCompetitionSafety:
         )
 
         # Admin categories should NOT be deleted
-        assert 9999999999999999999 not in deleted_ids, (
-            "BUG: Admin category was deleted!"
-        )
-        assert 8888888888888888888 not in deleted_ids, (
-            "BUG: Operations category was deleted!"
-        )
+        assert 9999999999999999999 not in deleted_ids, "BUG: Admin category was deleted!"
+        assert 8888888888888888888 not in deleted_ids, "BUG: Operations category was deleted!"
 
 
 @pytest.mark.asyncio
@@ -461,9 +455,7 @@ class TestDataIntegrityAfterFailure:
         # CRITICAL: Database should be rolled back
         final_count = await DiscordLink.objects.filter(team=team).acount()
 
-        assert final_count == initial_count, (
-            f"BUG: Zombie link created! Initial: {initial_count}, Final: {final_count}"
-        )
+        assert final_count == initial_count, f"BUG: Zombie link created! Initial: {initial_count}, Final: {final_count}"
 
     async def test_partial_team_creation_failure_is_cleaned_up(self):
         """

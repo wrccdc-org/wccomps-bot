@@ -90,8 +90,7 @@ class TestTeamMemberRaceConditions:
         # CRITICAL PROPERTY: Team should have exactly 5 members
         final_count = await team.aget_member_count()
         assert final_count <= 5, (
-            f"RACE CONDITION BUG: Team exceeded max_members! "
-            f"Expected: 5, Got: {final_count}. Results: {results}"
+            f"RACE CONDITION BUG: Team exceeded max_members! Expected: 5, Got: {final_count}. Results: {results}"
         )
 
         # At least one should have succeeded
@@ -100,9 +99,7 @@ class TestTeamMemberRaceConditions:
 
         # If team is full, exactly one should have succeeded
         if final_count == 5:
-            assert success_count == 1, (
-                f"Team full but both joins succeeded? Count: {final_count}, Results: {results}"
-            )
+            assert success_count == 1, f"Team full but both joins succeeded? Count: {final_count}, Results: {results}"
 
     @pytest.mark.asyncio
     async def test_concurrent_deactivation_and_reactivation(self):
@@ -163,14 +160,10 @@ class TestTeamMemberRaceConditions:
         )
 
         # CRITICAL: Should have at most one active link for this discord_id
-        active_count = await DiscordLink.objects.filter(
-            discord_id=discord_id,
-            is_active=True
-        ).acount()
+        active_count = await DiscordLink.objects.filter(discord_id=discord_id, is_active=True).acount()
 
         assert active_count <= 1, (
-            f"RACE CONDITION BUG: Multiple active links! "
-            f"Count: {active_count}, Results: {results}"
+            f"RACE CONDITION BUG: Multiple active links! Count: {active_count}, Results: {results}"
         )
 
 
@@ -210,17 +203,14 @@ class TestRateLimitBypassAttempts:
                 return f"error: {e}"
 
         # Make 10 concurrent attempts
-        results = await asyncio.gather(*[
-            attempt_link(i) for i in range(10)
-        ])
+        results = await asyncio.gather(*[attempt_link(i) for i in range(10)])
 
         # Count how many were allowed
         allowed_count = sum(1 for r in results if r == "allowed")
 
         # CRITICAL: Should allow at most 5 (the rate limit)
         assert allowed_count <= 5, (
-            f"RACE CONDITION BUG: Rate limit bypassed! "
-            f"Expected: ≤5, Got: {allowed_count}. Results: {results}"
+            f"RACE CONDITION BUG: Rate limit bypassed! Expected: ≤5, Got: {allowed_count}. Results: {results}"
         )
 
         # Verify rate limit is now enforced
@@ -259,10 +249,7 @@ class TestRateLimitBypassAttempts:
 
                 if is_allowed:
                     # Record comment attempt
-                    await CommentRateLimit.objects.acreate(
-                        ticket=ticket,
-                        discord_id=discord_id
-                    )
+                    await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=discord_id)
                     return "posted"
                 else:
                     return f"blocked: {reason}"
@@ -270,17 +257,14 @@ class TestRateLimitBypassAttempts:
                 return f"error: {e}"
 
         # Make 10 concurrent comment attempts
-        results = await asyncio.gather(*[
-            attempt_comment(i) for i in range(10)
-        ])
+        results = await asyncio.gather(*[attempt_comment(i) for i in range(10)])
 
         # Count successful posts
         posted_count = sum(1 for r in results if r == "posted")
 
         # CRITICAL: Should allow at most 5 per ticket
         assert posted_count <= 5, (
-            f"RACE CONDITION BUG: Comment rate limit bypassed! "
-            f"Expected: ≤5, Got: {posted_count}. Results: {results}"
+            f"RACE CONDITION BUG: Comment rate limit bypassed! Expected: ≤5, Got: {posted_count}. Results: {results}"
         )
 
 
@@ -343,16 +327,11 @@ class TestDatabaseTransactionIsolation:
 
         # CRITICAL: Should have 5 unique ticket numbers
         assert len(results) == 5, f"Some tickets failed: {errors}"
-        assert len(set(results)) == 5, (
-            f"RACE CONDITION BUG: Duplicate ticket numbers! "
-            f"Got: {results}"
-        )
+        assert len(set(results)) == 5, f"RACE CONDITION BUG: Duplicate ticket numbers! Got: {results}"
 
         # Verify counter is at 5
         team.refresh_from_db()
-        assert team.ticket_counter == 5, (
-            f"Counter inconsistent. Expected: 5, Got: {team.ticket_counter}"
-        )
+        assert team.ticket_counter == 5, f"Counter inconsistent. Expected: 5, Got: {team.ticket_counter}"
 
     def test_rollback_on_error_doesnt_corrupt_data(self):
         """
@@ -450,19 +429,12 @@ class TestRealWorldRaceConditions:
                 return f"error: {type(e).__name__}"
 
         # Simulate 5 rapid clicks
-        results = await asyncio.gather(*[
-            spam_join() for _ in range(5)
-        ])
+        results = await asyncio.gather(*[spam_join() for _ in range(5)])
 
         # CRITICAL: Should have exactly one active link
-        active_links = await DiscordLink.objects.filter(
-            discord_id=discord_id,
-            is_active=True
-        ).acount()
+        active_links = await DiscordLink.objects.filter(discord_id=discord_id, is_active=True).acount()
 
-        assert active_links == 1, (
-            f"BUG: Multiple links created! Count: {active_links}, Results: {results}"
-        )
+        assert active_links == 1, f"BUG: Multiple links created! Count: {active_links}, Results: {results}"
 
     @pytest.mark.asyncio
     async def test_admin_deactivating_while_user_is_active(self):
@@ -538,6 +510,4 @@ class TestRealWorldRaceConditions:
             pass  # This is a timing-dependent scenario
 
         # At minimum: should not crash
-        assert all("error" not in str(r) for r in results), (
-            f"Operations crashed: {results}"
-        )
+        assert all("error" not in str(r) for r in results), f"Operations crashed: {results}"

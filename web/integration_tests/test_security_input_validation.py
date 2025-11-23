@@ -104,7 +104,7 @@ class TestXSSPrevention:
 
         team = Team.objects.get(team_number=50)
 
-        xss_payload = '<img src=x onerror="alert(\'XSS\')">'
+        xss_payload = "<img src=x onerror=\"alert('XSS')\">"
         ticket = Ticket.objects.create(
             team=team,
             category="general-question",
@@ -466,7 +466,7 @@ class TestHTMLSanitization:
 
         team = Team.objects.get(team_number=50)
 
-        js_url = '<a href="javascript:alert(\'XSS\')">Click me</a>'
+        js_url = "<a href=\"javascript:alert('XSS')\">Click me</a>"
         ticket = Ticket.objects.create(
             team=team,
             category="general-question",

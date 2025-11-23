@@ -289,7 +289,9 @@ class TestFileUploadRaceConditions:
             request.user = Mock()
             request.user.is_authenticated = True
 
-            with patch("web.core.views.get_authentik_data", return_value=(f"user{file_num}", ["WCComps_BlueTeam1"], None)):
+            with patch(
+                "web.core.views.get_authentik_data", return_value=(f"user{file_num}", ["WCComps_BlueTeam1"], None)
+            ):
                 response = ticket_attachment_upload(request, ticket.id)
                 results.append(response.status_code)
 
@@ -308,6 +310,4 @@ class TestFileUploadRaceConditions:
 
         # CRITICAL: Should have exactly 5 attachments
         attachment_count = TicketAttachment.objects.filter(ticket=ticket).count()
-        assert attachment_count == 5, (
-            f"Race condition detected! Expected 5 attachments, got {attachment_count}"
-        )
+        assert attachment_count == 5, f"Race condition detected! Expected 5 attachments, got {attachment_count}"

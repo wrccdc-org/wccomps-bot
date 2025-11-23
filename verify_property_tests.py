@@ -4,6 +4,7 @@ Manual verification that property-based tests are correct.
 This simulates what Hypothesis will do when running the tests.
 """
 
+
 # Simulate Team model behavior
 class MockTeam:
     def __init__(self, team_number, team_name):
@@ -38,9 +39,7 @@ def test_property_1_round_trip():
         parsed = int(match.group(1))
 
         # Property: Round-trip should preserve value
-        assert parsed == team_number, (
-            f"FAILED: {team_number} → {team.authentik_group} → {parsed}"
-        )
+        assert parsed == team_number, f"FAILED: {team_number} → {team.authentik_group} → {parsed}"
 
         print(f"✓ Round-trip: {team_number} → {team.authentik_group} → {parsed}")
 
@@ -60,8 +59,7 @@ def test_property_2_normalized_format():
         team = MockTeam(team_number, f"Team {team_number}")
 
         assert team.authentik_group == expected, (
-            f"FAILED: team_number={team_number}, "
-            f"got '{team.authentik_group}', expected '{expected}'"
+            f"FAILED: team_number={team_number}, got '{team.authentik_group}', expected '{expected}'"
         )
 
         print(f"✓ Format: {team_number} → {team.authentik_group}")
@@ -108,12 +106,12 @@ def test_property_5_permissive_parsing():
     import re
 
     test_cases = [
-        ("WCComps_BlueTeam1", 1, True),      # No leading zero - valid
-        ("WCComps_BlueTeam01", 1, True),     # Canonical format - valid
-        ("WCComps_BlueTeam001", 1, True),    # Extra zeros - valid
-        ("WCComps_BlueTeam10", 10, True),    # Two digits - valid
-        ("WCComps_BlueTeam0", 0, False),     # Parses but invalid
-        ("WCComps_BlueTeam99", 99, False),   # Parses but invalid
+        ("WCComps_BlueTeam1", 1, True),  # No leading zero - valid
+        ("WCComps_BlueTeam01", 1, True),  # Canonical format - valid
+        ("WCComps_BlueTeam001", 1, True),  # Extra zeros - valid
+        ("WCComps_BlueTeam10", 10, True),  # Two digits - valid
+        ("WCComps_BlueTeam0", 0, False),  # Parses but invalid
+        ("WCComps_BlueTeam99", 99, False),  # Parses but invalid
     ]
 
     for group_name, expected_parsed, should_be_valid in test_cases:

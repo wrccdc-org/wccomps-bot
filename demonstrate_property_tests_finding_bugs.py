@@ -22,6 +22,7 @@ class BuggyTeamFormatting:
     def parse_from_group(group_name):
         """Parse team_number from group name."""
         import re
+
         match = re.match(r"WCComps_BlueTeam(\d+)", group_name)
         if match:
             return int(match.group(1))
@@ -120,6 +121,7 @@ class BuggyTicketParsing:
     def parse_ticket_number(ticket_number):
         """Parse ticket number (BUG: expects 2 digits)."""
         import re
+
         # BUG: This regex expects 2-digit team number!
         match = re.match(r"T(\d{2})-(\d+)", ticket_number)
         if match:

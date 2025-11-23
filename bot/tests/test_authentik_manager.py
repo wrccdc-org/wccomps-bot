@@ -423,4 +423,3 @@ class TestAuthentikManager:
             call_args = mock_update.call_args
             assert call_args[0][0] == {"pk": "binding-456", "enabled": False}
             assert call_args[1]["enabled"] is True
-

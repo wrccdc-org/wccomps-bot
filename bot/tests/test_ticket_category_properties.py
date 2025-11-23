@@ -32,9 +32,7 @@ from ticketing.models import Ticket
 valid_categories = st.sampled_from(list(TICKET_CATEGORIES.keys()))
 
 # Strategy: Invalid categories (random strings NOT in TICKET_CATEGORIES)
-invalid_categories = st.text(min_size=1, max_size=50).filter(
-    lambda x: x not in TICKET_CATEGORIES and x.isprintable()
-)
+invalid_categories = st.text(min_size=1, max_size=50).filter(lambda x: x not in TICKET_CATEGORIES and x.isprintable())
 
 
 @pytest.mark.django_db(transaction=True)
@@ -173,15 +171,11 @@ class TestTicketCategoryConfig:
 
         if "required_fields" in config:
             required_fields = config["required_fields"]
-            assert isinstance(required_fields, list), (
-                f"Category '{category}' required_fields must be list"
-            )
+            assert isinstance(required_fields, list), f"Category '{category}' required_fields must be list"
 
             # Property: All items are strings
             for field in required_fields:
-                assert isinstance(field, str), (
-                    f"Category '{category}' required_fields must contain strings"
-                )
+                assert isinstance(field, str), f"Category '{category}' required_fields must contain strings"
 
     @given(category=valid_categories)
     @settings(max_examples=len(TICKET_CATEGORIES))
@@ -193,15 +187,11 @@ class TestTicketCategoryConfig:
 
         if "optional_fields" in config:
             optional_fields = config["optional_fields"]
-            assert isinstance(optional_fields, list), (
-                f"Category '{category}' optional_fields must be list"
-            )
+            assert isinstance(optional_fields, list), f"Category '{category}' optional_fields must be list"
 
             # Property: All items are strings
             for field in optional_fields:
-                assert isinstance(field, str), (
-                    f"Category '{category}' optional_fields must contain strings"
-                )
+                assert isinstance(field, str), f"Category '{category}' optional_fields must contain strings"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -290,14 +280,10 @@ class TestTicketCategoryEdgeCases:
             # Property: Contains hyphens (kebab-case)
             if len(category) > 1:  # Skip single-word categories
                 # Should be lowercase
-                assert category == category.lower(), (
-                    f"Category '{category}' should be lowercase"
-                )
+                assert category == category.lower(), f"Category '{category}' should be lowercase"
 
                 # Should not contain underscores
-                assert "_" not in category, (
-                    f"Category '{category}' should use hyphens, not underscores"
-                )
+                assert "_" not in category, f"Category '{category}' should use hyphens, not underscores"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -317,9 +303,7 @@ class TestTicketCategoryDashboardIntegration:
         cat_info = TICKET_CATEGORIES.get(category, {"display_name": category})
 
         # Property: Should find real config, not fallback
-        assert cat_info != {"display_name": category}, (
-            f"Dashboard lookup for '{category}' fell back to default"
-        )
+        assert cat_info != {"display_name": category}, f"Dashboard lookup for '{category}' fell back to default"
 
         # Property: Should have more than just display_name
         assert "points" in cat_info or "required_fields" in cat_info
