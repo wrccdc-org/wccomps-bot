@@ -805,9 +805,9 @@ def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpRespon
 
     # SECURITY: Sanitize filename to prevent client-side path traversal
     # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
-    import os
+    from pathlib import Path
 
-    safe_filename = os.path.basename(uploaded_file.name)  # Remove path components like ../
+    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
     safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
     safe_filename = safe_filename.strip()
 
@@ -1702,9 +1702,9 @@ def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> Ht
 
     # SECURITY: Sanitize filename to prevent client-side path traversal
     # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
-    import os
+    from pathlib import Path
 
-    safe_filename = os.path.basename(uploaded_file.name)  # Remove path components like ../
+    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
     safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
     safe_filename = safe_filename.strip()
 

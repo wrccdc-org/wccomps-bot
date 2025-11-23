@@ -47,8 +47,11 @@ class TestFileSizeLimits:
 
         try:
             # Create a large file (> 10MB limit)
-            large_file = Path("/tmp/large_test_file.bin")
-            large_file.write_bytes(b"X" * (11 * 1024 * 1024))  # 11MB
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".bin", delete=False) as tmp:
+                tmp.write(b"X" * (11 * 1024 * 1024))  # 11MB
+                large_file = Path(tmp.name)
 
             # Try to upload (requires authentication)
             response = page.request.post(
@@ -88,8 +91,11 @@ class TestFileSizeLimits:
 
         try:
             # Create empty file
-            empty_file = Path("/tmp/empty_test_file.txt")
-            empty_file.write_bytes(b"")
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as tmp:
+                tmp.write(b"")
+                empty_file = Path(tmp.name)
 
             response = page.request.post(
                 f"{live_server_url}/tickets/{ticket.id}/attachment/upload/",

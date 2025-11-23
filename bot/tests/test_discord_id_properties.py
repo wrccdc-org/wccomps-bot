@@ -215,12 +215,8 @@ class TestDiscordIDEdgeCases:
         """
         discord_id = 211533935144992768
 
-        # Pattern from web/core/authentik.py:60
-        # attributes["discord_id"] = str(discord_id)
+        # Pattern from web/core/authentik.py
         attributes = {"discord_id": str(discord_id)}
-
-        # Pattern from web/core/authentik.py:91
-        # params={"attributes__discord_id": str(discord_id)}
         query_param = str(discord_id)
 
         # Verify they match

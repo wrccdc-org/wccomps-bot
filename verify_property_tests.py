@@ -34,12 +34,14 @@ def test_property_1_round_trip():
 
         # Parse the generated group name
         match = re.match(r"WCComps_BlueTeam(\d+)", team.authentik_group)
-        assert match, f"Failed to parse: {team.authentik_group}"
+        if not match:
+            raise RuntimeError(f"Failed to parse: {team.authentik_group}")
 
         parsed = int(match.group(1))
 
         # Property: Round-trip should preserve value
-        assert parsed == team_number, f"FAILED: {team_number} → {team.authentik_group} → {parsed}"
+        if parsed != team_number:
+            raise RuntimeError(f"FAILED: {team_number} → {team.authentik_group} → {parsed}")
 
         print(f"✓ Round-trip: {team_number} → {team.authentik_group} → {parsed}")
 
@@ -58,9 +60,10 @@ def test_property_2_normalized_format():
     for team_number, expected in test_cases:
         team = MockTeam(team_number, f"Team {team_number}")
 
-        assert team.authentik_group == expected, (
-            f"FAILED: team_number={team_number}, got '{team.authentik_group}', expected '{expected}'"
-        )
+        if team.authentik_group != expected:
+            raise RuntimeError(
+                f"FAILED: team_number={team_number}, got '{team.authentik_group}', expected '{expected}'"
+            )
 
         print(f"✓ Format: {team_number} → {team.authentik_group}")
 
@@ -76,13 +79,16 @@ def test_property_3_ticket_number_consistency():
 
         # Parse team_number back out
         match = re.match(r"T(\d+)-(\d+)", ticket_number)
-        assert match
+        if not match:
+            raise RuntimeError(f"Failed to parse ticket number: {ticket_number}")
 
         parsed_team = int(match.group(1))
         parsed_seq = int(match.group(2))
 
-        assert parsed_team == team_number
-        assert parsed_seq == sequence
+        if parsed_team != team_number:
+            raise RuntimeError(f"Team number mismatch: expected {team_number}, got {parsed_team}")
+        if parsed_seq != sequence:
+            raise RuntimeError(f"Sequence mismatch: expected {sequence}, got {parsed_seq}")
 
         print(f"✓ Ticket: team={team_number} → {ticket_number} → team={parsed_team}")
 
@@ -96,7 +102,7 @@ def test_property_4_validation_rejects_invalid():
         try:
             MockTeam(team_number, f"Invalid {team_number}")
             print(f"✗ FAILED: team_number={team_number} should have been rejected!")
-            raise AssertionError(f"Should have raised ValidationError for {team_number}")
+            raise RuntimeError(f"Should have raised ValidationError for {team_number}")
         except ValueError as e:
             print(f"✓ Rejected: team_number={team_number} - {e}")
 
@@ -117,10 +123,12 @@ def test_property_5_permissive_parsing():
     for group_name, expected_parsed, should_be_valid in test_cases:
         # Test parsing
         match = re.match(r"WCComps_BlueTeam(\d+)", group_name)
-        assert match, f"Should match: {group_name}"
+        if not match:
+            raise RuntimeError(f"Should match: {group_name}")
 
         parsed = int(match.group(1))
-        assert parsed == expected_parsed
+        if parsed != expected_parsed:
+            raise RuntimeError(f"Parse mismatch: expected {expected_parsed}, got {parsed}")
 
         print(f"✓ Parse: {group_name} → {parsed}")
 
@@ -136,7 +144,7 @@ def test_property_5_permissive_parsing():
             try:
                 MockTeam(parsed, f"Team {parsed}")
                 print(f"  ✗ FAILED: team_number={parsed} should be rejected!")
-                raise AssertionError()
+                raise RuntimeError(f"team_number={parsed} should have been rejected")
             except ValueError:
                 print(f"  ✓ Invalid: team_number={parsed} rejected")
 
@@ -151,16 +159,16 @@ def test_format_inconsistency_documentation():
     group_format = f"WCComps_BlueTeam{team_num:02d}"
     print(f"Group names:     {group_format} (2 digits)")
 
-    # Ticket numbers (web/ticketing/utils.py)
+    # Ticket numbers use 3 digits for team
     seq = 12
     ticket_format = f"T{team_num:03d}-{seq:03d}"
     print(f"Ticket numbers:  {ticket_format} (3 digits!)")
 
-    # Usernames (bot/authentik_utils.py)
+    # Usernames use 2 digits for team
     username_format = f"team{team_num:02d}"
     print(f"Usernames:       {username_format} (2 digits)")
 
-    # Test fixtures (web/core/tests/test_web_views.py)
+    # Test fixtures use 2 + 5 digits
     test_format = f"BT{team_num:02d}-{seq:05d}"
     print(f"Test fixtures:   {test_format} (2 + 5 digits)")
 

@@ -412,8 +412,11 @@ class TestFileAttachments:
 
             if file_input.is_visible():
                 # Create temporary test file
-                test_file_path = Path("/tmp/test_attachment_e2e.txt")
-                test_file_path.write_text("This is a test attachment from E2E tests")
+                import tempfile
+
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+                    tmp.write("This is a test attachment from E2E tests")
+                    test_file_path = Path(tmp.name)
 
                 # Upload file
                 file_input.set_input_files(str(test_file_path))

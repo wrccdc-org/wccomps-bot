@@ -39,7 +39,6 @@ class TestTeamNumberFormatConsistency:
         Property: Formatted group names should always parse back to original team_number.
 
         This tests ROUND-TRIP consistency, not a tautology.
-        BUG IF: format(1) → "BlueTeam01" but parse("BlueTeam01") → 1 and parse("BlueTeam1") → 1
         """
         # Skip if team already exists
         assume(not Team.objects.filter(team_number=team_number).exists())

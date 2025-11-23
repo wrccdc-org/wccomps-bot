@@ -59,7 +59,6 @@ class TestTicketCategoryValidation:
             category=category,
         )
 
-        # Property: Category is preserved
         assert ticket.category == category
 
         # Cleanup
@@ -93,16 +92,6 @@ class TestTicketCategoryValidation:
 
         # Try to create ticket with INVALID category
         # This SHOULD raise ValidationError, but currently doesn't
-        # Commenting out the assertion until validation is added
-        # with pytest.raises(ValidationError):
-        #     ticket = Ticket.objects.create(
-        #         team=team,
-        #         title="Test Ticket",
-        #         description="Test",
-        #         category=category,  # Invalid!
-        #     )
-
-        # TEMPORARY: Create ticket and verify it's broken
         ticket = Ticket.objects.create(
             team=team,
             title="Test Ticket",
@@ -346,15 +335,6 @@ class TestCategoryRequiredFieldsEnforcement:
         )
 
         # SHOULD fail (once validation added)
-        # with pytest.raises(ValidationError):
-        #     ticket = Ticket.objects.create(
-        #         team=team,
-        #         category="box-reset",
-        #         title="Reset my box",
-        #         # Missing hostname! (in required_fields)
-        #     )
-
-        # CURRENT: No validation, ticket created anyway
         ticket = Ticket.objects.create(
             team=team,
             category="box-reset",

@@ -113,8 +113,6 @@ class TestTeamMembershipDisplay:
 
         goldteam_page.goto(f"{live_server_url}/ops/group-role-mappings/")
 
-        # Should show max members
-        # Format: "current/max" or similar
         expect(goldteam_page.locator("body")).to_be_visible()
 
     def test_shows_linked_members(self, goldteam_page: Page, db, live_server_url):
