@@ -121,7 +121,22 @@ echo "Deploying with zero downtime..."
 ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=2 --no-recreate web"
 
 echo "Waiting for new web container to pass health checks..."
-sleep 15
+RETRY_COUNT=0
+MAX_RETRIES=30
+until ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -c '\"Health\":\"healthy\"' | grep -q '^2$'" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES..."
+    sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "✗ Health checks did not pass in time"
+    ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web"
+    ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=50 web"
+    exit 1
+fi
+
+echo "✓ Both web containers healthy"
 
 # Scale down to remove old container
 ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=1 --no-recreate web"
