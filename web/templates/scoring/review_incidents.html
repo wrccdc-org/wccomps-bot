@@ -1,0 +1,88 @@
+{% extends "scoring/base.html" %}
+
+{% block scoring_content %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4>Gold Team - Incident Review</h4>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <h2 class="text-primary">{{ total_incidents }}</h2>
+                <p class="text-muted">Total Reports</p>
+            </div>
+            <div class="col-md-4">
+                <h2 class="text-success">{{ reviewed_count }}</h2>
+                <p class="text-muted">Reviewed</p>
+            </div>
+            <div class="col-md-4">
+                <h2 class="text-warning">{{ pending_count }}</h2>
+                <p class="text-muted">Pending</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h4>Pending Incidents</h4>
+        <p class="text-muted mb-0">Match incident reports to red team findings and award recovery points</p>
+    </div>
+    <div class="card-body">
+        {% if incidents %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Team</th>
+                        <th>Box/Service</th>
+                        <th>Attack Vector</th>
+                        <th>Detected At</th>
+                        <th>Evidence</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for incident in incidents %}
+                    <tr>
+                        <td><strong>#{{ incident.id }}</strong></td>
+                        <td>{{ incident.team.team_name }}</td>
+                        <td>
+                            <strong>{{ incident.affected_box }}</strong><br>
+                            <small class="text-muted">{{ incident.affected_service }}</small>
+                        </td>
+                        <td>{{ incident.attack_vector|truncatechars:40 }}</td>
+                        <td>
+                            <small>{{ incident.attack_detected_at|date:"m/d H:i" }}</small><br>
+                            <small class="text-muted">Submitted: {{ incident.created_at|date:"m/d H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if incident.screenshots.exists %}
+                                <span class="badge bg-success">{{ incident.screenshots.count }} files</span>
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'scoring:view_incident_report' incident.id %}"
+                                   class="btn btn-outline-primary">View</a>
+                                <a href="{% url 'scoring:match_incident' incident.id %}"
+                                   class="btn btn-primary">Review</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-success">
+            <h5>All incidents reviewed!</h5>
+            <p class="mb-0">There are no pending incident reports to review.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

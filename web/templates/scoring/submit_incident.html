@@ -1,0 +1,103 @@
+{% extends "scoring/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block scoring_content %}
+<div class="card">
+    <div class="card-header">
+        <h4>Submit Incident Report</h4>
+    </div>
+    <div class="card-body">
+        {% if team or is_admin %}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if is_admin and not team %}
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-shield-check"></i> <strong>Admin Mode:</strong> You can submit incident reports on behalf of any team.
+            </div>
+            {% endif %}
+
+            {{ form|crispy }}
+
+            <!-- Screenshot Evidence Section -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2 mb-3">Screenshot Evidence</h5>
+
+                <div class="mb-3">
+                    <label for="screenshots" class="form-label">Upload Screenshots</label>
+                    <input type="file"
+                           class="form-control"
+                           id="screenshots"
+                           name="screenshots"
+                           accept="image/*"
+                           multiple
+                           onchange="previewScreenshots(this)">
+                    <div class="form-text">
+                        <i class="bi bi-info-circle"></i> Upload screenshots as evidence (PNG, JPG, JPEG, GIF, WebP).
+                        Maximum 20 files, 50MB per file.
+                    </div>
+                </div>
+
+                <div id="screenshotPreview" class="row g-2 mb-3"></div>
+            </div>
+
+            <div class="alert alert-warning mt-3">
+                <strong>Evidence Requirements:</strong>
+                <ul class="mb-0">
+                    <li>Include IP addresses in all screenshots</li>
+                    <li>Include timestamps showing when attack was detected</li>
+                    <li>Describe your detection and mitigation steps</li>
+                </ul>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Submit Report</button>
+                <a href="{% url 'scoring:leaderboard' %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-danger">
+            You must be associated with a team to submit incident reports.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function previewScreenshots(input) {
+    const preview = document.getElementById('screenshotPreview');
+    preview.innerHTML = '';
+
+    if (input.files) {
+        const fileCount = input.files.length;
+
+        if (fileCount > 20) {
+            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+        }
+
+        Array.from(input.files).slice(0, 20).forEach((file, index) => {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const col = document.createElement('div');
+                col.className = 'col-md-3 col-sm-4 col-6';
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${e.target.result}" class="card-img-top" alt="Screenshot ${index + 1}" style="height: 150px; object-fit: cover;">
+                    <div class="card-body p-2">
+                        <small class="text-muted">${file.name}</small>
+                    </div>
+                `;
+
+                col.appendChild(card);
+                preview.appendChild(col);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    }
+}
+</script>
+{% endblock %}

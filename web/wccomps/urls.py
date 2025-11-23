@@ -44,6 +44,7 @@ urlpatterns = [
         views.ops_group_role_mappings,
         name="ops_group_role_mappings",
     ),
+    path("scoring/", include("scoring.urls")),
 ]
 
 # Add ticket routes only if enabled
@@ -128,5 +129,15 @@ if TICKETING_ENABLED:
             "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
             views.ops_ticket_attachment_download,
             name="ops_ticket_attachment_download",
+        ),
+        path(
+            "ops/review-tickets/",
+            views.ops_review_tickets,
+            name="ops_review_tickets",
+        ),
+        path(
+            "ops/ticket/<str:ticket_number>/verify/",
+            views.ops_verify_ticket,
+            name="ops_verify_ticket",
         ),
     ]

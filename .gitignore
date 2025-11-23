@@ -49,6 +49,10 @@ wheels/
 *.sqlite
 *.sqlite3
 
+# Django
+staticfiles/
+media/
+
 # Logs
 logs/
 *.log

@@ -51,6 +51,7 @@ class WCCompsBot(commands.Bot):
         # Load cogs
         await self.load_extension("bot.cogs.linking")
         await self.load_extension("bot.cogs.ticketing")
+        await self.load_extension("bot.cogs.scoring")
         await self.load_extension("bot.cogs.help_panels")
         await self.load_extension("bot.cogs.admin")
         await self.load_extension("bot.cogs.admin_teams")

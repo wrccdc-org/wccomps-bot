@@ -1,0 +1,32 @@
+{% extends "scoring/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block scoring_content %}
+<div class="card">
+    <div class="card-header">
+        <h4>Award Orange Team Bonus</h4>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+
+            <div class="alert alert-info mt-3">
+                <strong>Orange Team Categories:</strong>
+                <ul class="mb-0">
+                    <li><strong>Innovation:</strong> Creative defensive solutions</li>
+                    <li><strong>Documentation:</strong> Exceptional network documentation</li>
+                    <li><strong>Hardening:</strong> Advanced security hardening</li>
+                    <li><strong>Monitoring:</strong> Effective monitoring implementation</li>
+                    <li><strong>Other:</strong> Any other commendable achievement</li>
+                </ul>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-warning">Award Bonus</button>
+                <a href="{% url 'scoring:orange_team_portal' %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
