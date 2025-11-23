@@ -1,0 +1,196 @@
+"""Models for team packet distribution system."""
+
+from django.db import models
+from django.utils import timezone
+
+
+class TeamPacket(models.Model):
+    """Pre-competition information packet to be distributed to all teams."""
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("scheduled", "Scheduled"),
+        ("distributing", "Distributing"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    title = models.CharField(max_length=255, help_text="Packet title/description")
+    file_data = models.BinaryField(help_text="Packet file stored as binary data")
+    filename = models.CharField(max_length=255, help_text="Original filename")
+    mime_type = models.CharField(max_length=100, help_text="MIME type of the file")
+    file_size = models.IntegerField(help_text="File size in bytes")
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True
+    )
+
+    # Scheduling
+    scheduled_distribution_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When to automatically distribute this packet",
+    )
+    actual_distribution_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When distribution actually started",
+    )
+
+    # Distribution methods
+    send_via_email = models.BooleanField(
+        default=True, help_text="Send packet via email to team contacts"
+    )
+    web_access_enabled = models.BooleanField(
+        default=True, help_text="Allow teams to download from web interface"
+    )
+
+    # Metadata
+    uploaded_by = models.CharField(max_length=255, help_text="Username who uploaded")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    notes = models.TextField(blank=True, help_text="Internal notes about this packet")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Team Packet"
+        verbose_name_plural = "Team Packets"
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.status})"
+
+    def get_distribution_stats(self) -> dict[str, int]:
+        """Get distribution statistics."""
+        distributions = self.distributions.all()
+        return {
+            "total": distributions.count(),
+            "pending": distributions.filter(status="pending").count(),
+            "sent": distributions.filter(status="sent").count(),
+            "delivered": distributions.filter(status="delivered").count(),
+            "failed": distributions.filter(status="failed").count(),
+            "downloaded": distributions.filter(downloaded_at__isnull=False).count(),
+        }
+
+    def is_ready_for_distribution(self) -> bool:
+        """Check if packet is ready to be distributed."""
+        if self.status not in ["draft", "scheduled"]:
+            return False
+        if self.scheduled_distribution_time and self.scheduled_distribution_time > timezone.now():
+            return False
+        return True
+
+    def mark_as_distributing(self) -> None:
+        """Mark packet as currently being distributed."""
+        self.status = "distributing"
+        self.actual_distribution_time = timezone.now()
+        self.save(update_fields=["status", "actual_distribution_time", "updated_at"])
+
+    def mark_as_completed(self) -> None:
+        """Mark packet distribution as completed."""
+        self.status = "completed"
+        self.save(update_fields=["status", "updated_at"])
+
+
+class PacketDistribution(models.Model):
+    """Track packet distribution status for each team."""
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("sent", "Sent"),
+        ("delivered", "Delivered"),
+        ("failed", "Failed"),
+        ("bounced", "Bounced"),
+    ]
+
+    packet = models.ForeignKey(
+        TeamPacket, on_delete=models.CASCADE, related_name="distributions"
+    )
+    team = models.ForeignKey("team.Team", on_delete=models.CASCADE)
+
+    # Email delivery tracking
+    email_status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True
+    )
+    email_sent_to = models.EmailField(
+        blank=True, help_text="Email address where packet was sent"
+    )
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    email_error_message = models.TextField(blank=True)
+
+    # Web access tracking
+    web_access_enabled = models.BooleanField(default=True)
+    downloaded_at = models.DateTimeField(
+        null=True, blank=True, help_text="First time packet was downloaded"
+    )
+    download_count = models.IntegerField(
+        default=0, help_text="Number of times downloaded"
+    )
+    last_downloaded_at = models.DateTimeField(null=True, blank=True)
+    downloaded_by = models.CharField(
+        max_length=255, blank=True, help_text="Username who last downloaded"
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["team__team_number"]
+        unique_together = [["packet", "team"]]
+        verbose_name = "Packet Distribution"
+        verbose_name_plural = "Packet Distributions"
+        indexes = [
+            models.Index(fields=["packet", "email_status"]),
+            models.Index(fields=["packet", "team"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.packet.title} → Team {self.team.team_number} ({self.email_status})"
+
+    @property
+    def status(self) -> str:
+        """Combined status property for compatibility."""
+        return self.email_status
+
+    def mark_as_sent(self, email: str) -> None:
+        """Mark as sent via email."""
+        self.email_status = "sent"
+        self.email_sent_to = email
+        self.email_sent_at = timezone.now()
+        self.save(
+            update_fields=[
+                "email_status",
+                "email_sent_to",
+                "email_sent_at",
+                "updated_at",
+            ]
+        )
+
+    def mark_as_delivered(self) -> None:
+        """Mark email as delivered (requires email delivery tracking)."""
+        self.email_status = "delivered"
+        self.save(update_fields=["email_status", "updated_at"])
+
+    def mark_as_failed(self, error_message: str) -> None:
+        """Mark email delivery as failed."""
+        self.email_status = "failed"
+        self.email_error_message = error_message
+        self.save(update_fields=["email_status", "email_error_message", "updated_at"])
+
+    def record_download(self, username: str) -> None:
+        """Record a packet download."""
+        now = timezone.now()
+        if not self.downloaded_at:
+            self.downloaded_at = now
+        self.download_count += 1
+        self.last_downloaded_at = now
+        self.downloaded_by = username
+        self.save(
+            update_fields=[
+                "downloaded_at",
+                "download_count",
+                "last_downloaded_at",
+                "downloaded_by",
+                "updated_at",
+            ]
+        )

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Packet: {{ packet.title }} - WCComps{% endblock %}
+
+{% block content %}
+<div id="content" class="colM">
+    <h1>Packet: {{ packet.title }}</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="messagelist">
+                <div class="{{ message.tags }}">{{ message }}</div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="module">
+        <h2>Packet Information</h2>
+        <table>
+            <tr>
+                <th>Status:</th>
+                <td><span class="status-{{ packet.status }}">{{ packet.get_status_display }}</span></td>
+            </tr>
+            <tr>
+                <th>File:</th>
+                <td>{{ packet.filename }} ({{ packet.file_size|filesizeformat }})</td>
+            </tr>
+            <tr>
+                <th>MIME Type:</th>
+                <td>{{ packet.mime_type }}</td>
+            </tr>
+            <tr>
+                <th>Uploaded By:</th>
+                <td>{{ packet.uploaded_by }}</td>
+            </tr>
+            <tr>
+                <th>Created:</th>
+                <td>{{ packet.created_at }}</td>
+            </tr>
+            <tr>
+                <th>Distribution Methods:</th>
+                <td>
+                    {% if packet.send_via_email %}📧 Email{% endif %}
+                    {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
+                </td>
+            </tr>
+            {% if packet.scheduled_distribution_time %}
+            <tr>
+                <th>Scheduled For:</th>
+                <td>{{ packet.scheduled_distribution_time }}</td>
+            </tr>
+            {% endif %}
+            {% if packet.actual_distribution_time %}
+            <tr>
+                <th>Distributed At:</th>
+                <td>{{ packet.actual_distribution_time }}</td>
+            </tr>
+            {% endif %}
+            {% if packet.notes %}
+            <tr>
+                <th>Notes:</th>
+                <td>{{ packet.notes }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="module">
+        <h2>Distribution Statistics</h2>
+        <table>
+            <tr>
+                <th>Total Teams:</th>
+                <td>{{ stats.total }}</td>
+            </tr>
+            <tr>
+                <th>Emails Sent:</th>
+                <td>{{ stats.sent }}</td>
+            </tr>
+            <tr>
+                <th>Emails Pending:</th>
+                <td>{{ stats.pending }}</td>
+            </tr>
+            <tr>
+                <th>Emails Failed:</th>
+                <td>{{ stats.failed }}</td>
+            </tr>
+            <tr>
+                <th>Teams Downloaded:</th>
+                <td>{{ stats.downloaded }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="toolbar">
+        {% if packet.status in "draft,scheduled" %}
+            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" style="display: inline;">
+                {% csrf_token %}
+                <input type="submit" value="Distribute Now" class="button" onclick="return confirm('Distribute this packet to all teams now?');">
+            </form>
+        {% endif %}
+
+        {% if packet.status not in "cancelled" %}
+            <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" style="display: inline;">
+                {% csrf_token %}
+                <input type="submit" value="Cancel Distribution" class="button" onclick="return confirm('Cancel this packet distribution?');">
+            </form>
+        {% endif %}
+
+        <a href="{% url 'ops_packets_list' %}" class="button">Back to List</a>
+        <a href="/admin/packets/teampacket/{{ packet.id }}/change/" class="button">Edit in Django Admin</a>
+    </div>
+
+    <div class="module">
+        <h2>Distribution Status by Team</h2>
+        {% if distributions %}
+            <table id="result_list">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Email Status</th>
+                        <th>Email Sent To</th>
+                        <th>Email Sent At</th>
+                        <th>Downloaded</th>
+                        <th>Download Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dist in distributions %}
+                        <tr>
+                            <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
+                            <td><span class="status-{{ dist.email_status }}">{{ dist.get_email_status_display }}</span></td>
+                            <td>{{ dist.email_sent_to|default:"-" }}</td>
+                            <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                            <td>
+                                {% if dist.downloaded_at %}
+                                    <span class="status-yes">✓</span> {{ dist.downloaded_at|date:"Y-m-d H:i" }}
+                                {% else %}
+                                    <span class="status-no">✗</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ dist.download_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No distribution records created yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .status-draft { background: #ffc; padding: 2px 8px; border-radius: 3px; }
+    .status-scheduled { background: #bbdefb; padding: 2px 8px; border-radius: 3px; }
+    .status-distributing { background: #fff9c4; padding: 2px 8px; border-radius: 3px; }
+    .status-completed { background: #c8e6c9; padding: 2px 8px; border-radius: 3px; }
+    .status-cancelled { background: #ffcdd2; padding: 2px 8px; border-radius: 3px; }
+    .status-pending { background: #e0e0e0; padding: 2px 8px; border-radius: 3px; }
+    .status-sent { background: #c8e6c9; padding: 2px 8px; border-radius: 3px; }
+    .status-failed { background: #ffcdd2; padding: 2px 8px; border-radius: 3px; }
+    .status-yes { color: green; font-weight: bold; }
+    .status-no { color: #999; }
+</style>
+{% endblock %}

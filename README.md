@@ -86,6 +86,7 @@ Access levels based on Authentik groups:
 **Team Members:**
 - View tickets and point history at `/tickets/` and `/points/`
 - Create tickets at `/create-ticket/`
+- Access team packets at `/packets/`
 
 **Ticketing Support:**
 - Full ticket dashboard at `/ops/tickets/`
@@ -102,6 +103,7 @@ Access levels based on Authentik groups:
 - All support features
 - Manage group role mappings at `/ops/group-role-mappings/`
 - Edit school info at `/ops/school-info/`
+- Upload and distribute team packets at `/packets/ops/`
 
 **Admin:**
 - Full Django admin access at `/admin/`
@@ -115,6 +117,65 @@ Access levels based on Authentik groups:
 **Resolve:** Support clicks "Resolve" → Enter notes → Points deducted → Thread archived
 
 **Cancel:** Team can cancel unclaimed tickets (no penalty). Admin can cancel any ticket.
+
+## Team Packet Distribution
+
+Automate distribution of pre-competition information packets to all teams.
+
+**Features:**
+- Upload single packet file (PDF, documents, etc.) up to 25 MB
+- Email distribution to team contact emails (from SchoolInfo)
+- Web download access for teams
+- Schedule distribution for specific date/time
+- Track email delivery and download status
+- Distribution statistics and reporting
+
+**GoldTeam Workflow:**
+
+1. Upload packet at `/packets/ops/upload/`
+   - Set title and optional notes
+   - Choose distribution methods (email and/or web)
+   - Optionally schedule for future distribution
+
+2. Monitor distribution at `/packets/ops/`
+   - View email send status
+   - Track team downloads
+   - Export distribution reports to CSV
+
+3. Scheduled distribution runs automatically via cron:
+   ```bash
+   # Run every 5 minutes to check for scheduled packets
+   */5 * * * * cd /app/web && python manage.py process_scheduled_packets
+   ```
+
+**Team Member Access:**
+- View available packets at `/packets/`
+- Download packets directly from web interface
+- Receive email notifications with download link
+
+**Admin Features:**
+- Full packet management at `/admin/packets/`
+- Bulk distribution actions
+- Retry failed emails
+- Export distribution reports
+
+**Email Configuration:**
+
+Configure SMTP settings in `.env`:
+```
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=noreply@wccomps.org
+EMAIL_HOST_PASSWORD=your_password
+DEFAULT_FROM_EMAIL=noreply@wccomps.org
+```
+
+For development/testing, use console backend:
+```
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
 
 ## Development
 
@@ -145,6 +206,7 @@ Key environment variables:
 - `AUTHENTIK_TOKEN` - API token for password resets
 - `BASE_URL` - Public URL for OAuth callbacks
 - `DB_*` - Database configuration
+- `EMAIL_*` - Email configuration for packet distribution (optional)
 
 ## Troubleshooting
 
