@@ -15,7 +15,6 @@ These tests ensure authentication follows OWASP guidelines and prevents
 common authentication vulnerabilities (OWASP A07:2021 - Identification and Authentication Failures).
 """
 
-
 import pytest
 from playwright.sync_api import Page, expect
 

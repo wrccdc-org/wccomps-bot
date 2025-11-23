@@ -14,7 +14,6 @@ A bug could:
 - SQL injection via ticket filters
 """
 
-
 import pytest
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
