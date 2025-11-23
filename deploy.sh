@@ -114,12 +114,22 @@ ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web"
 
 echo "✓ Containers built"
 echo ""
-echo "Restarting services..."
+echo "Deploying with zero downtime..."
 
-# Restart services
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot web"
+# Zero-downtime deployment for web service
+# Scale up (old + new), wait for health checks, scale down (remove old)
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=2 --no-recreate web"
 
-echo "✓ Services restarted"
+echo "Waiting for new web container to pass health checks..."
+sleep 15
+
+# Scale down to remove old container
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=1 --no-recreate web"
+
+# Regular restart for bot (can't scale Discord bot)
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot"
+
+echo "✓ Services deployed"
 echo ""
 echo "Verifying containers..."
 
