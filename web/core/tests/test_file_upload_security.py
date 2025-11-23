@@ -45,7 +45,7 @@ class TestFileUploadRealVulnerabilities:
         ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="technical",
+            category="other",
             title="Test Ticket",
             status="open",
         )
@@ -169,13 +169,13 @@ class TestFileUploadAuthorizationBypass:
         ticket1 = Ticket.objects.create(
             ticket_number="T001-001",
             team=team1,
-            category="technical",
+            category="other",
             title="Team 1 Ticket",
         )
         ticket2 = Ticket.objects.create(
             ticket_number="T002-001",
             team=team2,
-            category="technical",
+            category="other",
             title="Team 2 Ticket",
         )
 
@@ -260,7 +260,7 @@ class TestFileUploadRaceConditions:
         ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="technical",
+            category="other",
             title="Test Ticket",
         )
         return team, ticket

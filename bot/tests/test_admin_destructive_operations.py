@@ -489,7 +489,7 @@ class TestDataIntegrityAfterFailure:
                 ticket = await Ticket.objects.acreate(
                     ticket_number="T099-001",
                     team=team,
-                    category="technical",
+                    category="other",
                     title="Setup Ticket",
                     status="open",
                 )

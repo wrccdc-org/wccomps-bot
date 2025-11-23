@@ -231,7 +231,7 @@ class TestTicketViewAuthorization:
             team=team2,
             title="Team 2 Secret Ticket",
             description="Confidential information for Team 2 only",
-            category="technical",
+            category="other",
             created_by=user2,
         )
 
@@ -255,7 +255,7 @@ class TestTicketViewAuthorization:
             team=team2,
             title="Team 2 Ticket",
             description="Team 2 issue",
-            category="technical",
+            category="other",
             created_by=user2,
         )
 
@@ -282,7 +282,7 @@ class TestTicketViewAuthorization:
             team=team2,
             title="Team 2 Important Ticket",
             description="Critical issue",
-            category="technical",
+            category="other",
             created_by=user2,
             status="open",
         )
@@ -429,7 +429,7 @@ class TestFileUploadDownloadViews:
             team=team,
             title="Test Ticket",
             description="Test",
-            category="technical",
+            category="other",
             created_by=user,
         )
 
@@ -543,7 +543,7 @@ class TestOpsViews:
             team=team,
             title="Test Ticket",
             description="Test",
-            category="technical",
+            category="other",
             created_by=user,
             ticket_number="BT01-00001",
         )

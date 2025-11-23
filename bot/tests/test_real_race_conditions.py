@@ -244,7 +244,7 @@ class TestRateLimitBypassAttempts:
         ticket = await Ticket.objects.acreate(
             ticket_number="T044-001",
             team=team,
-            category="technical",
+            category="other",
             title="Rate Limit Test",
             status="open",
         )
@@ -327,7 +327,7 @@ class TestDatabaseTransactionIsolation:
                     ticket = Ticket.objects.create(
                         ticket_number=f"T045-{counter:03d}",
                         team=fresh_team,
-                        category="technical",
+                        category="other",
                         title=f"Concurrent Ticket {ticket_suffix}",
                         status="open",
                     )
@@ -501,7 +501,7 @@ class TestRealWorldRaceConditions:
                     ticket = await Ticket.objects.acreate(
                         ticket_number="T048-001",
                         team=team,
-                        category="technical",
+                        category="other",
                         title="User's Ticket",
                         status="open",
                     )
