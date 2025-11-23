@@ -114,36 +114,46 @@ class TestTeamNumberFormatConsistency:
             f"Ticket number round-trip failed: {team_number} → '{ticket_number}' → {parsed_team_number}"
         )
 
-    @given(team_number=st.integers())
-    @settings(max_examples=100)
-    def test_team_number_validation_is_consistent(self, team_number: int):
+    @given(team_number=st.integers(min_value=1, max_value=50))
+    @settings(max_examples=50)
+    def test_valid_team_numbers_accepted(self, team_number: int):
         """
-        Property: Team number validation should be consistent everywhere.
+        Property: All valid team numbers (1-50) should be accepted.
 
-        Valid range: 1-50
-        This should be enforced at EVERY entry point (model, view, API).
-
-        BUG IF: You can create team_number=0 via one path but not another.
+        This tests that validation doesn't accidentally reject valid values.
         """
-        valid_range = 1 <= team_number <= 50
+        # Skip duplicates
+        assume(not Team.objects.filter(team_number=team_number).exists())
 
-        # Skip if this would create a duplicate
-        if valid_range:
-            assume(not Team.objects.filter(team_number=team_number).exists())
+        # Should succeed - model calls full_clean() which validates
+        team = Team.objects.create(
+            team_number=team_number,
+            team_name=f"Team {team_number}",
+        )
 
-        # Try to create via model
-        if valid_range:
-            # Should succeed
-            team = Team.objects.create(
+        assert team.team_number == team_number
+        assert team.authentik_group == f"WCComps_BlueTeam{team_number:02d}"
+
+    @given(team_number=st.integers().filter(lambda x: x < 1 or x > 50))
+    @settings(max_examples=50)
+    def test_invalid_team_numbers_rejected(self, team_number: int):
+        """
+        Property: All invalid team numbers (< 1 or > 50) should be rejected.
+
+        Team.save() calls full_clean() which should raise ValidationError.
+        """
+        from django.core.exceptions import ValidationError
+
+        # Try to create with invalid team_number
+        # Should raise ValidationError
+        with pytest.raises(ValidationError) as exc_info:
+            Team.objects.create(
                 team_number=team_number,
-                team_name=f"Team {team_number}",
+                team_name=f"Invalid Team {team_number}",
             )
-            assert team.team_number == team_number
-        else:
-            # Should fail (or at least not create invalid team)
-            # Note: Django doesn't validate on create() without full_clean()
-            # So we test that team_number is in valid range if team exists
-            pass  # This would need model-level validation to enforce
+
+        # Verify the error is about team_number
+        assert "team_number" in str(exc_info.value)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -248,27 +258,31 @@ class TestAuthorizationViaTeamNumber:
         BOUNDARY TEST: team_number=0 should be invalid.
 
         Valid range: 1-50
+        Model validation should reject this.
         """
-        # Try to create team with team_number=0
-        # This should ideally fail, but Django doesn't validate without full_clean()
+        from django.core.exceptions import ValidationError
 
-        # At minimum, our regex parsing should not match invalid team numbers
-        invalid_groups = [
-            "WCComps_BlueTeam0",
-            "WCComps_BlueTeam00",
-            "WCComps_BlueTeam000",
-        ]
+        with pytest.raises(ValidationError) as exc_info:
+            Team.objects.create(
+                team_number=0,
+                team_name="Invalid Team Zero",
+            )
 
-        for group in invalid_groups:
-            match = re.match(r"WCComps_BlueTeam(\d+)", group)
-            if match:
-                team_number = int(match.group(1))
-                # This WILL match and parse as 0
-                # We should have validation to reject this
-                assert team_number == 0, f"Parsing {group} gave {team_number}"
+        assert "team_number" in str(exc_info.value)
 
-                # DOCUMENT: Currently no validation prevents team_number=0
-                # This is a potential bug if not validated elsewhere
+    def test_team_number_negative_is_rejected(self):
+        """
+        BOUNDARY TEST: Negative team numbers should be invalid.
+        """
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            Team.objects.create(
+                team_number=-1,
+                team_name="Invalid Negative Team",
+            )
+
+        assert "team_number" in str(exc_info.value)
 
     def test_team_number_above_50_is_rejected(self):
         """
@@ -276,17 +290,50 @@ class TestAuthorizationViaTeamNumber:
 
         Valid range: 1-50
         """
-        # Test that parsing works but validation should reject
-        test_groups = [
-            ("WCComps_BlueTeam51", 51),
-            ("WCComps_BlueTeam99", 99),
-            ("WCComps_BlueTeam100", 100),
+        from django.core.exceptions import ValidationError
+
+        for invalid_team_number in [51, 99, 100, 999]:
+            with pytest.raises(ValidationError) as exc_info:
+                Team.objects.create(
+                    team_number=invalid_team_number,
+                    team_name=f"Invalid Team {invalid_team_number}",
+                )
+
+            assert "team_number" in str(exc_info.value)
+
+    def test_parsing_accepts_various_formats_but_validation_still_applies(self):
+        """
+        EDGE CASE: Parsing regex is permissive (accepts 1, 01, 001).
+
+        This is OK because:
+        1. All parse to same integer value
+        2. Model validation still enforces 1-50 range
+        3. Model auto-generates normalized format (02d)
+
+        This test documents the behavior.
+        """
+        # Parsing is permissive
+        test_cases = [
+            ("WCComps_BlueTeam1", 1),  # No leading zero
+            ("WCComps_BlueTeam01", 1),  # With leading zero (canonical)
+            ("WCComps_BlueTeam001", 1),  # Extra leading zeros
+            ("WCComps_BlueTeam10", 10),  # Two digits
+            ("WCComps_BlueTeam0", 0),  # Invalid but still parses
+            ("WCComps_BlueTeam99", 99),  # Invalid but still parses
         ]
 
-        for group, expected_parsed in test_groups:
-            match = re.match(r"WCComps_BlueTeam(\d+)", group)
-            if match:
-                team_number = int(match.group(1))
-                assert team_number == expected_parsed
+        for group_name, expected_team_number in test_cases:
+            match = re.match(r"WCComps_BlueTeam(\d+)", group_name)
+            assert match, f"Should match: {group_name}"
 
-                # DOCUMENT: Parsing accepts these, but should be validated elsewhere
+            parsed = int(match.group(1))
+            assert parsed == expected_team_number
+
+        # But creating teams with invalid numbers still fails
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            Team.objects.create(team_number=0, team_name="Invalid")
+
+        with pytest.raises(ValidationError):
+            Team.objects.create(team_number=99, team_name="Invalid")
