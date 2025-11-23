@@ -546,3 +546,173 @@ class TestAdminCommands:
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "No tickets to clear" in call_args.args[0]
+
+    @patch("bot.cogs.admin_teams.log_to_ops_channel")
+    async def test_activate_teams(
+        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test /teams activate command."""
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        # Create teams - some active, some inactive
+        await Team.objects.acreate(team_number=1, team_name="Team 01", max_members=5, is_active=False)
+        await Team.objects.acreate(team_number=2, team_name="Team 02", max_members=5, is_active=False)
+        await Team.objects.acreate(team_number=3, team_name="Team 03", max_members=5, is_active=True)
+
+        cog = AdminTeamsCog(mock_bot)
+        await cog.admin_activate_teams.callback(cog, mock_interaction, teams="1-3")
+
+        # Verify all teams are now active
+        team1 = await Team.objects.aget(team_number=1)
+        team2 = await Team.objects.aget(team_number=2)
+        team3 = await Team.objects.aget(team_number=3)
+        assert team1.is_active is True
+        assert team2.is_active is True
+        assert team3.is_active is True
+
+        # Verify response was sent
+        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "Activated" in call_args.args[0]
+
+        # Verify audit log was created
+        audit_logs = await AuditLog.objects.filter(action="teams_activated").acount()
+        assert audit_logs == 1
+
+        # Verify ops channel log
+        mock_log_ops.assert_called_once()
+
+    @patch("bot.cogs.admin_teams.log_to_ops_channel")
+    async def test_deactivate_teams(
+        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test /teams deactivate command."""
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        # Create teams - all active
+        await Team.objects.acreate(team_number=4, team_name="Team 04", max_members=5, is_active=True)
+        await Team.objects.acreate(team_number=5, team_name="Team 05", max_members=5, is_active=True)
+        await Team.objects.acreate(team_number=6, team_name="Team 06", max_members=5, is_active=False)
+
+        cog = AdminTeamsCog(mock_bot)
+        await cog.admin_deactivate_teams.callback(cog, mock_interaction, teams="4,5,6")
+
+        # Verify all teams are now inactive
+        team4 = await Team.objects.aget(team_number=4)
+        team5 = await Team.objects.aget(team_number=5)
+        team6 = await Team.objects.aget(team_number=6)
+        assert team4.is_active is False
+        assert team5.is_active is False
+        assert team6.is_active is False
+
+        # Verify response was sent
+        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "Deactivated" in call_args.args[0]
+
+        # Verify audit log was created
+        audit_logs = await AuditLog.objects.filter(action="teams_deactivated").acount()
+        assert audit_logs == 1
+
+        # Verify ops channel log
+        mock_log_ops.assert_called_once()
+
+    @patch("bot.cogs.admin_teams.log_to_ops_channel")
+    @patch("bot.discord_manager.DiscordManager")
+    async def test_recreate_teams(
+        self, mock_discord_manager_class: Any, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test /teams recreate command."""
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        # Create teams with existing Discord infrastructure
+        team20 = await Team.objects.acreate(
+            team_number=20,
+            team_name="Team 20",
+            max_members=5,
+            discord_role_id=2001,
+            discord_category_id=3001,
+        )
+        team21 = await Team.objects.acreate(
+            team_number=21,
+            team_name="Team 21",
+            max_members=5,
+            discord_role_id=2002,
+            discord_category_id=3002,
+        )
+
+        # Mock Discord infrastructure
+        role20 = MagicMock(spec=discord.Role)
+        role20.id = 2001
+        role20.delete = AsyncMock()
+
+        role21 = MagicMock(spec=discord.Role)
+        role21.id = 2002
+        role21.delete = AsyncMock()
+
+        category20 = MagicMock(spec=discord.CategoryChannel)
+        category20.id = 3001
+        category20.channels = []
+        category20.delete = AsyncMock()
+
+        category21 = MagicMock(spec=discord.CategoryChannel)
+        category21.id = 3002
+        category21.channels = []
+        category21.delete = AsyncMock()
+
+        mock_interaction.guild.get_role.side_effect = lambda rid: (
+            role20 if rid == 2001 else (role21 if rid == 2002 else None)
+        )
+        mock_interaction.guild.get_channel.side_effect = lambda cid: (
+            category20 if cid == 3001 else (category21 if cid == 3002 else None)
+        )
+
+        # Mock DiscordManager
+        mock_manager = MagicMock()
+        new_role = MagicMock(spec=discord.Role)
+        new_category = MagicMock(spec=discord.CategoryChannel)
+        new_category.channels = [MagicMock(), MagicMock()]  # Mock 2 channels
+        mock_manager.setup_team_infrastructure = AsyncMock(return_value=(new_role, new_category))
+        mock_discord_manager_class.return_value = mock_manager
+
+        cog = AdminTeamsCog(mock_bot)
+        await cog.admin_recreate_teams.callback(cog, mock_interaction, teams="20,21")
+
+        # Verify old infrastructure was deleted
+        role20.delete.assert_called_once()
+        role21.delete.assert_called_once()
+        category20.delete.assert_called_once()
+        category21.delete.assert_called_once()
+
+        # Verify new infrastructure was created
+        assert mock_manager.setup_team_infrastructure.call_count == 2
+
+        # Verify response was sent
+        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "Success" in call_args.args[0] or "Recreated" in call_args.args[0]
+
+        # Verify audit log was created
+        audit_logs = await AuditLog.objects.filter(action="teams_recreated").acount()
+        assert audit_logs == 1
+
+        # Verify ops channel log
+        mock_log_ops.assert_called_once()
+
+    async def test_activate_invalid_range(
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+    ) -> None:
+        """Test /teams activate with invalid team range."""
+        mock_interaction.user.id = mock_admin_user._discord_id
+
+        cog = AdminTeamsCog(mock_bot)
+        await cog.admin_activate_teams.callback(cog, mock_interaction, teams="invalid")
+
+        # Verify error was sent
+        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+        mock_interaction.followup.send.assert_called_once()
+        call_args = mock_interaction.followup.send.call_args
+        assert "Error" in call_args.args[0] or "Invalid" in call_args.args[0]
