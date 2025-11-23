@@ -19,13 +19,12 @@ These tests verify SAFETY, not just functionality.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import discord
 import pytest
-from django.utils import timezone
 
-from core.models import AuditLog, CompetitionConfig
+from core.models import AuditLog
 from team.models import DiscordLink, Team
 from ticketing.models import Ticket
 
@@ -205,7 +204,7 @@ class TestEndCompetitionSafety:
 
         BUG IF: Deletes #ops, #announcements, etc.
         """
-        data = await setup_competition
+        await setup_competition
 
         from bot.cogs.admin_competition import AdminCompetitionCog
 
@@ -312,7 +311,7 @@ class TestPasswordResetSafety:
             mock_request.return_value = mock_response
 
             # Reset password for team 5
-            result = reset_blueteam_password(team_number, "new_password_123")
+            reset_blueteam_password(team_number, "new_password_123")
 
         # Verify API was called with correct team
         assert mock_request.called
@@ -375,7 +374,7 @@ class TestBulkOperationsSafety:
             )
             teams.append(team)
 
-        from bot.authentik_utils import parse_team_range, toggle_all_blueteam_accounts
+        from bot.authentik_utils import toggle_all_blueteam_accounts
 
         # Mock API calls
         call_count = 0
@@ -437,7 +436,7 @@ class TestDataIntegrityAfterFailure:
             from django.db import transaction
 
             with transaction.atomic():
-                link = await DiscordLink.objects.acreate(
+                await DiscordLink.objects.acreate(
                     discord_id=5000000000000000000,
                     discord_username="test_user",
                     authentik_username="test_user",
@@ -478,7 +477,7 @@ class TestDataIntegrityAfterFailure:
                 )
 
                 # Create initial ticket
-                ticket = await Ticket.objects.acreate(
+                await Ticket.objects.acreate(
                     ticket_number="T099-001",
                     team=team,
                     category="other",
@@ -516,7 +515,6 @@ class TestAdminCommandAuthorizationTest:
         """
         CRITICAL: Regular users should not be able to end competition.
         """
-        from bot.cogs.admin_competition import AdminCompetitionCog
         from bot.permissions import check_admin
 
         # Create non-admin user interaction
@@ -540,7 +538,7 @@ class TestAdminCommandAuthorizationTest:
             authentik_group="WCComps_BlueTeam20",
         )
 
-        link = await DiscordLink.objects.acreate(
+        await DiscordLink.objects.acreate(
             discord_id=6000000000000000000,
             discord_username="test_user",
             authentik_username="test_user",

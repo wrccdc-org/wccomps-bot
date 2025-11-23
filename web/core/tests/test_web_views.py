@@ -14,8 +14,6 @@ A bug could:
 - SQL injection via ticket filters
 """
 
-import io
-from typing import Any
 
 import pytest
 from allauth.socialaccount.models import SocialAccount

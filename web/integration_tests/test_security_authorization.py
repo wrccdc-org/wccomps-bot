@@ -63,7 +63,7 @@ class TestHorizontalPrivilegeEscalation:
 
         # Create tickets for two different teams
         team1 = Team.objects.get(team_number=1)
-        team50 = Team.objects.get(team_number=50)
+        Team.objects.get(team_number=50)
 
         ticket_team1 = Ticket.objects.create(
             team=team1,

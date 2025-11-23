@@ -97,7 +97,7 @@ class TestTeamMembershipDisplay:
         """Group role mappings should show member count for each team."""
         from team.models import Team
 
-        team = Team.objects.get(team_number=50)
+        Team.objects.get(team_number=50)
 
         goldteam_page.goto(f"{live_server_url}/ops/group-role-mappings/")
 
@@ -109,7 +109,7 @@ class TestTeamMembershipDisplay:
         """Group role mappings should show max members for each team."""
         from team.models import Team
 
-        team = Team.objects.get(team_number=50)
+        Team.objects.get(team_number=50)
 
         goldteam_page.goto(f"{live_server_url}/ops/group-role-mappings/")
 

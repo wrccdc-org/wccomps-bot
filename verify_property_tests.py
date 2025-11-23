@@ -94,9 +94,9 @@ def test_property_4_validation_rejects_invalid():
 
     for team_number in invalid_values:
         try:
-            team = MockTeam(team_number, f"Invalid {team_number}")
+            MockTeam(team_number, f"Invalid {team_number}")
             print(f"✗ FAILED: team_number={team_number} should have been rejected!")
-            assert False, f"Should have raised ValidationError for {team_number}"
+            raise AssertionError(f"Should have raised ValidationError for {team_number}")
         except ValueError as e:
             print(f"✓ Rejected: team_number={team_number} - {e}")
 
@@ -127,16 +127,16 @@ def test_property_5_permissive_parsing():
         # Test validation
         if should_be_valid:
             try:
-                team = MockTeam(parsed, f"Team {parsed}")
+                MockTeam(parsed, f"Team {parsed}")
                 print(f"  ✓ Valid: team_number={parsed} accepted")
             except ValueError:
                 print(f"  ✗ FAILED: team_number={parsed} should be valid!")
                 raise
         else:
             try:
-                team = MockTeam(parsed, f"Team {parsed}")
+                MockTeam(parsed, f"Team {parsed}")
                 print(f"  ✗ FAILED: team_number={parsed} should be rejected!")
-                assert False
+                raise AssertionError()
             except ValueError:
                 print(f"  ✓ Invalid: team_number={parsed} rejected")
 

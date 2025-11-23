@@ -141,7 +141,7 @@ class TestXSSPrevention:
         )
 
         xss_payload = '<script>document.location="http://evil.com"</script>'
-        comment = TicketComment.objects.create(
+        TicketComment.objects.create(
             ticket=ticket,
             author_name="test_user",
             comment_text=xss_payload,
@@ -182,11 +182,6 @@ class TestCommandInjectionPrevention:
         """Filenames should not allow command injection."""
         # Note: This would require file upload functionality
         # Testing that filename is validated
-        dangerous_filenames = [
-            "; rm -rf /",
-            "$(whoami).txt",
-            "`cat /etc/passwd`.txt",
-        ]
 
         # These would be tested during file upload
         # For now, verify upload endpoint exists and requires auth

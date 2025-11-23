@@ -15,7 +15,6 @@ These tests ensure authentication follows OWASP guidelines and prevents
 common authentication vulnerabilities (OWASP A07:2021 - Identification and Authentication Failures).
 """
 
-import os
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -62,7 +61,7 @@ class TestOAuthSecurity:
     def test_direct_access_to_oauth_endpoints_blocked(self, page: Page, live_server_url):
         """Direct access to OAuth endpoints without proper flow should be blocked."""
         # Try accessing callback directly
-        response = page.goto(f"{live_server_url}/accounts/oidc/authentik/login/callback")
+        page.goto(f"{live_server_url}/accounts/oidc/authentik/login/callback")
 
         # Should either redirect or show error (not 200 OK with sensitive data)
         # Verify no access tokens or secrets are exposed
@@ -80,7 +79,7 @@ class TestSessionSecurity:
         expect(authenticated_page.locator('a:has-text("Logout")')).to_be_visible()
 
         # Get session cookie before logout
-        cookies_before = authenticated_page.context.cookies()
+        authenticated_page.context.cookies()
 
         # Logout
         authenticated_page.click('a:has-text("Logout")')

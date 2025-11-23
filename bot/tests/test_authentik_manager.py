@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from bot.authentik_manager import AuthentikAPIError, AuthentikManager

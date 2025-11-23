@@ -23,8 +23,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from team.models import DiscordLink, Team
-
+from team.models import DiscordLink
 
 # Discord snowflakes are 64-bit integers
 # Realistic range: 100000000000000000 to 999999999999999999 (17-18 digits)

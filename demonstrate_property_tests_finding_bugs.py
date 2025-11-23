@@ -98,9 +98,9 @@ def demonstrate_bug_2():
 
         # Migration path (BUG: no validation)
         try:
-            team = BuggyTeamValidation.create_team_via_migration(team_number, f"Team {team_number}")
+            BuggyTeamValidation.create_team_via_migration(team_number, f"Team {team_number}")
             print(f"❌ Migration path BUG: Created invalid team_number={team_number}")
-            print(f"   → Database now has invalid data!\n")
+            print("   → Database now has invalid data!\n")
         except ValueError:
             print(f"✓ Migration path: team_number={team_number} rejected\n")
 
@@ -149,8 +149,8 @@ def demonstrate_bug_3():
         if parsed_team is None:
             print(f"❌ BUG FOUND: team_number={team_number}")
             print(f"   Generated: {ticket_number}")
-            print(f"   Parsing FAILED - regex expects 2 digits, got 3")
-            print(f"   → Can't look up ticket by ticket_number!\n")
+            print("   Parsing FAILED - regex expects 2 digits, got 3")
+            print("   → Can't look up ticket by ticket_number!\n")
         else:
             print(f"✓ team_number={team_number}: {ticket_number} → team={parsed_team}, seq={parsed_seq}")
 

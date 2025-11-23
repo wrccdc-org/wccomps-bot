@@ -19,7 +19,7 @@ malicious file uploads (OWASP A04:2021 - Insecure Design, A05:2021 - Security Mi
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 pytestmark = [
     pytest.mark.browser,

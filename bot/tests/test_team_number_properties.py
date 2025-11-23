@@ -1,4 +1,4 @@
-"""
+r"""
 Property-based tests for team_number consistency.
 
 WHY THIS IS USEFUL (unlike the deleted property tests):
@@ -161,7 +161,7 @@ class TestTeamNumberParsingEdgeCases:
     """Test edge cases in team_number parsing."""
 
     def test_group_name_with_no_leading_zero_is_accepted(self):
-        """
+        r"""
         EDGE CASE: What if Authentik admin creates "WCComps_BlueTeam1" (no leading zero)?
 
         Current regex: r"WCComps_BlueTeam(\d+)"
@@ -225,13 +225,12 @@ class TestAuthorizationViaTeamNumber:
         This tests authorization logic is consistent with team_number parsing.
         BUG IF: User in BlueTeam01 can access BlueTeam1's resources (or vice versa).
         """
-        from web.core.auth_utils import get_user_team_number
 
         # Skip duplicate team numbers
         assume(not Team.objects.filter(team_number=team_number).exists())
 
         # Create team
-        team = Team.objects.create(
+        Team.objects.create(
             team_number=team_number,
             team_name=f"Team {team_number}",
         )

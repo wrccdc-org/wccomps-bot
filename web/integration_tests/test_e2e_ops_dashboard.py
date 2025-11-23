@@ -230,7 +230,7 @@ class TestOpsBulkOperations:
         authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open")
 
         # Look for bulk action controls
-        bulk_form = authenticated_page.locator('form[action*="bulk-claim"]')
+        authenticated_page.locator('form[action*="bulk-claim"]')
 
         # Form might not exist if there are no open tickets
         # Just verify page renders without error
@@ -576,7 +576,7 @@ class TestOpsAutoRefresh:
             authenticated_page.goto(f"{live_server_url}/ops/ticket/{ticket.ticket_number}/")
 
             # Check for auto-refresh meta tag
-            refresh_meta = authenticated_page.locator('meta[http-equiv="refresh"]')
+            authenticated_page.locator('meta[http-equiv="refresh"]')
 
             # Meta tag might be optional, so just verify page renders
             expect(authenticated_page.locator("body")).to_be_visible()

@@ -629,7 +629,7 @@ class TestRateLimiting:
 
         # Create 10 rate limit entries for same user (user-level limit is 10/min)
         user_id = 555444333
-        for i in range(10):
+        for _i in range(10):
             await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=user_id)
 
         # Try to comment on the original ticket

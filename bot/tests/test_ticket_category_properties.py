@@ -19,14 +19,12 @@ THESE TESTS FIND REAL BUGS, NOT TAUTOLOGIES.
 """
 
 import pytest
-from django.core.exceptions import ValidationError
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from core.tickets_config import TICKET_CATEGORIES
 from team.models import Team
 from ticketing.models import Ticket
-
 
 # Strategy: Only valid category strings
 valid_categories = st.sampled_from(list(TICKET_CATEGORIES.keys()))
@@ -276,7 +274,7 @@ class TestTicketCategoryEdgeCases:
 
         e.g., "box-reset" not "box_reset" or "boxReset"
         """
-        for category in TICKET_CATEGORIES.keys():
+        for category in TICKET_CATEGORIES:
             # Property: Contains hyphens (kebab-case)
             if len(category) > 1:  # Skip single-word categories
                 # Should be lowercase

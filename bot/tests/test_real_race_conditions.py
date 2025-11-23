@@ -12,12 +12,10 @@ Goal: Find bugs like:
 """
 
 import asyncio
-import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from django.db import transaction
-from django.utils import timezone
 
 from team.models import DiscordLink, LinkRateLimit, Team
 from ticketing.models import CommentRateLimit, Ticket
@@ -69,7 +67,7 @@ class TestTeamMemberRaceConditions:
         async def try_join(user_id):
             """Simulate user joining team."""
             try:
-                link = await DiscordLink.objects.acreate(
+                await DiscordLink.objects.acreate(
                     discord_id=2000000000000000000 + user_id,
                     discord_username=f"new_user_{user_id}",
                     authentik_username=f"new_user_{user_id}",
@@ -141,7 +139,7 @@ class TestTeamMemberRaceConditions:
             """User tries to create duplicate link."""
             await asyncio.sleep(0.001)  # Small delay
             try:
-                new_link = await DiscordLink.objects.acreate(
+                await DiscordLink.objects.acreate(
                     discord_id=discord_id,
                     discord_username="test_user_duplicate",
                     authentik_username="test_user_duplicate",
@@ -416,7 +414,7 @@ class TestRealWorldRaceConditions:
         async def spam_join():
             """Simulate rapid button clicks."""
             try:
-                link = await DiscordLink.objects.acreate(
+                await DiscordLink.objects.acreate(
                     discord_id=discord_id,
                     discord_username="spammer",
                     authentik_username="spammer",
@@ -470,7 +468,7 @@ class TestRealWorldRaceConditions:
                 # Check if still active
                 current_link = await DiscordLink.objects.aget(id=link.id)
                 if current_link.is_active:
-                    ticket = await Ticket.objects.acreate(
+                    await Ticket.objects.acreate(
                         ticket_number="T048-001",
                         team=team,
                         category="other",
@@ -499,7 +497,7 @@ class TestRealWorldRaceConditions:
         )
 
         # Check final state
-        final_link = await DiscordLink.objects.aget(id=link.id)
+        await DiscordLink.objects.aget(id=link.id)
         ticket_exists = await Ticket.objects.filter(ticket_number="T048-001").aexists()
 
         # PROPERTY: If ticket was created, user should still be active
