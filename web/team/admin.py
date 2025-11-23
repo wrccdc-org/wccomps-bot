@@ -1,7 +1,10 @@
 """Admin configuration for team app."""
 
+from typing import Any
+
 from django.contrib import admin
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 
 from .models import (
     DiscordLink,
@@ -102,3 +105,45 @@ class SchoolInfoAdmin(admin.ModelAdmin[SchoolInfo]):
     search_fields = ["school_name", "contact_email", "team__team_name"]
     readonly_fields = ["created_at", "updated_at", "updated_by"]
     ordering = ["team__team_number"]
+    actions = ["export_as_csv", "import_from_csv"]
+
+    @admin.action(description="Export as CSV")
+    def export_as_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
+        """Export school information as CSV."""
+        import csv
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="school_info.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "team_number",
+                "team_name",
+                "school_name",
+                "contact_email",
+                "secondary_email",
+                "notes",
+            ]
+        )
+
+        for school_info in queryset.select_related("team"):
+            writer.writerow(
+                [
+                    school_info.team.team_number,
+                    school_info.team.team_name,
+                    school_info.school_name,
+                    school_info.contact_email,
+                    school_info.secondary_email or "",
+                    school_info.notes or "",
+                ]
+            )
+
+        return response
+
+    @admin.action(description="Import from CSV")
+    def import_from_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
+        """Redirect to CSV import page."""
+        from django.shortcuts import redirect
+
+        return redirect("/ops/school-info/import/")

@@ -1868,6 +1868,138 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
     )
 
 
+@login_required
+def ops_school_info_import(request: HttpRequest) -> HttpResponse:
+    """Import school information from CSV file (GoldTeam only)."""
+    from team.forms import CSVUploadForm, apply_csv_import, parse_csv_file, validate_csv_data
+
+    # Get user's permissions
+    user = cast(User, request.user)
+    authentik_username, _groups, _ = get_authentik_data(user)
+
+    # Check if user is GoldTeam
+    if not has_permission(user, "gold_team"):
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Access denied",
+                "message": "You do not have permission to import school information.",
+            },
+        )
+
+    # Build permissions dict for template
+    permissions = get_permissions_context(user)
+
+    form = CSVUploadForm()
+    preview_data = None
+    import_results = None
+
+    if request.method == "POST":
+        if "upload" in request.POST:
+            # Step 1: Upload and preview
+            form = CSVUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                csv_file = request.FILES["csv_file"]
+
+                # Parse CSV
+                parse_result = parse_csv_file(csv_file)
+
+                if parse_result["errors"]:
+                    # Show errors
+                    preview_data = {
+                        "errors": parse_result["errors"],
+                        "warnings": parse_result["warnings"],
+                        "rows": [],
+                    }
+                else:
+                    # Validate against database
+                    validation_result = validate_csv_data(parse_result["rows"])
+
+                    preview_data = {
+                        "errors": validation_result["errors"],
+                        "warnings": parse_result["warnings"] + validation_result["warnings"],
+                        "teams_to_create": validation_result["teams_to_create"],
+                        "teams_to_update": validation_result["teams_to_update"],
+                        "can_import": not validation_result["errors"],
+                    }
+
+                    # Store data in session for confirmation
+                    if preview_data["can_import"]:
+                        request.session["csv_import_data"] = {
+                            "teams_to_create": [
+                                {
+                                    "team_number": row["team_number"],
+                                    "school_name": row["school_name"],
+                                    "contact_email": row["contact_email"],
+                                    "secondary_email": row.get("secondary_email", ""),
+                                    "notes": row.get("notes", ""),
+                                    "team_name": row.get("team_name", ""),
+                                }
+                                for row in validation_result["teams_to_create"]
+                            ],
+                            "teams_to_update": [
+                                {
+                                    "team_number": row["team_number"],
+                                    "school_name": row["school_name"],
+                                    "contact_email": row["contact_email"],
+                                    "secondary_email": row.get("secondary_email", ""),
+                                    "notes": row.get("notes", ""),
+                                    "team_name": row.get("team_name", ""),
+                                }
+                                for row in validation_result["teams_to_update"]
+                            ],
+                        }
+
+        elif "confirm" in request.POST:
+            # Step 2: Confirm and import
+            import_data = request.session.get("csv_import_data")
+            if import_data:
+                # Re-validate to ensure data is still valid
+                teams_to_create = import_data["teams_to_create"]
+                teams_to_update = import_data["teams_to_update"]
+
+                # Reconstruct row data with team references
+                validation_result = validate_csv_data(teams_to_create + teams_to_update)
+
+                if validation_result["errors"]:
+                    # Data changed, show errors
+                    preview_data = {
+                        "errors": validation_result["errors"],
+                        "warnings": ["Data validation failed. Please re-upload the CSV file."],
+                        "can_import": False,
+                    }
+                else:
+                    # Apply import
+                    result = apply_csv_import(
+                        validation_result["teams_to_create"],
+                        validation_result["teams_to_update"],
+                        authentik_username,
+                    )
+
+                    import_results = {
+                        "created": result["created"],
+                        "updated": result["updated"],
+                    }
+
+                    # Clear session data
+                    del request.session["csv_import_data"]
+
+    return render(
+        request,
+        "ops_school_info_import.html",
+        {
+            "authentik_username": authentik_username,
+            "form": form,
+            "preview_data": preview_data,
+            "import_results": import_results,
+            "show_ops_nav": True,
+            "nav_active": "school",
+            **permissions,
+        },
+    )
+
+
 def custom_logout(request: HttpRequest) -> HttpResponse:
     """Custom logout view that ends both Django and Authentik SSO sessions."""
     from urllib.parse import urlencode
