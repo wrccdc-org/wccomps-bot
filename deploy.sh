@@ -110,9 +110,22 @@ echo ""
 echo "Building containers..."
 
 # Rebuild containers
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web"
+if ! ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web"; then
+    echo "✗ Build failed"
+    exit 1
+fi
 
 echo "✓ Containers built"
+echo ""
+echo "Verifying images exist..."
+
+# Verify images were created successfully
+if ! ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose images web bot | grep -q 'wccomps-bot'"; then
+    echo "✗ Images not found after build"
+    exit 1
+fi
+
+echo "✓ Images verified"
 echo ""
 echo "Deploying with zero downtime..."
 
