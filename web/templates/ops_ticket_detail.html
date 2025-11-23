@@ -127,6 +127,20 @@
                 <p style="margin: 5px 0 0 0;">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
             </div>
             {% endif %}
+            {% if is_ticketing_support or is_ticketing_admin %}
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                <h4 style="margin-bottom: 10px; color: #2c3e50; font-size: 14px;">🔄 Reassign Ticket</h4>
+                <form method="POST" action="{% url 'ops_ticket_reassign' ticket.ticket_number %}">
+                    {% csrf_token %}
+                    <div style="margin-bottom: 10px;">
+                        <label for="new_assignee_username" style="display: block; font-weight: 600; margin-bottom: 5px; color: #2c3e50; font-size: 13px;">New Assignee (Authentik Username)</label>
+                        <input type="text" name="new_assignee_username" id="new_assignee_username" placeholder="Enter Authentik username" style="width: 300px; padding: 8px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;" required>
+                        <div style="color: #666; font-size: 11px; margin-top: 3px;">Enter the Authentik username of the person to assign this ticket to</div>
+                    </div>
+                    <c-button type="submit" variant="primary">Reassign</c-button>
+                </form>
+            </div>
+            {% endif %}
             {% elif ticket.status == 'resolved' and is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
