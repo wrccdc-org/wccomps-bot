@@ -76,6 +76,12 @@ Everyone runs `/link` in Discord to connect their account to Authentik. Team ass
 - `/tickets cancel <ticket_number> [reason]` - Cancel ticket (admin only)
 - `/tickets reopen <ticket_number>` - Reopen ticket (admin only)
 
+**Student Helpers (`/helpers`):**
+- `/helpers add <user> <competition_slug> <role_name>` - Add student helper for invitational
+- `/helpers list <competition_slug> [status]` - List helpers for a competition
+- `/helpers revoke <user> <competition_slug> [reason]` - Revoke helper access
+- `/helpers status <user>` - Check student helper status
+
 **Admin (`/admin`):**
 - `/admin sync-roles` - Sync roles from volunteer guild to competition guild
 
@@ -115,6 +121,31 @@ Access levels based on Authentik groups:
 **Resolve:** Support clicks "Resolve" → Enter notes → Points deducted → Thread archived
 
 **Cancel:** Team can cancel unclaimed tickets (no penalty). Admin can cancel any ticket.
+
+## Student Helper Management
+
+Student helpers are temporary support staff for invitationals with automatic role assignment and cleanup.
+
+**Setup:**
+1. User must first link Discord account with `/link`
+2. Assign `WCComps_Ticketing_Support` group in Authentik
+3. Admin adds helper with `/helpers add <user> <competition_slug> <role_name>`
+
+**Automatic Role Management:**
+- Helper roles are automatically assigned at competition start time
+- Roles are automatically removed at competition end time
+- Custom start/end times can be specified per helper
+- Roles grant temporary access to team channels during the event
+
+**Management:**
+- **Add:** `/helpers add @user swccdc-2025 "UCI Invitationals 2026"`
+- **List:** `/helpers list swccdc-2025` to view all helpers and their status
+- **Revoke:** `/helpers revoke @user swccdc-2025 "No longer available"` to manually remove before end time
+- **Status:** `/helpers status @user` to check helper assignments across all competitions
+
+**Django Admin:**
+- View and manage helper assignments at `/admin/competition/studenthelper/`
+- Bulk operations, filtering, and detailed audit logs
 
 ## Development
 
