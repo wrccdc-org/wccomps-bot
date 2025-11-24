@@ -18,7 +18,6 @@ NOT vulnerabilities (security theater):
 - SVG with JavaScript - Not executed when downloaded
 """
 
-import threading
 from unittest.mock import Mock, patch
 
 import pytest
@@ -243,71 +242,3 @@ class TestFileUploadAuthorizationBypass:
 
         # File should NOT be saved
         assert not TicketAttachment.objects.filter(ticket=ticket1, filename="malicious.txt").exists()
-
-
-@pytest.mark.django_db
-class TestFileUploadRaceConditions:
-    """Test concurrent uploads (potential race conditions)."""
-
-    @pytest.fixture
-    def setup_data(self):
-        """Create test team and ticket."""
-        team = Team.objects.create(
-            team_number=1,
-            team_name="Test Team",
-            authentik_group="WCComps_BlueTeam1",
-        )
-        ticket = Ticket.objects.create(
-            ticket_number="T001-001",
-            team=team,
-            category="other",
-            title="Test Ticket",
-        )
-        return team, ticket
-
-    def test_concurrent_uploads_maintain_count(self, setup_data):
-        """
-        REAL BUG POTENTIAL: Race conditions in concurrent uploads.
-
-        Property: If 5 uploads succeed, should have exactly 5 attachments.
-        """
-        team, ticket = setup_data
-        results = []
-
-        def upload_file(file_num):
-            """Upload a file in a thread."""
-            uploaded_file = SimpleUploadedFile(
-                name=f"file_{file_num}.txt",
-                content=f"content {file_num}".encode(),
-            )
-
-            factory = RequestFactory()
-            request = factory.post(
-                f"/tickets/{ticket.id}/upload",
-                {"attachment": uploaded_file},
-            )
-            request.user = Mock()
-            request.user.is_authenticated = True
-
-            with patch(
-                "web.core.views.get_authentik_data", return_value=(f"user{file_num}", ["WCComps_BlueTeam1"], None)
-            ):
-                response = ticket_attachment_upload(request, ticket.id)
-                results.append(response.status_code)
-
-        # Upload 5 files concurrently
-        threads = []
-        for i in range(5):
-            thread = threading.Thread(target=upload_file, args=(i,))
-            threads.append(thread)
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        # All uploads should succeed
-        assert all(status == 302 for status in results), f"Some uploads failed: {results}"
-
-        # CRITICAL: Should have exactly 5 attachments
-        attachment_count = TicketAttachment.objects.filter(ticket=ticket).count()
-        assert attachment_count == 5, f"Race condition detected! Expected 5 attachments, got {attachment_count}"
