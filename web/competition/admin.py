@@ -71,15 +71,13 @@ class StudentHelperAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = [
         "authentik_username",
         "discord_username",
-        "competition",
         "discord_role_name",
         "status_badge",
-        "get_start_time",
-        "get_end_time",
-        "created_at",
+        "activated_at",
+        "deactivated_at",
     ]
-    list_filter = ["status", "competition", "created_at"]
-    search_fields = ["authentik_username", "discord_username", "discord_role_name", "competition__name"]
+    list_filter = ["status", "created_at"]
+    search_fields = ["authentik_username", "discord_username", "discord_role_name"]
     readonly_fields = [
         "discord_id",
         "discord_username",
@@ -89,7 +87,7 @@ class StudentHelperAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         "created_at",
         "updated_at",
     ]
-    autocomplete_fields = ["person", "competition"]
+    autocomplete_fields = ["person"]
     fieldsets = [
         (
             "Helper Identity",
@@ -100,14 +98,7 @@ class StudentHelperAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         (
             "Assignment",
             {
-                "fields": ["competition", "discord_role_name", "discord_role_id", "status"],
-            },
-        ),
-        (
-            "Time Configuration",
-            {
-                "fields": ["custom_start_time", "custom_end_time"],
-                "description": "Leave blank to use competition start/end times",
+                "fields": ["discord_role_name", "discord_role_id", "status"],
             },
         ),
         (
@@ -117,9 +108,9 @@ class StudentHelperAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             },
         ),
         (
-            "Revocation",
+            "Removal",
             {
-                "fields": ["revoked_by", "revoke_reason"],
+                "fields": ["removed_by", "removal_reason"],
             },
         ),
         (
@@ -133,10 +124,8 @@ class StudentHelperAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     def status_badge(self, obj):  # type: ignore[no-untyped-def]
         """Display status with color badge."""
         colors = {
-            "pending": "#FFA500",  # Orange
             "active": "#28A745",  # Green
-            "expired": "#6C757D",  # Gray
-            "revoked": "#DC3545",  # Red
+            "removed": "#6C757D",  # Gray
         }
         color = colors.get(obj.status, "#6C757D")
         return format_html(

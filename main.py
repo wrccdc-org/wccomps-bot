@@ -16,7 +16,6 @@ django.setup()
 
 from bot.competition_timer import CompetitionTimer
 from bot.discord_queue import DiscordQueueProcessor
-from bot.helper_role_timer import HelperRoleTimer
 from bot.unified_dashboard import UnifiedDashboard
 
 # Configure logging
@@ -43,7 +42,6 @@ class WCCompsBot(commands.Bot):
 
         self.queue_processor: DiscordQueueProcessor | None = None
         self.competition_timer: CompetitionTimer | None = None
-        self.helper_role_timer: HelperRoleTimer | None = None
         self.unified_dashboard: UnifiedDashboard | None = None
 
     async def setup_hook(self) -> None:
@@ -130,11 +128,6 @@ class WCCompsBot(commands.Bot):
         if not self.competition_timer:
             self.competition_timer = CompetitionTimer(self)
             self.competition_timer.start()
-
-        # Start helper role timer
-        if not self.helper_role_timer:
-            self.helper_role_timer = HelperRoleTimer(self)
-            self.helper_role_timer.start()
 
         # Start unified dashboard
         if not self.unified_dashboard:
@@ -227,8 +220,6 @@ class WCCompsBot(commands.Bot):
             self.queue_processor.stop()
         if self.competition_timer:
             self.competition_timer.stop()
-        if self.helper_role_timer:
-            self.helper_role_timer.stop()
         if self.unified_dashboard:
             self.unified_dashboard.stop()
         await super().close()

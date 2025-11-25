@@ -1,7 +1,6 @@
 """Admin commands for managing student helpers."""
 
 import logging
-from datetime import datetime
 from typing import Literal
 
 import discord
@@ -9,12 +8,11 @@ from asgiref.sync import sync_to_async
 from discord import app_commands
 from discord.ext import commands
 from django.contrib.auth.models import User
-from django.db.models import Q
 from django.utils import timezone
 
 from bot.permissions import check_admin, check_gold_team
 from bot.utils import log_to_ops_channel
-from competition.models import Competition, StudentHelper
+from competition.models import StudentHelper
 from core.models import AuditLog
 from person.models import Person
 
@@ -33,97 +31,80 @@ class AdminHelpersCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @helpers_group.command(name="add", description="[ADMIN] Add student helper to a competition")
+    @helpers_group.command(name="add", description="[ADMIN] Add student helper with Discord role")
     @app_commands.check(check_admin)
     @app_commands.describe(
         discord_user="Discord user to add as helper",
-        competition_slug="Competition slug (e.g., 'swccdc-2025')",
         role_name="Discord role name (e.g., 'UCI Invitationals 2026')",
-        custom_start="Optional: Custom start time (YYYY-MM-DD HH:MM)",
-        custom_end="Optional: Custom end time (YYYY-MM-DD HH:MM)",
     )
     async def add_helper(
         self,
         interaction: discord.Interaction,
         discord_user: discord.Member,
-        competition_slug: str,
         role_name: str,
-        custom_start: str | None = None,
-        custom_end: str | None = None,
     ) -> None:
-        """Add a student helper to a competition."""
+        """Add a student helper and assign them a Discord role."""
         await interaction.response.defer(ephemeral=True)
 
         try:
             # Get Person for this Discord user
             @sync_to_async
-            def get_person_and_competition():  # type: ignore[no-untyped-def]
+            def get_person():  # type: ignore[no-untyped-def]
                 try:
                     person = Person.objects.get(discord_id=discord_user.id)
                 except Person.DoesNotExist:
-                    return None, None, "User must link their Discord account first with `/link`"
+                    return None, "User must link their Discord account first with `/link`"
 
-                # Check if user has WCComps_Ticketing_Support
-                if not person.has_group("WCComps_Ticketing_Support"):
+                # Check if user has required group (either WCComps_Ticketing_Support OR WCComps_Quotient_Injects)
+                has_support = person.has_group("WCComps_Ticketing_Support")
+                has_injects = person.has_group("WCComps_Quotient_Injects")
+
+                if not (has_support or has_injects):
                     return (
                         None,
-                        None,
-                        "User must have WCComps_Ticketing_Support group in Authentik first",
+                        "User must have either WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik",
                     )
 
-                try:
-                    competition = Competition.objects.get(slug=competition_slug)
-                except Competition.DoesNotExist:
-                    return None, None, f"Competition '{competition_slug}' not found"
-
                 # Check if helper already exists
-                existing = StudentHelper.objects.filter(
-                    person=person, competition=competition, status__in=["pending", "active"]
-                ).first()
+                existing = StudentHelper.objects.filter(person=person, status="active").first()
                 if existing:
-                    return None, None, f"Helper assignment already exists (status: {existing.get_status_display()})"
+                    return None, f"Helper already has an active role assigned: {existing.discord_role_name}"
 
-                return person, competition, None
+                return person, None
 
-            person, competition, error = await get_person_and_competition()
+            person, error = await get_person()
             if error:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
-            # Parse custom times if provided
-            custom_start_time = None
-            custom_end_time = None
-            if custom_start:
-                try:
-                    custom_start_time = datetime.strptime(custom_start, "%Y-%m-%d %H:%M")
-                    custom_start_time = timezone.make_aware(custom_start_time)
-                except ValueError:
-                    await interaction.followup.send(
-                        "❌ Invalid start time format. Use YYYY-MM-DD HH:MM", ephemeral=True
-                    )
-                    return
+            # Create or get Discord role
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("❌ Could not find guild", ephemeral=True)
+                return
 
-            if custom_end:
-                try:
-                    custom_end_time = datetime.strptime(custom_end, "%Y-%m-%d %H:%M")
-                    custom_end_time = timezone.make_aware(custom_end_time)
-                except ValueError:
-                    await interaction.followup.send("❌ Invalid end time format. Use YYYY-MM-DD HH:MM", ephemeral=True)
-                    return
+            role = discord.utils.get(guild.roles, name=role_name)
+            if not role:
+                # Create the role
+                role = await guild.create_role(name=role_name, reason=f"Student helper role created by {interaction.user}")
+                logger.info(f"Created new role: {role_name}")
 
-            # Create helper assignment
+            # Assign role to user
+            await discord_user.add_roles(role, reason=f"Student helper added by {interaction.user}")
+
+            # Create helper assignment in database
             @sync_to_async
             def create_helper():  # type: ignore[no-untyped-def]
                 django_user = User.objects.filter(person=person).first()
                 helper = StudentHelper.objects.create(
-                    competition=competition,
                     person=person,
                     discord_id=person.discord_id,
                     discord_username=person.discord_username,
                     authentik_username=person.authentik_username,
                     discord_role_name=role_name,
-                    custom_start_time=custom_start_time,
-                    custom_end_time=custom_end_time,
+                    discord_role_id=role.id,
+                    status="active",
+                    activated_at=timezone.now(),
                     created_by=django_user if django_user else None,
                 )
 
@@ -137,10 +118,7 @@ class AdminHelpersCog(commands.Cog):
                         "discord_id": helper.discord_id,
                         "discord_username": helper.discord_username,
                         "authentik_username": helper.authentik_username,
-                        "competition": competition.name,
                         "role_name": role_name,
-                        "start_time": str(helper.get_start_time()),  # type: ignore[no-untyped-call]
-                        "end_time": str(helper.get_end_time()),  # type: ignore[no-untyped-call]
                     },
                 )
 
@@ -151,94 +129,76 @@ class AdminHelpersCog(commands.Cog):
             # Build response message
             msg = f"✅ **Student helper added successfully!**\n\n"
             msg += f"**Helper:** {discord_user.mention} ({helper.authentik_username})\n"
-            msg += f"**Competition:** {competition.name}\n"
             msg += f"**Role:** {role_name}\n"
-            msg += f"**Start:** {helper.get_start_time().strftime('%Y-%m-%d %H:%M %Z')}\n"
-            msg += f"**End:** {helper.get_end_time().strftime('%Y-%m-%d %H:%M %Z')}\n"
-            msg += f"**Status:** {helper.get_status_display()}\n\n"
-            msg += "The helper role will be automatically assigned at the start time."
+            msg += f"**Status:** Active\n\n"
+            msg += "The role will be removed when `/competition end-competition` is run."
 
             await interaction.followup.send(msg, ephemeral=True)
             await log_to_ops_channel(
                 self.bot,
-                f"**Student Helper Added**\n{interaction.user.mention} added {discord_user.mention} as helper for {competition.name}",
+                f"**Student Helper Added**\n{interaction.user.mention} added {discord_user.mention} with role '{role_name}'",
             )
 
         except Exception as e:
             logger.exception(f"Error adding student helper: {e}")
             await interaction.followup.send(f"❌ Error adding helper: {e}", ephemeral=True)
 
-    @helpers_group.command(name="list", description="[ADMIN] List student helpers for a competition")
+    @helpers_group.command(name="list", description="[ADMIN] List all student helpers")
     @app_commands.check(check_gold_team)
     @app_commands.describe(
-        competition_slug="Competition slug (e.g., 'swccdc-2025')",
         status="Filter by status (optional)",
     )
     async def list_helpers(
         self,
         interaction: discord.Interaction,
-        competition_slug: str,
-        status: Literal["pending", "active", "expired", "revoked", "all"] = "all",
+        status: Literal["active", "removed", "all"] = "all",
     ) -> None:
-        """List student helpers for a competition."""
+        """List all student helpers."""
         await interaction.response.defer(ephemeral=True)
 
         try:
 
             @sync_to_async
             def get_helpers():  # type: ignore[no-untyped-def]
-                try:
-                    competition = Competition.objects.get(slug=competition_slug)
-                except Competition.DoesNotExist:
-                    return None, f"Competition '{competition_slug}' not found"
-
-                query = StudentHelper.objects.filter(competition=competition).select_related("person", "competition")
+                query = StudentHelper.objects.select_related("person").all()
 
                 if status != "all":
                     query = query.filter(status=status)
 
                 helpers = list(query.order_by("-created_at"))
-                return helpers, None
+                return helpers
 
-            helpers, error = await get_helpers()
-            if error:
-                await interaction.followup.send(f"❌ {error}", ephemeral=True)
-                return
+            helpers = await get_helpers()
 
             if not helpers:
                 await interaction.followup.send(
-                    f"No helpers found for competition '{competition_slug}'" + (f" with status '{status}'" if status != "all" else ""),
+                    f"No helpers found" + (f" with status '{status}'" if status != "all" else ""),
                     ephemeral=True,
                 )
                 return
 
             # Build response with embed
-            competition_obj = helpers[0].competition
             embed = discord.Embed(
-                title=f"Student Helpers - {competition_obj.name}",
+                title="Student Helpers",
                 description=f"Found {len(helpers)} helper(s)" + (f" with status '{status}'" if status != "all" else ""),
                 color=discord.Color.blue(),
             )
 
             for helper in helpers[:25]:  # Discord embed field limit
                 status_emoji = {
-                    "pending": "⏳",
                     "active": "✅",
-                    "expired": "⏹️",
-                    "revoked": "❌",
+                    "removed": "⏹️",
                 }.get(helper.status, "❓")
 
                 field_name = f"{status_emoji} {helper.discord_username}"
-                field_value = (
-                    f"**Role:** {helper.discord_role_name}\n"
-                    f"**Status:** {helper.get_status_display()}\n"
-                    f"**Period:** {helper.get_start_time().strftime('%m/%d %H:%M')} - {helper.get_end_time().strftime('%m/%d %H:%M')}\n"
-                )
+                field_value = f"**Role:** {helper.discord_role_name}\n" f"**Status:** {helper.get_status_display()}\n"
 
                 if helper.status == "active":
                     field_value += f"**Activated:** {helper.activated_at.strftime('%m/%d %H:%M') if helper.activated_at else 'N/A'}\n"
-                elif helper.status == "revoked":
-                    field_value += f"**Revoked:** {helper.revoke_reason or 'No reason provided'}\n"
+                elif helper.status == "removed":
+                    field_value += f"**Removed:** {helper.deactivated_at.strftime('%m/%d %H:%M') if helper.deactivated_at else 'N/A'}\n"
+                    if helper.removal_reason:
+                        field_value += f"**Reason:** {helper.removal_reason[:50]}\n"
 
                 embed.add_field(name=field_name, value=field_value, inline=False)
 
@@ -251,74 +211,64 @@ class AdminHelpersCog(commands.Cog):
             logger.exception(f"Error listing student helpers: {e}")
             await interaction.followup.send(f"❌ Error listing helpers: {e}", ephemeral=True)
 
-    @helpers_group.command(name="revoke", description="[ADMIN] Revoke student helper access")
+    @helpers_group.command(name="remove", description="[ADMIN] Remove student helper access")
     @app_commands.check(check_admin)
     @app_commands.describe(
-        discord_user="Discord user to revoke helper access from",
-        competition_slug="Competition slug (e.g., 'swccdc-2025')",
-        reason="Reason for revocation",
+        discord_user="Discord user to remove helper access from",
+        reason="Reason for removal",
     )
-    async def revoke_helper(
+    async def remove_helper(
         self,
         interaction: discord.Interaction,
         discord_user: discord.Member,
-        competition_slug: str,
-        reason: str = "Manually revoked by admin",
+        reason: str = "Manually removed by admin",
     ) -> None:
-        """Revoke a student helper's access before expiration."""
+        """Remove a student helper's access."""
         await interaction.response.defer(ephemeral=True)
 
         try:
 
             @sync_to_async
-            def revoke_helper_db():  # type: ignore[no-untyped-def]
+            def remove_helper_db():  # type: ignore[no-untyped-def]
                 try:
                     person = Person.objects.get(discord_id=discord_user.id)
                 except Person.DoesNotExist:
                     return None, "User not found in database"
 
                 try:
-                    competition = Competition.objects.get(slug=competition_slug)
-                except Competition.DoesNotExist:
-                    return None, f"Competition '{competition_slug}' not found"
-
-                try:
-                    helper = StudentHelper.objects.get(
-                        person=person, competition=competition, status__in=["pending", "active"]
-                    )
+                    helper = StudentHelper.objects.get(person=person, status="active")
                 except StudentHelper.DoesNotExist:
-                    return None, "No active helper assignment found for this user and competition"
+                    return None, "No active helper assignment found for this user"
 
                 # Get Django user for audit
                 django_user = User.objects.filter(person__discord_id=interaction.user.id).first()
 
-                # Revoke in database - only if we have a valid user
+                # Remove in database
                 if django_user:
-                    helper.revoke(django_user, reason)
+                    helper.remove(django_user, reason)
                 else:
                     # Fallback: manually update status
-                    helper.status = "revoked"
-                    helper.revoke_reason = reason
+                    helper.status = "removed"
+                    helper.removal_reason = reason
                     helper.deactivated_at = timezone.now()
                     helper.save()
 
                 # Create audit log
                 AuditLog.objects.create(
-                    action="helper_revoked",
+                    action="helper_removed",
                     admin_user=str(interaction.user),
                     target_entity="student_helper",
                     target_id=helper.id,
                     details={
                         "discord_id": helper.discord_id,
                         "discord_username": helper.discord_username,
-                        "competition": competition.name,
                         "reason": reason,
                     },
                 )
 
                 return helper, None
 
-            helper, error = await revoke_helper_db()
+            helper, error = await remove_helper_db()
             if error:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
@@ -329,25 +279,25 @@ class AdminHelpersCog(commands.Cog):
                     guild = interaction.guild
                     role = guild.get_role(helper.discord_role_id)
                     if role and role in discord_user.roles:
-                        await discord_user.remove_roles(role, reason=f"Helper revoked: {reason}")
+                        await discord_user.remove_roles(role, reason=f"Helper removed: {reason}")
                         logger.info(f"Removed role {role.name} from {discord_user}")
                 except Exception as e:
                     logger.warning(f"Could not remove role from user: {e}")
 
-            msg = f"✅ **Helper access revoked**\n\n"
+            msg = f"✅ **Helper access removed**\n\n"
             msg += f"**User:** {discord_user.mention}\n"
-            msg += f"**Competition:** {helper.competition.name}\n"
+            msg += f"**Role:** {helper.discord_role_name}\n"
             msg += f"**Reason:** {reason}"
 
             await interaction.followup.send(msg, ephemeral=True)
             await log_to_ops_channel(
                 self.bot,
-                f"**Helper Revoked**\n{interaction.user.mention} revoked helper access for {discord_user.mention}\n**Reason:** {reason}",
+                f"**Helper Removed**\n{interaction.user.mention} removed helper access for {discord_user.mention}\n**Reason:** {reason}",
             )
 
         except Exception as e:
-            logger.exception(f"Error revoking student helper: {e}")
-            await interaction.followup.send(f"❌ Error revoking helper: {e}", ephemeral=True)
+            logger.exception(f"Error removing student helper: {e}")
+            await interaction.followup.send(f"❌ Error removing helper: {e}", ephemeral=True)
 
     @helpers_group.command(name="status", description="[ADMIN] Check student helper status")
     @app_commands.check(check_gold_team)
@@ -357,7 +307,7 @@ class AdminHelpersCog(commands.Cog):
         interaction: discord.Interaction,
         discord_user: discord.Member,
     ) -> None:
-        """Check the status of a student helper across all competitions."""
+        """Check the status of a student helper."""
         await interaction.response.defer(ephemeral=True)
 
         try:
@@ -367,19 +317,18 @@ class AdminHelpersCog(commands.Cog):
                 try:
                     person = Person.objects.get(discord_id=discord_user.id)
                 except Person.DoesNotExist:
-                    return None, None, "User not found in database"
+                    return None, None, "User not found in database", False, False
 
                 # Get all helper assignments for this person
-                helpers = list(
-                    StudentHelper.objects.filter(person=person).select_related("competition").order_by("-created_at")
-                )
+                helpers = list(StudentHelper.objects.filter(person=person).order_by("-created_at"))
 
-                # Check if user has required group
+                # Check if user has required groups
                 has_support_group = person.has_group("WCComps_Ticketing_Support")
+                has_injects_group = person.has_group("WCComps_Quotient_Injects")
 
-                return person, helpers, None, has_support_group
+                return person, helpers, None, has_support_group, has_injects_group
 
-            person, helpers, error, has_support_group = await get_helper_status()
+            person, helpers, error, has_support_group, has_injects_group = await get_helper_status()
             if error:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
@@ -387,39 +336,49 @@ class AdminHelpersCog(commands.Cog):
             embed = discord.Embed(
                 title=f"Helper Status - {discord_user.display_name}",
                 description=f"**Authentik Username:** {person.authentik_username}\n**Discord ID:** {person.discord_id}",
-                color=discord.Color.green() if has_support_group else discord.Color.red(),
+                color=discord.Color.green() if (has_support_group or has_injects_group) else discord.Color.red(),
             )
 
-            # Add support group status
-            embed.add_field(
-                name="WCComps_Ticketing_Support",
-                value="✅ Has permission" if has_support_group else "❌ Missing permission (required)",
-                inline=False,
-            )
+            # Add permission status
+            perm_value = ""
+            if has_support_group:
+                perm_value += "✅ WCComps_Ticketing_Support\n"
+            else:
+                perm_value += "❌ WCComps_Ticketing_Support\n"
+
+            if has_injects_group:
+                perm_value += "✅ WCComps_Quotient_Injects\n"
+            else:
+                perm_value += "❌ WCComps_Quotient_Injects\n"
+
+            if not (has_support_group or has_injects_group):
+                perm_value += "\n⚠️ User needs at least one of these groups"
+
+            embed.add_field(name="Authentik Groups", value=perm_value, inline=False)
 
             if not helpers:
                 embed.add_field(name="Helper Assignments", value="No helper assignments found", inline=False)
             else:
                 for helper in helpers[:10]:  # Limit to 10 most recent
                     status_emoji = {
-                        "pending": "⏳",
                         "active": "✅",
-                        "expired": "⏹️",
-                        "revoked": "❌",
+                        "removed": "⏹️",
                     }.get(helper.status, "❓")
 
                     field_value = (
                         f"**Status:** {status_emoji} {helper.get_status_display()}\n"
                         f"**Role:** {helper.discord_role_name}\n"
-                        f"**Period:** {helper.get_start_time().strftime('%Y-%m-%d %H:%M')} - {helper.get_end_time().strftime('%Y-%m-%d %H:%M')}\n"
                     )
 
                     if helper.status == "active" and helper.activated_at:
                         field_value += f"**Activated:** {helper.activated_at.strftime('%Y-%m-%d %H:%M')}\n"
-                    elif helper.status == "revoked":
-                        field_value += f"**Revoked:** {helper.revoke_reason or 'No reason'}\n"
+                    elif helper.status == "removed":
+                        if helper.deactivated_at:
+                            field_value += f"**Removed:** {helper.deactivated_at.strftime('%Y-%m-%d %H:%M')}\n"
+                        if helper.removal_reason:
+                            field_value += f"**Reason:** {helper.removal_reason[:100]}\n"
 
-                    embed.add_field(name=helper.competition.name, value=field_value, inline=False)
+                    embed.add_field(name=f"Assignment #{helper.id}", value=field_value, inline=False)
 
                 if len(helpers) > 10:
                     embed.set_footer(text=f"Showing 10 of {len(helpers)} assignments")

@@ -214,24 +214,14 @@ class StudentHelper(models.Model):
     """
     Tracks student helpers with temporary access to team channels.
 
-    Student helpers are assigned to specific competitions/invitationals
-    and automatically receive Discord roles for the duration of the event.
+    Student helpers are given Discord roles that grant access to team channels.
+    Roles are removed when the competition ends.
     """
 
     STATUS_CHOICES = [
-        ("pending", "Pending"),  # Created but not yet active (before start time)
         ("active", "Active"),  # Currently has role assigned
-        ("expired", "Expired"),  # Past end time, role removed
-        ("revoked", "Revoked"),  # Manually removed before end time
+        ("removed", "Removed"),  # Role has been removed
     ]
-
-    # Competition/Invitational
-    competition = models.ForeignKey(
-        Competition,
-        on_delete=models.CASCADE,
-        related_name="student_helpers",
-        help_text="Competition or invitational this helper is assigned to",
-    )
 
     # Helper identity (link to Person for Authentik integration)
     person = models.ForeignKey(
@@ -271,33 +261,21 @@ class StudentHelper(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default="pending",
+        default="active",
         db_index=True,
         help_text="Current helper status",
-    )
-
-    # Time overrides (optional - defaults to competition times)
-    custom_start_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Custom start time (overrides competition start)",
-    )
-    custom_end_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Custom end time (overrides competition end)",
     )
 
     # Lifecycle timestamps
     activated_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="When role was actually assigned",
+        help_text="When role was assigned",
     )
     deactivated_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="When role was actually removed",
+        help_text="When role was removed",
     )
 
     # Audit fields
@@ -310,17 +288,17 @@ class StudentHelper(models.Model):
         related_name="student_helpers_created",
         help_text="User who created this helper assignment",
     )
-    revoked_by = models.ForeignKey(
+    removed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="student_helpers_revoked",
-        help_text="User who revoked this helper assignment (if applicable)",
+        related_name="student_helpers_removed",
+        help_text="User who removed this helper assignment (if applicable)",
     )
-    revoke_reason = models.TextField(
+    removal_reason = models.TextField(
         blank=True,
-        help_text="Reason for manual revocation",
+        help_text="Reason for removal",
     )
 
     class Meta:
@@ -329,75 +307,33 @@ class StudentHelper(models.Model):
         verbose_name_plural = "Student Helpers"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["competition", "status"]),
             models.Index(fields=["person", "status"]),
             models.Index(fields=["discord_id", "status"]),
+            models.Index(fields=["status", "created_at"]),
         ]
         constraints = [
-            # Prevent duplicate active assignments for same person+competition
+            # Prevent duplicate active assignments for same person
             models.UniqueConstraint(
-                fields=["person", "competition"],
-                condition=models.Q(status__in=["pending", "active"]),
-                name="competition_unique_active_helper_assignment",
+                fields=["person"],
+                condition=models.Q(status="active"),
+                name="competition_unique_active_helper_per_person",
             ),
         ]
 
     def __str__(self) -> str:
-        return f"{self.authentik_username} → {self.competition.name} ({self.get_status_display()})"
+        return f"{self.authentik_username} - {self.discord_role_name} ({self.get_status_display()})"
 
-    def get_start_time(self):  # type: ignore[no-untyped-def]
-        """Get effective start time (custom or competition start)."""
-        return self.custom_start_time or self.competition.scheduled_start_time
-
-    def get_end_time(self):  # type: ignore[no-untyped-def]
-        """Get effective end time (custom or competition end)."""
-        return self.custom_end_time or self.competition.scheduled_end_time
-
-    def should_be_active(self) -> bool:
+    def remove(self, user: User, reason: str = "") -> None:
         """
-        Check if helper should currently have active role.
-
-        Returns True if current time is between start and end time.
-        """
-        if self.status == "revoked":
-            return False
-
-        now = timezone.now()
-        start_time = self.get_start_time()  # type: ignore[no-untyped-call]
-        end_time = self.get_end_time()  # type: ignore[no-untyped-call]
-
-        return start_time <= now <= end_time  # type: ignore[no-any-return]
-
-    def activate(self, role_id: int) -> None:
-        """
-        Mark helper as active with assigned Discord role.
+        Remove helper access.
 
         Args:
-            role_id: Discord role ID (snowflake) that was assigned
+            user: User performing the removal
+            reason: Optional reason for removal
         """
-        self.status = "active"
-        self.discord_role_id = role_id
-        self.activated_at = timezone.now()
-        self.save()
-
-    def deactivate(self) -> None:
-        """Mark helper as expired (role removed)."""
         if self.status == "active":
-            self.status = "expired"
-            self.deactivated_at = timezone.now()
-            self.save()
-
-    def revoke(self, user: User, reason: str = "") -> None:
-        """
-        Manually revoke helper access before end time.
-
-        Args:
-            user: User performing the revocation
-            reason: Optional reason for revocation
-        """
-        if self.status in ["pending", "active"]:
-            self.status = "revoked"
-            self.revoked_by = user
-            self.revoke_reason = reason
+            self.status = "removed"
+            self.removed_by = user
+            self.removal_reason = reason
             self.deactivated_at = timezone.now()
             self.save()
