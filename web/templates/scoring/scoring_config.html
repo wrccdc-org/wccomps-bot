@@ -21,7 +21,7 @@
             {% for field in form %}
             <c-form_field
                 label="{{ field.label }}"
-                {% if field.field.required %}required="true"{% endif %}
+                required="{{ field.field.required|yesno:'true,false' }}"
                 help_text="{{ field.help_text }}"
                 id="{{ field.id_for_label }}">
                 {{ field }}
