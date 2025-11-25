@@ -622,20 +622,25 @@ class TestAdminCommands:
     @patch("bot.cogs.admin_teams.log_to_ops_channel")
     @patch("bot.discord_manager.DiscordManager")
     async def test_recreate_teams(
-        self, mock_discord_manager_class: Any, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self,
+        mock_discord_manager_class: Any,
+        mock_log_ops: Any,
+        mock_interaction: Any,
+        mock_admin_user: Any,
+        mock_bot: Any,
     ) -> None:
         """Test /teams recreate command."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
         # Create teams with existing Discord infrastructure
-        team20 = await Team.objects.acreate(
+        await Team.objects.acreate(
             team_number=20,
             team_name="Team 20",
             max_members=5,
             discord_role_id=2001,
             discord_category_id=3001,
         )
-        team21 = await Team.objects.acreate(
+        await Team.objects.acreate(
             team_number=21,
             team_name="Team 21",
             max_members=5,
@@ -702,9 +707,7 @@ class TestAdminCommands:
         # Verify ops channel log
         mock_log_ops.assert_called_once()
 
-    async def test_activate_invalid_range(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_activate_invalid_range(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         """Test /teams activate with invalid team range."""
         mock_interaction.user.id = mock_admin_user._discord_id
 

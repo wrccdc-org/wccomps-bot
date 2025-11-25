@@ -624,7 +624,7 @@ class AdminTeamsCog(commands.Cog):
         )
 
         # Build response
-        summary = f"**Team Activation Results**\n\n"
+        summary = "**Team Activation Results**\n\n"
         summary += f"✓ Activated: {success_count}/{len(team_numbers)}\n\n"
 
         if len(results) <= 20:
@@ -696,7 +696,7 @@ class AdminTeamsCog(commands.Cog):
         )
 
         # Build response
-        summary = f"**Team Deactivation Results**\n\n"
+        summary = "**Team Deactivation Results**\n\n"
         summary += f"✓ Deactivated: {success_count}/{len(team_numbers)}\n\n"
 
         if len(results) <= 20:
@@ -819,7 +819,7 @@ class AdminTeamsCog(commands.Cog):
         )
 
         # Build response
-        summary = f"**Team Recreation Results**\n\n"
+        summary = "**Team Recreation Results**\n\n"
         summary += f"✓ Success: {success_count}/{len(team_numbers)}\n"
         if failed_count > 0:
             summary += f"❌ Failed: {failed_count}/{len(team_numbers)}\n"
