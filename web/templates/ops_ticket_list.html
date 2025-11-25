@@ -74,21 +74,6 @@
             </div>
         </div>
 
-        {% if is_ticketing_admin %}
-        <div class="actions" style="margin-bottom: 10px; padding: 10px; background-color: #fff4e6; border-left: 4px solid #dc3545;" role="region" aria-label="Admin actions">
-            <div>
-                <strong style="color: #dc3545;">Admin Actions:</strong>
-                <form method="post" action="{% url 'ops_tickets_clear_all' %}" style="display: inline;" id="clear-all-form" onsubmit="return confirm('⚠️ WARNING: This will DELETE ALL TICKETS and reset team counters.\n\nThis action cannot be undone.\n\nAre you absolutely sure?');">
-                    {% csrf_token %}
-                    <c-button type="submit" style="background-color: #dc3545; color: white;">Clear All Tickets</c-button>
-                </form>
-                <span style="margin-left: 10px; color: #666; font-size: 0.9em;">
-                    Deletes all tickets and resets team ticket counters. Use at end of competition.
-                </span>
-            </div>
-        </div>
-        {% endif %}
-
         <div class="results">
             <table id="result_list" role="grid" aria-label="Tickets list" style="table-layout: fixed; width: 100%;">
                 <colgroup>
