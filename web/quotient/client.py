@@ -337,6 +337,9 @@ class QuotientClient:
             response.raise_for_status()
 
             data = response.json()
+            # API can return either a list directly or a dict with "injects" key
+            inject_list = data if isinstance(data, list) else data.get("injects", [])
+
             injects = [
                 Inject(
                     inject_id=i["id"],
@@ -347,7 +350,7 @@ class QuotientClient:
                     is_published=i.get("is_published", False),
                     team_submissions=i.get("submissions", {}),
                 )
-                for i in data.get("injects", [])
+                for i in inject_list
             ]
 
             cache.set(cache_key, injects, 60)  # 1 minute cache

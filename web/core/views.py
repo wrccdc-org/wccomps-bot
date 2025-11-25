@@ -16,7 +16,7 @@ from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
-from .auth_utils import get_permissions_context, has_permission
+from .auth_utils import has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
 from .utils import get_authentik_data, get_team_from_groups
 
@@ -971,14 +971,10 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         .order_by("assigned_to_discord_username")
     )
 
-    # Build permissions dict for template
-    permissions = get_permissions_context(user)
-
     return render(
         request,
         "ops_ticket_list.html",
         {
-            "authentik_username": authentik_username,
             "page_obj": page_obj,
             "status_filter": status_filter,
             "team_filter": team_filter,
@@ -991,7 +987,6 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
             "categories": TICKET_CATEGORIES,
             "show_ops_nav": True,
             "nav_active": "tickets",
-            **permissions,
         },
     )
 
@@ -1049,14 +1044,10 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     page_filter = request.GET.get("page", "")
     page_size = request.GET.get("page_size", "")
 
-    # Build permissions dict for template
-    permissions = get_permissions_context(user)
-
     return render(
         request,
         "ops_ticket_detail.html",
         {
-            "authentik_username": authentik_username,
             "auto_refresh": True,
             "ticket": ticket,
             "category_name": cat_info.get("display_name", ticket.category),
@@ -1075,7 +1066,6 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
             "page_size": page_size,
             "show_ops_nav": True,
             "nav_active": "tickets",
-            **permissions,
         },
     )
 
@@ -1698,18 +1688,13 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
 
         teams_with_info.append({"team": team, "school_info": school_info})
 
-    # Build permissions dict for template
-    permissions = get_permissions_context(user)
-
     return render(
         request,
         "ops_school_info.html",
         {
-            "authentik_username": authentik_username,
             "teams": teams_with_info,
             "show_ops_nav": True,
             "nav_active": "school",
-            **permissions,
         },
     )
 
@@ -1751,9 +1736,6 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
     except SchoolInfo.DoesNotExist:
         school_info = None
 
-    # Build permissions dict for template
-    permissions = get_permissions_context(user)
-
     if request.method == "POST":
         school_name = request.POST.get("school_name", "").strip()
         contact_email = request.POST.get("contact_email", "").strip()
@@ -1766,11 +1748,9 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
                 request,
                 "ops_school_info_edit.html",
                 {
-                    "authentik_username": authentik_username,
                     "team": team,
                     "school_info": school_info,
                     "error": "School name is required.",
-                    **permissions,
                 },
             )
 
@@ -1779,11 +1759,9 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
                 request,
                 "ops_school_info_edit.html",
                 {
-                    "authentik_username": authentik_username,
                     "team": team,
                     "school_info": school_info,
                     "error": "Contact email is required.",
-                    **permissions,
                 },
             )
 
@@ -1813,12 +1791,10 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
         request,
         "ops_school_info_edit.html",
         {
-            "authentik_username": authentik_username,
             "team": team,
             "school_info": school_info,
             "show_ops_nav": True,
             "nav_active": "school",
-            **permissions,
         },
     )
 
@@ -1899,20 +1875,185 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    # Build permissions dict for template
-    permissions = get_permissions_context(user)
-
     return render(
         request,
         "ops_group_role_mappings.html",
         {
-            "authentik_username": authentik_username,
             "team_status": team_status,
             "show_ops_nav": True,
             "nav_active": "mappings",
-            **permissions,
         },
     )
+
+
+@login_required
+def ops_review_tickets(request: HttpRequest) -> HttpResponse:
+    """Review resolved tickets for point verification (admin only)."""
+    from django.core.paginator import Paginator
+
+    # Get user's permissions
+    user = cast(User, request.user)
+    authentik_username, _groups, _ = get_authentik_data(user)
+
+    # Check if user is ticketing admin
+    if not has_permission(user, "ticketing_admin"):
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Access denied",
+                "message": "You do not have permission to review tickets. This requires ticketing admin role.",
+            },
+        )
+
+    # Get filter parameters
+    verified_filter = request.GET.get("verified", "unverified") or "unverified"
+    team_filter = request.GET.get("team", "")
+    search_query = request.GET.get("search", "").strip()
+    sort_by = request.GET.get("sort", "-resolved_at")
+    page_size_str = request.GET.get("page_size", "50")
+    page = request.GET.get("page", "1")
+
+    try:
+        page_size = int(page_size_str)
+        if page_size not in [25, 50, 100, 200]:
+            page_size = 50
+    except ValueError:
+        page_size = 50
+
+    # Build query - only show resolved tickets
+    query = Ticket.objects.filter(status="resolved").select_related("team", "points_verified_by")
+
+    if verified_filter == "verified":
+        query = query.filter(points_verified=True)
+    elif verified_filter == "unverified":
+        query = query.filter(points_verified=False)
+
+    if team_filter:
+        try:
+            team_number = int(team_filter)
+            query = query.filter(team__team_number=team_number)
+        except ValueError:
+            pass
+
+    if search_query:
+        from django.db.models import Q
+
+        query = query.filter(
+            Q(title__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(ticket_number__icontains=search_query)
+            | Q(hostname__icontains=search_query)
+            | Q(service_name__icontains=search_query)
+        )
+
+    # Validate and apply sort
+    valid_sort_fields = [
+        "resolved_at",
+        "-resolved_at",
+        "points_charged",
+        "-points_charged",
+        "team__team_number",
+        "-team__team_number",
+        "category",
+        "-category",
+    ]
+    if sort_by not in valid_sort_fields:
+        sort_by = "-resolved_at"
+
+    query = query.order_by(sort_by)
+
+    # Enrich tickets with category info
+    tickets_with_info = []
+    for ticket in query:
+        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        tickets_with_info.append(
+            {
+                "ticket": ticket,
+                "category_name": cat_info.get("display_name", ticket.category),
+                "expected_points": cat_info.get("points", 0),
+            }
+        )
+
+    # Paginate
+    paginator = Paginator(tickets_with_info, page_size)
+    page_obj = paginator.get_page(page)
+
+    return render(
+        request,
+        "ops_review_tickets.html",
+        {
+            "page_obj": page_obj,
+            "verified_filter": verified_filter,
+            "team_filter": team_filter,
+            "search_query": search_query,
+            "sort_by": sort_by,
+            "page_size": page_size,
+            "categories": TICKET_CATEGORIES,
+            "show_ops_nav": True,
+            "nav_active": "review_tickets",
+        },
+    )
+
+
+@login_required
+def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Verify ticket points (admin only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, _groups, _ = get_authentik_data(user)
+
+    if not has_permission(user, "ticketing_admin"):
+        return HttpResponse("Access denied - requires ticketing admin role", status=403)
+
+    # Get ticket
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    # Only allow verifying resolved tickets
+    if ticket.status != "resolved":
+        return HttpResponse(f"Cannot verify - ticket is {ticket.status}, must be resolved", status=400)
+
+    # Get form data
+    points_adjustment_str = request.POST.get("points_adjustment", "").strip()
+    verification_notes = request.POST.get("verification_notes", "").strip()
+
+    # Parse points adjustment if provided
+    if points_adjustment_str:
+        try:
+            adjusted_points = int(points_adjustment_str)
+            ticket.points_charged = adjusted_points
+        except ValueError:
+            return HttpResponse("Invalid points value. Must be a number.", status=400)
+
+    # Mark as verified
+    ticket.points_verified = True
+    ticket.points_verified_by = user
+    ticket.points_verified_at = timezone.now()
+    ticket.verification_notes = verification_notes
+    ticket.save()
+
+    # Create history entry
+    TicketHistory.objects.create(
+        ticket=ticket,
+        action="points_verified",
+        actor_username=authentik_username,
+        details={
+            "points_charged": ticket.points_charged,
+            "verification_notes": verification_notes,
+        },
+    )
+
+    logger.info(f"Ticket {ticket_number} points verified by {authentik_username}: {ticket.points_charged} points")
+
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_review_tickets")
 
 
 def health_check(request: HttpRequest) -> HttpResponse:
