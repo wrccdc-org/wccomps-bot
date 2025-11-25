@@ -5,10 +5,7 @@
 {% block scoring_content %}
 <c-module>
     <c-slot name="toolbar">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h2 style="margin: 0;">Leaderboard</h2>
-            <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
-        </div>
+        <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
     </c-slot>
 
     {% if scores %}

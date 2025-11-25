@@ -3,7 +3,6 @@
 
 {% block scoring_content %}
 <c-module>
-    <h2>Submit Incident Report</h2>
     {% if team or is_admin %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
