@@ -4,8 +4,7 @@
 {% block scoring_content %}
 <div style="max-width: 1200px; margin: 0 auto;">
     <c-module>
-        <h2 style="background: #dc3545; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Submit Red Team Finding</h2>
-                <form method="post" enctype="multipart/form-data" id="findingForm">
+        <form method="post" enctype="multipart/form-data" id="findingForm">
                     {% csrf_token %}
 
                     <!-- Attack Details Section -->

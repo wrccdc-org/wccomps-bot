@@ -3,7 +3,6 @@
 
 {% block scoring_content %}
 <c-module>
-    <h2>Submit Orange Team Adjustment</h2>
     <form method="post">
         {% csrf_token %}
         {{ form|crispy }}
