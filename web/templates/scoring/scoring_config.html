@@ -1,63 +1,76 @@
 {% extends "scoring/base.html" %}
-{% load crispy_forms_tags %}
+
+{% block scoring_title %}Scoring Configuration{% endblock %}
 
 {% block scoring_content %}
-<div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0">Scoring Formula</h4>
+<div class="module">
+    <h2>Scoring Formula</h2>
+    <div style="padding: 15px; background: #f9f9f9; border: 1px solid #ddd; margin-bottom: 20px;">
+        <p><strong>Current Formula:</strong></p>
+        <code style="display: block; padding: 10px; background: white; border-left: 3px solid #417690;">
+            Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
+        </code>
+        <p style="margin-top: 10px; color: #666; font-size: 12px;">
+            Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
+        </p>
     </div>
-    <div class="card-body">
-        <div class="alert alert-info mb-3">
-            <strong>Current Formula:</strong><br>
-            <code>Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)</code>
-            <br>
-            <small class="text-muted">Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)</small>
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                <div>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <p class="help">{{ field.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Update Multipliers" class="default">
         </div>
-        <form method="post">
-            {% csrf_token %}
-            {{ form|crispy }}
-            <button type="submit" class="btn btn-success">Update Multipliers</button>
-        </form>
-    </div>
+    </form>
 </div>
 
-<div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0">Quotient Integration</h4>
-    </div>
-    <div class="card-body">
+<div class="module">
+    <h2>Quotient Integration</h2>
+    <div style="padding: 15px;">
         {% if metadata %}
-        <p><strong>Last Synced:</strong> {{ metadata.last_synced|date:"Y-m-d H:i:s" }}</p>
-        <p><strong>Event:</strong> {{ metadata.event_name }}</p>
-        <p><strong>Teams:</strong> {{ metadata.team_count }}</p>
-        <p><strong>Boxes:</strong> {{ metadata.boxes|length }}</p>
+        <table style="width: 100%; margin-bottom: 15px;">
+            <tr><th style="text-align: left; width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
+            <tr><th style="text-align: left;">Event:</th><td>{{ metadata.event_name }}</td></tr>
+            <tr><th style="text-align: left;">Teams:</th><td>{{ metadata.team_count }}</td></tr>
+            <tr><th style="text-align: left;">Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
+        </table>
         {% else %}
-        <div class="alert alert-warning">Metadata not synced yet</div>
+        <p style="padding: 10px; background: #fef9e7; border-left: 3px solid #f39c12;">Metadata not synced yet</p>
         {% endif %}
 
-        <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline me-2">
+        <form method="post" action="{% url 'scoring:sync_metadata' %}" style="display: inline; margin-right: 10px;">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Sync Metadata</button>
+            <input type="submit" value="Sync Metadata" class="button">
         </form>
 
-        <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
+        <form method="post" action="{% url 'scoring:sync_scores' %}" style="display: inline;">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Sync Service Scores</button>
+            <input type="submit" value="Sync Service Scores" class="button">
         </form>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h4 class="mb-0">Score Management</h4>
-    </div>
-    <div class="card-body">
+<div class="module">
+    <h2>Score Management</h2>
+    <div style="padding: 15px;">
         <form method="post" action="{% url 'scoring:recalculate_scores' %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-warning">Recalculate All Scores</button>
+            <input type="submit" value="Recalculate All Scores" class="button">
         </form>
-        <p class="text-muted mt-2">
-            <small>Recalculates final scores for all teams based on current data and multipliers</small>
+        <p style="margin-top: 10px; color: #666; font-size: 12px;">
+            Recalculates final scores for all teams based on current data and multipliers
         </p>
     </div>
 </div>
