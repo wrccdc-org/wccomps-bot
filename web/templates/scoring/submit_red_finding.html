@@ -2,13 +2,9 @@
 {% load crispy_forms_tags %}
 
 {% block scoring_content %}
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <div class="card shadow-sm">
-            <div class="card-header bg-danger text-white">
-                <h4 class="mb-0"><i class="bi bi-shield-exclamation"></i> Submit Red Team Finding</h4>
-            </div>
-            <div class="card-body">
+<div style="max-width: 1200px; margin: 0 auto;">
+    <c-module>
+        <h2 style="background: #dc3545; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Submit Red Team Finding</h2>
                 <form method="post" enctype="multipart/form-data" id="findingForm">
                     {% csrf_token %}
 
@@ -178,7 +174,7 @@
                                    multiple
                                    onchange="previewScreenshots(this)">
                             <div class="form-text">
-                                <i class="bi bi-info-circle"></i> Upload 3-4 screenshots showing IP addresses, attack evidence, and impact.
+                                Upload 3-4 screenshots showing IP addresses, attack evidence, and impact.
                                 Maximum 20 files, 50MB per file.
                             </div>
                         </div>
@@ -204,30 +200,22 @@
                         </div>
                     </div>
 
-                    <!-- Submission Guidelines -->
-                    <div class="alert alert-info mb-4">
-                        <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> Submission Guidelines</h6>
-                        <ul class="mb-0">
+                    <c-alert variant="info" style="margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; font-size: 16px;">Submission Guidelines</h3>
+                        <ul style="margin-bottom: 0;">
                             <li>Provide detailed technical information about the vulnerability or attack</li>
                             <li>Include all relevant IP addresses visible in screenshots</li>
                             <li>Select all teams that were successfully compromised</li>
                             <li>Gold Team will review and assign point values</li>
                         </ul>
-                    </div>
+                    </c-alert>
 
-                    <!-- Form Actions -->
-                    <div class="d-flex gap-2 justify-content-end">
-                        <a href="{% url 'scoring:red_team_portal' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle"></i> Cancel
-                        </a>
-                        <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-shield-check"></i> Submit Finding
-                        </button>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <c-link href="{% url 'scoring:red_team_portal' %}">Cancel</c-link>
+                        <c-button type="submit" variant="danger">Submit Finding</c-button>
                     </div>
                 </form>
-            </div>
-        </div>
-    </div>
+    </c-module>
 </div>
 
 <script>

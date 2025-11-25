@@ -1,166 +1,149 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
-<div class="card">
-    <div class="card-header">
-        <h4><i class="bi bi-clipboard-check"></i> Inject Grading</h4>
-        <p class="text-muted mb-0">Grade inject submissions for all teams. Inject definitions come from Quotient.</p>
-    </div>
-    <div class="card-body">
-        {% if not quotient_available %}
-        <div class="alert alert-warning">
-            <h5><i class="bi bi-exclamation-triangle"></i> Quotient Not Available</h5>
-            <p class="mb-0">Unable to fetch injects from Quotient. Check the connection or sync manually.</p>
+<c-module>
+    <h2>Inject Grading</h2>
+    <p style="color: #666; margin-top: 0;">Grade inject submissions for all teams. Inject definitions come from Quotient.</p>
+
+    {% if not quotient_available %}
+    <c-alert variant="warning">
+        <h3 style="margin-top: 0;">Quotient Not Available</h3>
+        <p style="margin-bottom: 0;">Unable to fetch injects from Quotient. Check the connection or sync manually.</p>
+    </c-alert>
+
+    {% if grades %}
+    <h3 style="margin-top: 20px;">Existing Grades</h3>
+    <c-table id="existing_grades" aria_label="Existing inject grades">
+        <c-slot name="headers">
+            <tr>
+                <th>Team</th>
+                <th>Inject</th>
+                <th style="text-align: right;">Score</th>
+                <th style="text-align: right;">Max</th>
+                <th>Graded By</th>
+            </tr>
+        </c-slot>
+
+        {% for grade in grades %}
+        <tr>
+            <td>{{ grade.team.team_name }}</td>
+            <td>{{ grade.inject_name }}</td>
+            <td style="text-align: right;">{{ grade.points_awarded }}</td>
+            <td style="text-align: right;">{{ grade.max_points }}</td>
+            <td>{{ grade.graded_by.username|default:"Auto" }}</td>
+        </tr>
+        {% endfor %}
+    </c-table>
+    {% else %}
+    <p style="color: #666;">No grades entered yet.</p>
+    {% endif %}
+    {% else %}
+
+    {% if not inject_data %}
+    <c-alert variant="info">
+        <h3 style="margin-top: 0;">No Published Injects</h3>
+        <p style="margin-bottom: 0;">No injects are currently published in Quotient. Injects must be published before grading.</p>
+    </c-alert>
+    {% else %}
+
+    <form method="post" action="{% url 'scoring:submit_inject_grades' %}" id="gradingForm">
+        {% csrf_token %}
+
+        <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+            <c-button type="submit" variant="primary">Save All Grades</c-button>
+            <c-button type="button" onclick="clearAll()">Clear All</c-button>
         </div>
 
-        {% if grades %}
-        <h5 class="mt-4">Existing Grades</h5>
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Inject</th>
-                        <th class="text-end">Score</th>
-                        <th class="text-end">Max</th>
-                        <th>Graded By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for grade in grades %}
-                    <tr>
-                        <td>{{ grade.team.team_name }}</td>
-                        <td>{{ grade.inject_name }}</td>
-                        <td class="text-end">{{ grade.points_awarded }}</td>
-                        <td class="text-end">{{ grade.max_points }}</td>
-                        <td>{{ grade.graded_by.username|default:"Auto" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="text-muted">No grades entered yet.</p>
-        {% endif %}
-        {% else %}
-
-        {% if not inject_data %}
-        <div class="alert alert-info">
-            <h5><i class="bi bi-info-circle"></i> No Published Injects</h5>
-            <p class="mb-0">No injects are currently published in Quotient. Injects must be published before grading.</p>
-        </div>
-        {% else %}
-
-        <form method="post" action="{% url 'scoring:submit_inject_grades' %}" id="gradingForm">
-            {% csrf_token %}
-
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save All Grades
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="clearAll()">
-                    <i class="bi bi-eraser"></i> Clear All
-                </button>
-            </div>
-
-            {% for inject in inject_data %}
-            <div class="card mb-4">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h5 class="mb-1">{{ inject.title }}</h5>
-                            {% if inject.description %}
-                            <p class="text-muted mb-0 small">{{ inject.description }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-primary">{{ inject.max_points }} points</span>
-                            {% if inject.due_date %}
-                            <br><small class="text-muted">Due: {{ inject.due_date }}</small>
-                            {% endif %}
-                        </div>
+        {% for inject in inject_data %}
+        <div style="border: 1px solid #ddd; border-radius: 4px; margin-bottom: 20px; background: white;">
+            <div style="background: #f8f8f8; padding: 15px; border-bottom: 1px solid #ddd;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0;">{{ inject.title }}</h3>
+                        {% if inject.description %}
+                        <p style="color: #666; margin: 0; font-size: 13px;">{{ inject.description }}</p>
+                        {% endif %}
                     </div>
-                </div>
-                <div class="card-body">
-                    <!-- Hidden fields for inject metadata -->
-                    <input type="hidden" name="inject_name_{{ inject.inject_id }}" value="{{ inject.title }}">
-                    <input type="hidden" name="max_points_{{ inject.inject_id }}" value="{{ inject.max_points }}">
-
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
-                            <thead>
-                                <tr>
-                                    <th style="width: 200px;">Team</th>
-                                    <th style="width: 150px;">Points Awarded</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for team_grade in inject.team_grades %}
-                                <tr>
-                                    <td>
-                                        <strong>Team {{ team_grade.team.team_number }}</strong>
-                                        {% if team_grade.team.team_name != "Team " %}
-                                        <br><small class="text-muted">{{ team_grade.team.team_name }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            class="form-control form-control-sm inject-score-input"
-                                            name="inject_{{ inject.inject_id }}_team_{{ team_grade.team.team_number }}"
-                                            value="{% if team_grade.points_awarded is not None %}{{ team_grade.points_awarded }}{% endif %}"
-                                            min="0"
-                                            max="{{ inject.max_points }}"
-                                            step="0.01"
-                                            placeholder="0"
-                                            data-max="{{ inject.max_points }}">
-                                    </td>
-                                    <td>
-                                        {% if team_grade.grade %}
-                                        <small class="text-muted">
-                                            Graded by {{ team_grade.grade.graded_by.username|default:"Auto" }}
-                                            on {{ team_grade.grade.graded_at|date:"m/d H:i" }}
-                                        </small>
-                                        {% else %}
-                                        <small class="text-muted">Not graded</small>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Quick actions for this inject -->
-                    <div class="mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary"
-                                onclick="setAllForInject('{{ inject.inject_id }}', {{ inject.max_points }})">
-                            <i class="bi bi-check-all"></i> Give all teams full points
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary"
-                                onclick="setAllForInject('{{ inject.inject_id }}', 0)">
-                            <i class="bi bi-x-circle"></i> Clear all for this inject
-                        </button>
+                    <div style="text-align: right;">
+                        <c-badge variant="primary">{{ inject.max_points }} points</c-badge>
+                        {% if inject.due_date %}
+                        <br><small style="color: #666;">Due: {{ inject.due_date }}</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
+            <div style="padding: 15px;">
+                <!-- Hidden fields for inject metadata -->
+                <input type="hidden" name="inject_name_{{ inject.inject_id }}" value="{{ inject.title }}">
+                <input type="hidden" name="max_points_{{ inject.inject_id }}" value="{{ inject.max_points }}">
 
-            <div class="d-flex gap-2 justify-content-end">
-                <a href="{% url 'scoring:leaderboard' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Leaderboard
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> Save All Grades
-                </button>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <th style="width: 200px; padding: 8px; text-align: left;">Team</th>
+                            <th style="width: 150px; padding: 8px; text-align: left;">Points Awarded</th>
+                            <th style="padding: 8px; text-align: left;">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team_grade in inject.team_grades %}
+                        <tr style="border-bottom: 1px solid #f0f0f0;">
+                            <td style="padding: 8px;">
+                                <strong>Team {{ team_grade.team.team_number }}</strong>
+                                {% if team_grade.team.team_name != "Team " %}
+                                <br><small style="color: #666;">{{ team_grade.team.team_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px;">
+                                <input
+                                    type="number"
+                                    class="form-control form-control-sm inject-score-input"
+                                    name="inject_{{ inject.inject_id }}_team_{{ team_grade.team.team_number }}"
+                                    value="{% if team_grade.points_awarded is not None %}{{ team_grade.points_awarded }}{% endif %}"
+                                    min="0"
+                                    max="{{ inject.max_points }}"
+                                    step="0.01"
+                                    placeholder="0"
+                                    data-max="{{ inject.max_points }}">
+                            </td>
+                            <td style="padding: 8px;">
+                                {% if team_grade.grade %}
+                                <small style="color: #666;">
+                                    Graded by {{ team_grade.grade.graded_by.username|default:"Auto" }}
+                                    on {{ team_grade.grade.graded_at|date:"m/d H:i" }}
+                                </small>
+                                {% else %}
+                                <small style="color: #666;">Not graded</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;"
+                            onclick="setAllForInject('{{ inject.inject_id }}', {{ inject.max_points }})">
+                        Give all teams full points
+                    </button>
+                    <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;"
+                            onclick="setAllForInject('{{ inject.inject_id }}', 0)">
+                        Clear all for this inject
+                    </button>
+                </div>
             </div>
-        </form>
+        </div>
+        {% endfor %}
 
-        {% endif %}
-        {% endif %}
-    </div>
-</div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <c-link href="{% url 'scoring:leaderboard' %}">Back to Leaderboard</c-link>
+            <c-button type="submit" variant="primary">Save All Grades</c-button>
+        </div>
+    </form>
+
+    {% endif %}
+    {% endif %}
+</c-module>
 
 <script>
 // Validate input doesn't exceed max points
