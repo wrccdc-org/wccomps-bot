@@ -28,8 +28,8 @@
                             {% endif %}
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <div>
+                            <div class="mb-3" style="max-width: 50%;">
                                 <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
                                     {{ form.source_ip.label }}
                                 </label>
@@ -48,8 +48,8 @@
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                            <div class="mb-3">
                                 <label for="{{ form.affected_box.id_for_label }}" class="form-label">
                                     {{ form.affected_box.label }}
                                 </label>
@@ -59,7 +59,7 @@
                                 {% endif %}
                             </div>
 
-                            <div class="col-md-6 mb-3">
+                            <div class="mb-3">
                                 <label for="{{ form.affected_service.id_for_label }}" class="form-label">
                                     {{ form.affected_service.label }}
                                 </label>
@@ -110,14 +110,14 @@
                     <!-- Affected Teams Section -->
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Affected Teams</h5>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="selectAllTeams()">
-                                    <i class="bi bi-check-all"></i> Select All
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <label class="form-label required" style="margin-bottom: 0;">{{ form.affected_teams.label }}</label>
+                            <div style="display: flex; gap: 5px;">
+                                <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #417690; background: white; color: #417690; border-radius: 4px; cursor: pointer;" onclick="selectAllTeams()">
+                                    Select All
                                 </button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="deselectAllTeams()">
-                                    <i class="bi bi-x-circle"></i> Deselect All
+                                <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #ddd; background: white; color: #333; border-radius: 4px; cursor: pointer;" onclick="deselectAllTeams()">
+                                    Deselect All
                                 </button>
                             </div>
                         </div>
@@ -133,12 +133,13 @@
                         </div>
 
                         <!-- Visual team selector buttons -->
-                        <div class="card">
-                            <div class="card-body p-3">
-                                <div id="teamButtons" class="d-flex flex-wrap gap-2">
+                        <div style="border: 1px solid #ddd; border-radius: 4px; background: white;">
+                            <div style="padding: 15px;">
+                                <div id="teamButtons" style="display: flex; flex-wrap: wrap; gap: 10px;">
                                     {% for checkbox in form.affected_teams %}
                                         <button type="button"
-                                                class="btn btn-outline-secondary team-btn"
+                                                class="team-btn"
+                                                style="padding: 8px 16px; min-width: 60px; font-weight: 500; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;"
                                                 data-team-id="{{ checkbox.data.value }}"
                                                 data-team-label="{{ checkbox.choice_label }}"
                                                 onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')">
@@ -149,14 +150,13 @@
                             </div>
                         </div>
 
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i>
+                        <div style="margin-top: 10px;">
+                            <small style="color: #666;">
                                 <span id="selectedCount">0</span> teams selected - Click teams to toggle selection
                             </small>
                         </div>
                         {% if form.affected_teams.errors %}
-                            <div class="text-danger mt-2">{{ form.affected_teams.errors }}</div>
+                            <div class="text-danger" style="margin-top: 10px;">{{ form.affected_teams.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -179,7 +179,7 @@
                             </div>
                         </div>
 
-                        <div id="screenshotPreview" class="row g-2 mb-3"></div>
+                        <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;"></div>
                     </div>
 
                     <!-- Additional Notes Section -->
@@ -234,20 +234,13 @@ function previewScreenshots(input) {
             const reader = new FileReader();
 
             reader.onload = function(e) {
-                const col = document.createElement('div');
-                col.className = 'col-md-3 col-sm-4 col-6';
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <img src="${e.target.result}" class="card-img-top" alt="Screenshot ${index + 1}" style="height: 150px; object-fit: cover;">
-                    <div class="card-body p-2">
-                        <small class="text-muted">${file.name}</small>
-                    </div>
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Screenshot ${index + 1}" style="width: 100%; height: 150px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px;">
+                    <div style="padding: 5px; font-size: 11px; color: #666;">${file.name}</div>
                 `;
 
-                col.appendChild(card);
-                preview.appendChild(col);
+                preview.appendChild(div);
             };
 
             reader.readAsDataURL(file);
@@ -374,11 +367,13 @@ function toggleTeam(button, checkboxId) {
 
 function updateTeamButton(button, isSelected) {
     if (isSelected) {
-        button.classList.remove('btn-outline-secondary');
-        button.classList.add('btn-danger');
+        button.style.backgroundColor = '#dc3545';
+        button.style.borderColor = '#dc3545';
+        button.style.color = 'white';
     } else {
-        button.classList.remove('btn-danger');
-        button.classList.add('btn-outline-secondary');
+        button.style.backgroundColor = 'white';
+        button.style.borderColor = '#ddd';
+        button.style.color = '#333';
     }
 }
 
