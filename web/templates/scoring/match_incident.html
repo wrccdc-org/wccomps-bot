@@ -2,133 +2,117 @@
 {% load crispy_forms_tags %}
 
 {% block scoring_content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Incident Report #{{ incident.id }}</h4>
-            </div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <tr>
-                        <th>Team:</th>
-                        <td>{{ incident.team.team_name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Affected Box:</th>
-                        <td>{{ incident.affected_box }}</td>
-                    </tr>
-                    <tr>
-                        <th>Affected Service:</th>
-                        <td>{{ incident.affected_service }}</td>
-                    </tr>
-                    <tr>
-                        <th>Source IP:</th>
-                        <td><code>{{ incident.source_ip }}</code></td>
-                    </tr>
-                    <tr>
-                        <th>Detected At:</th>
-                        <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                    </tr>
-                    <tr>
-                        <th>Attack Vector:</th>
-                        <td>{{ incident.attack_vector }}</td>
-                    </tr>
-                </table>
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+    <c-module>
+        <h2 style="background: #417690; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Incident Report #{{ incident.id }}</h2>
+        <table style="width: 100%; font-size: 13px; margin-bottom: 15px;">
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Team:</th>
+                <td style="padding: 5px 0;">{{ incident.team.team_name }}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Affected Box:</th>
+                <td style="padding: 5px 0;">{{ incident.affected_box }}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Affected Service:</th>
+                <td style="padding: 5px 0;">{{ incident.affected_service }}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Source IP:</th>
+                <td style="padding: 5px 0;"><code>{{ incident.source_ip }}</code></td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Detected At:</th>
+                <td style="padding: 5px 0;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Attack Vector:</th>
+                <td style="padding: 5px 0;">{{ incident.attack_vector }}</td>
+            </tr>
+        </table>
 
-                <div class="mb-3">
-                    <h6>Description</h6>
-                    <div class="border rounded p-2 bg-light">
-                        <small>{{ incident.description|linebreaks }}</small>
-                    </div>
-                </div>
-
-                <div>
-                    <h6>Evidence ({{ incident.screenshots.count }})</h6>
-                    {% if incident.screenshots.exists %}
-                        <div class="row">
-                            {% for screenshot in incident.screenshots.all %}
-                            <div class="col-6 mb-2">
-                                <a href="{{ screenshot.image.url }}" target="_blank">
-                                    <img src="{{ screenshot.image.url }}" class="img-thumbnail" alt="Evidence">
-                                </a>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted">No screenshots</p>
-                    {% endif %}
-                </div>
+        <div style="margin-bottom: 15px;">
+            <h3 style="font-size: 14px;">Description</h3>
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f8f8f8;">
+                <small>{{ incident.description|linebreaks }}</small>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0">Review & Match</h4>
-            </div>
-            <div class="card-body">
-                {% if suggested_findings %}
-                <div class="alert alert-info">
-                    <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
-                    <p class="mb-0">
-                        <small>Based on time window (±30 min), box, and service</small>
-                    </p>
-                </div>
-
-                <div class="mb-3">
-                    <h6>Potential Red Team Findings:</h6>
-                    {% for finding in suggested_findings %}
-                    <div class="card mb-2 {% if forloop.first %}border-success{% endif %}">
-                        <div class="card-body p-2">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong>Finding #{{ finding.id }}</strong>
-                                    <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
-                                    <br><small class="text-muted">
-                                        {{ finding.affected_box }} / {{ finding.affected_service }}
-                                    </small>
-                                </div>
-                                <span class="badge bg-danger">-{{ finding.points_per_team }} pts</span>
-                            </div>
-                            <small class="text-muted d-block mt-1">
-                                Submitted: {{ finding.created_at|date:"m/d H:i" }}
-                            </small>
-                        </div>
+        <div>
+            <h3 style="font-size: 14px;">Evidence ({{ incident.screenshots.count }})</h3>
+            {% if incident.screenshots.exists %}
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    {% for screenshot in incident.screenshots.all %}
+                    <div>
+                        <a href="{{ screenshot.image.url }}" target="_blank">
+                            <img src="{{ screenshot.image.url }}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px;" alt="Evidence">
+                        </a>
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="alert alert-warning">
-                    <strong>No Automatic Matches Found</strong>
-                    <p class="mb-0">No red team findings match this incident's timeframe and attributes.</p>
-                </div>
-                {% endif %}
+            {% else %}
+                <p style="color: #666;">No screenshots</p>
+            {% endif %}
+        </div>
+    </c-module>
 
-                <form method="post">
-                    {% csrf_token %}
-                    {{ form|crispy }}
+    <c-module>
+        <h2 style="background: #28a745; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Review & Match</h2>
+        {% if suggested_findings %}
+        <c-alert variant="info">
+            <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
+            <p style="margin-bottom: 0;">
+                <small>Based on time window (±30 min), box, and service</small>
+            </p>
+        </c-alert>
 
-                    <div class="alert alert-secondary">
-                        <small>
-                            <strong>Review Guidelines:</strong>
-                            <ul class="mb-0">
-                                <li>Verify evidence shows IP addresses and timestamps</li>
-                                <li>Match to corresponding red team finding if applicable</li>
-                                <li>Award points based on detection quality and mitigation</li>
-                                <li>Leave unmatched if no corresponding red finding exists</li>
-                            </ul>
+        <div style="margin-bottom: 15px;">
+            <h3 style="font-size: 14px;">Potential Red Team Findings:</h3>
+            {% for finding in suggested_findings %}
+            <div style="border: {% if forloop.first %}2px solid #28a745{% else %}1px solid #ddd{% endif %}; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: white;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <strong>Finding #{{ finding.id }}</strong>
+                        <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
+                        <br><small style="color: #666;">
+                            {{ finding.affected_box }} / {{ finding.affected_service }}
                         </small>
                     </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-success">Complete Review</button>
-                        <a href="{% url 'scoring:review_incidents' %}" class="btn btn-outline-secondary">Cancel</a>
-                    </div>
-                </form>
+                    <c-badge variant="danger">-{{ finding.points_per_team }} pts</c-badge>
+                </div>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Submitted: {{ finding.created_at|date:"m/d H:i" }}
+                </small>
             </div>
+            {% endfor %}
         </div>
-    </div>
+        {% else %}
+        <c-alert variant="warning">
+            <strong>No Automatic Matches Found</strong>
+            <p style="margin-bottom: 0;">No red team findings match this incident's timeframe and attributes.</p>
+        </c-alert>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+
+            <c-alert variant="info" style="font-size: 12px;">
+                <strong>Review Guidelines:</strong>
+                <ul style="margin-bottom: 0;">
+                    <li>Verify evidence shows IP addresses and timestamps</li>
+                    <li>Match to corresponding red team finding if applicable</li>
+                    <li>Award points based on detection quality and mitigation</li>
+                    <li>Leave unmatched if no corresponding red finding exists</li>
+                </ul>
+            </c-alert>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <c-button type="submit" variant="success">Complete Review</c-button>
+                <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
+            </div>
+        </form>
+    </c-module>
 </div>
 {% endblock %}

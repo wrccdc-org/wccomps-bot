@@ -1,121 +1,122 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">Incident Report #{{ incident.id }}</h4>
-        {% if incident.gold_team_reviewed %}
-            <span class="badge bg-success">Reviewed</span>
-        {% else %}
-            <span class="badge bg-warning">Pending Review</span>
-        {% endif %}
-    </div>
-    <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <h5>Report Details</h5>
-                <table class="table table-sm">
-                    <tr>
-                        <th>Team:</th>
-                        <td>{{ incident.team.team_name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Submitted By:</th>
-                        <td>{{ incident.submitted_by.username }}</td>
-                    </tr>
-                    <tr>
-                        <th>Submitted At:</th>
-                        <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
-                    </tr>
-                    <tr>
-                        <th>Attack Detected:</th>
-                        <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                    </tr>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <h5>Attack Information</h5>
-                <table class="table table-sm">
-                    <tr>
-                        <th>Affected Box:</th>
-                        <td>{{ incident.affected_box }}</td>
-                    </tr>
-                    <tr>
-                        <th>Affected Service:</th>
-                        <td>{{ incident.affected_service }}</td>
-                    </tr>
-                    <tr>
-                        <th>Source IP:</th>
-                        <td><code>{{ incident.source_ip }}</code></td>
-                    </tr>
-                    <tr>
-                        <th>Attack Vector:</th>
-                        <td>{{ incident.attack_vector }}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <h5>Description</h5>
-            <div class="border rounded p-3 bg-light">
-                {{ incident.description|linebreaks }}
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <h5>Evidence Screenshots</h5>
-            {% if incident.screenshots.exists %}
-                <div class="row">
-                    {% for screenshot in incident.screenshots.all %}
-                    <div class="col-md-4 mb-3">
-                        <a href="{{ screenshot.image.url }}" target="_blank">
-                            <img src="{{ screenshot.image.url }}" class="img-thumbnail" alt="Evidence">
-                        </a>
-                    </div>
-                    {% endfor %}
-                </div>
+<c-module>
+    <c-slot name="toolbar">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h2 style="margin: 0;">Incident Report #{{ incident.id }}</h2>
+            {% if incident.gold_team_reviewed %}
+                <c-badge variant="success">Reviewed</c-badge>
             {% else %}
-                <p class="text-muted">No screenshots attached</p>
+                <c-badge variant="warning">Pending Review</c-badge>
             {% endif %}
         </div>
+    </c-slot>
 
-        {% if incident.gold_team_reviewed %}
-        <div class="alert alert-success">
-            <h5>Review Status</h5>
-            <table class="table table-sm mb-0">
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+        <div>
+            <h3>Report Details</h3>
+            <table style="width: 100%; font-size: 13px;">
                 <tr>
-                    <th>Reviewed By:</th>
-                    <td>{{ incident.reviewed_by.username }}</td>
+                    <th style="text-align: left; padding: 5px 0;">Team:</th>
+                    <td style="padding: 5px 0;">{{ incident.team.team_name }}</td>
                 </tr>
                 <tr>
-                    <th>Reviewed At:</th>
-                    <td>{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</td>
+                    <th style="text-align: left; padding: 5px 0;">Submitted By:</th>
+                    <td style="padding: 5px 0;">{{ incident.submitted_by.username }}</td>
                 </tr>
-                {% if incident.matched_to_red_finding %}
                 <tr>
-                    <th>Matched To:</th>
-                    <td>Red Team Finding #{{ incident.matched_to_red_finding.id }}</td>
+                    <th style="text-align: left; padding: 5px 0;">Submitted At:</th>
+                    <td style="padding: 5px 0;">{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
                 </tr>
-                {% endif %}
                 <tr>
-                    <th>Points Returned:</th>
-                    <td class="text-success"><strong>+{{ incident.points_returned }}</strong></td>
+                    <th style="text-align: left; padding: 5px 0;">Attack Detected:</th>
+                    <td style="padding: 5px 0;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
                 </tr>
             </table>
         </div>
-        {% else %}
-        <div class="alert alert-warning">
-            This incident is pending gold team review.
-        </div>
-        {% endif %}
-
-        <div class="d-flex gap-2">
-            <a href="{% url 'scoring:review_incidents' %}" class="btn btn-primary">Back to List</a>
-            {% if not incident.gold_team_reviewed and user.is_authenticated %}
-                <a href="{% url 'scoring:match_incident' incident.id %}" class="btn btn-success">Review Now</a>
-            {% endif %}
+        <div>
+            <h3>Attack Information</h3>
+            <table style="width: 100%; font-size: 13px;">
+                <tr>
+                    <th style="text-align: left; padding: 5px 0;">Affected Box:</th>
+                    <td style="padding: 5px 0;">{{ incident.affected_box }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 5px 0;">Affected Service:</th>
+                    <td style="padding: 5px 0;">{{ incident.affected_service }}</td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 5px 0;">Source IP:</th>
+                    <td style="padding: 5px 0;"><code>{{ incident.source_ip }}</code></td>
+                </tr>
+                <tr>
+                    <th style="text-align: left; padding: 5px 0;">Attack Vector:</th>
+                    <td style="padding: 5px 0;">{{ incident.attack_vector }}</td>
+                </tr>
+            </table>
         </div>
     </div>
-</div>
+
+    <div style="margin-bottom: 20px;">
+        <h3>Description</h3>
+        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: #f8f8f8;">
+            {{ incident.description|linebreaks }}
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <h3>Evidence Screenshots</h3>
+        {% if incident.screenshots.exists %}
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                {% for screenshot in incident.screenshots.all %}
+                <div>
+                    <a href="{{ screenshot.image.url }}" target="_blank">
+                        <img src="{{ screenshot.image.url }}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px;" alt="Evidence">
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #666;">No screenshots attached</p>
+        {% endif %}
+    </div>
+
+    {% if incident.gold_team_reviewed %}
+    <c-alert variant="success">
+        <h3 style="margin-top: 0;">Review Status</h3>
+        <table style="width: 100%; font-size: 13px;">
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Reviewed By:</th>
+                <td style="padding: 5px 0;">{{ incident.reviewed_by.username }}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Reviewed At:</th>
+                <td style="padding: 5px 0;">{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% if incident.matched_to_red_finding %}
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Matched To:</th>
+                <td style="padding: 5px 0;">Red Team Finding #{{ incident.matched_to_red_finding.id }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th style="text-align: left; padding: 5px 0;">Points Returned:</th>
+                <td style="padding: 5px 0; color: #28a745;"><strong>+{{ incident.points_returned }}</strong></td>
+            </tr>
+        </table>
+    </c-alert>
+    {% else %}
+    <c-alert variant="warning">
+        This incident is pending gold team review.
+    </c-alert>
+    {% endif %}
+
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <c-link href="{% url 'scoring:review_incidents' %}" variant="primary">Back to List</c-link>
+        {% if not incident.gold_team_reviewed and user.is_authenticated %}
+            <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="success">Review Now</c-link>
+        {% endif %}
+    </div>
+</c-module>
 {% endblock %}
