@@ -27,11 +27,6 @@ class Competition(models.Model):
         max_length=200,
         help_text="Competition name (e.g., 'SWCCDC 2025')",
     )
-    slug = models.SlugField(
-        max_length=200,
-        unique=True,
-        help_text="URL-safe identifier",
-    )
     description = models.TextField(
         blank=True,
         help_text="Competition overview and rules",

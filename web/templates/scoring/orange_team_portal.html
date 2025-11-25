@@ -1,0 +1,49 @@
+{% extends "scoring/base.html" %}
+
+{% block scoring_content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Orange Team Bonuses</h4>
+        <a href="{% url 'scoring:submit_orange_bonus' %}" class="btn btn-warning">Award Bonus</a>
+    </div>
+    <div class="card-body">
+        {% if bonuses %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Team</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-end">Points</th>
+                        <th>Awarded</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bonus in bonuses %}
+                    <tr>
+                        <td><strong>#{{ bonus.id }}</strong></td>
+                        <td>{{ bonus.team.team_name }}</td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ bonus.category }}</span>
+                        </td>
+                        <td>{{ bonus.description|truncatechars:60 }}</td>
+                        <td class="text-end text-success">+{{ bonus.points }}</td>
+                        <td>
+                            <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
+                            <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            No orange team bonuses awarded yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,477 @@
+{% extends "scoring/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block scoring_content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-shield-exclamation"></i> Submit Red Team Finding</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="findingForm">
+                    {% csrf_token %}
+
+                    <!-- Attack Details Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
+
+                        <div class="mb-3">
+                            <label for="{{ form.attack_vector.id_for_label }}" class="form-label required">
+                                {{ form.attack_vector.label }}
+                            </label>
+                            {{ form.attack_vector }}
+                            <datalist id="attackSuggestions"></datalist>
+                            {% if form.attack_vector.help_text %}
+                                <div class="form-text">
+                                    <i class="bi bi-lightbulb"></i> {{ form.attack_vector.help_text }}
+                                </div>
+                            {% endif %}
+                            {% if form.attack_vector.errors %}
+                                <div class="text-danger">{{ form.attack_vector.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
+                                    {{ form.source_ip.label }}
+                                </label>
+                                {{ form.source_ip }}
+                                {% if form.source_ip.help_text %}
+                                    <div class="form-text">{{ form.source_ip.help_text }}</div>
+                                {% endif %}
+                                {% if form.source_ip.errors %}
+                                    <div class="text-danger">{{ form.source_ip.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Information Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.affected_box.id_for_label }}" class="form-label">
+                                    {{ form.affected_box.label }}
+                                </label>
+                                {{ form.affected_box }}
+                                {% if form.affected_box.errors %}
+                                    <div class="text-danger">{{ form.affected_box.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.affected_service.id_for_label }}" class="form-label">
+                                    {{ form.affected_service.label }}
+                                </label>
+                                {{ form.affected_service }}
+                                {% if form.affected_service.errors %}
+                                    <div class="text-danger">{{ form.affected_service.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.destination_ip_template.id_for_label }}" class="form-label">
+                                {{ form.destination_ip_template.label }}
+                            </label>
+                            {{ form.destination_ip_template }}
+                            <div class="form-text">This field auto-populates based on the selected box</div>
+                            {% if form.destination_ip_template.errors %}
+                                <div class="text-danger">{{ form.destination_ip_template.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Attack Characteristics Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Attack Characteristics</h5>
+
+                        <div class="form-check mb-2">
+                            {{ form.universally_attempted }}
+                            <label class="form-check-label" for="{{ form.universally_attempted.id_for_label }}">
+                                {{ form.universally_attempted.label }}
+                            </label>
+                            {% if form.universally_attempted.help_text %}
+                                <div class="form-text">{{ form.universally_attempted.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-check mb-2">
+                            {{ form.persistence_established }}
+                            <label class="form-check-label" for="{{ form.persistence_established.id_for_label }}">
+                                {{ form.persistence_established.label }}
+                            </label>
+                            {% if form.persistence_established.help_text %}
+                                <div class="form-text">{{ form.persistence_established.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Affected Teams Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Affected Teams</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="selectAllTeams()">
+                                    <i class="bi bi-check-all"></i> Select All
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="deselectAllTeams()">
+                                    <i class="bi bi-x-circle"></i> Deselect All
+                                </button>
+                            </div>
+                        </div>
+                        {% if form.affected_teams.help_text %}
+                            <div class="form-text mb-2">{{ form.affected_teams.help_text }}</div>
+                        {% endif %}
+
+                        <!-- Hidden checkboxes for form submission -->
+                        <div style="display: none;" id="teamCheckboxes">
+                            {% for checkbox in form.affected_teams %}
+                                {{ checkbox.tag }}
+                            {% endfor %}
+                        </div>
+
+                        <!-- Visual team selector buttons -->
+                        <div class="card">
+                            <div class="card-body p-3">
+                                <div id="teamButtons" class="d-flex flex-wrap gap-2">
+                                    {% for checkbox in form.affected_teams %}
+                                        <button type="button"
+                                                class="btn btn-outline-secondary team-btn"
+                                                data-team-id="{{ checkbox.data.value }}"
+                                                data-team-label="{{ checkbox.choice_label }}"
+                                                onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')">
+                                            <!-- Label will be set by JavaScript -->
+                                        </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                <span id="selectedCount">0</span> teams selected - Click teams to toggle selection
+                            </small>
+                        </div>
+                        {% if form.affected_teams.errors %}
+                            <div class="text-danger mt-2">{{ form.affected_teams.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Screenshot Evidence Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Screenshot Evidence</h5>
+
+                        <div class="mb-3">
+                            <label for="screenshots" class="form-label">Upload Screenshots</label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="screenshots"
+                                   name="screenshots"
+                                   accept="image/*"
+                                   multiple
+                                   onchange="previewScreenshots(this)">
+                            <div class="form-text">
+                                <i class="bi bi-info-circle"></i> Upload 3-4 screenshots showing IP addresses, attack evidence, and impact.
+                                Maximum 20 files, 50MB per file.
+                            </div>
+                        </div>
+
+                        <div id="screenshotPreview" class="row g-2 mb-3"></div>
+                    </div>
+
+                    <!-- Additional Notes Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Additional Information</h5>
+
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                {{ form.notes.label }}
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.help_text %}
+                                <div class="form-text">{{ form.notes.help_text }}</div>
+                            {% endif %}
+                            {% if form.notes.errors %}
+                                <div class="text-danger">{{ form.notes.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Submission Guidelines -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> Submission Guidelines</h6>
+                        <ul class="mb-0">
+                            <li>Provide detailed technical information about the vulnerability or attack</li>
+                            <li>Include all relevant IP addresses visible in screenshots</li>
+                            <li>Select all teams that were successfully compromised</li>
+                            <li>Gold Team will review and assign point values</li>
+                        </ul>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'scoring:red_team_portal' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-shield-check"></i> Submit Finding
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewScreenshots(input) {
+    const preview = document.getElementById('screenshotPreview');
+    preview.innerHTML = '';
+
+    if (input.files) {
+        const fileCount = input.files.length;
+
+        if (fileCount > 20) {
+            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+        }
+
+        Array.from(input.files).slice(0, 20).forEach((file, index) => {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const col = document.createElement('div');
+                col.className = 'col-md-3 col-sm-4 col-6';
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${e.target.result}" class="card-img-top" alt="Screenshot ${index + 1}" style="height: 150px; object-fit: cover;">
+                    <div class="card-body p-2">
+                        <small class="text-muted">${file.name}</small>
+                    </div>
+                `;
+
+                col.appendChild(card);
+                preview.appendChild(col);
+            };
+
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+// Load attack type suggestions
+async function loadAttackSuggestions() {
+    try {
+        const response = await fetch('{% url "scoring:api_attack_types" %}');
+        const data = await response.json();
+        const datalist = document.getElementById('attackSuggestions');
+
+        datalist.innerHTML = '';
+        data.suggestions.forEach(suggestion => {
+            const option = document.createElement('option');
+            option.value = suggestion;
+            datalist.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load attack suggestions:', error);
+    }
+}
+
+// Setup autocomplete for attack vector textarea
+function setupAttackAutocomplete() {
+    const textarea = document.getElementById('{{ form.attack_vector.id_for_label }}');
+    const datalist = document.getElementById('attackSuggestions');
+
+    if (!textarea || !datalist) return;
+
+    // Link textarea to datalist
+    textarea.setAttribute('list', 'attackSuggestions');
+
+    // Create a dropdown container for suggestions
+    const dropdown = document.createElement('div');
+    dropdown.className = 'autocomplete-dropdown';
+    dropdown.style.cssText = 'position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+    textarea.parentNode.style.position = 'relative';
+    textarea.parentNode.appendChild(dropdown);
+
+    let suggestions = [];
+
+    // Update suggestions list when loaded
+    const observer = new MutationObserver(() => {
+        suggestions = Array.from(datalist.querySelectorAll('option')).map(opt => opt.value);
+    });
+    observer.observe(datalist, { childList: true });
+
+    // Show dropdown on input
+    textarea.addEventListener('input', function(e) {
+        const value = this.value.toLowerCase();
+        const firstLine = value.split('\n')[0];
+
+        if (firstLine.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        const matches = suggestions.filter(s => s.toLowerCase().includes(firstLine));
+
+        if (matches.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        dropdown.innerHTML = matches.slice(0, 10).map(match =>
+            `<div class="autocomplete-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">${match}</div>`
+        ).join('');
+
+        dropdown.style.display = 'block';
+        dropdown.style.width = textarea.offsetWidth + 'px';
+        dropdown.style.top = (textarea.offsetTop + 40) + 'px';
+        dropdown.style.left = textarea.offsetLeft + 'px';
+
+        // Add click handlers
+        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f0f0f0';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'white';
+            });
+            item.addEventListener('click', function() {
+                textarea.value = this.textContent;
+                dropdown.style.display = 'none';
+                textarea.focus();
+            });
+        });
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== textarea && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+// Team selection functions
+function getTeamCheckboxes() {
+    return document.querySelectorAll('input[name="affected_teams"]');
+}
+
+function getTeamButtons() {
+    return document.querySelectorAll('.team-btn');
+}
+
+function updateSelectedCount() {
+    const checkboxes = getTeamCheckboxes();
+    const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+    document.getElementById('selectedCount').textContent = checked;
+}
+
+function toggleTeam(button, checkboxId) {
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        updateTeamButton(button, checkbox.checked);
+        updateSelectedCount();
+    }
+}
+
+function updateTeamButton(button, isSelected) {
+    if (isSelected) {
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-danger');
+    } else {
+        button.classList.remove('btn-danger');
+        button.classList.add('btn-outline-secondary');
+    }
+}
+
+function selectAllTeams() {
+    const checkboxes = getTeamCheckboxes();
+    const buttons = getTeamButtons();
+
+    checkboxes.forEach(cb => cb.checked = true);
+    buttons.forEach(btn => updateTeamButton(btn, true));
+    updateSelectedCount();
+}
+
+function deselectAllTeams() {
+    const checkboxes = getTeamCheckboxes();
+    const buttons = getTeamButtons();
+
+    checkboxes.forEach(cb => cb.checked = false);
+    buttons.forEach(btn => updateTeamButton(btn, false));
+    updateSelectedCount();
+}
+
+// Auto-populate destination IP template based on selected box
+document.addEventListener('DOMContentLoaded', function() {
+    loadAttackSuggestions();
+    setupAttackAutocomplete();
+
+    // Set team button labels (extract just the number from the full label)
+    const teamButtons = getTeamButtons();
+    teamButtons.forEach(button => {
+        const fullLabel = button.getAttribute('data-team-label');
+        if (fullLabel) {
+            // Extract numbers from the label (e.g., "Team 01" -> "1", "Team01" -> "1")
+            const match = fullLabel.match(/\d+/);
+            if (match) {
+                // Remove leading zeros
+                button.textContent = parseInt(match[0], 10).toString();
+            } else {
+                button.textContent = fullLabel;
+            }
+        }
+    });
+
+    // Update selected count on page load
+    updateSelectedCount();
+
+    const boxSelect = document.getElementById('{{ form.affected_box.id_for_label }}');
+    const ipTemplate = document.getElementById('{{ form.destination_ip_template.id_for_label }}');
+
+    if (boxSelect && ipTemplate) {
+        boxSelect.addEventListener('change', function() {
+            // This would be populated via AJAX from the server
+            // For now, just clear it when box changes
+            if (!this.value) {
+                ipTemplate.value = '';
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+
+.team-btn {
+    min-width: 60px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.team-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.team-btn.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+</style>
+{% endblock %}

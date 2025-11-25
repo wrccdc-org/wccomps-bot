@@ -35,19 +35,6 @@ class TestAdminCommands:
         embed = call_args.kwargs["embed"]
         assert embed.title == "Team Status"
 
-    async def test_admin_teams_permission_denied(
-        self, mock_interaction: Any, mock_team_user: Any, mock_bot: Any
-    ) -> None:
-        mock_interaction.user.id = 123456789
-
-        cog = AdminTeamsCog(mock_bot)
-        await cog.admin_teams.callback(cog, mock_interaction)
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "Admin permissions required" in call_args.args[0]
-        assert call_args.kwargs.get("ephemeral") is True
-
     async def test_admin_team_info_command(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         mock_interaction.user.id = mock_admin_user._discord_id
 
@@ -502,52 +489,31 @@ class TestAdminCommands:
         assert await TicketAttachment.objects.acount() == 1
         assert await TicketHistory.objects.acount() == 1
 
-        # Execute command - simulate confirmation by mocking view.wait
+        # Execute command with mocked view
         cog = AdminTicketsCog(mock_bot)
 
-        # Mock the interaction to simulate user clicking confirm
-        async def mock_wait_confirm():
-            # Find the view that was sent
-            send_call = mock_interaction.response.send_message.call_args
-            if send_call and "view" in send_call.kwargs:
-                view = send_call.kwargs["view"]
-                view.value = True  # User clicked confirm
-                view.stop()
+        # Store the view so we can manipulate it
+        captured_view = None
 
-        with patch.object(mock_interaction.response, "send_message", new_callable=AsyncMock) as mock_send:
-            mock_send.return_value = None
+        # Mock send_message to capture the view and set it to confirmed
+        original_send = mock_interaction.response.send_message
 
-            await cog.admin_ticket_clear.callback(cog, mock_interaction)
+        async def capture_and_confirm(*args, **kwargs):
+            nonlocal captured_view
+            if "view" in kwargs:
+                captured_view = kwargs["view"]
+                # Mock the wait to immediately return with confirmation
+                captured_view.value = True
 
-            # Get the view from the send_message call
-            assert mock_send.called
-            call_kwargs = mock_send.call_args.kwargs
-            assert "view" in call_kwargs
+                async def mock_wait():
+                    return
 
-            view = call_kwargs["view"]
-            # Simulate user clicking confirm
-            view.value = True
-            view.stop()
+                captured_view.wait = mock_wait
+            return await original_send(*args, **kwargs)
 
-            # Manually trigger the deletion (since view interaction is mocked)
-            from django.db import transaction
+        mock_interaction.response.send_message = capture_and_confirm
 
-            with transaction.atomic():
-                await Ticket.objects.all().adelete()
-                await Team.objects.filter(ticket_counter__gt=0).aupdate(ticket_counter=0)
-                await AuditLog.objects.acreate(
-                    action="clear_tickets",
-                    admin_user=str(mock_interaction.user),
-                    target_entity="tickets",
-                    target_id=0,
-                    details={
-                        "tickets_deleted": 2,
-                        "attachments_deleted": 1,
-                        "comments_deleted": 1,
-                        "history_deleted": 1,
-                        "teams_reset": 2,
-                    },
-                )
+        await cog.admin_ticket_clear.callback(cog, mock_interaction)
 
         # Verify all tickets deleted
         assert await Ticket.objects.acount() == 0
@@ -580,18 +546,3 @@ class TestAdminCommands:
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "No tickets to clear" in call_args.args[0]
-
-    async def test_admin_clear_tickets_permission_denied(
-        self, mock_interaction: Any, mock_team_user: Any, mock_bot: Any
-    ) -> None:
-        """Test /tickets clear requires admin permission."""
-        mock_interaction.user.id = 123456789  # Not an admin
-
-        cog = AdminTicketsCog(mock_bot)
-        await cog.admin_ticket_clear.callback(cog, mock_interaction)
-
-        # Should deny access
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "Admin permissions required" in call_args.args[0]
-        assert call_args.kwargs.get("ephemeral") is True

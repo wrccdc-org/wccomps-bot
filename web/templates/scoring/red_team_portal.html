@@ -1,0 +1,65 @@
+{% extends "scoring/base.html" %}
+
+{% block scoring_content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Red Team Findings</h4>
+        <a href="{% url 'scoring:submit_red_finding' %}" class="btn btn-danger">Submit New Finding</a>
+    </div>
+    <div class="card-body">
+        {% if findings %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Attack Vector</th>
+                        <th>Box</th>
+                        <th>Service</th>
+                        <th>Teams</th>
+                        <th class="text-end">Points/Team</th>
+                        <th>Submitted</th>
+                        <th>Evidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for finding in findings %}
+                    <tr>
+                        <td><strong>#{{ finding.id }}</strong></td>
+                        <td>{{ finding.attack_vector|truncatechars:40 }}</td>
+                        <td>{{ finding.affected_box }}</td>
+                        <td>{{ finding.affected_service }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ finding.affected_teams.count }} teams</span>
+                            <small class="text-muted d-block">
+                                {% for team in finding.affected_teams.all|slice:":3" %}
+                                    {{ team.team_name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if finding.affected_teams.count > 3 %}...{% endif %}
+                            </small>
+                        </td>
+                        <td class="text-end text-danger">-{{ finding.points_per_team }}</td>
+                        <td>
+                            <small>{{ finding.created_at|date:"m/d H:i" }}</small><br>
+                            <small class="text-muted">by {{ finding.submitted_by.username }}</small>
+                        </td>
+                        <td>
+                            {% if finding.screenshots.exists %}
+                                <span class="badge bg-success">{{ finding.screenshots.count }} files</span>
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            No red team findings submitted yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

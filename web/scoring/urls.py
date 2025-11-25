@@ -1,0 +1,36 @@
+"""URL configuration for scoring app."""
+
+from django.urls import path
+
+from . import views
+
+app_name = "scoring"
+
+urlpatterns = [
+    # Leaderboard
+    path("", views.leaderboard, name="leaderboard"),
+    # Red Team
+    path("red-team/", views.red_team_portal, name="red_team_portal"),
+    path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),
+    # Incident Reports (Blue Team)
+    path("incident/submit/", views.submit_incident_report, name="submit_incident_report"),
+    path("incident/<int:incident_id>/", views.view_incident_report, name="view_incident_report"),
+    # Orange Team
+    path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
+    path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),
+    # Inject Grading (White/Gold Team)
+    path("injects/", views.inject_grading, name="inject_grading"),
+    path("injects/submit/", views.submit_inject_grades, name="submit_inject_grades"),
+    # Gold Team - Incident Review
+    path("gold-team/incidents/", views.review_incidents, name="review_incidents"),
+    path("gold-team/incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
+    # Admin/Configuration
+    path("admin/config/", views.scoring_config, name="scoring_config"),
+    path("admin/sync-metadata/", views.sync_metadata, name="sync_metadata"),
+    path("admin/sync-scores/", views.sync_scores, name="sync_scores"),
+    path("admin/recalculate/", views.recalculate_scores, name="recalculate_scores"),
+    # API endpoints
+    path("api/scores/", views.api_scores, name="api_scores"),
+    path("api/team/<int:team_number>/", views.api_team_detail, name="api_team_detail"),
+    path("api/attack-types/", views.api_attack_types, name="api_attack_types"),
+]

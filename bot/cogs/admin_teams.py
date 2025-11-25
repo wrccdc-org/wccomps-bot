@@ -33,12 +33,9 @@ class AdminTeamsCog(commands.Cog):
         self.bot = bot
 
     @teams_group.command(name="list", description="[ADMIN] List all teams with status")
+    @app_commands.check(check_admin)
     async def admin_teams(self, interaction: discord.Interaction) -> None:
         """List all teams with member counts."""
-        # Check admin permissions
-        if not await check_admin(interaction):
-            return
-
         teams = [team async for team in Team.objects.all().order_by("team_number")]
         team_statuses = []
 
