@@ -69,14 +69,10 @@ class ScoringFormulaTests(TestCase):
         self.team1 = Team.objects.create(team_number=1, team_name="Test Team 1")
         self.team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
 
-        # Create scoring template with weights
+        # Create scoring template with multipliers
         self.template = ScoringTemplate.objects.create(
-            service_weight=Decimal("0.60"),
-            inject_weight=Decimal("0.30"),
-            orange_weight=Decimal("0.10"),
-            red_weight=Decimal("0.20"),
-            incident_recovery_weight=Decimal("0.12"),
-            sla_weight=Decimal("0.10"),
+            inject_multiplier=Decimal("1.4"),
+            orange_multiplier=Decimal("5.5"),
         )
 
     def test_simple_score_calculation(self) -> None:

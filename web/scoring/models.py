@@ -19,53 +19,9 @@ def validate_file_size(file: Any) -> Any:
 
 
 class ScoringTemplate(models.Model):
-    """Scoring configuration and weights for a competition."""
+    """Scoring configuration for a competition."""
 
-    # Weights for different scoring components
-    service_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.60"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for service uptime scores",
-    )
-    inject_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.30"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for inject scores",
-    )
-    orange_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.10"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for orange team bonuses",
-    )
-    red_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.20"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for red team deductions (applied as negative)",
-    )
-    incident_recovery_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.12"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for points returned from matched incident reports",
-    )
-    sla_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0.10"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("10"))],
-        help_text="Weight for SLA penalties (applied as negative)",
-    )
-
-    # Score multipliers (for scaling raw scores)
+    # Score multipliers
     inject_multiplier = models.DecimalField(
         max_digits=5,
         decimal_places=2,

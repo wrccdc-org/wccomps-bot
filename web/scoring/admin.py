@@ -262,27 +262,19 @@ class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
 @admin.register(ScoringTemplate)
 class ScoringTemplateAdmin(admin.ModelAdmin[ScoringTemplate]):
     list_display = [
-        "service_weight",
-        "inject_weight",
-        "orange_weight",
-        "red_weight",
-        "incident_recovery_weight",
-        "sla_weight",
+        "inject_multiplier",
+        "orange_multiplier",
         "updated_at",
     ]
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = [
         (
-            "Weights",
+            "Multipliers",
             {
                 "fields": [
-                    "service_weight",
-                    "inject_weight",
-                    "orange_weight",
-                    "red_weight",
-                    "incident_recovery_weight",
-                    "sla_weight",
+                    "inject_multiplier",
+                    "orange_multiplier",
                 ]
             },
         ),

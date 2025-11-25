@@ -272,25 +272,17 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
 
 
 class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
-    """Form for configuring scoring weights."""
+    """Form for configuring scoring multipliers."""
 
     class Meta:
         model = ScoringTemplate
         fields = [
-            "service_weight",
-            "inject_weight",
-            "orange_weight",
-            "red_weight",
-            "incident_recovery_weight",
-            "sla_weight",
+            "inject_multiplier",
+            "orange_multiplier",
         ]
         help_texts = {
-            "service_weight": "Multiplier for service uptime scores",
-            "inject_weight": "Multiplier for inject scores",
-            "orange_weight": "Multiplier for orange team bonuses",
-            "red_weight": "Multiplier for red team deductions",
-            "incident_recovery_weight": "Multiplier for incident recovery points",
-            "sla_weight": "Multiplier for SLA penalties",
+            "inject_multiplier": "Multiplier applied to inject scores (e.g., 1.4 = 140%)",
+            "orange_multiplier": "Multiplier applied to orange team scores (e.g., 5.5 = 550%)",
         }
 
 

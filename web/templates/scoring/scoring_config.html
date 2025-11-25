@@ -2,62 +2,52 @@
 {% load crispy_forms_tags %}
 
 {% block scoring_content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header">
-                <h4>Quotient Integration</h4>
-            </div>
-            <div class="card-body">
-                {% if metadata %}
-                <p><strong>Last Synced:</strong> {{ metadata.last_synced|date:"Y-m-d H:i:s" }}</p>
-                <p><strong>Event:</strong> {{ metadata.event_name }}</p>
-                <p><strong>Teams:</strong> {{ metadata.team_count }}</p>
-                <p><strong>Boxes:</strong> {{ metadata.boxes|length }}</p>
-                {% else %}
-                <div class="alert alert-warning">Metadata not synced yet</div>
-                {% endif %}
-
-                <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">Sync Metadata</button>
-                </form>
-
-                <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">Sync Service Scores</button>
-                </form>
-            </div>
-        </div>
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0">Scoring Formula</h4>
     </div>
-
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header">
-                <h4>Scoring Weights</h4>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    {{ form|crispy }}
-
-                    <div class="alert alert-info">
-                        <small>
-                            <strong>Weights determine scoring balance:</strong><br>
-                            Total = (services × service_weight) + (injects × inject_weight) + ...
-                        </small>
-                    </div>
-
-                    <button type="submit" class="btn btn-success">Update Weights</button>
-                </form>
-            </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <strong>Current Formula:</strong><br>
+            <code>Total = Service + (Injects × inject_multiplier) + (Orange × orange_multiplier) + Red + SLA</code>
         </div>
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-success">Update Multipliers</button>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0">Quotient Integration</h4>
+    </div>
+    <div class="card-body">
+        {% if metadata %}
+        <p><strong>Last Synced:</strong> {{ metadata.last_synced|date:"Y-m-d H:i:s" }}</p>
+        <p><strong>Event:</strong> {{ metadata.event_name }}</p>
+        <p><strong>Teams:</strong> {{ metadata.team_count }}</p>
+        <p><strong>Boxes:</strong> {{ metadata.boxes|length }}</p>
+        {% else %}
+        <div class="alert alert-warning">Metadata not synced yet</div>
+        {% endif %}
+
+        <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline me-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Sync Metadata</button>
+        </form>
+
+        <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Sync Service Scores</button>
+        </form>
     </div>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h4>Score Management</h4>
+        <h4 class="mb-0">Score Management</h4>
     </div>
     <div class="card-body">
         <form method="post" action="{% url 'scoring:recalculate_scores' %}">
@@ -65,7 +55,7 @@
             <button type="submit" class="btn btn-warning">Recalculate All Scores</button>
         </form>
         <p class="text-muted mt-2">
-            <small>Recalculates final scores for all teams based on current data and weights</small>
+            <small>Recalculates final scores for all teams based on current data and multipliers</small>
         </p>
     </div>
 </div>
