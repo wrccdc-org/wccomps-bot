@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Manage Packets - WCComps{% endblock %}
+{% block title %}Manage Team Packets - WCComps{% endblock %}
 
 {% block content %}
 <div id="content" class="colM">
@@ -15,7 +15,7 @@
     {% endif %}
 
     <div class="toolbar">
-        <a href="{% url 'ops_upload_packet' %}" class="button">+ Upload New Packet</a>
+        <a href="{% url 'ops_upload_packet' %}" class="button">+ Upload New Team Packet</a>
         <a href="/admin/packets/teampacket/" class="button">Django Admin</a>
     </div>
 
@@ -27,7 +27,6 @@
                         <th>Title</th>
                         <th>File</th>
                         <th>Status</th>
-                        <th>Scheduled</th>
                         <th>Distribution Stats</th>
                         <th>Created</th>
                         <th>Actions</th>
@@ -51,13 +50,6 @@
                                 <br>
                                 {% if packet.send_via_email %}<small>📧 Email</small>{% endif %}
                                 {% if packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
-                            </td>
-                            <td>
-                                {% if packet.scheduled_distribution_time %}
-                                    {{ packet.scheduled_distribution_time|date:"Y-m-d H:i" }}
-                                {% else %}
-                                    -
-                                {% endif %}
                             </td>
                             <td>
                                 {% with stats=packet.stats %}
@@ -93,7 +85,6 @@
 
 <style>
     .status-draft { background: #ffc; padding: 2px 8px; border-radius: 3px; }
-    .status-scheduled { background: #bbdefb; padding: 2px 8px; border-radius: 3px; }
     .status-distributing { background: #fff9c4; padding: 2px 8px; border-radius: 3px; }
     .status-completed { background: #c8e6c9; padding: 2px 8px; border-radius: 3px; }
     .status-cancelled { background: #ffcdd2; padding: 2px 8px; border-radius: 3px; }

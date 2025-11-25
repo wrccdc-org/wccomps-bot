@@ -9,7 +9,6 @@ class TeamPacket(models.Model):
 
     STATUS_CHOICES = [
         ("draft", "Draft"),
-        ("scheduled", "Scheduled"),
         ("distributing", "Distributing"),
         ("completed", "Completed"),
         ("cancelled", "Cancelled"),
@@ -25,12 +24,7 @@ class TeamPacket(models.Model):
         max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True
     )
 
-    # Scheduling
-    scheduled_distribution_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When to automatically distribute this packet",
-    )
+    # Distribution tracking
     actual_distribution_time = models.DateTimeField(
         null=True,
         blank=True,
@@ -73,11 +67,7 @@ class TeamPacket(models.Model):
 
     def is_ready_for_distribution(self) -> bool:
         """Check if packet is ready to be distributed."""
-        if self.status not in ["draft", "scheduled"]:
-            return False
-        if self.scheduled_distribution_time and self.scheduled_distribution_time > timezone.now():
-            return False
-        return True
+        return self.status == "draft"
 
     def mark_as_distributing(self) -> None:
         """Mark packet as currently being distributed."""

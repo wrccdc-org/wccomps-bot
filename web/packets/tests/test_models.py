@@ -34,23 +34,13 @@ class TeamPacketTestCase(TestCase):
         # Draft packet is ready
         self.assertTrue(self.packet.is_ready_for_distribution())
 
-        # Scheduled packet in future is not ready
-        self.packet.status = "scheduled"
-        self.packet.scheduled_distribution_time = timezone.now() + timezone.timedelta(
-            hours=1
-        )
+        # Distributing packet is not ready
+        self.packet.status = "distributing"
         self.packet.save()
         self.assertFalse(self.packet.is_ready_for_distribution())
 
-        # Scheduled packet in past is ready
-        self.packet.scheduled_distribution_time = timezone.now() - timezone.timedelta(
-            hours=1
-        )
-        self.packet.save()
-        self.assertTrue(self.packet.is_ready_for_distribution())
-
-        # Distributing packet is not ready
-        self.packet.status = "distributing"
+        # Completed packet is not ready
+        self.packet.status = "completed"
         self.packet.save()
         self.assertFalse(self.packet.is_ready_for_distribution())
 

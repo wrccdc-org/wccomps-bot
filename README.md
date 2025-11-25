@@ -86,7 +86,7 @@ Access levels based on Authentik groups:
 **Team Members:**
 - View tickets and point history at `/tickets/` and `/points/`
 - Create tickets at `/create-ticket/`
-- Access team packets at `/packets/`
+- Access team packets at `/team-packets/`
 
 **Ticketing Support:**
 - Full ticket dashboard at `/ops/tickets/`
@@ -103,7 +103,7 @@ Access levels based on Authentik groups:
 - All support features
 - Manage group role mappings at `/ops/group-role-mappings/`
 - Edit school info at `/ops/school-info/`
-- Upload and distribute team packets at `/packets/ops/`
+- Upload and distribute team packets at `/team-packets/ops/`
 
 **Admin:**
 - Full Django admin access at `/admin/`
@@ -120,36 +120,32 @@ Access levels based on Authentik groups:
 
 ## Team Packet Distribution
 
-Automate distribution of pre-competition information packets to all teams.
+Distribute pre-competition information packets to all teams on-demand.
 
 **Features:**
 - Upload single packet file (PDF, documents, etc.) up to 25 MB
 - Email distribution to team contact emails (from SchoolInfo)
 - Web download access for teams
-- Schedule distribution for specific date/time
 - Track email delivery and download status
 - Distribution statistics and reporting
 
 **GoldTeam Workflow:**
 
-1. Upload packet at `/packets/ops/upload/`
+1. Upload packet at `/team-packets/ops/upload/`
    - Set title and optional notes
    - Choose distribution methods (email and/or web)
-   - Optionally schedule for future distribution
 
-2. Monitor distribution at `/packets/ops/`
+2. Distribute immediately using "Distribute Now" button
+   - Sends emails to all teams (if enabled)
+   - Makes packet available for web download (if enabled)
+
+3. Monitor distribution at `/team-packets/ops/`
    - View email send status
    - Track team downloads
    - Export distribution reports to CSV
 
-3. Scheduled distribution runs automatically via cron:
-   ```bash
-   # Run every 5 minutes to check for scheduled packets
-   */5 * * * * cd /app/web && python manage.py process_scheduled_packets
-   ```
-
 **Team Member Access:**
-- View available packets at `/packets/`
+- View available packets at `/team-packets/`
 - Download packets directly from web interface
 - Receive email notifications with download link
 

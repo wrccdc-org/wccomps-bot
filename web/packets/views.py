@@ -1,12 +1,10 @@
-"""Views for packet distribution system."""
+"""Views for team packet distribution system."""
 
 import mimetypes
-from datetime import datetime
 
 from django.contrib import messages
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from core.auth_utils import get_user_team_number, require_permission
@@ -109,8 +107,6 @@ def ops_upload_packet(request):
         notes = request.POST.get("notes", "").strip()
         send_via_email = request.POST.get("send_via_email") == "on"
         web_access_enabled = request.POST.get("web_access_enabled") == "on"
-        schedule_distribution = request.POST.get("schedule_distribution") == "on"
-        scheduled_time_str = request.POST.get("scheduled_time", "").strip()
 
         # Validate
         if not title:
@@ -135,21 +131,6 @@ def ops_upload_packet(request):
         filename = uploaded_file.name
         mime_type = uploaded_file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
-        # Parse scheduled time if provided
-        scheduled_time = None
-        status = "draft"
-
-        if schedule_distribution and scheduled_time_str:
-            try:
-                # Parse datetime-local format: YYYY-MM-DDTHH:MM
-                scheduled_time = timezone.make_aware(
-                    datetime.strptime(scheduled_time_str, "%Y-%m-%dT%H:%M")
-                )
-                status = "scheduled"
-            except ValueError:
-                messages.error(request, "Invalid scheduled time format.")
-                return render(request, "packets/ops_upload_packet.html")
-
         # Create packet
         packet = TeamPacket.objects.create(
             title=title,
@@ -157,18 +138,17 @@ def ops_upload_packet(request):
             filename=filename,
             mime_type=mime_type,
             file_size=len(file_data),
-            status=status,
+            status="draft",
             send_via_email=send_via_email,
             web_access_enabled=web_access_enabled,
-            scheduled_distribution_time=scheduled_time,
             uploaded_by=request.user.username,
             notes=notes,
         )
 
         messages.success(
             request,
-            f"Packet '{title}' uploaded successfully. "
-            f"Status: {packet.get_status_display()}",
+            f"Team packet '{title}' uploaded successfully. "
+            f"Use 'Distribute Now' to send to all teams.",
         )
         return redirect("ops_packets_list")
 
@@ -200,7 +180,7 @@ def ops_distribute_packet(request, packet_id):
     """Manually trigger distribution of a packet."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
-    if packet.status not in ["draft", "scheduled"]:
+    if packet.status != "draft":
         messages.error(
             request, f"Cannot distribute packet with status: {packet.get_status_display()}"
         )
@@ -212,7 +192,7 @@ def ops_distribute_packet(request, packet_id):
 
         messages.success(
             request,
-            f"Distribution started. Emails sent: {result['email_sent']}, "
+            f"Team packet distributed. Emails sent: {result['email_sent']}, "
             f"Failed: {result['email_failed']}",
         )
     except Exception as e:

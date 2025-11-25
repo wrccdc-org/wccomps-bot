@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Packet - WCComps{% endblock %}
+{% block title %}Upload Team Packet - WCComps{% endblock %}
 
 {% block content %}
 <div id="content" class="colM">
@@ -18,7 +18,7 @@
         {% csrf_token %}
 
         <fieldset class="module aligned">
-            <h2>Packet Information</h2>
+            <h2>Team Packet Information</h2>
 
             <div class="form-row">
                 <div>
@@ -67,37 +67,12 @@
                     <p class="help">Allow teams to download from web interface</p>
                 </div>
             </div>
-
-            <div class="form-row">
-                <div>
-                    <label for="id_schedule_distribution">
-                        <input type="checkbox" name="schedule_distribution" id="id_schedule_distribution">
-                        Schedule distribution
-                    </label>
-                    <p class="help">Schedule packet to be sent automatically at a specific time</p>
-                </div>
-            </div>
-
-            <div class="form-row" id="scheduled_time_row" style="display: none;">
-                <div>
-                    <label for="id_scheduled_time">Scheduled Time:</label>
-                    <input type="datetime-local" name="scheduled_time" id="id_scheduled_time">
-                    <p class="help">When to automatically distribute this packet</p>
-                </div>
-            </div>
         </fieldset>
 
         <div class="submit-row">
-            <input type="submit" value="Upload Packet" class="default">
+            <input type="submit" value="Upload Team Packet" class="default">
             <a href="{% url 'ops_packets_list' %}" class="button">Cancel</a>
         </div>
     </form>
 </div>
-
-<script>
-    document.getElementById('id_schedule_distribution').addEventListener('change', function() {
-        document.getElementById('scheduled_time_row').style.display = this.checked ? 'block' : 'none';
-        document.getElementById('id_scheduled_time').required = this.checked;
-    });
-</script>
 {% endblock %}

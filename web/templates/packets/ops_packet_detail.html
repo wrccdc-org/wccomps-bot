@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Packet: {{ packet.title }} - WCComps{% endblock %}
+{% block title %}Team Packet: {{ packet.title }} - WCComps{% endblock %}
 
 {% block content %}
 <div id="content" class="colM">
-    <h1>Packet: {{ packet.title }}</h1>
+    <h1>Team Packet: {{ packet.title }}</h1>
 
     {% if messages %}
         {% for message in messages %}
@@ -44,12 +44,6 @@
                     {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
                 </td>
             </tr>
-            {% if packet.scheduled_distribution_time %}
-            <tr>
-                <th>Scheduled For:</th>
-                <td>{{ packet.scheduled_distribution_time }}</td>
-            </tr>
-            {% endif %}
             {% if packet.actual_distribution_time %}
             <tr>
                 <th>Distributed At:</th>
@@ -92,10 +86,10 @@
     </div>
 
     <div class="toolbar">
-        {% if packet.status in "draft,scheduled" %}
+        {% if packet.status == "draft" %}
             <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" style="display: inline;">
                 {% csrf_token %}
-                <input type="submit" value="Distribute Now" class="button" onclick="return confirm('Distribute this packet to all teams now?');">
+                <input type="submit" value="Distribute Now" class="button" onclick="return confirm('Distribute this team packet to all teams now?');">
             </form>
         {% endif %}
 
@@ -151,7 +145,6 @@
 
 <style>
     .status-draft { background: #ffc; padding: 2px 8px; border-radius: 3px; }
-    .status-scheduled { background: #bbdefb; padding: 2px 8px; border-radius: 3px; }
     .status-distributing { background: #fff9c4; padding: 2px 8px; border-radius: 3px; }
     .status-completed { background: #c8e6c9; padding: 2px 8px; border-radius: 3px; }
     .status-cancelled { background: #ffcdd2; padding: 2px 8px; border-radius: 3px; }

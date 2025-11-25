@@ -4,7 +4,7 @@
 
 {% block content %}
 <div id="content" class="colM">
-    <h1>Team Packets</h1>
+    <h1>Your Team Packets</h1>
 
     {% if messages %}
         {% for message in messages %}
@@ -19,7 +19,7 @@
             <table id="result_list">
                 <thead>
                     <tr>
-                        <th>Packet Title</th>
+                        <th>Team Packet Title</th>
                         <th>File</th>
                         <th>Distributed</th>
                         <th>Downloaded</th>
@@ -63,7 +63,7 @@
                 </tbody>
             </table>
         {% else %}
-            <p>No packets available at this time.</p>
+            <p>No team packets available at this time.</p>
         {% endif %}
     </div>
 

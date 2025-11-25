@@ -39,7 +39,6 @@ class TeamPacketAdmin(admin.ModelAdmin):
     list_display = [
         "title",
         "status",
-        "scheduled_distribution_time",
         "distribution_stats_display",
         "file_info",
         "created_at",
@@ -77,7 +76,6 @@ class TeamPacketAdmin(admin.ModelAdmin):
                 "fields": [
                     "send_via_email",
                     "web_access_enabled",
-                    "scheduled_distribution_time",
                     "actual_distribution_time",
                 ]
             },
@@ -170,14 +168,14 @@ class TeamPacketAdmin(admin.ModelAdmin):
 
         count = 0
         for packet in queryset:
-            if packet.status in ["draft", "scheduled"]:
+            if packet.status == "draft":
                 service = PacketDistributionService()
                 service.distribute_packet(packet)
                 count += 1
 
         self.message_user(
             request,
-            f"Started distribution for {count} packet(s).",
+            f"Started distribution for {count} team packet(s).",
         )
 
     @admin.action(description="Mark selected packets as completed")

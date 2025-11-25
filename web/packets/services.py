@@ -1,4 +1,4 @@
-"""Services for packet distribution."""
+"""Services for team packet distribution."""
 
 import logging
 from typing import Optional
@@ -7,7 +7,6 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
-from django.utils import timezone
 
 from team.models import SchoolInfo, Team
 
@@ -174,40 +173,3 @@ class PacketDistributionService:
                 f"Team {team.team_number} downloaded packet {packet.id} "
                 f"(download #{distribution.download_count})"
             )
-
-
-class ScheduledPacketDistributor:
-    """Service for checking and distributing scheduled packets."""
-
-    def process_scheduled_packets(self) -> dict[str, int]:
-        """
-        Process all packets scheduled for distribution.
-
-        Returns:
-            Dictionary with counts of packets processed
-        """
-        now = timezone.now()
-
-        # Find packets ready for distribution
-        packets = TeamPacket.objects.filter(
-            status="scheduled",
-            scheduled_distribution_time__lte=now,
-        )
-
-        service = PacketDistributionService()
-        processed = 0
-        failed = 0
-
-        for packet in packets:
-            try:
-                logger.info(f"Processing scheduled packet: {packet.title}")
-                service.distribute_packet(packet)
-                processed += 1
-            except Exception as e:
-                logger.error(f"Failed to distribute packet {packet.id}: {e}")
-                failed += 1
-
-        if processed > 0:
-            logger.info(f"Processed {processed} scheduled packet(s), {failed} failed")
-
-        return {"processed": processed, "failed": failed}

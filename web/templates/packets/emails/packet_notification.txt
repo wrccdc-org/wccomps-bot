@@ -5,7 +5,7 @@ A new team packet is available for download: {{ packet.title }}
 You can download the packet by visiting:
 {{ download_url }}
 
-Or log in to the WCComps portal at {{ BASE_URL }} and navigate to the Packets section.
+Or log in to the WCComps portal at {{ BASE_URL }} and navigate to the Team Packets section.
 
 Packet Details:
 - Title: {{ packet.title }}
