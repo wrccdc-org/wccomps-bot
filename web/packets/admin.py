@@ -1,14 +1,17 @@
 """Admin interface for packet distribution system."""
 
+from typing import Any
+
 from django.contrib import admin
-from django.db.models import Count, Q
+from django.db.models import Count, Q, QuerySet
+from django.http import HttpRequest, HttpResponse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .models import PacketDistribution, TeamPacket
 
 
-class PacketDistributionInline(admin.TabularInline):
+class PacketDistributionInline(admin.TabularInline[PacketDistribution, TeamPacket]):
     """Inline display of packet distributions."""
 
     model = PacketDistribution
@@ -28,12 +31,12 @@ class PacketDistributionInline(admin.TabularInline):
     ]
     can_delete = False
 
-    def has_add_permission(self, request, obj=None):
+    def has_add_permission(self, request: HttpRequest, obj: TeamPacket | None = None) -> bool:
         return False
 
 
 @admin.register(TeamPacket)
-class TeamPacketAdmin(admin.ModelAdmin):
+class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
     """Admin interface for team packets."""
 
     list_display = [
@@ -97,17 +100,13 @@ class TeamPacketAdmin(admin.ModelAdmin):
     inlines = [PacketDistributionInline]
     actions = ["distribute_now", "mark_as_completed", "export_distribution_report"]
 
-    def get_queryset(self, request):
+    def get_queryset(self, request: HttpRequest) -> QuerySet[TeamPacket]:
         """Optimize queryset with distribution counts."""
         qs = super().get_queryset(request)
         qs = qs.annotate(
             total_distributions=Count("distributions"),
-            sent_count=Count(
-                "distributions", filter=Q(distributions__email_status="sent")
-            ),
-            failed_count=Count(
-                "distributions", filter=Q(distributions__email_status="failed")
-            ),
+            sent_count=Count("distributions", filter=Q(distributions__email_status="sent")),
+            failed_count=Count("distributions", filter=Q(distributions__email_status="failed")),
             downloaded_count=Count(
                 "distributions",
                 filter=Q(distributions__downloaded_at__isnull=False),
@@ -115,13 +114,11 @@ class TeamPacketAdmin(admin.ModelAdmin):
         )
         return qs
 
-    def file_info(self, obj):
+    @admin.display(description="File")
+    def file_info(self, obj: TeamPacket) -> str:
         """Display file information."""
         size_kb = obj.file_size / 1024
-        if size_kb < 1024:
-            size_str = f"{size_kb:.1f} KB"
-        else:
-            size_str = f"{size_kb/1024:.1f} MB"
+        size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb / 1024:.1f} MB"
         return format_html(
             "{}<br><small>{} ({})</small>",
             obj.filename,
@@ -129,9 +126,8 @@ class TeamPacketAdmin(admin.ModelAdmin):
             size_str,
         )
 
-    file_info.short_description = "File"
-
-    def distribution_stats_display(self, obj):
+    @admin.display(description="Distribution Stats")
+    def distribution_stats_display(self, obj: Any) -> str:
         """Display distribution statistics."""
         if hasattr(obj, "total_distributions"):
             # From annotated queryset
@@ -148,21 +144,19 @@ class TeamPacketAdmin(admin.ModelAdmin):
         html = f"""
         <table style="width: 100%;">
             <tr>
-                <td><strong>Total:</strong> {stats['total']}</td>
-                <td><strong>Sent:</strong> {stats.get('sent', 0)}</td>
+                <td><strong>Total:</strong> {stats["total"]}</td>
+                <td><strong>Sent:</strong> {stats.get("sent", 0)}</td>
             </tr>
             <tr>
-                <td><strong>Failed:</strong> {stats.get('failed', 0)}</td>
-                <td><strong>Downloaded:</strong> {stats.get('downloaded', 0)}</td>
+                <td><strong>Failed:</strong> {stats.get("failed", 0)}</td>
+                <td><strong>Downloaded:</strong> {stats.get("downloaded", 0)}</td>
             </tr>
         </table>
         """
-        return mark_safe(html)
-
-    distribution_stats_display.short_description = "Distribution Stats"
+        return mark_safe(html)  # noqa: S308
 
     @admin.action(description="Distribute selected packets now")
-    def distribute_now(self, request, queryset):
+    def distribute_now(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> None:
         """Trigger immediate distribution of selected packets."""
         from .services import PacketDistributionService
 
@@ -179,56 +173,57 @@ class TeamPacketAdmin(admin.ModelAdmin):
         )
 
     @admin.action(description="Mark selected packets as completed")
-    def mark_as_completed(self, request, queryset):
+    def mark_as_completed(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> None:
         """Mark selected packets as completed."""
         count = queryset.update(status="completed")
         self.message_user(request, f"Marked {count} packet(s) as completed.")
 
     @admin.action(description="Export distribution report to CSV")
-    def export_distribution_report(self, request, queryset):
+    def export_distribution_report(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> HttpResponse:
         """Export distribution report as CSV."""
         import csv
+
         from django.http import HttpResponse
 
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="packet_distribution_report.csv"'
 
         writer = csv.writer(response)
-        writer.writerow([
-            "Packet Title",
-            "Team Number",
-            "Team Name",
-            "Email Status",
-            "Email Sent To",
-            "Email Sent At",
-            "Downloaded",
-            "Download Count",
-            "Last Downloaded",
-        ])
+        writer.writerow(
+            [
+                "Packet Title",
+                "Team Number",
+                "Team Name",
+                "Email Status",
+                "Email Sent To",
+                "Email Sent At",
+                "Downloaded",
+                "Download Count",
+                "Last Downloaded",
+            ]
+        )
 
         for packet in queryset:
-            for dist in packet.distributions.select_related("team").order_by(
-                "team__team_number"
-            ):
-                writer.writerow([
-                    packet.title,
-                    dist.team.team_number,
-                    dist.team.team_name,
-                    dist.email_status,
-                    dist.email_sent_to,
-                    dist.email_sent_at.isoformat() if dist.email_sent_at else "",
-                    "Yes" if dist.downloaded_at else "No",
-                    dist.download_count,
-                    dist.last_downloaded_at.isoformat()
-                    if dist.last_downloaded_at
-                    else "",
-                ])
+            for dist in packet.distributions.select_related("team").order_by("team__team_number"):
+                writer.writerow(
+                    [
+                        packet.title,
+                        dist.team.team_number,
+                        dist.team.team_name,
+                        dist.email_status,
+                        dist.email_sent_to,
+                        dist.email_sent_at.isoformat() if dist.email_sent_at else "",
+                        "Yes" if dist.downloaded_at else "No",
+                        dist.download_count,
+                        dist.last_downloaded_at.isoformat() if dist.last_downloaded_at else "",
+                    ]
+                )
 
         return response
 
 
 @admin.register(PacketDistribution)
-class PacketDistributionAdmin(admin.ModelAdmin):
+class PacketDistributionAdmin(admin.ModelAdmin[PacketDistribution]):
     """Admin interface for packet distributions."""
 
     list_display = [
@@ -301,25 +296,25 @@ class PacketDistributionAdmin(admin.ModelAdmin):
     ]
     actions = ["retry_failed_emails"]
 
-    def download_info(self, obj):
+    @admin.display(description="Downloads")
+    def download_info(self, obj: PacketDistribution) -> str:
         """Display download information."""
         if obj.download_count > 0:
             return format_html(
                 "{} download(s)<br><small>Last: {}</small>",
                 obj.download_count,
-                obj.last_downloaded_at.strftime("%Y-%m-%d %H:%M")
-                if obj.last_downloaded_at
-                else "Never",
+                obj.last_downloaded_at.strftime("%Y-%m-%d %H:%M") if obj.last_downloaded_at else "Never",
             )
         return "Not downloaded"
 
-    download_info.short_description = "Downloads"
-
     @admin.action(description="Retry sending failed emails")
-    def retry_failed_emails(self, request, queryset):
+    def retry_failed_emails(self, request: HttpRequest, queryset: QuerySet[PacketDistribution]) -> None:
         """Retry sending emails for failed distributions."""
+        import logging
+
         from .services import PacketDistributionService
 
+        logger = logging.getLogger(__name__)
         service = PacketDistributionService()
         failed_dists = queryset.filter(email_status="failed")
         count = 0
@@ -328,8 +323,8 @@ class PacketDistributionAdmin(admin.ModelAdmin):
             try:
                 service.send_packet_email(dist)
                 count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                logger.exception(f"Failed to retry email for distribution {dist.id}: {e}")
 
         self.message_user(
             request,

@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("team", "0008_enable_nov15_and_later_links"),
+        ("team", "0001_initial"),
     ]
 
     operations = [

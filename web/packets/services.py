@@ -1,7 +1,6 @@
 """Services for team packet distribution."""
 
 import logging
-from typing import Optional
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -58,34 +57,30 @@ class PacketDistributionService:
     def _create_distributions_for_teams(self, packet: TeamPacket) -> int:
         """Create PacketDistribution records for all active teams."""
         teams = Team.objects.filter(is_active=True)
-        distributions = []
 
-        for team in teams:
-            # Check if distribution already exists
-            if not PacketDistribution.objects.filter(
-                packet=packet, team=team
-            ).exists():
-                distributions.append(
-                    PacketDistribution(
-                        packet=packet,
-                        team=team,
-                        web_access_enabled=packet.web_access_enabled,
-                    )
-                )
+        # Get teams that don't already have distributions
+        existing_teams = PacketDistribution.objects.filter(packet=packet).values_list("team_id", flat=True)
+        teams_to_create = teams.exclude(id__in=existing_teams)
+
+        # Create distributions for teams that don't have them
+        distributions = [
+            PacketDistribution(
+                packet=packet,
+                team=team,
+                web_access_enabled=packet.web_access_enabled,
+            )
+            for team in teams_to_create
+        ]
 
         if distributions:
             PacketDistribution.objects.bulk_create(distributions)
-            logger.info(
-                f"Created {len(distributions)} distributions for packet {packet.id}"
-            )
+            logger.info(f"Created {len(distributions)} distributions for packet {packet.id}")
 
         return len(distributions)
 
     def _send_emails_for_packet(self, packet: TeamPacket) -> dict[str, int]:
         """Send emails for all pending distributions of a packet."""
-        distributions = PacketDistribution.objects.filter(
-            packet=packet, email_status="pending"
-        ).select_related("team")
+        distributions = PacketDistribution.objects.filter(packet=packet, email_status="pending").select_related("team")
 
         sent_count = 0
         failed_count = 0
@@ -95,9 +90,7 @@ class PacketDistributionService:
                 self.send_packet_email(dist)
                 sent_count += 1
             except Exception as e:
-                logger.error(
-                    f"Failed to send packet email to team {dist.team.team_number}: {e}"
-                )
+                logger.error(f"Failed to send packet email to team {dist.team.team_number}: {e}")
                 dist.mark_as_failed(str(e))
                 failed_count += 1
 
@@ -145,11 +138,9 @@ class PacketDistributionService:
 
         # Mark as sent
         distribution.mark_as_sent(email_address)
-        logger.info(
-            f"Sent packet {packet.id} to team {team.team_number} at {email_address}"
-        )
+        logger.info(f"Sent packet {packet.id} to team {team.team_number} at {email_address}")
 
-    def _get_team_email(self, team: Team) -> Optional[str]:
+    def _get_team_email(self, team: Team) -> str | None:
         """Get email address for a team from SchoolInfo."""
         try:
             school_info = SchoolInfo.objects.get(team=team)
@@ -158,9 +149,7 @@ class PacketDistributionService:
             logger.warning(f"No SchoolInfo found for team {team.team_number}")
             return None
 
-    def record_packet_download(
-        self, packet: TeamPacket, team: Team, username: str
-    ) -> None:
+    def record_packet_download(self, packet: TeamPacket, team: Team, username: str) -> None:
         """Record that a team downloaded a packet."""
         with transaction.atomic():
             distribution, created = PacketDistribution.objects.get_or_create(
@@ -170,6 +159,5 @@ class PacketDistributionService:
             )
             distribution.record_download(username)
             logger.info(
-                f"Team {team.team_number} downloaded packet {packet.id} "
-                f"(download #{distribution.download_count})"
+                f"Team {team.team_number} downloaded packet {packet.id} (download #{distribution.download_count})"
             )

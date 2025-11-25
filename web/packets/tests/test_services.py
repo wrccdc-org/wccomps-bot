@@ -1,7 +1,8 @@
 """Tests for packet services."""
 
-from django.test import TestCase
 from unittest.mock import MagicMock, patch
+
+from django.test import TestCase
 
 from team.models import SchoolInfo, Team
 
@@ -59,9 +60,7 @@ class PacketDistributionServiceTestCase(TestCase):
     def test_send_packet_email(self, mock_email_class):
         """Test sending packet email."""
         team = Team.objects.get(team_number=1)
-        distribution = PacketDistribution.objects.create(
-            packet=self.packet, team=team
-        )
+        distribution = PacketDistribution.objects.create(packet=self.packet, team=team)
 
         # Mock email sending
         mock_email = MagicMock()

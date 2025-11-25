@@ -1,9 +1,12 @@
 """Views for team packet distribution system."""
 
 import mimetypes
+from typing import Any, cast
 
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import UploadedFile
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
@@ -16,9 +19,9 @@ from .services import PacketDistributionService
 
 @require_GET
 @require_permission("blue_team")
-def team_packets_list(request):
+def team_packets_list(request: HttpRequest) -> HttpResponse:
     """List all available packets for the current team."""
-    team_number = get_user_team_number(request.user)
+    team_number = get_user_team_number(cast(User, request.user))
     if not team_number:
         messages.error(request, "You are not assigned to a team.")
         return redirect("/")
@@ -36,8 +39,7 @@ def team_packets_list(request):
     available_distributions = [
         dist
         for dist in distributions
-        if dist.packet.status in ["distributing", "completed"]
-        and dist.packet.web_access_enabled
+        if dist.packet.status in ["distributing", "completed"] and dist.packet.web_access_enabled
     ]
 
     context = {
@@ -49,7 +51,7 @@ def team_packets_list(request):
 
 
 @require_GET
-def download_packet(request, packet_id):
+def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Download a packet file."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
@@ -61,7 +63,7 @@ def download_packet(request, packet_id):
         raise Http404("Packet not available for web access")
 
     # Get user's team
-    team_number = get_user_team_number(request.user)
+    team_number = get_user_team_number(cast(User, request.user))
     if not team_number:
         messages.error(request, "You are not assigned to a team.")
         return redirect("/")
@@ -82,16 +84,17 @@ def download_packet(request, packet_id):
 
 @require_GET
 @require_permission("gold_team")
-def ops_packets_list(request):
+def ops_packets_list(request: HttpRequest) -> HttpResponse:
     """List all packets for GoldTeam administrators."""
-    packets = TeamPacket.objects.all().order_by("-created_at")
+    packets = list(TeamPacket.objects.all().order_by("-created_at"))
 
-    # Add distribution stats to each packet
-    for packet in packets:
-        packet.stats = packet.get_distribution_stats()
+    # Build packets with stats for template
+    packets_with_stats: list[dict[str, Any]] = [
+        {"packet": packet, "stats": packet.get_distribution_stats()} for packet in packets
+    ]
 
     context = {
-        "packets": packets,
+        "packets_with_stats": packets_with_stats,
     }
 
     return render(request, "packets/ops_packets_list.html", context)
@@ -99,7 +102,7 @@ def ops_packets_list(request):
 
 @require_http_methods(["GET", "POST"])
 @require_permission("gold_team")
-def ops_upload_packet(request):
+def ops_upload_packet(request: HttpRequest) -> HttpResponse:
     """Upload a new team packet."""
     if request.method == "POST":
         # Get form data
@@ -118,21 +121,22 @@ def ops_upload_packet(request):
             messages.error(request, "Please select a file to upload.")
             return render(request, "packets/ops_upload_packet.html")
 
-        uploaded_file = request.FILES["packet_file"]
+        uploaded_file = cast(UploadedFile, request.FILES["packet_file"])
 
         # Validate file size (max 25 MB)
         max_size = 25 * 1024 * 1024
-        if uploaded_file.size > max_size:
+        file_size = uploaded_file.size or 0
+        if file_size > max_size:
             messages.error(request, "File size must not exceed 25 MB.")
             return render(request, "packets/ops_upload_packet.html")
 
         # Read file data
         file_data = uploaded_file.read()
-        filename = uploaded_file.name
+        filename = uploaded_file.name or "unnamed"
         mime_type = uploaded_file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
         # Create packet
-        packet = TeamPacket.objects.create(
+        TeamPacket.objects.create(
             title=title,
             file_data=file_data,
             filename=filename,
@@ -147,8 +151,7 @@ def ops_upload_packet(request):
 
         messages.success(
             request,
-            f"Team packet '{title}' uploaded successfully. "
-            f"Use 'Distribute Now' to send to all teams.",
+            f"Team packet '{title}' uploaded successfully. Use 'Distribute Now' to send to all teams.",
         )
         return redirect("ops_packets_list")
 
@@ -157,13 +160,11 @@ def ops_upload_packet(request):
 
 @require_GET
 @require_permission("gold_team")
-def ops_packet_detail(request, packet_id):
+def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     """View packet details and distribution status."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
-    distributions = packet.distributions.select_related("team").order_by(
-        "team__team_number"
-    )
+    distributions = packet.distributions.select_related("team").order_by("team__team_number")
 
     context = {
         "packet": packet,
@@ -176,14 +177,12 @@ def ops_packet_detail(request, packet_id):
 
 @require_POST
 @require_permission("gold_team")
-def ops_distribute_packet(request, packet_id):
+def ops_distribute_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Manually trigger distribution of a packet."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
     if packet.status != "draft":
-        messages.error(
-            request, f"Cannot distribute packet with status: {packet.get_status_display()}"
-        )
+        messages.error(request, f"Cannot distribute packet with status: {packet.get_status_display()}")
         return redirect("ops_packet_detail", packet_id=packet_id)
 
     try:
@@ -192,8 +191,7 @@ def ops_distribute_packet(request, packet_id):
 
         messages.success(
             request,
-            f"Team packet distributed. Emails sent: {result['email_sent']}, "
-            f"Failed: {result['email_failed']}",
+            f"Team packet distributed. Emails sent: {result['email_sent']}, Failed: {result['email_failed']}",
         )
     except Exception as e:
         messages.error(request, f"Distribution failed: {e}")
@@ -203,7 +201,7 @@ def ops_distribute_packet(request, packet_id):
 
 @require_POST
 @require_permission("gold_team")
-def ops_cancel_packet(request, packet_id):
+def ops_cancel_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Cancel a packet distribution."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 

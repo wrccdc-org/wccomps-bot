@@ -1,7 +1,6 @@
 """Tests for packet models."""
 
 from django.test import TestCase
-from django.utils import timezone
 
 from team.models import Team
 
@@ -61,9 +60,7 @@ class PacketDistributionTestCase(TestCase):
 
     def setUp(self):
         """Create test data."""
-        self.team = Team.objects.create(
-            team_number=1, team_name="Test Team", authentik_group="WCComps_BlueTeam01"
-        )
+        self.team = Team.objects.create(team_number=1, team_name="Test Team", authentik_group="WCComps_BlueTeam01")
         self.packet = TeamPacket.objects.create(
             title="Test Packet",
             file_data=b"test file content",
@@ -72,9 +69,7 @@ class PacketDistributionTestCase(TestCase):
             file_size=100,
             uploaded_by="testuser",
         )
-        self.distribution = PacketDistribution.objects.create(
-            packet=self.packet, team=self.team
-        )
+        self.distribution = PacketDistribution.objects.create(packet=self.packet, team=self.team)
 
     def test_distribution_creation(self):
         """Test distribution can be created."""

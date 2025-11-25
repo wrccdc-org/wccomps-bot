@@ -20,7 +20,7 @@
     </div>
 
     <div class="module">
-        {% if packets %}
+        {% if packets_with_stats %}
             <table id="result_list">
                 <thead>
                     <tr>
@@ -33,42 +33,40 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for packet in packets %}
+                    {% for item in packets_with_stats %}
                         <tr>
                             <td>
-                                <strong>{{ packet.title }}</strong>
-                                {% if packet.notes %}
-                                    <br><small>{{ packet.notes|truncatewords:15 }}</small>
+                                <strong>{{ item.packet.title }}</strong>
+                                {% if item.packet.notes %}
+                                    <br><small>{{ item.packet.notes|truncatewords:15 }}</small>
                                 {% endif %}
                             </td>
                             <td>
-                                {{ packet.filename }}
-                                <br><small>{{ packet.file_size|filesizeformat }}</small>
+                                {{ item.packet.filename }}
+                                <br><small>{{ item.packet.file_size|filesizeformat }}</small>
                             </td>
                             <td>
-                                <span class="status-{{ packet.status }}">{{ packet.get_status_display }}</span>
+                                <span class="status-{{ item.packet.status }}">{{ item.packet.get_status_display }}</span>
                                 <br>
-                                {% if packet.send_via_email %}<small>📧 Email</small>{% endif %}
-                                {% if packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
+                                {% if item.packet.send_via_email %}<small>📧 Email</small>{% endif %}
+                                {% if item.packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
                             </td>
                             <td>
-                                {% with stats=packet.stats %}
-                                    <small>
-                                        Total: {{ stats.total }}<br>
-                                        Sent: {{ stats.sent }}<br>
-                                        Downloaded: {{ stats.downloaded }}
-                                        {% if stats.failed > 0 %}
-                                            <br><span style="color: red;">Failed: {{ stats.failed }}</span>
-                                        {% endif %}
-                                    </small>
-                                {% endwith %}
+                                <small>
+                                    Total: {{ item.stats.total }}<br>
+                                    Sent: {{ item.stats.sent }}<br>
+                                    Downloaded: {{ item.stats.downloaded }}
+                                    {% if item.stats.failed > 0 %}
+                                        <br><span style="color: red;">Failed: {{ item.stats.failed }}</span>
+                                    {% endif %}
+                                </small>
                             </td>
                             <td>
-                                {{ packet.created_at|date:"Y-m-d H:i" }}
-                                <br><small>by {{ packet.uploaded_by }}</small>
+                                {{ item.packet.created_at|date:"Y-m-d H:i" }}
+                                <br><small>by {{ item.packet.uploaded_by }}</small>
                             </td>
                             <td>
-                                <a href="{% url 'ops_packet_detail' packet.id %}" class="button">View</a>
+                                <a href="{% url 'ops_packet_detail' item.packet.id %}" class="button">View</a>
                             </td>
                         </tr>
                     {% endfor %}

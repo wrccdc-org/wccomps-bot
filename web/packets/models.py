@@ -20,9 +20,7 @@ class TeamPacket(models.Model):
     mime_type = models.CharField(max_length=100, help_text="MIME type of the file")
     file_size = models.IntegerField(help_text="File size in bytes")
 
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft", db_index=True)
 
     # Distribution tracking
     actual_distribution_time = models.DateTimeField(
@@ -32,12 +30,8 @@ class TeamPacket(models.Model):
     )
 
     # Distribution methods
-    send_via_email = models.BooleanField(
-        default=True, help_text="Send packet via email to team contacts"
-    )
-    web_access_enabled = models.BooleanField(
-        default=True, help_text="Allow teams to download from web interface"
-    )
+    send_via_email = models.BooleanField(default=True, help_text="Send packet via email to team contacts")
+    web_access_enabled = models.BooleanField(default=True, help_text="Allow teams to download from web interface")
 
     # Metadata
     uploaded_by = models.CharField(max_length=255, help_text="Username who uploaded")
@@ -58,10 +52,10 @@ class TeamPacket(models.Model):
         distributions = self.distributions.all()
         return {
             "total": distributions.count(),
-            "pending": distributions.filter(status="pending").count(),
-            "sent": distributions.filter(status="sent").count(),
-            "delivered": distributions.filter(status="delivered").count(),
-            "failed": distributions.filter(status="failed").count(),
+            "pending": distributions.filter(email_status="pending").count(),
+            "sent": distributions.filter(email_status="sent").count(),
+            "delivered": distributions.filter(email_status="delivered").count(),
+            "failed": distributions.filter(email_status="failed").count(),
             "downloaded": distributions.filter(downloaded_at__isnull=False).count(),
         }
 
@@ -92,33 +86,21 @@ class PacketDistribution(models.Model):
         ("bounced", "Bounced"),
     ]
 
-    packet = models.ForeignKey(
-        TeamPacket, on_delete=models.CASCADE, related_name="distributions"
-    )
+    packet = models.ForeignKey(TeamPacket, on_delete=models.CASCADE, related_name="distributions")
     team = models.ForeignKey("team.Team", on_delete=models.CASCADE)
 
     # Email delivery tracking
-    email_status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True
-    )
-    email_sent_to = models.EmailField(
-        blank=True, help_text="Email address where packet was sent"
-    )
+    email_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending", db_index=True)
+    email_sent_to = models.EmailField(blank=True, help_text="Email address where packet was sent")
     email_sent_at = models.DateTimeField(null=True, blank=True)
     email_error_message = models.TextField(blank=True)
 
     # Web access tracking
     web_access_enabled = models.BooleanField(default=True)
-    downloaded_at = models.DateTimeField(
-        null=True, blank=True, help_text="First time packet was downloaded"
-    )
-    download_count = models.IntegerField(
-        default=0, help_text="Number of times downloaded"
-    )
+    downloaded_at = models.DateTimeField(null=True, blank=True, help_text="First time packet was downloaded")
+    download_count = models.IntegerField(default=0, help_text="Number of times downloaded")
     last_downloaded_at = models.DateTimeField(null=True, blank=True)
-    downloaded_by = models.CharField(
-        max_length=255, blank=True, help_text="Username who last downloaded"
-    )
+    downloaded_by = models.CharField(max_length=255, blank=True, help_text="Username who last downloaded")
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
