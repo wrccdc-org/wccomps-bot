@@ -21,7 +21,7 @@
         <a href="{% url 'scoring:inject_grading' %}" style="font-weight: {% if 'inject' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
             Inject Grading
         </a>
-        <a href="{% url 'scoring:review_incidents' %}" style="font-weight: {% if 'review' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
+        <a href="{% url 'scoring:review_incidents' %}" style="font-weight: {% if 'review_incident' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
             Review Incidents
         </a>
         {% if is_ticketing_admin %}
