@@ -62,7 +62,7 @@ class AdminHelpersCog(commands.Cog):
                 if not (has_support or has_injects):
                     return (
                         None,
-                        "User must have either WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik",
+                        "User must have WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik",
                     )
 
                 # Check if helper already exists
@@ -86,7 +86,9 @@ class AdminHelpersCog(commands.Cog):
             role = discord.utils.get(guild.roles, name=role_name)
             if not role:
                 # Create the role
-                role = await guild.create_role(name=role_name, reason=f"Student helper role created by {interaction.user}")
+                role = await guild.create_role(
+                    name=role_name, reason=f"Student helper role created by {interaction.user}"
+                )
                 logger.info(f"Created new role: {role_name}")
 
             # Assign role to user
@@ -127,21 +129,155 @@ class AdminHelpersCog(commands.Cog):
             helper = await create_helper()
 
             # Build response message
-            msg = f"✅ **Student helper added successfully!**\n\n"
+            msg = "✅ **Student helper added successfully!**\n\n"
             msg += f"**Helper:** {discord_user.mention} ({helper.authentik_username})\n"
             msg += f"**Role:** {role_name}\n"
-            msg += f"**Status:** Active\n\n"
+            msg += "**Status:** Active\n\n"
             msg += "The role will be removed when `/competition end-competition` is run."
 
             await interaction.followup.send(msg, ephemeral=True)
             await log_to_ops_channel(
                 self.bot,
-                f"**Student Helper Added**\n{interaction.user.mention} added {discord_user.mention} with role '{role_name}'",
+                f"**Student Helper Added**\n{interaction.user.mention} added "
+                f"{discord_user.mention} with role '{role_name}'",
             )
 
         except Exception as e:
             logger.exception(f"Error adding student helper: {e}")
             await interaction.followup.send(f"❌ Error adding helper: {e}", ephemeral=True)
+
+    @helpers_group.command(name="import", description="[ADMIN] Import all users with a Discord role as helpers")
+    @app_commands.check(check_admin)
+    @app_commands.describe(
+        role="Discord role to import members from",
+    )
+    async def import_helpers(
+        self,
+        interaction: discord.Interaction,
+        role: discord.Role,
+    ) -> None:
+        """Import all members with a specific Discord role as student helpers."""
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("❌ Could not find guild", ephemeral=True)
+                return
+
+            # Get all members with this role
+            members_with_role = [member for member in guild.members if role in member.roles]
+
+            if not members_with_role:
+                await interaction.followup.send(f"❌ No members found with role '{role.name}'", ephemeral=True)
+                return
+
+            # Process each member
+            imported = 0
+            skipped = []
+            errors = []
+
+            for member in members_with_role:
+                try:
+                    # Check if person exists and has required permissions
+                    @sync_to_async
+                    def check_and_import(member_id: int):  # type: ignore[no-untyped-def]
+                        try:
+                            person = Person.objects.get(discord_id=member_id)
+                        except Person.DoesNotExist:
+                            return "not_linked", None
+
+                        # Check if user has required group
+                        has_support = person.has_group("WCComps_Ticketing_Support")
+                        has_injects = person.has_group("WCComps_Quotient_Injects")
+
+                        if not (has_support or has_injects):
+                            return "no_permission", None
+
+                        # Check if helper already exists
+                        existing = StudentHelper.objects.filter(person=person, status="active").first()
+                        if existing:
+                            return "already_exists", existing.discord_role_name
+
+                        # Create helper
+                        django_user = User.objects.filter(person=person).first()
+                        if person.discord_id is None:
+                            return "not_linked", None
+                        helper = StudentHelper.objects.create(
+                            person=person,
+                            discord_id=person.discord_id,
+                            discord_username=person.discord_username,
+                            authentik_username=person.authentik_username,
+                            discord_role_name=role.name,
+                            discord_role_id=role.id,
+                            status="active",
+                            activated_at=timezone.now(),
+                            created_by=django_user if django_user else None,
+                        )
+
+                        # Create audit log
+                        AuditLog.objects.create(
+                            action="helper_imported",
+                            admin_user=str(interaction.user),
+                            target_entity="student_helper",
+                            target_id=helper.id,
+                            details={
+                                "discord_id": helper.discord_id,
+                                "discord_username": helper.discord_username,
+                                "authentik_username": helper.authentik_username,
+                                "role_name": role.name,
+                                "import_source": "bulk_role_import",
+                            },
+                        )
+
+                        return "success", None
+
+                    result, existing_role = await check_and_import(member.id)
+
+                    if result == "success":
+                        imported += 1
+                    elif result == "not_linked":
+                        skipped.append(f"{member.display_name}: Not linked")
+                    elif result == "no_permission":
+                        skipped.append(f"{member.display_name}: Missing Authentik group")
+                    elif result == "already_exists":
+                        skipped.append(f"{member.display_name}: Already has role '{existing_role}'")
+
+                except Exception as e:
+                    logger.exception(f"Error importing {member.display_name}: {e}")
+                    errors.append(f"{member.display_name}: {str(e)[:50]}")
+
+            # Build response
+            msg = "✅ **Bulk Import Complete**\n\n"
+            msg += f"**Role:** {role.name}\n"
+            msg += f"**Members with role:** {len(members_with_role)}\n"
+            msg += f"**Imported:** {imported}\n"
+            msg += f"**Skipped:** {len(skipped)}\n"
+
+            if errors:
+                msg += f"**Errors:** {len(errors)}\n"
+
+            # Add details for skipped (limit to 10)
+            if skipped:
+                msg += "\n**Skipped Details (showing first 10):**\n"
+                for skip in skipped[:10]:
+                    msg += f"• {skip}\n"
+                if len(skipped) > 10:
+                    msg += f"• ... and {len(skipped) - 10} more\n"
+
+            await interaction.followup.send(msg, ephemeral=True)
+
+            if imported > 0:
+                await log_to_ops_channel(
+                    self.bot,
+                    f"**Bulk Helper Import**\n{interaction.user.mention} imported "
+                    f"{imported} helpers with role '{role.name}'\n"
+                    f"Skipped: {len(skipped)} | Errors: {len(errors)}",
+                )
+
+        except Exception as e:
+            logger.exception(f"Error importing helpers: {e}")
+            await interaction.followup.send(f"❌ Error importing helpers: {e}", ephemeral=True)
 
     @helpers_group.command(name="list", description="[ADMIN] List all student helpers")
     @app_commands.check(check_gold_team)
@@ -172,7 +308,7 @@ class AdminHelpersCog(commands.Cog):
 
             if not helpers:
                 await interaction.followup.send(
-                    f"No helpers found" + (f" with status '{status}'" if status != "all" else ""),
+                    "No helpers found" + (f" with status '{status}'" if status != "all" else ""),
                     ephemeral=True,
                 )
                 return
@@ -191,12 +327,14 @@ class AdminHelpersCog(commands.Cog):
                 }.get(helper.status, "❓")
 
                 field_name = f"{status_emoji} {helper.discord_username}"
-                field_value = f"**Role:** {helper.discord_role_name}\n" f"**Status:** {helper.get_status_display()}\n"
+                field_value = f"**Role:** {helper.discord_role_name}\n**Status:** {helper.get_status_display()}\n"
 
                 if helper.status == "active":
-                    field_value += f"**Activated:** {helper.activated_at.strftime('%m/%d %H:%M') if helper.activated_at else 'N/A'}\n"
+                    activated = helper.activated_at.strftime("%m/%d %H:%M") if helper.activated_at else "N/A"
+                    field_value += f"**Activated:** {activated}\n"
                 elif helper.status == "removed":
-                    field_value += f"**Removed:** {helper.deactivated_at.strftime('%m/%d %H:%M') if helper.deactivated_at else 'N/A'}\n"
+                    removed = helper.deactivated_at.strftime("%m/%d %H:%M") if helper.deactivated_at else "N/A"
+                    field_value += f"**Removed:** {removed}\n"
                     if helper.removal_reason:
                         field_value += f"**Reason:** {helper.removal_reason[:50]}\n"
 
@@ -284,7 +422,7 @@ class AdminHelpersCog(commands.Cog):
                 except Exception as e:
                     logger.warning(f"Could not remove role from user: {e}")
 
-            msg = f"✅ **Helper access removed**\n\n"
+            msg = "✅ **Helper access removed**\n\n"
             msg += f"**User:** {discord_user.mention}\n"
             msg += f"**Role:** {helper.discord_role_name}\n"
             msg += f"**Reason:** {reason}"
@@ -292,7 +430,8 @@ class AdminHelpersCog(commands.Cog):
             await interaction.followup.send(msg, ephemeral=True)
             await log_to_ops_channel(
                 self.bot,
-                f"**Helper Removed**\n{interaction.user.mention} removed helper access for {discord_user.mention}\n**Reason:** {reason}",
+                f"**Helper Removed**\n{interaction.user.mention} removed helper access "
+                f"for {discord_user.mention}\n**Reason:** {reason}",
             )
 
         except Exception as e:

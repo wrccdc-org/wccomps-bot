@@ -77,7 +77,8 @@ Everyone runs `/link` in Discord to connect their account to Authentik. Team ass
 - `/tickets reopen <ticket_number>` - Reopen ticket (admin only)
 
 **Student Helpers (`/helpers`):**
-- `/helpers add <user> <role_name>` - Add student helper with Discord role
+- `/helpers add <user> <role_name>` - Add single student helper with Discord role
+- `/helpers import <role>` - Import all users with a Discord role as helpers
 - `/helpers list [status]` - List all student helpers
 - `/helpers remove <user> [reason]` - Remove helper access
 - `/helpers status <user>` - Check student helper status
@@ -130,21 +131,34 @@ Student helpers are temporary support staff for invitationals who are assigned D
 - User must first link Discord account with `/link`
 - User must have either `WCComps_Ticketing_Support` OR `WCComps_Quotient_Injects` group in Authentik
 
-**Workflow:**
-1. **Add Helper:** Admin runs `/helpers add @user "UCI Invitationals 2026"`
+**Workflow Options:**
+
+**Option 1: Add Individual Helpers**
+1. Admin runs `/helpers add @user "UCI Invitationals 2026"`
    - Discord role is created (if it doesn't exist) and immediately assigned
    - User gains access to team channels through the role
    - Assignment is tracked in database
 
-2. **During Event:** Helper has the role and can access team channels
+**Option 2: Import from Existing Role (Recommended for bulk)**
+1. Manually assign Discord role "UCI Invitationals 2026" to all helpers
+2. Admin runs `/helpers import @UCI Invitationals 2026`
+   - Finds all members with that role
+   - Checks if each is linked and has required Authentik groups
+   - Creates helper records for eligible users
+   - Reports imported vs skipped with reasons
 
-3. **Cleanup:** When `/competition end-competition` is run:
-   - All helper roles are automatically removed
-   - All assignments are marked as "removed" in the database
-   - Audit logs are created for each removal
+**During Event:**
+- Helpers have the role and can access team channels
 
-**Manual Management:**
-- **Add:** `/helpers add @user "Role Name"` - Assign helper role immediately
+**Cleanup:**
+- When `/competition end-competition` is run:
+  - All helper roles are automatically removed
+  - All assignments are marked as "removed" in the database
+  - Audit logs are created for each removal
+
+**Management:**
+- **Add Single:** `/helpers add @user "Role Name"` - Add one helper at a time
+- **Import Bulk:** `/helpers import @Role` - Import all users with an existing role
 - **List:** `/helpers list` or `/helpers list active` - View all helpers and their status
 - **Remove:** `/helpers remove @user "Reason"` - Manually remove helper role before competition ends
 - **Status:** `/helpers status @user` - Check helper assignments and permissions

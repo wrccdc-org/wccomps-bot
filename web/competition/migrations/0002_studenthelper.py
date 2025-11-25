@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("competition", "0002_remove_competition_phase"),
+        ("competition", "0001_initial"),
         ("person", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

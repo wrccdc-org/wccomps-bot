@@ -12,7 +12,6 @@ class CompetitionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
     list_display = [
         "name",
-        "slug",
         "status",
         "scheduled_start_time",
         "scheduled_end_time",
@@ -21,13 +20,13 @@ class CompetitionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         "scoring_enabled",
     ]
     list_filter = ["status", "ticketing_enabled", "scoring_enabled"]
-    search_fields = ["name", "slug", "description"]
+    search_fields = ["name", "description"]
     readonly_fields = ["created_at", "updated_at", "actual_start_time", "actual_end_time", "paused_at"]
     fieldsets = [
         (
             "Basic Information",
             {
-                "fields": ["name", "slug", "description", "status"],
+                "fields": ["name", "description", "status"],
             },
         ),
         (
