@@ -77,8 +77,8 @@ def calculate_team_score(team: Team) -> dict[str, Decimal]:
     scaled_orange = orange_total * template.orange_multiplier
 
     # Calculate total using spreadsheet formula:
-    # Total = Service + (Injects × 1.4) + (Orange × 5.5) + Red + SLA
-    total_score = service_points + scaled_inject + scaled_orange + red_deductions + sla_penalties
+    # Total = Service + (Injects × 1.4) + (Orange × 5.5) + Red + SLA + Recovery
+    total_score = service_points + scaled_inject + scaled_orange + red_deductions + sla_penalties + incident_recovery
 
     return {
         "service_points": service_points,

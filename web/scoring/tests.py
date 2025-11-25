@@ -109,12 +109,14 @@ class ScoringFormulaTests(TestCase):
 
         scores = calculate_team_score(self.team1)
 
-        self.assertEqual(scores["service_points"], Decimal("60.00"))  # 100 * 0.60
-        self.assertEqual(scores["inject_points"], Decimal("24.00"))  # 80 * 0.30
-        self.assertEqual(scores["orange_points"], Decimal("5.00"))  # 50 * 0.10
-        self.assertEqual(scores["red_deductions"], Decimal("-6.00"))  # -30 * 0.20
-        self.assertEqual(scores["sla_penalties"], Decimal("-1.00"))  # -10 * 0.10
-        self.assertEqual(scores["total_score"], Decimal("82.00"))  # sum of weighted components
+        self.assertEqual(scores["service_points"], Decimal("100.00"))  # Flat service points
+        self.assertEqual(scores["inject_points"], Decimal("112.00"))  # 80 × 1.4
+        self.assertEqual(scores["orange_points"], Decimal("275.00"))  # 50 × 5.5
+        self.assertEqual(scores["red_deductions"], Decimal("-30.00"))  # -30 flat
+        self.assertEqual(scores["sla_penalties"], Decimal("-10.00"))  # -10 flat
+        self.assertEqual(scores["incident_recovery_points"], Decimal("0.00"))  # No incident reports
+        # Expected total score from formula
+        self.assertEqual(scores["total_score"], Decimal("447.00"))
 
     def test_leaderboard_ranking(self) -> None:
         """Test that leaderboard ranks teams correctly."""
