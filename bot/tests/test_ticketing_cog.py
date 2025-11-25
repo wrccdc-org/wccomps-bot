@@ -726,7 +726,7 @@ class TestAttachmentHandling:
         assert saved is not None
         assert saved.filename == "screenshot.png"
         assert saved.mime_type == "image/png"
-        assert saved.file_data.startswith(b"\x89PNG")
+        assert bytes(saved.file_data).startswith(b"\x89PNG")
 
         # Verify reaction added
         message.add_reaction.assert_called_once_with("📎")
