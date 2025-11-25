@@ -2,7 +2,12 @@
 
 {% block scoring_content %}
 <c-module>
-    <h2>Red Team Findings</h2>
+    <c-slot name="toolbar">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h2 style="margin: 0;">Red Team Findings</h2>
+            <c-link href="{% url 'scoring:submit_red_finding' %}" variant="danger">Submit New Finding</c-link>
+        </div>
+    </c-slot>
 
     {% if findings %}
     <c-table id="red_findings" aria_label="Red team findings">
