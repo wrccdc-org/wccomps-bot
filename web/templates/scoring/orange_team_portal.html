@@ -4,13 +4,13 @@
 <c-module>
     <c-slot name="toolbar">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h2 style="margin: 0;">Orange Team Bonuses</h2>
-            <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Award Bonus</c-link>
+            <h2 style="margin: 0;">Orange Team Adjustments</h2>
+            <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Submit Adjustment</c-link>
         </div>
     </c-slot>
 
     {% if bonuses %}
-    <c-table id="orange_bonuses" aria_label="Orange team bonuses">
+    <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
         <c-slot name="headers">
             <tr>
                 <th>ID</th>
@@ -18,7 +18,7 @@
                 <th>Category</th>
                 <th>Description</th>
                 <th style="text-align: right;">Points</th>
-                <th>Awarded</th>
+                <th>Submitted</th>
             </tr>
         </c-slot>
 
@@ -30,7 +30,9 @@
                 <c-badge variant="warning">{{ bonus.category }}</c-badge>
             </td>
             <td>{{ bonus.description|truncatechars:60 }}</td>
-            <td style="text-align: right; color: #28a745;">+{{ bonus.points }}</td>
+            <td style="text-align: right; color: {% if bonus.points >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+                {% if bonus.points >= 0 %}+{% endif %}{{ bonus.points }}
+            </td>
             <td>
                 <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
                 <small style="color: #666;">by {{ bonus.submitted_by.username }}</small>
@@ -40,7 +42,7 @@
     </c-table>
     {% else %}
     <c-alert variant="info">
-        No orange team bonuses awarded yet.
+        No orange team adjustments submitted yet.
     </c-alert>
     {% endif %}
 </c-module>

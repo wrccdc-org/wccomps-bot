@@ -182,7 +182,7 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
 
 
 class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
-    """Form for orange team to award bonus points."""
+    """Form for orange team to award or deduct points."""
 
     class Meta:
         model = OrangeTeamBonus
@@ -191,9 +191,12 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
             "description": forms.Textarea(
                 attrs={
                     "rows": 3,
-                    "placeholder": "Describe why points are being awarded",
+                    "placeholder": "Describe why points are adjusted (positive to award, negative to deduct)",
                 }
             ),
+        }
+        labels = {
+            "points_awarded": "Points Adjustment",
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
