@@ -349,7 +349,7 @@ class InjectGrade(models.Model):
 
 
 class OrangeTeamBonus(models.Model):
-    """Orange team bonus points for customer service evaluation."""
+    """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
     team = models.ForeignKey(
         "team.Team",
@@ -363,12 +363,12 @@ class OrangeTeamBonus(models.Model):
         related_name="orange_bonuses_submitted",
     )
 
-    # Bonus details
-    description = models.TextField(help_text="Description of why points are awarded")
+    # Point adjustment details
+    description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
     points_awarded = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Points to add (positive) or deduct (negative)",
     )
 
     # Audit
@@ -377,12 +377,13 @@ class OrangeTeamBonus(models.Model):
 
     class Meta:
         db_table = "orange_team_bonus"
-        verbose_name = "Orange Team Bonus"
-        verbose_name_plural = "Orange Team Bonuses"
+        verbose_name = "Orange Team Adjustment"
+        verbose_name_plural = "Orange Team Adjustments"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.team.team_name} - {self.description[:50]}: +{self.points_awarded}"
+        sign = "+" if self.points_awarded >= 0 else ""
+        return f"{self.team.team_name} - {self.description[:50]}: {sign}{self.points_awarded}"
 
 
 class ServiceScore(models.Model):

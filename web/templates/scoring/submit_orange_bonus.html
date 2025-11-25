@@ -3,24 +3,26 @@
 
 {% block scoring_content %}
 <c-module>
-    <h2>Award Orange Team Bonus</h2>
+    <h2>Submit Orange Team Adjustment</h2>
     <form method="post">
         {% csrf_token %}
         {{ form|crispy }}
 
         <c-alert variant="info" style="margin-top: 15px;">
-            <strong>Orange Team Categories:</strong>
+            <strong>Orange Team Evaluation Areas:</strong>
             <ul style="margin-bottom: 0;">
-                <li><strong>Innovation:</strong> Creative defensive solutions</li>
-                <li><strong>Documentation:</strong> Exceptional network documentation</li>
-                <li><strong>Hardening:</strong> Advanced security hardening</li>
-                <li><strong>Monitoring:</strong> Effective monitoring implementation</li>
-                <li><strong>Other:</strong> Any other commendable achievement</li>
+                <li><strong>Innovation:</strong> Award points for creative defensive solutions or deduct for lack of innovation</li>
+                <li><strong>Documentation:</strong> Award for exceptional network documentation or deduct for poor documentation</li>
+                <li><strong>Hardening:</strong> Award for advanced security hardening or deduct for security misconfigurations</li>
+                <li><strong>Monitoring:</strong> Award for effective monitoring implementation or deduct for inadequate visibility</li>
+                <li><strong>Professionalism:</strong> Award for excellent customer service or deduct for unprofessional behavior</li>
+                <li><strong>Other:</strong> Any other customer service or operational consideration</li>
             </ul>
+            <p style="margin-top: 10px; margin-bottom: 0;"><strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.</p>
         </c-alert>
 
         <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <c-button type="submit" variant="warning">Award Bonus</c-button>
+            <c-button type="submit" variant="warning">Submit Adjustment</c-button>
             <c-link href="{% url 'scoring:orange_team_portal' %}">Cancel</c-link>
         </div>
     </form>
