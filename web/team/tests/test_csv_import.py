@@ -1,7 +1,5 @@
 """Tests for CSV import functionality."""
 
-import io
-from typing import Any
 
 import pytest
 from django.contrib.auth.models import User
@@ -48,9 +46,7 @@ class TestCSVParsing:
 2,University Two,contact2@example.edu,,
 3,University Three,contact3@example.edu,alt3@example.edu,Test note 3
 """
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -67,9 +63,7 @@ class TestCSVParsing:
         csv_content = """team_number,school_name
 1,University One
 """
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -81,9 +75,7 @@ class TestCSVParsing:
         csv_content = """team_number,school_name,contact_email
 1,University One,invalid-email
 """
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -95,9 +87,7 @@ class TestCSVParsing:
         csv_content = """team_number,school_name,contact_email
 abc,University One,contact@example.edu
 """
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -109,9 +99,7 @@ abc,University One,contact@example.edu
         csv_content = """team_number,school_name,contact_email
 99,University One,contact@example.edu
 """
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -121,9 +109,7 @@ abc,University One,contact@example.edu
     def test_parse_empty_csv(self) -> None:
         """Test parsing empty CSV."""
         csv_content = ""
-        csv_file = SimpleUploadedFile(
-            "test.csv", csv_content.encode("utf-8"), content_type="text/csv"
-        )
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
 
         result = parse_csv_file(csv_file)
 
@@ -228,9 +214,7 @@ class TestCSVValidation:
 class TestCSVImport:
     """Test CSV import application."""
 
-    def test_apply_csv_import_create(
-        self, setup_teams: list[Team], setup_user: User
-    ) -> None:
+    def test_apply_csv_import_create(self, setup_teams: list[Team], setup_user: User) -> None:
         """Test applying CSV import to create new school info."""
         teams_to_create = [
             {
@@ -264,9 +248,7 @@ class TestCSVImport:
         assert school_info1.notes == "Test note"
         assert school_info1.updated_by == "testuser"
 
-    def test_apply_csv_import_update(
-        self, setup_teams: list[Team], setup_user: User
-    ) -> None:
+    def test_apply_csv_import_update(self, setup_teams: list[Team], setup_user: User) -> None:
         """Test applying CSV import to update existing school info."""
         # Create existing school info
         existing = SchoolInfo.objects.create(
@@ -301,9 +283,7 @@ class TestCSVImport:
         assert existing.notes == "Updated note"
         assert existing.updated_by == "testuser"
 
-    def test_apply_csv_import_mixed(
-        self, setup_teams: list[Team], setup_user: User
-    ) -> None:
+    def test_apply_csv_import_mixed(self, setup_teams: list[Team], setup_user: User) -> None:
         """Test applying CSV import with both creates and updates."""
         # Create existing school info for team 1
         existing = SchoolInfo.objects.create(
@@ -340,9 +320,7 @@ class TestCSVImport:
         assert result["created"] == 1
         assert result["updated"] == 1
 
-    def test_apply_csv_import_with_team_name(
-        self, setup_teams: list[Team], setup_user: User
-    ) -> None:
+    def test_apply_csv_import_with_team_name(self, setup_teams: list[Team], setup_user: User) -> None:
         """Test applying CSV import that updates team name."""
         original_name = setup_teams[0].team_name
 

@@ -4,7 +4,6 @@ from typing import Any
 
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
 
 from .models import (
     DiscordLink,

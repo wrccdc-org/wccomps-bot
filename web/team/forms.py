@@ -16,7 +16,11 @@ class CSVUploadForm(forms.Form):
 
     csv_file = forms.FileField(
         label="CSV File",
-        help_text="Upload a CSV file with team school information. Required columns: team_number, school_name, contact_email. Optional: secondary_email, notes",
+        help_text=(
+            "Upload a CSV file with team school information. "
+            "Required columns: team_number, school_name, contact_email. "
+            "Optional: secondary_email, notes"
+        ),
     )
 
     def clean_csv_file(self) -> Any:
@@ -170,7 +174,7 @@ def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     # Check for duplicate team numbers in CSV
     team_numbers = [row["team_number"] for row in rows]
-    duplicates = set([num for num in team_numbers if team_numbers.count(num) > 1])
+    duplicates = {num for num in team_numbers if team_numbers.count(num) > 1}
     if duplicates:
         errors.append(f"Duplicate team numbers in CSV: {', '.join(map(str, sorted(duplicates)))}")
         return {
@@ -182,9 +186,7 @@ def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     # Get all teams from database
     existing_teams = {team.team_number: team for team in Team.objects.filter(is_active=True)}
-    existing_school_infos = {
-        si.team.team_number: si for si in SchoolInfo.objects.select_related("team").all()
-    }
+    existing_school_infos = {si.team.team_number: si for si in SchoolInfo.objects.select_related("team").all()}
 
     for row in rows:
         team_number = row["team_number"]
