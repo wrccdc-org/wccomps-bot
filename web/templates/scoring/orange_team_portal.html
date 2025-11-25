@@ -2,12 +2,7 @@
 
 {% block scoring_content %}
 <c-module>
-    <c-slot name="toolbar">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h2 style="margin: 0;">Orange Team Adjustments</h2>
-            <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Submit Adjustment</c-link>
-        </div>
-    </c-slot>
+    <h2>Orange Team Adjustments</h2>
 
     {% if bonuses %}
     <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
