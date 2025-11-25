@@ -22,6 +22,13 @@ class ScoringTemplate(models.Model):
     """Scoring configuration for a competition."""
 
     # Score multipliers
+    service_multiplier = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Multiplier applied to service scores (e.g., 1.0 = 100%)",
+    )
     inject_multiplier = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -35,6 +42,27 @@ class ScoringTemplate(models.Model):
         default=Decimal("5.5"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
         help_text="Multiplier applied to orange team scores (e.g., 5.5 = 550%)",
+    )
+    red_multiplier = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Multiplier applied to red team deductions (e.g., 1.0 = 100%)",
+    )
+    sla_multiplier = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Multiplier applied to SLA penalties (e.g., 1.0 = 100%)",
+    )
+    recovery_multiplier = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Multiplier applied to incident recovery points (e.g., 1.0 = 100%)",
     )
 
     # Audit
