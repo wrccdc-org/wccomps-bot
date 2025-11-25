@@ -3,75 +3,69 @@
 {% block scoring_title %}Scoring Configuration{% endblock %}
 
 {% block scoring_content %}
-<div class="module">
+<c-module>
     <h2>Scoring Formula</h2>
-    <div style="padding: 15px; background: #f9f9f9; border: 1px solid #ddd; margin-bottom: 20px;">
+    <c-alert variant="info">
         <p><strong>Current Formula:</strong></p>
-        <code style="display: block; padding: 10px; background: white; border-left: 3px solid #417690;">
+        <code style="display: block; padding: 10px; background: white; border-left: 3px solid #417690; margin: 10px 0;">
             Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
         </code>
-        <p style="margin-top: 10px; color: #666; font-size: 12px;">
+        <p style="margin: 0; font-size: 12px;">
             Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
         </p>
-    </div>
+    </c-alert>
+
     <form method="post">
         {% csrf_token %}
-        <fieldset class="module aligned">
+        <c-fieldset heading="Multiplier Configuration">
             {% for field in form %}
-            <div class="form-row">
-                {{ field.errors }}
-                <div>
-                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                    <p class="help">{{ field.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
+            <c-form_field
+                label="{{ field.label }}"
+                {% if field.field.required %}required="true"{% endif %}
+                help_text="{{ field.help_text }}"
+                id="{{ field.id_for_label }}">
+                {{ field }}
+            </c-form_field>
             {% endfor %}
-        </fieldset>
+        </c-fieldset>
         <div class="submit-row">
-            <input type="submit" value="Update Multipliers" class="default">
+            <c-button type="submit" variant="primary">Update Multipliers</c-button>
         </div>
     </form>
-</div>
+</c-module>
 
-<div class="module">
+<c-module>
     <h2>Quotient Integration</h2>
-    <div style="padding: 15px;">
-        {% if metadata %}
-        <table style="width: 100%; margin-bottom: 15px;">
-            <tr><th style="text-align: left; width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
-            <tr><th style="text-align: left;">Event:</th><td>{{ metadata.event_name }}</td></tr>
-            <tr><th style="text-align: left;">Teams:</th><td>{{ metadata.team_count }}</td></tr>
-            <tr><th style="text-align: left;">Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
-        </table>
-        {% else %}
-        <p style="padding: 10px; background: #fef9e7; border-left: 3px solid #f39c12;">Metadata not synced yet</p>
-        {% endif %}
+    {% if metadata %}
+    <table style="width: 100%; margin-bottom: 15px;">
+        <tr><th style="text-align: left; width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
+        <tr><th style="text-align: left;">Event:</th><td>{{ metadata.event_name }}</td></tr>
+        <tr><th style="text-align: left;">Teams:</th><td>{{ metadata.team_count }}</td></tr>
+        <tr><th style="text-align: left;">Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
+    </table>
+    {% else %}
+    <c-alert variant="warning">Metadata not synced yet</c-alert>
+    {% endif %}
 
-        <form method="post" action="{% url 'scoring:sync_metadata' %}" style="display: inline; margin-right: 10px;">
-            {% csrf_token %}
-            <input type="submit" value="Sync Metadata" class="button">
-        </form>
+    <form method="post" action="{% url 'scoring:sync_metadata' %}" style="display: inline; margin-right: 10px;">
+        {% csrf_token %}
+        <c-button type="submit">Sync Metadata</c-button>
+    </form>
 
-        <form method="post" action="{% url 'scoring:sync_scores' %}" style="display: inline;">
-            {% csrf_token %}
-            <input type="submit" value="Sync Service Scores" class="button">
-        </form>
-    </div>
-</div>
+    <form method="post" action="{% url 'scoring:sync_scores' %}" style="display: inline;">
+        {% csrf_token %}
+        <c-button type="submit">Sync Service Scores</c-button>
+    </form>
+</c-module>
 
-<div class="module">
+<c-module>
     <h2>Score Management</h2>
-    <div style="padding: 15px;">
-        <form method="post" action="{% url 'scoring:recalculate_scores' %}">
-            {% csrf_token %}
-            <input type="submit" value="Recalculate All Scores" class="button">
-        </form>
-        <p style="margin-top: 10px; color: #666; font-size: 12px;">
-            Recalculates final scores for all teams based on current data and multipliers
-        </p>
-    </div>
-</div>
+    <form method="post" action="{% url 'scoring:recalculate_scores' %}">
+        {% csrf_token %}
+        <c-button type="submit">Recalculate All Scores</c-button>
+    </form>
+    <p style="margin-top: 10px; color: #666; font-size: 12px;">
+        Recalculates final scores for all teams based on current data and multipliers
+    </p>
+</c-module>
 {% endblock %}
