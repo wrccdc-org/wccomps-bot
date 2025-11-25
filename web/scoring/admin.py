@@ -262,8 +262,12 @@ class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
 @admin.register(ScoringTemplate)
 class ScoringTemplateAdmin(admin.ModelAdmin[ScoringTemplate]):
     list_display = [
+        "service_multiplier",
         "inject_multiplier",
         "orange_multiplier",
+        "red_multiplier",
+        "sla_multiplier",
+        "recovery_multiplier",
         "updated_at",
     ]
     readonly_fields = ["created_at", "updated_at"]
@@ -273,8 +277,12 @@ class ScoringTemplateAdmin(admin.ModelAdmin[ScoringTemplate]):
             "Multipliers",
             {
                 "fields": [
+                    "service_multiplier",
                     "inject_multiplier",
                     "orange_multiplier",
+                    "red_multiplier",
+                    "sla_multiplier",
+                    "recovery_multiplier",
                 ]
             },
         ),

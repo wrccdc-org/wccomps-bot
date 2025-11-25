@@ -72,21 +72,24 @@ def calculate_team_score(team: Team) -> dict[str, Decimal]:
         "total"
     ] or Decimal("0")
 
-    # Apply multipliers to inject and orange scores
+    # Apply multipliers to all score components
+    scaled_service = service_points * template.service_multiplier
     scaled_inject = inject_total * template.inject_multiplier
     scaled_orange = orange_total * template.orange_multiplier
+    scaled_red = red_deductions * template.red_multiplier
+    scaled_sla = sla_penalties * template.sla_multiplier
+    scaled_recovery = incident_recovery * template.recovery_multiplier
 
-    # Calculate total using spreadsheet formula:
-    # Total = Service + (Injects × 1.4) + (Orange × 5.5) + Red + SLA + Recovery
-    total_score = service_points + scaled_inject + scaled_orange + red_deductions + sla_penalties + incident_recovery
+    # Calculate total using formula with configurable multipliers
+    total_score = scaled_service + scaled_inject + scaled_orange + scaled_red + scaled_sla + scaled_recovery
 
     return {
-        "service_points": service_points,
+        "service_points": scaled_service,
         "inject_points": scaled_inject,
         "orange_points": scaled_orange,
-        "red_deductions": red_deductions,
-        "incident_recovery_points": incident_recovery,
-        "sla_penalties": sla_penalties,
+        "red_deductions": scaled_red,
+        "incident_recovery_points": scaled_recovery,
+        "sla_penalties": scaled_sla,
         "black_adjustments": black_adjustments,
         "total_score": total_score,
     }

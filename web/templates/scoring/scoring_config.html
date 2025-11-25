@@ -9,9 +9,9 @@
     <div class="card-body">
         <div class="alert alert-info mb-3">
             <strong>Current Formula:</strong><br>
-            <code>Total = Service + (Injects × inject_multiplier) + (Orange × orange_multiplier) + Red + SLA + Recovery</code>
+            <code>Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)</code>
             <br>
-            <small class="text-muted">Note: Black Team Adjustments are tracked separately for transparency</small>
+            <small class="text-muted">Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)</small>
         </div>
         <form method="post">
             {% csrf_token %}

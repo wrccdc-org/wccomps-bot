@@ -277,12 +277,20 @@ class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
     class Meta:
         model = ScoringTemplate
         fields = [
+            "service_multiplier",
             "inject_multiplier",
             "orange_multiplier",
+            "red_multiplier",
+            "sla_multiplier",
+            "recovery_multiplier",
         ]
         help_texts = {
+            "service_multiplier": "Multiplier applied to service scores (e.g., 1.0 = 100%)",
             "inject_multiplier": "Multiplier applied to inject scores (e.g., 1.4 = 140%)",
             "orange_multiplier": "Multiplier applied to orange team scores (e.g., 5.5 = 550%)",
+            "red_multiplier": "Multiplier applied to red team deductions (e.g., 1.0 = 100%)",
+            "sla_multiplier": "Multiplier applied to SLA penalties (e.g., 1.0 = 100%)",
+            "recovery_multiplier": "Multiplier applied to incident recovery points (e.g., 1.0 = 100%)",
         }
 
 

@@ -71,8 +71,12 @@ class ScoringFormulaTests(TestCase):
 
         # Create scoring template with multipliers
         self.template = ScoringTemplate.objects.create(
+            service_multiplier=Decimal("1.0"),
             inject_multiplier=Decimal("1.4"),
             orange_multiplier=Decimal("5.5"),
+            red_multiplier=Decimal("1.0"),
+            sla_multiplier=Decimal("1.0"),
+            recovery_multiplier=Decimal("1.0"),
         )
 
     def test_simple_score_calculation(self) -> None:
