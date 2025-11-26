@@ -32,6 +32,7 @@ class TestCompetitionTimer:
 
         with patch("asyncio.create_task") as mock_create_task:
             mock_task = Mock()
+            mock_task.cancel = Mock()
             mock_create_task.return_value = mock_task
 
             timer.start()
@@ -39,6 +40,9 @@ class TestCompetitionTimer:
             assert timer.running is True
             assert timer.task is mock_task
             mock_create_task.assert_called_once()
+
+            # Cleanup: stop the timer to prevent RuntimeWarning
+            timer.stop()
 
     async def test_stop_cancels_task(self) -> None:
         """Test that stop() cancels the background task."""

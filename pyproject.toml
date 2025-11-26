@@ -85,7 +85,7 @@ pythonpath = ["web"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-testpaths = ["bot/tests", "web/integration_tests"]
+testpaths = ["bot/tests", "web/core/tests", "web/integration_tests"]
 addopts = ["-v", "--tb=short"]
 markers = [
     "critical: Critical tests that must pass on every deployment",

@@ -799,9 +799,20 @@ def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpRespon
     if uploaded_file.size is None or uploaded_file.size > max_size:
         return HttpResponse("File too large (max 10MB)", status=400)
 
-    # Validate filename
+    # Validate and sanitize filename
     if not uploaded_file.name:
         return HttpResponse("File must have a name", status=400)
+
+    # SECURITY: Sanitize filename to prevent client-side path traversal
+    # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
+    from pathlib import Path
+
+    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
+    safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
+    safe_filename = safe_filename.strip()
+
+    if not safe_filename or safe_filename.startswith("."):
+        safe_filename = "attachment.bin"
 
     # Read file data
     file_data = uploaded_file.read()
@@ -810,12 +821,12 @@ def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpRespon
     TicketAttachment.objects.create(
         ticket=ticket,
         file_data=file_data,
-        filename=uploaded_file.name,
+        filename=safe_filename,
         mime_type=uploaded_file.content_type or "application/octet-stream",
         uploaded_by=authentik_username,
     )
 
-    logger.info(f"Attachment {uploaded_file.name} uploaded to ticket #{ticket_id} by {authentik_username}")
+    logger.info(f"Attachment {safe_filename} uploaded to ticket #{ticket_id} by {authentik_username}")
 
     return redirect("ticket_detail", ticket_id=ticket_id)
 
@@ -840,6 +851,8 @@ def ticket_attachment_download(request: HttpRequest, ticket_id: int, attachment_
         return HttpResponse("Attachment not found", status=404)
 
     response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
+    # SECURITY: as_attachment=True is CRITICAL. Never change to False without comprehensive
+    # MIME type validation, or you'll introduce XSS (browser will execute HTML/SVG content).
     response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
     return response
 
@@ -1683,9 +1696,20 @@ def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> Ht
     if uploaded_file.size is None or uploaded_file.size > max_size:
         return HttpResponse("File too large (max 10MB)", status=400)
 
-    # Validate filename
+    # Validate and sanitize filename
     if not uploaded_file.name:
         return HttpResponse("File must have a name", status=400)
+
+    # SECURITY: Sanitize filename to prevent client-side path traversal
+    # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
+    from pathlib import Path
+
+    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
+    safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
+    safe_filename = safe_filename.strip()
+
+    if not safe_filename or safe_filename.startswith("."):
+        safe_filename = "attachment.bin"
 
     # Read file data
     file_data = uploaded_file.read()
@@ -1694,7 +1718,7 @@ def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> Ht
     TicketAttachment.objects.create(
         ticket=ticket,
         file_data=file_data,
-        filename=uploaded_file.name,
+        filename=safe_filename,
         mime_type=uploaded_file.content_type or "application/octet-stream",
         uploaded_by=authentik_username,
     )
@@ -1720,6 +1744,8 @@ def ops_ticket_attachment_download(request: HttpRequest, ticket_number: str, att
         return HttpResponse("Attachment not found", status=404)
 
     response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
+    # SECURITY: as_attachment=True is CRITICAL. Never change to False without comprehensive
+    # MIME type validation, or you'll introduce XSS (browser will execute HTML/SVG content).
     response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
     return response
 
