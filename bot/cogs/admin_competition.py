@@ -122,6 +122,52 @@ class AdminCompetitionCog(commands.Cog):
 
                 await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
+                # Remove all student helper roles
+                from competition.models import StudentHelper
+
+                active_helpers = [helper async for helper in StudentHelper.objects.filter(status="active").all()]
+
+                helpers_removed = 0
+                for helper in active_helpers:
+                    try:
+                        # Remove Discord role
+                        if helper.discord_role_id:
+                            role = guild.get_role(helper.discord_role_id)
+                            if role:
+                                # Remove role from all members who have it
+                                for member in guild.members:
+                                    if role in member.roles:
+                                        try:
+                                            await member.remove_roles(role, reason="Competition ended")
+                                        except Exception as e:
+                                            logger.warning(f"Could not remove helper role from {member}: {e}")
+
+                        # Mark helper as removed in database
+                        helper.status = "removed"
+                        helper.removal_reason = "Competition ended"
+                        helper.deactivated_at = timezone.now()
+                        await helper.asave()
+                        helpers_removed += 1
+
+                        # Create audit log
+                        await AuditLog.objects.acreate(
+                            action="helper_removed",
+                            admin_user=str(interaction.user),
+                            target_entity="student_helper",
+                            target_id=helper.id,
+                            details={
+                                "discord_id": helper.discord_id,
+                                "discord_username": helper.discord_username,
+                                "role_name": helper.discord_role_name,
+                                "reason": "competition_ended",
+                            },
+                        )
+                    except Exception as e:
+                        logger.exception(f"Error removing helper {helper.authentik_username}: {e}")
+
+                if helpers_removed > 0:
+                    await log_to_ops_channel(self.bot, f"Removed {helpers_removed} student helper role(s)")
+
                 # Clear competition config to prevent auto-start/end on restart
                 config = await CompetitionConfig.objects.afirst()
                 if config:
