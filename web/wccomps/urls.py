@@ -33,6 +33,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("auth/link", views.link_initiate, name="link_initiate"),
     path("auth/callback", views.link_callback, name="link_callback"),
+    path("team-packets/", include("packets.urls")),
     path("ops/school-info/", views.ops_school_info, name="ops_school_info"),
     path(
         "ops/school-info/import/",
