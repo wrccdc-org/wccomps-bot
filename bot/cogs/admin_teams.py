@@ -9,7 +9,11 @@ from discord.ext import commands
 from django.utils import timezone
 
 from bot.authentik_manager import AuthentikManager
-from bot.authentik_utils import generate_blueteam_password, reset_blueteam_password
+from bot.authentik_utils import (
+    generate_blueteam_password,
+    parse_team_range,
+    reset_blueteam_password,
+)
 from bot.permissions import check_admin
 from bot.utils import (
     get_team_or_respond,
@@ -558,6 +562,276 @@ class AdminTeamsCog(commands.Cog):
             response += f"\n\n**New Team Password:** `{new_password}`"
             response += "\n\n⚠️ Make sure to securely share this password with the team."
         await interaction.followup.send(response, ephemeral=True)
+
+    @teams_group.command(
+        name="activate",
+        description="[ADMIN] Activate multiple teams in database",
+    )
+    @app_commands.describe(teams="Team numbers (e.g., '1,3,5-10,15')")
+    @app_commands.check(check_admin)
+    async def admin_activate_teams(self, interaction: discord.Interaction, teams: str) -> None:
+        """Activate multiple teams in database (sets is_active=True)."""
+        await interaction.response.defer(ephemeral=True)
+
+        # Parse team numbers
+        try:
+            team_numbers = parse_team_range(teams)
+        except ValueError as e:
+            await interaction.followup.send(f"Error: {e}", ephemeral=True)
+            return
+
+        if not team_numbers:
+            await interaction.followup.send("No teams specified", ephemeral=True)
+            return
+
+        # Activate teams
+        results = []
+        success_count = 0
+        for team_number in team_numbers:
+            team = await Team.objects.filter(team_number=team_number).afirst()
+            if not team:
+                results.append(f"❌ Team {team_number:02d}: Not found")
+                continue
+
+            if team.is_active:
+                results.append(f"⊘ Team {team_number:02d}: Already active")
+                continue
+
+            team.is_active = True
+            await team.asave()
+            results.append(f"✓ Team {team_number:02d}: Activated")
+            success_count += 1
+
+        # Create audit log
+        await AuditLog.objects.acreate(
+            action="teams_activated",
+            admin_user=str(interaction.user),
+            target_entity="teams",
+            target_id=0,
+            details={
+                "team_numbers": team_numbers,
+                "success_count": success_count,
+                "total_count": len(team_numbers),
+            },
+        )
+
+        # Log to ops
+        await log_to_ops_channel(
+            self.bot,
+            f"Team Activation by {interaction.user.mention}\n"
+            f"• Teams: {teams}\n"
+            f"• Activated: {success_count}/{len(team_numbers)}",
+        )
+
+        # Build response
+        summary = "**Team Activation Results**\n\n"
+        summary += f"✓ Activated: {success_count}/{len(team_numbers)}\n\n"
+
+        if len(results) <= 20:
+            summary += "**Details:**\n" + "\n".join(results)
+        else:
+            summary += "**Details (first 20):**\n" + "\n".join(results[:20])
+            summary += f"\n... and {len(results) - 20} more"
+
+        await interaction.followup.send(summary, ephemeral=True)
+
+    @teams_group.command(
+        name="deactivate",
+        description="[ADMIN] Deactivate multiple teams in database",
+    )
+    @app_commands.describe(teams="Team numbers (e.g., '1,3,5-10,15')")
+    @app_commands.check(check_admin)
+    async def admin_deactivate_teams(self, interaction: discord.Interaction, teams: str) -> None:
+        """Deactivate multiple teams in database (sets is_active=False)."""
+        await interaction.response.defer(ephemeral=True)
+
+        # Parse team numbers
+        try:
+            team_numbers = parse_team_range(teams)
+        except ValueError as e:
+            await interaction.followup.send(f"Error: {e}", ephemeral=True)
+            return
+
+        if not team_numbers:
+            await interaction.followup.send("No teams specified", ephemeral=True)
+            return
+
+        # Deactivate teams
+        results = []
+        success_count = 0
+        for team_number in team_numbers:
+            team = await Team.objects.filter(team_number=team_number).afirst()
+            if not team:
+                results.append(f"❌ Team {team_number:02d}: Not found")
+                continue
+
+            if not team.is_active:
+                results.append(f"⊘ Team {team_number:02d}: Already inactive")
+                continue
+
+            team.is_active = False
+            await team.asave()
+            results.append(f"✓ Team {team_number:02d}: Deactivated")
+            success_count += 1
+
+        # Create audit log
+        await AuditLog.objects.acreate(
+            action="teams_deactivated",
+            admin_user=str(interaction.user),
+            target_entity="teams",
+            target_id=0,
+            details={
+                "team_numbers": team_numbers,
+                "success_count": success_count,
+                "total_count": len(team_numbers),
+            },
+        )
+
+        # Log to ops
+        await log_to_ops_channel(
+            self.bot,
+            f"Team Deactivation by {interaction.user.mention}\n"
+            f"• Teams: {teams}\n"
+            f"• Deactivated: {success_count}/{len(team_numbers)}",
+        )
+
+        # Build response
+        summary = "**Team Deactivation Results**\n\n"
+        summary += f"✓ Deactivated: {success_count}/{len(team_numbers)}\n\n"
+
+        if len(results) <= 20:
+            summary += "**Details:**\n" + "\n".join(results)
+        else:
+            summary += "**Details (first 20):**\n" + "\n".join(results[:20])
+            summary += f"\n... and {len(results) - 20} more"
+
+        await interaction.followup.send(summary, ephemeral=True)
+
+    @teams_group.command(
+        name="recreate",
+        description="[ADMIN] Recreate Discord infrastructure for multiple teams",
+    )
+    @app_commands.describe(teams="Team numbers (e.g., '1,3,5-10,15')")
+    @app_commands.check(check_admin)
+    async def admin_recreate_teams(self, interaction: discord.Interaction, teams: str) -> None:
+        """Recreate Discord infrastructure (roles, channels) for multiple teams."""
+        await interaction.response.defer(ephemeral=True)
+
+        if not interaction.guild:
+            await interaction.followup.send("This command must be used in a guild", ephemeral=True)
+            return
+
+        # Parse team numbers
+        try:
+            team_numbers = parse_team_range(teams)
+        except ValueError as e:
+            await interaction.followup.send(f"Error: {e}", ephemeral=True)
+            return
+
+        if not team_numbers:
+            await interaction.followup.send("No teams specified", ephemeral=True)
+            return
+
+        from bot.discord_manager import DiscordManager
+
+        discord_manager = DiscordManager(interaction.guild, self.bot)
+        guild = interaction.guild
+
+        results = []
+        success_count = 0
+        failed_count = 0
+
+        for team_number in team_numbers:
+            team = await Team.objects.filter(team_number=team_number).afirst()
+            if not team:
+                results.append(f"❌ Team {team_number:02d}: Not found")
+                failed_count += 1
+                continue
+
+            # Delete existing infrastructure if present
+            deleted_items = []
+
+            # Delete category and channels
+            if team.discord_category_id:
+                category = guild.get_channel(team.discord_category_id)
+                if category and isinstance(category, discord.CategoryChannel):
+                    for channel in category.channels:
+                        try:
+                            await channel.delete(reason=f"Bulk recreate by {interaction.user}")
+                        except Exception as e:
+                            logger.exception(f"Failed to delete channel {channel.name}: {e}")
+
+                    try:
+                        await category.delete(reason=f"Bulk recreate by {interaction.user}")
+                        deleted_items.append("category")
+                    except Exception as e:
+                        logger.exception(f"Failed to delete category: {e}")
+
+            # Delete role
+            if team.discord_role_id:
+                role = guild.get_role(team.discord_role_id)
+                if role:
+                    try:
+                        await role.delete(reason=f"Bulk recreate by {interaction.user}")
+                        deleted_items.append("role")
+                    except Exception as e:
+                        logger.exception(f"Failed to delete role: {e}")
+
+            # Clear Discord IDs
+            team.discord_role_id = None
+            team.discord_category_id = None
+            await team.asave()
+
+            # Recreate infrastructure
+            role, category = await discord_manager.setup_team_infrastructure(team_number)
+
+            if role and category:
+                results.append(f"✓ Team {team_number:02d}: Recreated (role + {len(category.channels)} channels)")
+                success_count += 1
+            elif role or category:
+                results.append(f"⚠ Team {team_number:02d}: Partially recreated")
+                failed_count += 1
+            else:
+                results.append(f"❌ Team {team_number:02d}: Failed to recreate")
+                failed_count += 1
+
+        # Create audit log
+        await AuditLog.objects.acreate(
+            action="teams_recreated",
+            admin_user=str(interaction.user),
+            target_entity="teams",
+            target_id=0,
+            details={
+                "team_numbers": team_numbers,
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "total_count": len(team_numbers),
+            },
+        )
+
+        # Log to ops
+        await log_to_ops_channel(
+            self.bot,
+            f"Team Infrastructure Recreate by {interaction.user.mention}\n"
+            f"• Teams: {teams}\n"
+            f"• Success: {success_count}\n"
+            f"• Failed: {failed_count}",
+        )
+
+        # Build response
+        summary = "**Team Recreation Results**\n\n"
+        summary += f"✓ Success: {success_count}/{len(team_numbers)}\n"
+        if failed_count > 0:
+            summary += f"❌ Failed: {failed_count}/{len(team_numbers)}\n"
+        summary += "\n"
+
+        if len(results) <= 20:
+            summary += "**Details:**\n" + "\n".join(results)
+        else:
+            summary += "**Details (first 20):**\n" + "\n".join(results[:20])
+            summary += f"\n... and {len(results) - 20} more"
+
+        await interaction.followup.send(summary, ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
