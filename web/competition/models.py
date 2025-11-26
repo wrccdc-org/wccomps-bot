@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
@@ -206,4 +207,133 @@ class Competition(models.Model):
 
             self.status = "completed"
             self.actual_end_time = timezone.now()
+            self.save()
+
+
+class StudentHelper(models.Model):
+    """
+    Tracks student helpers with temporary access to team channels.
+
+    Student helpers are given Discord roles that grant access to team channels.
+    Roles are removed when the competition ends.
+    """
+
+    STATUS_CHOICES = [
+        ("active", "Active"),  # Currently has role assigned
+        ("removed", "Removed"),  # Role has been removed
+    ]
+
+    # Helper identity (link to Person for Authentik integration)
+    person = models.ForeignKey(
+        "person.Person",
+        on_delete=models.CASCADE,
+        related_name="helper_assignments",
+        help_text="Person assigned as helper",
+    )
+
+    # Cached identity fields for quick lookups
+    discord_id = models.BigIntegerField(
+        db_index=True,
+        help_text="Discord user ID (cached from Person)",
+    )
+    discord_username = models.CharField(
+        max_length=100,
+        help_text="Discord username (cached from Person)",
+    )
+    authentik_username = models.CharField(
+        max_length=150,
+        db_index=True,
+        help_text="Authentik username (cached from Person)",
+    )
+
+    # Discord role configuration
+    discord_role_name = models.CharField(
+        max_length=100,
+        help_text='Discord role name (e.g., "UCI Invitationals 2026")',
+    )
+    discord_role_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Discord role ID (snowflake) once assigned",
+    )
+
+    # Status tracking
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active",
+        db_index=True,
+        help_text="Current helper status",
+    )
+
+    # Lifecycle timestamps
+    activated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When role was assigned",
+    )
+    deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When role was removed",
+    )
+
+    # Audit fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="student_helpers_created",
+        help_text="User who created this helper assignment",
+    )
+    removed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_helpers_removed",
+        help_text="User who removed this helper assignment (if applicable)",
+    )
+    removal_reason = models.TextField(
+        blank=True,
+        help_text="Reason for removal",
+    )
+
+    class Meta:
+        db_table = "competition_student_helper"
+        verbose_name = "Student Helper"
+        verbose_name_plural = "Student Helpers"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["person", "status"]),
+            models.Index(fields=["discord_id", "status"]),
+            models.Index(fields=["status", "created_at"]),
+        ]
+        constraints = [
+            # Prevent duplicate active assignments for same person
+            models.UniqueConstraint(
+                fields=["person"],
+                condition=models.Q(status="active"),
+                name="competition_unique_active_helper_per_person",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.authentik_username} - {self.discord_role_name} ({self.get_status_display()})"
+
+    def remove(self, user: User, reason: str = "") -> None:
+        """
+        Remove helper access.
+
+        Args:
+            user: User performing the removal
+            reason: Optional reason for removal
+        """
+        if self.status == "active":
+            self.status = "removed"
+            self.removed_by = user
+            self.removal_reason = reason
+            self.deactivated_at = timezone.now()
             self.save()
