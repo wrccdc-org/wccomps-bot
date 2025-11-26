@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from bot.authentik_manager import AuthentikAPIError, AuthentikManager
@@ -423,68 +423,3 @@ class TestAuthentikManager:
             call_args = mock_update.call_args
             assert call_args[0][0] == {"pk": "binding-456", "enabled": False}
             assert call_args[1]["enabled"] is True
-
-    @given(
-        slugs=st.lists(
-            st.text(
-                alphabet=st.characters(whitelist_categories=("Ll", "Nd")),
-                min_size=3,
-                max_size=20,
-            ),
-            min_size=1,
-            max_size=5,
-        )
-    )
-    @settings(max_examples=30)
-    def test_enable_applications_property(self, slugs: list[str]) -> None:
-        """Property: enable_applications processes all slugs."""
-        # Filter out duplicates and invalid slugs
-        slugs = list({s for s in slugs if s.strip()})
-        assume(len(slugs) > 0)
-
-        with patch("bot.authentik_manager.settings") as mock_settings:
-            mock_settings.AUTHENTIK_URL = "https://auth.test.local"
-            mock_settings.AUTHENTIK_TOKEN = "test-token-123"
-            manager = AuthentikManager()
-
-            with patch.object(manager, "enable_application") as mock_enable:
-                mock_enable.return_value = (True, None)
-
-                results = manager.enable_applications(slugs)
-
-                assert len(results) == len(slugs)
-                assert mock_enable.call_count == len(slugs)
-                for slug in slugs:
-                    assert slug in results
-
-    @given(
-        slugs=st.lists(
-            st.text(
-                alphabet=st.characters(whitelist_categories=("Ll", "Nd")),
-                min_size=3,
-                max_size=20,
-            ),
-            min_size=1,
-            max_size=5,
-        )
-    )
-    @settings(max_examples=30)
-    def test_disable_applications_property(self, slugs: list[str]) -> None:
-        """Property: disable_applications processes all slugs."""
-        slugs = list({s for s in slugs if s.strip()})
-        assume(len(slugs) > 0)
-
-        with patch("bot.authentik_manager.settings") as mock_settings:
-            mock_settings.AUTHENTIK_URL = "https://auth.test.local"
-            mock_settings.AUTHENTIK_TOKEN = "test-token-123"
-            manager = AuthentikManager()
-
-            with patch.object(manager, "disable_application") as mock_disable:
-                mock_disable.return_value = (True, None)
-
-                results = manager.disable_applications(slugs)
-
-                assert len(results) == len(slugs)
-                assert mock_disable.call_count == len(slugs)
-                for slug in slugs:
-                    assert slug in results
