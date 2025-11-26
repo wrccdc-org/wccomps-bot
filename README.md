@@ -76,6 +76,13 @@ Everyone runs `/link` in Discord to connect their account to Authentik. Team ass
 - `/tickets cancel <ticket_number> [reason]` - Cancel ticket (admin only)
 - `/tickets reopen <ticket_number>` - Reopen ticket (admin only)
 
+**Student Helpers (`/helpers`):**
+- `/helpers add <user> <role_name>` - Add single student helper with Discord role
+- `/helpers import <role>` - Import all users with a Discord role as helpers
+- `/helpers list [status]` - List all student helpers
+- `/helpers remove <user> [reason]` - Remove helper access
+- `/helpers status <user>` - Check student helper status
+
 **Admin (`/admin`):**
 - `/admin sync-roles` - Sync roles from volunteer guild to competition guild
 
@@ -115,6 +122,51 @@ Access levels based on Authentik groups:
 **Resolve:** Support clicks "Resolve" → Enter notes → Points deducted → Thread archived
 
 **Cancel:** Team can cancel unclaimed tickets (no penalty). Admin can cancel any ticket.
+
+## Student Helper Management
+
+Student helpers are temporary support staff for invitationals who are assigned Discord roles that grant access to team channels.
+
+**Requirements:**
+- User must first link Discord account with `/link`
+- User must have either `WCComps_Ticketing_Support` OR `WCComps_Quotient_Injects` group in Authentik
+
+**Workflow Options:**
+
+**Option 1: Add Individual Helpers**
+1. Admin runs `/helpers add @user "UCI Invitationals 2026"`
+   - Discord role is created (if it doesn't exist) and immediately assigned
+   - User gains access to team channels through the role
+   - Assignment is tracked in database
+
+**Option 2: Import from Existing Role (Recommended for bulk)**
+1. Manually assign Discord role "UCI Invitationals 2026" to all helpers
+2. Admin runs `/helpers import @UCI Invitationals 2026`
+   - Finds all members with that role
+   - Checks if each is linked and has required Authentik groups
+   - Creates helper records for eligible users
+   - Reports imported vs skipped with reasons
+
+**During Event:**
+- Helpers have the role and can access team channels
+
+**Cleanup:**
+- When `/competition end-competition` is run:
+  - All helper roles are automatically removed
+  - All assignments are marked as "removed" in the database
+  - Audit logs are created for each removal
+
+**Management:**
+- **Add Single:** `/helpers add @user "Role Name"` - Add one helper at a time
+- **Import Bulk:** `/helpers import @Role` - Import all users with an existing role
+- **List:** `/helpers list` or `/helpers list active` - View all helpers and their status
+- **Remove:** `/helpers remove @user "Reason"` - Manually remove helper role before competition ends
+- **Status:** `/helpers status @user` - Check helper assignments and permissions
+
+**Django Admin:**
+- View and manage helper assignments at `/admin/competition/studenthelper/`
+- See all active and removed assignments
+- Audit trail with creation and removal timestamps
 
 ## Development
 
