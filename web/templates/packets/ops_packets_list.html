@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Team Packets - WCComps{% endblock %}
+
+{% block content %}
+<div id="content" class="colM">
+    <h1>Team Packet Management</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="messagelist">
+                <div class="{{ message.tags }}">{{ message }}</div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="toolbar">
+        <a href="{% url 'ops_upload_packet' %}" class="button">+ Upload New Team Packet</a>
+        <a href="/admin/packets/teampacket/" class="button">Django Admin</a>
+    </div>
+
+    <div class="module">
+        {% if packets_with_stats %}
+            <table id="result_list">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>File</th>
+                        <th>Status</th>
+                        <th>Distribution Stats</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in packets_with_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.packet.title }}</strong>
+                                {% if item.packet.notes %}
+                                    <br><small>{{ item.packet.notes|truncatewords:15 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ item.packet.filename }}
+                                <br><small>{{ item.packet.file_size|filesizeformat }}</small>
+                            </td>
+                            <td>
+                                <span class="status-{{ item.packet.status }}">{{ item.packet.get_status_display }}</span>
+                                <br>
+                                {% if item.packet.send_via_email %}<small>📧 Email</small>{% endif %}
+                                {% if item.packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
+                            </td>
+                            <td>
+                                <small>
+                                    Total: {{ item.stats.total }}<br>
+                                    Sent: {{ item.stats.sent }}<br>
+                                    Downloaded: {{ item.stats.downloaded }}
+                                    {% if item.stats.failed > 0 %}
+                                        <br><span style="color: red;">Failed: {{ item.stats.failed }}</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                {{ item.packet.created_at|date:"Y-m-d H:i" }}
+                                <br><small>by {{ item.packet.uploaded_by }}</small>
+                            </td>
+                            <td>
+                                <a href="{% url 'ops_packet_detail' item.packet.id %}" class="button">View</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No packets uploaded yet.</p>
+        {% endif %}
+    </div>
+
+    <br>
+    <p><a href="/">← Back to Home</a></p>
+</div>
+
+<style>
+    .status-draft { background: #ffc; padding: 2px 8px; border-radius: 3px; }
+    .status-distributing { background: #fff9c4; padding: 2px 8px; border-radius: 3px; }
+    .status-completed { background: #c8e6c9; padding: 2px 8px; border-radius: 3px; }
+    .status-cancelled { background: #ffcdd2; padding: 2px 8px; border-radius: 3px; }
+</style>
+{% endblock %}

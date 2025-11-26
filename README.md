@@ -93,6 +93,7 @@ Access levels based on Authentik groups:
 **Team Members:**
 - View tickets and point history at `/tickets/` and `/points/`
 - Create tickets at `/create-ticket/`
+- Access team packets at `/team-packets/`
 
 **Ticketing Support:**
 - Full ticket dashboard at `/ops/tickets/`
@@ -109,6 +110,7 @@ Access levels based on Authentik groups:
 - All support features
 - Manage group role mappings at `/ops/group-role-mappings/`
 - Edit school info at `/ops/school-info/`
+- Upload and distribute team packets at `/team-packets/ops/`
 
 **Admin:**
 - Full Django admin access at `/admin/`
@@ -123,6 +125,60 @@ Access levels based on Authentik groups:
 
 **Cancel:** Team can cancel unclaimed tickets (no penalty). Admin can cancel any ticket.
 
+## Team Packet Distribution
+
+Distribute pre-competition information packets to all teams on-demand.
+
+**Features:**
+- Upload single packet file (PDF, documents, etc.) up to 25 MB
+- Email distribution to team contact emails (from SchoolInfo)
+- Web download access for teams
+- Track email delivery and download status
+- Distribution statistics and reporting
+
+**GoldTeam Workflow:**
+
+1. Upload packet at `/team-packets/ops/upload/`
+   - Set title and optional notes
+   - Choose distribution methods (email and/or web)
+
+2. Distribute immediately using "Distribute Now" button
+   - Sends emails to all teams (if enabled)
+   - Makes packet available for web download (if enabled)
+
+3. Monitor distribution at `/team-packets/ops/`
+   - View email send status
+   - Track team downloads
+   - Export distribution reports to CSV
+
+**Team Member Access:**
+- View available packets at `/team-packets/`
+- Download packets directly from web interface
+- Receive email notifications with download link
+
+**Admin Features:**
+- Full packet management at `/admin/packets/`
+- Bulk distribution actions
+- Retry failed emails
+- Export distribution reports
+
+**Email Configuration:**
+
+Configure SMTP settings in `.env`:
+```
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=noreply@wccomps.org
+EMAIL_HOST_PASSWORD=your_password
+DEFAULT_FROM_EMAIL=noreply@wccomps.org
+```
+
+For development/testing, use console backend:
+```
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
 ## Student Helper Management
 
 Student helpers are temporary support staff for invitationals who are assigned Discord roles that grant access to team channels.
@@ -197,6 +253,7 @@ Key environment variables:
 - `AUTHENTIK_TOKEN` - API token for password resets
 - `BASE_URL` - Public URL for OAuth callbacks
 - `DB_*` - Database configuration
+- `EMAIL_*` - Email configuration for packet distribution (optional)
 
 ## Troubleshooting
 
