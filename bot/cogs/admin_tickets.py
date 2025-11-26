@@ -529,8 +529,10 @@ class AdminTicketsCog(commands.Cog):
                     discord_username=str(volunteer),
                 )
 
-                if error:
-                    await interaction.followup.send(f"Failed to claim ticket: {error}", ephemeral=True)
+                if error or claimed_ticket is None:
+                    await interaction.followup.send(
+                        f"Failed to claim ticket: {error or 'Unknown error'}", ephemeral=True
+                    )
                     return
 
                 ticket = claimed_ticket
@@ -546,8 +548,10 @@ class AdminTicketsCog(commands.Cog):
                     discord_username=str(volunteer),
                 )
 
-                if error:
-                    await interaction.followup.send(f"Failed to reassign ticket: {error}", ephemeral=True)
+                if error or reassigned_ticket is None:
+                    await interaction.followup.send(
+                        f"Failed to reassign ticket: {error or 'Unknown error'}", ephemeral=True
+                    )
                     return
 
                 ticket = reassigned_ticket
@@ -571,8 +575,10 @@ class AdminTicketsCog(commands.Cog):
                 actor_username=f"discord:{interaction.user}",
             )
 
-            if error:
-                await interaction.followup.send(f"Failed to unassign ticket: {error}", ephemeral=True)
+            if error or unclaimed_ticket is None:
+                await interaction.followup.send(
+                    f"Failed to unassign ticket: {error or 'Unknown error'}", ephemeral=True
+                )
                 return
 
             ticket = unclaimed_ticket
