@@ -35,6 +35,11 @@ urlpatterns = [
     path("auth/callback", views.link_callback, name="link_callback"),
     path("ops/school-info/", views.ops_school_info, name="ops_school_info"),
     path(
+        "ops/school-info/import/",
+        views.ops_school_info_import,
+        name="ops_school_info_import",
+    ),
+    path(
         "ops/school-info/<int:team_number>/",
         views.ops_school_info_edit,
         name="ops_school_info_edit",
