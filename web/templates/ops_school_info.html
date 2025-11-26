@@ -10,6 +10,9 @@
     <c-page_header title="School Information" />
 
     <c-module id="changelist">
+        <c-slot name="toolbar">
+            <c-link href="/ops/school-info/import/" variant="addlink">Import from CSV</c-link>
+        </c-slot>
 
         <div class="results">
             <table id="result_list" style="table-layout: fixed; width: 100%;">
