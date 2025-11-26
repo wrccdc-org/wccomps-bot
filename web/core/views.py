@@ -16,7 +16,7 @@ from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
-from .auth_utils import has_permission
+from .auth_utils import get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
 from .utils import get_authentik_data, get_team_from_groups
 

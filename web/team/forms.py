@@ -46,9 +46,9 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
         dict with 'rows' (list of valid data dicts), 'errors' (list of error messages),
         and 'warnings' (list of warning messages)
     """
-    rows = []
-    errors = []
-    warnings = []
+    rows: list[dict[str, Any]] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     try:
         # Read file content
@@ -82,8 +82,8 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
 
         # Process each row
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
-            row_errors = []
-            row_data = {}
+            row_errors: list[str] = []
+            row_data: dict[str, Any] = {}
 
             # Validate team_number
             team_number_str = row.get("team_number", "").strip()
@@ -167,10 +167,10 @@ def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
     Returns:
         dict with 'teams_to_create', 'teams_to_update', 'errors', 'warnings'
     """
-    teams_to_create = []
-    teams_to_update = []
-    errors = []
-    warnings = []
+    teams_to_create: list[dict[str, Any]] = []
+    teams_to_update: list[dict[str, Any]] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     # Check for duplicate team numbers in CSV
     team_numbers = [row["team_number"] for row in rows]
