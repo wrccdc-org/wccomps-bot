@@ -518,33 +518,77 @@ class AdminTicketsCog(commands.Cog):
         old_assignee = ticket.assigned_to_discord_username or "Unassigned"
 
         if volunteer:
-            ticket.assigned_to_discord_id = volunteer.id
-            ticket.assigned_to_discord_username = str(volunteer)
-            ticket.assigned_at = timezone.now()
-
-            # Update status if open
+            # If ticket is open, claim it first
             if ticket.status == "open":
-                ticket.status = "claimed"
+                from ticketing.utils import aclaim_ticket_atomic
 
-            new_assignee = str(volunteer)
+                claimed_ticket, error = await aclaim_ticket_atomic(
+                    ticket_id=ticket.id,
+                    actor_username=f"discord:{interaction.user}",
+                    discord_id=volunteer.id,
+                    discord_username=str(volunteer),
+                )
+
+                if error or claimed_ticket is None:
+                    await interaction.followup.send(
+                        f"Failed to claim ticket: {error or 'Unknown error'}", ephemeral=True
+                    )
+                    return
+
+                ticket = claimed_ticket
+                new_assignee = str(volunteer)
+            else:
+                # Reassign claimed ticket
+                from ticketing.utils import areassign_ticket_atomic
+
+                reassigned_ticket, error = await areassign_ticket_atomic(
+                    ticket_id=ticket.id,
+                    actor_username=f"discord:{interaction.user}",
+                    discord_id=volunteer.id,
+                    discord_username=str(volunteer),
+                )
+
+                if error or reassigned_ticket is None:
+                    await interaction.followup.send(
+                        f"Failed to reassign ticket: {error or 'Unknown error'}", ephemeral=True
+                    )
+                    return
+
+                ticket = reassigned_ticket
+                new_assignee = str(volunteer)
+
+            # Add volunteer to Discord thread if it exists
+            if ticket.discord_thread_id and interaction.guild:
+                try:
+                    thread = interaction.guild.get_thread(ticket.discord_thread_id)
+                    if thread:
+                        await thread.add_user(volunteer)
+                        logger.info(f"Added {volunteer} to thread {ticket.discord_thread_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to add user to thread: {e}")
         else:
-            # Unassign
-            ticket.assigned_to_discord_id = None
-            ticket.assigned_to_discord_username = ""
-            ticket.assigned_at = None
-            ticket.status = "open"
+            # Unassign - use unclaim
+            from ticketing.utils import aunclaim_ticket_atomic
+
+            unclaimed_ticket, error = await aunclaim_ticket_atomic(
+                ticket_id=ticket.id,
+                actor_username=f"discord:{interaction.user}",
+            )
+
+            if error or unclaimed_ticket is None:
+                await interaction.followup.send(
+                    f"Failed to unassign ticket: {error or 'Unknown error'}", ephemeral=True
+                )
+                return
+
+            ticket = unclaimed_ticket
             new_assignee = "Unassigned"
 
-        await ticket.asave()
-
-        # Create history
-        await TicketHistory.objects.acreate(
-            ticket=ticket,
-            action="reassigned",
-            actor_discord_id=interaction.user.id,
-            actor_username=str(interaction.user),
-            details={"old_assignee": old_assignee, "new_assignee": new_assignee},
-        )
+        # Update dashboard
+        try:
+            await update_ticket_dashboard(self.bot, ticket)
+        except Exception as e:
+            logger.exception(f"Failed to update dashboard: {e}")
 
         await interaction.followup.send(
             f"Ticket {ticket.ticket_number} reassigned\n• From: {old_assignee}\n• To: {new_assignee}",

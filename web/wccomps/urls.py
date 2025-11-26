@@ -106,6 +106,11 @@ if TICKETING_ENABLED:
             name="ops_ticket_unclaim",
         ),
         path(
+            "ops/ticket/<str:ticket_number>/reassign/",
+            views.ops_ticket_reassign,
+            name="ops_ticket_reassign",
+        ),
+        path(
             "ops/ticket/<str:ticket_number>/resolve/",
             views.ops_ticket_resolve,
             name="ops_ticket_resolve",

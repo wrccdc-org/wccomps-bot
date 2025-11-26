@@ -429,3 +429,107 @@ async def aunclaim_ticket_atomic(
         )
 
     return await unclaim_atomic()
+
+
+def reassign_ticket_atomic(
+    ticket_id: int,
+    actor_username: str,
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
+    """
+    Reassign a claimed ticket to another support member atomically.
+
+    Args:
+        ticket_id: ID of ticket to reassign
+        actor_username: Username for history (e.g., "discord:user" or "web:user")
+        discord_id: Discord user ID of new assignee (optional)
+        discord_username: Discord username of new assignee (optional)
+        authentik_username: Authentik username of new assignee (optional)
+        authentik_user_id: Authentik user ID of new assignee (optional)
+
+    Returns:
+        Tuple of (ticket, error_message). If error, ticket is None.
+    """
+    with transaction.atomic():
+        ticket = Ticket.objects.select_for_update().filter(id=ticket_id).first()
+
+        if not ticket:
+            return None, "Ticket not found."
+
+        if ticket.status != "claimed":
+            return None, f"Can only reassign claimed tickets. This ticket is {ticket.status}."
+
+        # Store previous assignee for history
+        previous_assignee = {
+            "discord_id": ticket.assigned_to_discord_id,
+            "discord_username": ticket.assigned_to_discord_username,
+            "authentik_username": ticket.assigned_to_authentik_username,
+            "authentik_user_id": ticket.assigned_to_authentik_user_id,
+        }
+
+        # Update ticket assignment
+        ticket.assigned_to_discord_id = discord_id
+        ticket.assigned_to_discord_username = discord_username or ""
+        ticket.assigned_to_authentik_username = authentik_username or ""
+        ticket.assigned_to_authentik_user_id = authentik_user_id or ""
+        ticket.assigned_at = timezone.now()
+        ticket.save()
+
+        # Create history entry
+        TicketHistory.objects.create(
+            ticket=ticket,
+            action="reassigned",
+            actor_username=actor_username,
+            details={
+                "reassigned_by": actor_username,
+                "previous_assignee": previous_assignee,
+                "new_assignee": {
+                    "discord_id": discord_id,
+                    "discord_username": discord_username,
+                    "authentik_username": authentik_username,
+                    "authentik_user_id": authentik_user_id,
+                },
+            },
+        )
+
+        return ticket, None
+
+
+async def areassign_ticket_atomic(
+    ticket_id: int,
+    actor_username: str,
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> tuple[Ticket | None, str | None]:
+    """
+    Async version of reassign_ticket_atomic.
+
+    Args:
+        ticket_id: ID of ticket to reassign
+        actor_username: Username for history (e.g., "discord:user" or "web:user")
+        discord_id: Discord user ID of new assignee (optional)
+        discord_username: Discord username of new assignee (optional)
+        authentik_username: Authentik username of new assignee (optional)
+        authentik_user_id: Authentik user ID of new assignee (optional)
+
+    Returns:
+        Tuple of (ticket, error_message). If error, ticket is None.
+    """
+
+    @sync_to_async
+    def reassign_atomic() -> tuple[Ticket | None, str | None]:
+        return reassign_ticket_atomic(
+            ticket_id=ticket_id,
+            actor_username=actor_username,
+            discord_id=discord_id,
+            discord_username=discord_username,
+            authentik_username=authentik_username,
+            authentik_user_id=authentik_user_id,
+        )
+
+    return await reassign_atomic()
