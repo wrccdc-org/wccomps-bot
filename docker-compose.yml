@@ -42,8 +42,8 @@ services:
     networks:
       - wccomps-net
       - dockge_default
-    ports:
-      - "${WEB_PORT:-8000}:8000"
+    expose:
+      - "8000"
     labels:
       - traefik.enable=true
       - traefik.http.routers.wccomps.rule=Host(`bot.wccomps.org`) || Host(`team.wccomps.org`)
