@@ -1232,6 +1232,75 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
 
 @login_required
+def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Reassign a ticket to another support member (operations team only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
+        return HttpResponse("Access denied", status=403)
+
+    # Get ticket to find ID
+    try:
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    # Get the new assignee from POST data
+    new_assignee_username = request.POST.get("new_assignee_username", "").strip()
+    if not new_assignee_username:
+        return HttpResponse("New assignee username is required", status=400)
+
+    # Try to find Discord link for the new assignee
+    try:
+        discord_link = DiscordLink.objects.get(authentik_username=new_assignee_username, is_active=True)
+        discord_id = discord_link.discord_id
+        discord_username = discord_link.discord_username
+        authentik_user_id = discord_link.authentik_user_id
+    except DiscordLink.DoesNotExist:
+        # New assignee doesn't have Discord linked, but that's okay for web-only users
+        discord_id = None
+        discord_username = None
+        authentik_user_id = None
+
+    # Use shared atomic reassign function
+    from ticketing.utils import reassign_ticket_atomic
+
+    ticket, error = reassign_ticket_atomic(
+        ticket_id=ticket_obj.id,
+        actor_username=authentik_username,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        authentik_username=new_assignee_username,
+        authentik_user_id=authentik_user_id,
+    )
+
+    if error or ticket is None:
+        return HttpResponse(error or "Failed to reassign ticket", status=400)
+
+    # Add new assignee to thread if they have Discord linked and ticket has a thread
+    if discord_id and ticket.discord_thread_id:
+        DiscordTask.objects.create(
+            task_type="add_user_to_thread",
+            ticket=ticket,
+            payload={
+                "discord_id": discord_id,
+                "thread_id": ticket.discord_thread_id,
+            },
+            status="pending",
+        )
+
+    logger.info(f"Ticket {ticket_number} reassigned to {new_assignee_username} by {authentik_username}")
+    referer = request.META.get("HTTP_REFERER", "")
+    if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
+        return redirect(referer)
+    return redirect("ops_ticket_list")
+
+
+@login_required
 def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Resolve a ticket (operations team only)."""
     if request.method != "POST":
