@@ -110,16 +110,54 @@ echo ""
 echo "Building containers..."
 
 # Rebuild containers
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web"
+if ! ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web"; then
+    echo "✗ Build failed"
+    exit 1
+fi
 
 echo "✓ Containers built"
 echo ""
-echo "Restarting services..."
+echo "Verifying images exist..."
 
-# Restart services
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot web"
+# Verify images were created successfully
+if ! ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose images web bot | grep -q 'wccomps-bot'"; then
+    echo "✗ Images not found after build"
+    exit 1
+fi
 
-echo "✓ Services restarted"
+echo "✓ Images verified"
+echo ""
+echo "Deploying with zero downtime..."
+
+# Zero-downtime deployment for web service
+# Scale up (old + new), wait for health checks, scale down (remove old)
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=2 --no-recreate web"
+
+echo "Waiting for new web container to pass health checks..."
+RETRY_COUNT=0
+MAX_RETRIES=30
+until ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -c '\"Health\":\"healthy\"' | grep -q '^2$'" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES..."
+    sleep 2
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "✗ Health checks did not pass in time"
+    ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web"
+    ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=50 web"
+    exit 1
+fi
+
+echo "✓ Both web containers healthy"
+
+# Scale down to remove old container
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=1 --no-recreate web"
+
+# Regular restart for bot (can't scale Discord bot)
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot"
+
+echo "✓ Services deployed"
 echo ""
 echo "Verifying containers..."
 
