@@ -1,6 +1,10 @@
-{% extends "scoring/base.html" %}
+{% extends "base.html" %}
 
-{% block scoring_content %}
+{% block title %}Incident Report #{{ incident.id }}{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Incident Report</h1>
 <c-module>
     <c-slot name="toolbar">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -113,10 +117,11 @@
     {% endif %}
 
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <c-link href="{% url 'scoring:review_incidents' %}" variant="primary">Back to List</c-link>
-        {% if not incident.gold_team_reviewed and user.is_authenticated %}
+        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit Another</c-link>
+        {% if is_gold_team and not incident.gold_team_reviewed %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="success">Review Now</c-link>
         {% endif %}
     </div>
 </c-module>
+</div>
 {% endblock %}

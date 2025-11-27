@@ -24,6 +24,7 @@ class AuthentikAdminSite(admin.AdminSite):
     site_header = "WCComps Administration"
     site_title = "WCComps Admin"
     index_title = "Competition Management"
+    site_url = "/ops/tickets/"
 
     def has_permission(self, request: HttpRequest) -> bool:
         """Check admin access via Authentik groups instead of is_staff."""

@@ -14,6 +14,8 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
             "is_ticketing_admin": False,
             "is_ticketing_support": False,
             "is_gold_team": False,
+            "is_blue_team": False,
+            "is_red_team": False,
             "is_admin": False,
             "authentik_username": "",
         }
@@ -26,7 +28,16 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
     # Get permissions
     perms = get_permissions_context(user)
 
+    # Check team membership via person
+    is_blue_team = False
+    is_red_team = False
+    if hasattr(user, "person"):
+        is_blue_team = user.person.is_blue_team()
+        is_red_team = user.person.is_red_team()
+
     return {
         **perms,
+        "is_blue_team": is_blue_team,
+        "is_red_team": is_red_team,
         "authentik_username": authentik_username,
     }

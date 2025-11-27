@@ -83,13 +83,27 @@ def leaderboard(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_red_team(), "Only Red Team members can access this page")
+@require_team_role(
+    lambda p: p.is_red_team() or p.is_gold_team(),
+    "Only Red Team or Gold Team members can access this page",
+)
 def red_team_portal(request: HttpRequest) -> HttpResponse:
-    """Red team portal - list existing findings."""
-    findings = RedTeamFinding.objects.all().prefetch_related("affected_teams", "screenshots")
+    """Red team portal - list and review findings."""
+    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots")
+
+    pending_findings = base_query.filter(points_per_team=0).order_by("-created_at")
+    reviewed_findings = base_query.exclude(points_per_team=0).order_by("-created_at")
+
+    total_findings = RedTeamFinding.objects.count()
+    pending_count = pending_findings.count()
+    reviewed_count = total_findings - pending_count
 
     context = {
-        "findings": findings,
+        "pending_findings": pending_findings,
+        "reviewed_findings": reviewed_findings,
+        "total_findings": total_findings,
+        "pending_count": pending_count,
+        "reviewed_count": reviewed_count,
     }
     return render(request, "scoring/red_team_portal.html", context)
 
@@ -137,8 +151,22 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
     else:
         form = RedTeamFindingForm()
 
+    # Get box metadata for auto-populating IP and services
+    from quotient.client import QuotientClient
+
+    box_metadata = {}
+    client = QuotientClient()
+    infra = client.get_infrastructure()
+    if infra:
+        for box in infra.boxes:
+            box_metadata[box.name] = {
+                "ip": box.ip,
+                "services": [svc.name for svc in box.services],
+            }
+
     context = {
         "form": form,
+        "box_metadata": box_metadata,
     }
     return render(request, "scoring/submit_red_finding.html", context)
 
@@ -207,10 +235,24 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
     else:
         form = IncidentReportForm(team, is_admin)
 
+    # Get box metadata for JavaScript (IP auto-population and service filtering)
+    from quotient.client import QuotientClient
+
+    box_metadata = {}
+    client = QuotientClient()
+    infra = client.get_infrastructure()
+    if infra:
+        for box in infra.boxes:
+            box_metadata[box.name] = {
+                "ip": box.ip,
+                "services": [svc.name for svc in box.services],
+            }
+
     context = {
         "form": form,
         "team": team,
         "is_admin": is_admin,
+        "box_metadata": box_metadata,
     }
     return render(request, "scoring/submit_incident.html", context)
 
@@ -316,28 +358,28 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     # Build data structure for template
     inject_data = []
     for inject in injects:
-        if inject.is_published:  # Only show published injects
-            team_grades = []
-            for team in teams:
-                team_grade: InjectGrade | None = grade_lookup.get(inject.inject_id, {}).get(team.team_number)
-                team_grades.append(
-                    {
-                        "team": team,
-                        "grade": team_grade,
-                        "points_awarded": team_grade.points_awarded if team_grade else None,
-                    }
-                )
-
-            inject_data.append(
+        # All injects from API are available for grading
+        team_grades = []
+        for team in teams:
+            team_grade: InjectGrade | None = grade_lookup.get(str(inject.inject_id), {}).get(team.team_number)
+            team_grades.append(
                 {
-                    "inject_id": inject.inject_id,
-                    "title": inject.title,
-                    "description": inject.description,
-                    "max_points": inject.points,
-                    "due_date": inject.due_date,
-                    "team_grades": team_grades,
+                    "team": team,
+                    "grade": team_grade,
+                    "points_awarded": team_grade.points_awarded if team_grade else None,
                 }
             )
+
+        inject_data.append(
+            {
+                "inject_id": inject.inject_id,
+                "title": inject.title,
+                "description": inject.description,
+                "max_points": 100,  # Default max points, can be configured per inject
+                "due_date": inject.due_time,
+                "team_grades": team_grades,
+            }
+        )
 
     context = {
         "teams": teams,
@@ -599,20 +641,18 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for attack type suggestions."""
     # Get distinct attack vectors from previous findings
     attack_vectors = (
-        RedTeamFinding.objects.values_list("attack_vector", flat=True)
-        .distinct()
-        .order_by("attack_vector")[:50]  # Limit to 50 most recent
+        RedTeamFinding.objects.values_list("attack_vector", flat=True).distinct().order_by("attack_vector")[:50]
     )
 
-    # Extract first line of each attack vector for suggestions
+    # Extract unique attack types, truncated to 50 chars
     suggestions = []
-    seen = set()
+    seen: set[str] = set()
     for vector in attack_vectors:
         if vector:
-            # Use first line or first 100 chars as suggestion
-            first_line = vector.split("\n")[0][:100].strip()
-            if first_line and first_line not in seen:
-                suggestions.append(first_line)
-                seen.add(first_line)
+            # Truncate to 50 chars max for short attack type names
+            attack_type = vector.strip()[:50]
+            if attack_type and attack_type.lower() not in seen:
+                suggestions.append(attack_type)
+                seen.add(attack_type.lower())
 
-    return JsonResponse({"suggestions": suggestions})
+    return JsonResponse({"suggestions": sorted(suggestions)})

@@ -1,13 +1,87 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
-<c-module>
-    <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:submit_red_finding' %}" variant="danger">Submit New Finding</c-link>
-    </c-slot>
+<c-module style="margin-bottom: 20px;">
+    <h2>Gold Team - Red Team Finding Review</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; padding: 15px 0;">
+        <div>
+            <h2 style="color: #417690; margin: 0;">{{ total_findings }}</h2>
+            <p style="color: #666; margin: 5px 0 0 0;">Total Findings</p>
+        </div>
+        <div>
+            <h2 style="color: #28a745; margin: 0;">{{ reviewed_count }}</h2>
+            <p style="color: #666; margin: 5px 0 0 0;">Reviewed</p>
+        </div>
+        <div>
+            <h2 style="color: #ffc107; margin: 0;">{{ pending_count }}</h2>
+            <p style="color: #666; margin: 5px 0 0 0;">Pending</p>
+        </div>
+    </div>
+</c-module>
 
-    {% if findings %}
-    <c-table id="red_findings" aria_label="Red team findings">
+<c-module>
+    <h2>Pending Red Team Findings</h2>
+    <p style="color: #666; margin-top: 0;">Review red team findings and assign point deductions</p>
+
+    {% if pending_findings %}
+    <c-table id="pending_findings" aria_label="Pending red team findings">
+        <c-slot name="headers">
+            <tr>
+                <th>ID</th>
+                <th>Attack Vector</th>
+                <th>Box</th>
+                <th>Service</th>
+                <th>Teams</th>
+                <th>Submitted</th>
+                <th>Evidence</th>
+                <th>Actions</th>
+            </tr>
+        </c-slot>
+
+        {% for finding in pending_findings %}
+        <tr>
+            <td><strong>#{{ finding.id }}</strong></td>
+            <td>{{ finding.attack_vector|truncatechars:40 }}</td>
+            <td>{{ finding.affected_box }}</td>
+            <td>{{ finding.affected_service }}</td>
+            <td>
+                <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
+                <small style="color: #666; display: block; margin-top: 4px;">
+                    {% for team in finding.affected_teams.all|slice:":3" %}
+                        {{ team.team_name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                    {% if finding.affected_teams.count > 3 %}...{% endif %}
+                </small>
+            </td>
+            <td>
+                <small>{{ finding.created_at|date:"m/d H:i" }}</small><br>
+                <small style="color: #666;">by {{ finding.submitted_by.username }}</small>
+            </td>
+            <td>
+                {% if finding.screenshots.exists %}
+                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
+                {% else %}
+                    <span style="color: #666;">None</span>
+                {% endif %}
+            </td>
+            <td>
+                <c-link href="{% url 'admin:scoring_redteamfinding_change' finding.id %}" variant="primary">Review</c-link>
+            </td>
+        </tr>
+        {% endfor %}
+    </c-table>
+    {% else %}
+    <c-alert variant="success">
+        <h3 style="margin-top: 0;">All findings reviewed!</h3>
+        <p style="margin-bottom: 0;">There are no pending red team findings to review.</p>
+    </c-alert>
+    {% endif %}
+</c-module>
+
+{% if reviewed_findings %}
+<c-module>
+    <h2>Reviewed Findings</h2>
+    <c-table id="reviewed_findings" aria_label="Reviewed red team findings">
         <c-slot name="headers">
             <tr>
                 <th>ID</th>
@@ -21,7 +95,7 @@
             </tr>
         </c-slot>
 
-        {% for finding in findings %}
+        {% for finding in reviewed_findings %}
         <tr>
             <td><strong>#{{ finding.id }}</strong></td>
             <td>{{ finding.attack_vector|truncatechars:40 }}</td>
@@ -51,10 +125,6 @@
         </tr>
         {% endfor %}
     </c-table>
-    {% else %}
-    <c-alert variant="info">
-        No red team findings submitted yet.
-    </c-alert>
-    {% endif %}
 </c-module>
+{% endif %}
 {% endblock %}

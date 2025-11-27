@@ -2,46 +2,30 @@
 
 {% block title %}Scoring{% endblock %}
 
-{% block nav-global %}
-<div class="module" style="margin: 0; padding: 10px 15px; background: #f8f8f8; border-bottom: 1px solid #ddd;">
-    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-        <a href="{% url 'scoring:leaderboard' %}" style="font-weight: {% if request.resolver_match.url_name == 'leaderboard' %}700{% else %}400{% endif %};">
-            Leaderboard
-        </a>
-        {% if user.is_authenticated %}
-        <a href="{% url 'scoring:red_team_portal' %}" style="font-weight: {% if 'red_team' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Red Team
-        </a>
-        <a href="{% url 'scoring:submit_incident_report' %}" style="font-weight: {% if 'incident' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Incident Reports
-        </a>
-        <a href="{% url 'scoring:orange_team_portal' %}" style="font-weight: {% if 'orange' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Orange Team
-        </a>
-        <a href="{% url 'scoring:inject_grading' %}" style="font-weight: {% if 'inject' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Inject Grading
-        </a>
-        <a href="{% url 'scoring:review_incidents' %}" style="font-weight: {% if 'review_incident' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Review Incidents
-        </a>
-        {% if is_ticketing_admin %}
-        <a href="{% url 'ops_review_tickets' %}" style="font-weight: {% if 'review_tickets' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Review Tickets
-        </a>
-        {% endif %}
-        {% if user.is_staff %}
-        <a href="{% url 'scoring:scoring_config' %}" style="font-weight: {% if 'config' in request.resolver_match.url_name %}700{% else %}400{% endif %};">
-            Configuration
-        </a>
-        {% endif %}
-        {% endif %}
-    </div>
-</div>
-{% endblock %}
-
 {% block content %}
-    <div class="module">
-        <h1>{% block scoring_title %}Competition Scoring{% endblock %}</h1>
-        {% block scoring_content %}{% endblock %}
-    </div>
+<style>
+    .breadcrumbs a.current {
+        font-weight: bold;
+        color: #fff;
+    }
+</style>
+<div class="breadcrumbs" style="margin-top: 0;">
+    <a href="{% url 'scoring:leaderboard' %}"{% if request.resolver_match.url_name == 'leaderboard' %} class="current"{% endif %}>Leaderboard</a>
+    {% if user.is_authenticated %}
+    | <a href="{% url 'scoring:red_team_portal' %}"{% if 'red_team' in request.resolver_match.url_name %} class="current"{% endif %}>Review Red Team</a>
+    | <a href="{% url 'scoring:orange_team_portal' %}"{% if 'orange' in request.resolver_match.url_name %} class="current"{% endif %}>Orange Team</a>
+    | <a href="{% url 'scoring:inject_grading' %}"{% if 'inject' in request.resolver_match.url_name %} class="current"{% endif %}>Inject Grading</a>
+    | <a href="{% url 'scoring:review_incidents' %}"{% if 'review_incident' in request.resolver_match.url_name %} class="current"{% endif %}>Review Incidents</a>
+    {% if is_ticketing_admin %}
+    | <a href="{% url 'ops_review_tickets' %}"{% if 'review_tickets' in request.resolver_match.url_name %} class="current"{% endif %}>Review Tickets</a>
+    {% endif %}
+    {% if user.is_staff %}
+    | <a href="{% url 'scoring:scoring_config' %}"{% if 'config' in request.resolver_match.url_name %} class="current"{% endif %}>Configuration</a>
+    {% endif %}
+    {% endif %}
+</div>
+
+<div class="module">
+    {% block scoring_content %}{% endblock %}
+</div>
 {% endblock %}

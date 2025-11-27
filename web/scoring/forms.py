@@ -36,20 +36,18 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "notes",
         ]
         widgets = {
-            "attack_vector": forms.Textarea(
+            "attack_vector": forms.TextInput(
                 attrs={
-                    "rows": 5,
-                    "placeholder": (
-                        "e.g., 'Default Credentials', 'SSH default user', 'Web Portal Standard', 'RCE Service'..."
-                    ),
+                    "placeholder": "e.g., Default Credentials, RCE, SQL Injection",
                     "class": "form-control",
+                    "autocomplete": "off",
                 }
             ),
             "affected_teams": forms.CheckboxSelectMultiple(),
             "notes": forms.Textarea(
                 attrs={
                     "rows": 4,
-                    "placeholder": "Additional notes, remediation steps, or context",
+                    "placeholder": "Full description of the attack and steps taken...",
                     "class": "form-control",
                 }
             ),
@@ -57,7 +55,7 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "source_ip": forms.TextInput(attrs={"placeholder": "e.g., 10.0.0.5", "class": "form-control"}),
         }
         labels = {
-            "attack_vector": "Attack Description",
+            "attack_vector": "Attack Type",
             "source_ip": "Red Team Source IP",
             "affected_box": "Affected Box",
             "affected_service": "Affected Service",
@@ -65,17 +63,15 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "universally_attempted": "Attempted against all teams",
             "persistence_established": "Persistence established",
             "affected_teams": "Affected Teams (select all that apply)",
-            "notes": "Additional Notes",
+            "notes": "Description",
         }
         help_texts = {
-            "attack_vector": (
-                "Provide a detailed description of the vulnerability exploited or attack performed. "
-                "Start typing to see suggestions from previous submissions."
-            ),
+            "attack_vector": "Short name for this attack (1-2 words). Start typing to see suggestions.",
             "source_ip": "The IP address you attacked from.",
             "universally_attempted": "Check if this attack was attempted against all teams.",
             "persistence_established": "Check if you established persistent access.",
             "affected_teams": "Select all teams that were successfully compromised.",
+            "notes": "Full description of the attack and steps taken.",
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -119,25 +115,41 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
     team = forms.ModelChoiceField(
         queryset=Team.objects.none(),
         required=False,
-        help_text="Select team to submit on behalf of (admin only)",
+        label="Team",
     )
 
     class Meta:
         model = IncidentReport
         fields = [
-            "attack_description",
-            "source_ip",
-            "destination_ip",
             "affected_box",
+            "destination_ip",
             "affected_service",
+            "source_ip",
             "attack_detected_at",
+            "attack_description",
             "attack_mitigated",
-            "evidence_notes",
         ]
+        labels = {
+            "affected_box": "Affected Box",
+            "destination_ip": "Affected IP",
+            "affected_service": "Affected Service (optional)",
+            "source_ip": "Attacker IP",
+            "attack_detected_at": "When Detected",
+            "attack_description": "What Happened",
+            "attack_mitigated": "Attack Mitigated",
+        }
+        help_texts = {
+            "affected_box": "",
+            "destination_ip": "",
+            "affected_service": "",
+            "source_ip": "",
+            "attack_detected_at": "",
+            "attack_description": "",
+            "attack_mitigated": "Check if you've stopped the attack",
+        }
         widgets = {
-            "attack_description": forms.Textarea(attrs={"rows": 4, "placeholder": "Describe what you detected"}),
+            "attack_description": forms.Textarea(attrs={"rows": 3}),
             "attack_detected_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
-            "evidence_notes": forms.Textarea(attrs={"rows": 3, "placeholder": "Additional evidence or notes"}),
             "destination_ip": forms.TextInput(attrs={"readonly": "readonly"}),
         }
 
@@ -149,36 +161,50 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
             team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
             team_field.required = True
+            team_field.widget.attrs["id"] = "id_team"
             if team:
                 team_field.initial = team
+            # Reorder fields to put team first
+            self.order_fields(
+                [
+                    "team",
+                    "affected_box",
+                    "destination_ip",
+                    "affected_service",
+                    "source_ip",
+                    "attack_detected_at",
+                    "attack_description",
+                    "attack_mitigated",
+                ]
+            )
         else:
             # Hide team field for regular users
             del self.fields["team"]
 
         # Populate dropdowns from Quotient metadata
         box_choices = get_box_choices()
-        service_choices = get_service_choices()
+
+        # Service is optional
+        self.fields["affected_service"].required = False
 
         # If Quotient metadata is available, use dropdowns; otherwise use text inputs
         if box_choices:
             self.fields["affected_box"].widget = forms.Select(
-                choices=[("", "---")] + box_choices, attrs={"class": "form-select"}
+                choices=[("", "---")] + box_choices,
+                attrs={"class": "form-select", "id": "id_affected_box"},
+            )
+            # Service starts empty, populated by JavaScript based on box selection
+            self.fields["affected_service"].widget = forms.Select(
+                choices=[("", "(select box first)")],
+                attrs={"class": "form-select", "id": "id_affected_service"},
             )
         else:
             self.fields["affected_box"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., web-server, mail-server"}
+                attrs={"class": "form-control", "placeholder": "e.g., web-server"}
             )
-            self.fields["affected_box"].help_text = "Quotient metadata not synced - enter box name manually"
-
-        if service_choices:
-            self.fields["affected_service"].widget = forms.Select(
-                choices=[("", "---")] + service_choices, attrs={"class": "form-select"}
-            )
-        else:
             self.fields["affected_service"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP, DNS"}
+                attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP"}
             )
-            self.fields["affected_service"].help_text = "Quotient metadata not synced - enter service name manually"
 
 
 class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):

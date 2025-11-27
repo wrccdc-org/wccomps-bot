@@ -27,8 +27,8 @@
                 <td style="padding: 5px 0;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Attack Vector:</th>
-                <td style="padding: 5px 0;">{{ incident.attack_vector }}</td>
+                <th style="text-align: left; padding: 5px 0;">Attack Description:</th>
+                <td style="padding: 5px 0;">{{ incident.attack_description }}</td>
             </tr>
         </table>
 
@@ -63,20 +63,26 @@
         <c-alert variant="info">
             <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
             <p style="margin-bottom: 0;">
-                <small>Based on time window (±30 min), box, and service</small>
+                <small>Based on source IP, affected box, and service</small>
             </p>
         </c-alert>
 
         <div style="margin-bottom: 15px;">
             <h3 style="font-size: 14px;">Potential Red Team Findings:</h3>
             {% for finding in suggested_findings %}
-            <div style="border: {% if forloop.first %}2px solid #28a745{% else %}1px solid #ddd{% endif %}; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: white;">
+            <div style="border: {% if finding.source_ip == incident.source_ip %}2px solid #28a745{% elif forloop.first %}2px solid #ffc107{% else %}1px solid #ddd{% endif %}; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: white;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <strong>Finding #{{ finding.id }}</strong>
+                        {% if finding.source_ip == incident.source_ip %}
+                        <c-badge variant="success" style="margin-left: 5px;">IP Match</c-badge>
+                        {% endif %}
                         <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
                         <br><small style="color: #666;">
                             {{ finding.affected_box }} / {{ finding.affected_service }}
+                        </small>
+                        <br><small style="{% if finding.source_ip == incident.source_ip %}color: #28a745; font-weight: bold;{% else %}color: #666;{% endif %}">
+                            Source IP: <code>{{ finding.source_ip }}</code>
                         </small>
                     </div>
                     <c-badge variant="danger">-{{ finding.points_per_team }} pts</c-badge>
@@ -90,7 +96,7 @@
         {% else %}
         <c-alert variant="warning">
             <strong>No Automatic Matches Found</strong>
-            <p style="margin-bottom: 0;">No red team findings match this incident's timeframe and attributes.</p>
+            <p style="margin-bottom: 0;">No red team findings match this incident's source IP, box, or service for this team.</p>
         </c-alert>
         {% endif %}
 

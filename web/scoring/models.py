@@ -220,9 +220,9 @@ class IncidentReport(models.Model):
     )
 
     # Attack details
-    attack_description = models.TextField(help_text="Description of detected attack")
-    source_ip = models.GenericIPAddressField(help_text="Attacker source IP")
-    destination_ip = models.GenericIPAddressField(help_text="Victim IP (team's system)")
+    attack_description = models.TextField()
+    source_ip = models.GenericIPAddressField()
+    destination_ip = models.GenericIPAddressField(null=True, blank=True)
 
     # Affected infrastructure
     affected_box = models.CharField(max_length=100, blank=True)
