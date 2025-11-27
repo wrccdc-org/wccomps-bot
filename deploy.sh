@@ -127,16 +127,15 @@ fi
 
 echo "✓ Images verified"
 echo ""
-echo "Deploying with zero downtime..."
+echo "Restarting services..."
 
-# Zero-downtime deployment for web service
-# Scale up (old + new), wait for health checks, scale down (remove old)
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=2 --no-recreate web"
+# Restart web and bot with new images
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot"
 
-echo "Waiting for new web container to pass health checks..."
+echo "Waiting for health checks..."
 RETRY_COUNT=0
 MAX_RETRIES=30
-until ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -c '\"Health\":\"healthy\"' | grep -q '^2$'" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+until ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -q '\"Health\":\"healthy\"'" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
     RETRY_COUNT=$((RETRY_COUNT+1))
     echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES..."
     sleep 2
@@ -148,14 +147,6 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=50 web"
     exit 1
 fi
-
-echo "✓ Both web containers healthy"
-
-# Scale down to remove old container
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --scale web=1 --no-recreate web"
-
-# Regular restart for bot (can't scale Discord bot)
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d bot"
 
 echo "✓ Services deployed"
 echo ""

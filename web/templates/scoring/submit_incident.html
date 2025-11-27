@@ -1,77 +1,106 @@
-{% extends "scoring/base.html" %}
+{% extends "base.html" %}
 {% load crispy_forms_tags %}
 
-{% block scoring_content %}
-<c-module>
+{% block title %}Submit Incident Report{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Submit Incident Report</h1>
     {% if team or is_admin %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-
-        {% if is_admin and not team %}
-        <c-alert variant="info" style="margin-bottom: 15px;">
-            <strong>Admin Mode:</strong> You can submit incident reports on behalf of any team.
-        </c-alert>
-        {% endif %}
-
         {{ form|crispy }}
 
-        <div style="margin-bottom: 20px;">
-            <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">Screenshot Evidence</h3>
-
-            <div style="margin-bottom: 15px;">
-                <label for="screenshots" style="display: block; margin-bottom: 5px; font-weight: 500;">Upload Screenshots</label>
-                <input type="file"
-                       class="form-control"
-                       id="screenshots"
-                       name="screenshots"
-                       accept="image/*"
-                       multiple
-                       onchange="previewScreenshots(this)">
-                <div style="margin-top: 5px; color: #666; font-size: 12px;">
-                    Upload screenshots as evidence (PNG, JPG, JPEG, GIF, WebP).
-                    Maximum 20 files, 50MB per file.
-                </div>
-            </div>
-
-            <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;"></div>
+        <div style="margin: 20px 0;">
+            <label for="screenshots" style="display: block; margin-bottom: 5px; font-weight: 500;">Screenshots</label>
+            <input type="file"
+                   class="form-control"
+                   id="screenshots"
+                   name="screenshots"
+                   accept="image/*"
+                   multiple
+                   onchange="previewScreenshots(this)">
+            <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;"></div>
         </div>
 
-        <c-alert variant="warning" style="margin-top: 15px;">
-            <strong>Evidence Requirements:</strong>
-            <ul style="margin-bottom: 0;">
-                <li>Include IP addresses in all screenshots</li>
-                <li>Include timestamps showing when attack was detected</li>
-                <li>Describe your detection and mitigation steps</li>
-            </ul>
-        </c-alert>
-
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <c-button type="submit" variant="primary">Submit Report</c-button>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <c-button type="submit" variant="primary">Submit</c-button>
             <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
         </div>
     </form>
     {% else %}
-    <c-alert variant="danger">
-        You must be associated with a team to submit incident reports.
-    </c-alert>
+    <p>You must be associated with a team to submit incident reports.</p>
     {% endif %}
-</c-module>
 
+{{ box_metadata|json_script:"box-metadata" }}
 <script>
+const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
+let teamNumber = {% if team %}{{ team.team_number }}{% else %}null{% endif %};
+
+function getSelectedTeamNumber() {
+    const teamSelect = document.getElementById('id_team');
+    if (teamSelect && teamSelect.value) {
+        // Extract team number from the selected option text (e.g., "BlueTeam09" -> 9)
+        const match = teamSelect.selectedOptions[0].text.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+    }
+    return teamNumber;
+}
+
+function updateIPAndServices() {
+    const boxSelect = document.getElementById('id_affected_box');
+    const serviceSelect = document.getElementById('id_affected_service');
+    const ipField = document.getElementById('id_destination_ip');
+
+    if (!boxSelect) return;
+
+    const boxName = boxSelect.value;
+    const boxData = boxMetadata[boxName];
+    const currentTeam = getSelectedTeamNumber();
+
+    // Update IP field
+    if (boxData && ipField && currentTeam) {
+        const teamStr = currentTeam.toString().padStart(2, '0');
+        ipField.value = boxData.ip.replace('_', teamStr);
+    } else if (ipField) {
+        ipField.value = '';
+    }
+
+    // Update service dropdown
+    if (serviceSelect) {
+        serviceSelect.innerHTML = '<option value="">-- None --</option>';
+        if (boxData && boxData.services) {
+            boxData.services.forEach(function(svc) {
+                const option = document.createElement('option');
+                option.value = svc;
+                option.textContent = svc;
+                serviceSelect.appendChild(option);
+            });
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const boxSelect = document.getElementById('id_affected_box');
+    const teamSelect = document.getElementById('id_team');
+
+    if (boxSelect) {
+        boxSelect.addEventListener('change', updateIPAndServices);
+    }
+    if (teamSelect) {
+        teamSelect.addEventListener('change', updateIPAndServices);
+    }
+});
+
 function previewScreenshots(input) {
     const preview = document.getElementById('screenshotPreview');
     preview.innerHTML = '';
-
     if (input.files) {
-        const fileCount = input.files.length;
-
-        if (fileCount > 20) {
-            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+        if (input.files.length > 20) {
+            alert('Maximum 20 screenshots allowed.');
         }
-
         Array.from(input.files).slice(0, 20).forEach((file, index) => {
             const reader = new FileReader();
-
             reader.onload = function(e) {
                 const div = document.createElement('div');
                 div.innerHTML = `
@@ -80,10 +109,10 @@ function previewScreenshots(input) {
                 `;
                 preview.appendChild(div);
             };
-
             reader.readAsDataURL(file);
         });
     }
 }
 </script>
+</div>
 {% endblock %}

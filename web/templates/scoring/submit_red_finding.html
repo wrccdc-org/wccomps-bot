@@ -1,7 +1,7 @@
-{% extends "scoring/base.html" %}
+{% extends "base.html" %}
 {% load crispy_forms_tags %}
 
-{% block scoring_content %}
+{% block content %}
 <div style="max-width: 1200px; margin: 0 auto;">
     <c-module>
         <form method="post" enctype="multipart/form-data" id="findingForm">
@@ -11,24 +11,22 @@
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
 
-                        <div class="mb-3">
-                            <label for="{{ form.attack_vector.id_for_label }}" class="form-label required">
-                                {{ form.attack_vector.label }}
-                            </label>
-                            {{ form.attack_vector }}
-                            <datalist id="attackSuggestions"></datalist>
-                            {% if form.attack_vector.help_text %}
-                                <div class="form-text">
-                                    <i class="bi bi-lightbulb"></i> {{ form.attack_vector.help_text }}
-                                </div>
-                            {% endif %}
-                            {% if form.attack_vector.errors %}
-                                <div class="text-danger">{{ form.attack_vector.errors }}</div>
-                            {% endif %}
-                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="mb-3">
+                                <label for="{{ form.attack_vector.id_for_label }}" class="form-label required">
+                                    {{ form.attack_vector.label }}
+                                </label>
+                                {{ form.attack_vector }}
+                                <datalist id="attackSuggestions"></datalist>
+                                {% if form.attack_vector.help_text %}
+                                    <div class="form-text">{{ form.attack_vector.help_text }}</div>
+                                {% endif %}
+                                {% if form.attack_vector.errors %}
+                                    <div class="text-danger">{{ form.attack_vector.errors }}</div>
+                                {% endif %}
+                            </div>
 
-                        <div>
-                            <div class="mb-3" style="max-width: 50%;">
+                            <div class="mb-3">
                                 <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
                                     {{ form.source_ip.label }}
                                 </label>
@@ -217,7 +215,10 @@
     </c-module>
 </div>
 
+{{ box_metadata|json_script:"box-metadata" }}
 <script>
+const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
+
 function previewScreenshots(input) {
     const preview = document.getElementById('screenshotPreview');
     preview.innerHTML = '';
@@ -247,6 +248,13 @@ function previewScreenshots(input) {
     }
 }
 
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Load attack type suggestions
 async function loadAttackSuggestions() {
     try {
@@ -265,22 +273,22 @@ async function loadAttackSuggestions() {
     }
 }
 
-// Setup autocomplete for attack vector textarea
+// Setup autocomplete for attack type input
 function setupAttackAutocomplete() {
-    const textarea = document.getElementById('{{ form.attack_vector.id_for_label }}');
+    const input = document.getElementById('{{ form.attack_vector.id_for_label }}');
     const datalist = document.getElementById('attackSuggestions');
 
-    if (!textarea || !datalist) return;
+    if (!input || !datalist) return;
 
-    // Link textarea to datalist
-    textarea.setAttribute('list', 'attackSuggestions');
+    // Link input to datalist for native autocomplete
+    input.setAttribute('list', 'attackSuggestions');
 
-    // Create a dropdown container for suggestions
+    // Create a dropdown container for custom suggestions
     const dropdown = document.createElement('div');
     dropdown.className = 'autocomplete-dropdown';
     dropdown.style.cssText = 'position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
-    textarea.parentNode.style.position = 'relative';
-    textarea.parentNode.appendChild(dropdown);
+    input.parentNode.style.position = 'relative';
+    input.parentNode.appendChild(dropdown);
 
     let suggestions = [];
 
@@ -291,33 +299,28 @@ function setupAttackAutocomplete() {
     observer.observe(datalist, { childList: true });
 
     // Show dropdown on input
-    textarea.addEventListener('input', function(e) {
-        const value = this.value.toLowerCase();
-        const firstLine = value.split('\n')[0];
+    input.addEventListener('input', function(e) {
+        const value = this.value.toLowerCase().trim();
 
-        if (firstLine.length < 2) {
+        if (value.length < 2) {
             dropdown.style.display = 'none';
             return;
         }
 
-        const matches = suggestions.filter(s => s.toLowerCase().includes(firstLine));
+        const matches = suggestions.filter(s => s.toLowerCase().includes(value));
 
         if (matches.length === 0) {
             dropdown.style.display = 'none';
             return;
         }
 
-        dropdown.innerHTML = matches.slice(0, 10).map(match =>
-            `<div class="autocomplete-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">${match}</div>`
-        ).join('');
-
-        dropdown.style.display = 'block';
-        dropdown.style.width = textarea.offsetWidth + 'px';
-        dropdown.style.top = (textarea.offsetTop + 40) + 'px';
-        dropdown.style.left = textarea.offsetLeft + 'px';
-
-        // Add click handlers
-        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        // Build dropdown with escaped HTML
+        dropdown.innerHTML = '';
+        matches.slice(0, 10).forEach(match => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
+            item.textContent = match;  // Safe: uses textContent, not innerHTML
             item.addEventListener('mouseenter', function() {
                 this.style.backgroundColor = '#f0f0f0';
             });
@@ -325,16 +328,22 @@ function setupAttackAutocomplete() {
                 this.style.backgroundColor = 'white';
             });
             item.addEventListener('click', function() {
-                textarea.value = this.textContent;
+                input.value = this.textContent;
                 dropdown.style.display = 'none';
-                textarea.focus();
+                input.focus();
             });
+            dropdown.appendChild(item);
         });
+
+        dropdown.style.display = 'block';
+        dropdown.style.width = input.offsetWidth + 'px';
+        dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
+        dropdown.style.left = input.offsetLeft + 'px';
     });
 
     // Hide dropdown when clicking outside
     document.addEventListener('click', function(e) {
-        if (e.target !== textarea && !dropdown.contains(e.target)) {
+        if (e.target !== input && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
         }
     });
@@ -394,7 +403,42 @@ function deselectAllTeams() {
     updateSelectedCount();
 }
 
-// Auto-populate destination IP template based on selected box
+// Auto-populate destination IP template and services based on selected box
+function updateIPAndServices() {
+    const boxSelect = document.getElementById('{{ form.affected_box.id_for_label }}');
+    const serviceSelect = document.getElementById('{{ form.affected_service.id_for_label }}');
+    const ipTemplate = document.getElementById('{{ form.destination_ip_template.id_for_label }}');
+
+    if (!boxSelect) return;
+
+    const boxName = boxSelect.value;
+    const boxData = boxMetadata[boxName];
+
+    // Update IP template field
+    if (boxData && ipTemplate) {
+        ipTemplate.value = boxData.ip;
+    } else if (ipTemplate) {
+        ipTemplate.value = '';
+    }
+
+    // Update service dropdown
+    if (serviceSelect) {
+        const currentService = serviceSelect.value;
+        serviceSelect.innerHTML = '<option value="">Select a service...</option>';
+        if (boxData && boxData.services) {
+            boxData.services.forEach(function(svc) {
+                const option = document.createElement('option');
+                option.value = svc;
+                option.textContent = svc;
+                if (svc === currentService) {
+                    option.selected = true;
+                }
+                serviceSelect.appendChild(option);
+            });
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     loadAttackSuggestions();
     setupAttackAutocomplete();
@@ -418,17 +462,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update selected count on page load
     updateSelectedCount();
 
+    // Setup box change handler for auto-populating IP and services
     const boxSelect = document.getElementById('{{ form.affected_box.id_for_label }}');
-    const ipTemplate = document.getElementById('{{ form.destination_ip_template.id_for_label }}');
-
-    if (boxSelect && ipTemplate) {
-        boxSelect.addEventListener('change', function() {
-            // This would be populated via AJAX from the server
-            // For now, just clear it when box changes
-            if (!this.value) {
-                ipTemplate.value = '';
-            }
-        });
+    if (boxSelect) {
+        boxSelect.addEventListener('change', updateIPAndServices);
+        // Initialize on page load if box already selected
+        if (boxSelect.value) {
+            updateIPAndServices();
+        }
     }
 });
 </script>

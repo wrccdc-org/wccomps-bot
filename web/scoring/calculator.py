@@ -95,10 +95,27 @@ def calculate_team_score(team: Team) -> dict[str, Decimal]:
     }
 
 
+def _has_scoring_activity(scores: dict[str, Decimal]) -> bool:
+    """Check if a team has any scoring activity (any non-zero component)."""
+    return any(
+        scores[key] != 0
+        for key in [
+            "service_points",
+            "inject_points",
+            "orange_points",
+            "red_deductions",
+            "incident_recovery_points",
+            "sla_penalties",
+            "black_adjustments",
+        ]
+    )
+
+
 @transaction.atomic
 def recalculate_all_scores() -> None:
     """
     Recalculate scores for all teams and update rankings.
+    Only teams with scoring activity are ranked.
     """
     # Get all active teams
     teams = Team.objects.filter(is_active=True)
@@ -109,11 +126,15 @@ def recalculate_all_scores() -> None:
         scores = calculate_team_score(team)
         score_data.append((team, scores))
 
-    # Sort by total_score descending to assign ranks
-    score_data.sort(key=lambda x: x[1]["total_score"], reverse=True)
+    # Separate teams with activity from those without
+    active_teams = [(t, s) for t, s in score_data if _has_scoring_activity(s)]
+    inactive_teams = [(t, s) for t, s in score_data if not _has_scoring_activity(s)]
 
-    # Update or create FinalScore records with ranks
-    for rank, (team, scores) in enumerate(score_data, start=1):
+    # Sort active teams by total_score descending to assign ranks
+    active_teams.sort(key=lambda x: x[1]["total_score"], reverse=True)
+
+    # Update or create FinalScore records with ranks for active teams
+    for rank, (team, scores) in enumerate(active_teams, start=1):
         FinalScore.objects.update_or_create(
             team=team,
             defaults={
@@ -129,25 +150,54 @@ def recalculate_all_scores() -> None:
             },
         )
 
+    # Update inactive teams with rank=None
+    for team, scores in inactive_teams:
+        FinalScore.objects.update_or_create(
+            team=team,
+            defaults={
+                "service_points": scores["service_points"],
+                "inject_points": scores["inject_points"],
+                "orange_points": scores["orange_points"],
+                "red_deductions": scores["red_deductions"],
+                "incident_recovery_points": scores["incident_recovery_points"],
+                "sla_penalties": scores["sla_penalties"],
+                "black_adjustments": scores["black_adjustments"],
+                "total_score": scores["total_score"],
+                "rank": None,
+            },
+        )
+
 
 def get_leaderboard() -> list[FinalScore]:
     """
     Get the current leaderboard.
 
     Returns:
-        List of FinalScore objects ordered by rank
+        List of FinalScore objects ordered by rank, excluding teams with no scoring activity
     """
-    return list(FinalScore.objects.all().select_related("team").order_by("rank"))
+    return list(
+        FinalScore.objects.exclude(
+            service_points=0,
+            inject_points=0,
+            orange_points=0,
+            red_deductions=0,
+            incident_recovery_points=0,
+            sla_penalties=0,
+            black_adjustments=0,
+        )
+        .select_related("team")
+        .order_by("rank")
+    )
 
 
 def suggest_red_finding_matches(incident: IncidentReport) -> "QuerySet[RedTeamFinding]":
     """
     Suggest potential red team findings that match an incident report.
 
-    Matching criteria:
-    - Team is in affected_teams
-    - Same box and/or service
-    - Similar timestamp (±30 minutes)
+    Matching criteria (prioritized):
+    1. Source IP match (most reliable - same attacker IP)
+    2. Team is in affected_teams
+    3. Same box and/or service
 
     Args:
         incident: IncidentReport instance
@@ -155,22 +205,21 @@ def suggest_red_finding_matches(incident: IncidentReport) -> "QuerySet[RedTeamFi
     Returns:
         QuerySet of potential RedTeamFinding matches, ordered by relevance
     """
-    from datetime import timedelta
-
-    time_window_start = incident.attack_detected_at - timedelta(minutes=30)
-    time_window_end = incident.attack_detected_at + timedelta(minutes=30)
-
-    # Build query with filters
+    # Primary match: source_ip (most reliable indicator)
+    # Secondary match: team + box/service
     query = Q(affected_teams=incident.team)
 
-    # Match on box or service
+    # Build optional filters
+    filters = Q()
+    if incident.source_ip:
+        filters |= Q(source_ip=incident.source_ip)
     if incident.affected_box:
-        query &= Q(affected_box=incident.affected_box)
+        filters |= Q(affected_box=incident.affected_box)
     if incident.affected_service:
-        query &= Q(affected_service=incident.affected_service)
+        filters |= Q(affected_service=incident.affected_service)
 
-    # Time window
-    query &= Q(created_at__gte=time_window_start, created_at__lte=time_window_end)
+    if filters:
+        query &= filters
 
     findings = RedTeamFinding.objects.filter(query).distinct().order_by("-created_at")
 

@@ -43,39 +43,41 @@ class QuotientInfrastructure:
 class TeamScore:
     """Team scoring data from Quotient."""
 
+    team_name: str
     team_number: int
     total_score: float
-    service_score: float
-    inject_score: float
-    incident_score: float
-    rank: int
-    last_updated: str
+    score_history: list[dict[str, int | float]]  # [{Round: int, Total: float}, ...]
 
 
 @dataclass
-class ServiceCheck:
-    """Service check result from Quotient."""
+class ServiceStatus:
+    """Service status for a team from Quotient."""
 
-    team_number: int
-    box_name: str
-    service_name: str
-    is_up: bool
-    response_time_ms: int | None
-    error_message: str | None
-    checked_at: str
+    team_name: str
+    team_id: int
+    services: dict[str, int]  # {service_name: status} where status is 0=down, 1=partial, 2=up
+
+
+@dataclass
+class ServiceUptime:
+    """Service uptime for a team from Quotient."""
+
+    team_name: str
+    uptimes: dict[str, float]  # {service_name: uptime_percentage}
 
 
 @dataclass
 class Inject:
     """Inject from Quotient."""
 
-    inject_id: str
+    inject_id: int
     title: str
     description: str
-    points: int
-    due_date: str | None
-    is_published: bool
-    team_submissions: dict[int, str]  # team_number -> status (pending, graded, etc)
+    open_time: str | None
+    due_time: str | None
+    close_time: str | None
+    files: list[str]
+    submissions: list[dict[str, str | int]]  # [{TeamID, InjectID, SubmissionTime, ...}, ...]
 
 
 class QuotientAPIError(Exception):
@@ -248,22 +250,26 @@ class QuotientClient:
 
         try:
             session = self._get_session()
-            response = session.get(f"{self.base_url}/api/scores", timeout=10)
+            response = session.get(f"{self._get_active_url()}/api/graphs/scores", timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            scores = [
-                TeamScore(
-                    team_number=s["team_number"],
-                    total_score=s["total_score"],
-                    service_score=s.get("service_score", 0),
-                    inject_score=s.get("inject_score", 0),
-                    incident_score=s.get("incident_score", 0),
-                    rank=s["rank"],
-                    last_updated=s.get("last_updated", ""),
+            scores = []
+            for team_data in data.get("series", []):
+                team_name = team_data["Name"]
+                # Extract team number from name (e.g., "team09" -> 9)
+                team_num = int("".join(c for c in team_name if c.isdigit()) or "0")
+                history = team_data.get("Data", [])
+                total = history[-1]["Total"] if history else 0
+
+                scores.append(
+                    TeamScore(
+                        team_name=team_name,
+                        team_number=team_num,
+                        total_score=float(total),
+                        score_history=history,
+                    )
                 )
-                for s in data.get("scores", [])
-            ]
 
             cache.set(cache_key, scores, self.cache_ttl)
             logger.info(f"Fetched scores for {len(scores)} teams")
@@ -276,50 +282,95 @@ class QuotientClient:
             logger.exception(f"Failed to parse scores response: {e}")
             return None
 
-    def get_service_checks(self, team_number: int | None = None) -> list[ServiceCheck] | None:
+    def get_service_status(self, force_refresh: bool = False) -> list[ServiceStatus] | None:
         """
-        Fetch service check results from Quotient API.
-
-        Args:
-            team_number: Filter for specific team (default: all teams)
+        Fetch current service status for all teams from Quotient API.
 
         Returns:
-            List of ServiceCheck objects or None if unavailable
+            List of ServiceStatus objects or None if unavailable
         """
+        cache_key = "quotient_service_status"
+
+        if not force_refresh:
+            cached: list[ServiceStatus] | None = cache.get(cache_key)
+            if cached:
+                return cached
+
         try:
             session = self._get_session()
-            url = f"{self.base_url}/api/service-checks"
-            if team_number:
-                url += f"?team={team_number}"
-
-            response = session.get(url, timeout=10)
+            response = session.get(f"{self._get_active_url()}/api/graphs/services", timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            checks = [
-                ServiceCheck(
-                    team_number=c["team_number"],
-                    box_name=c["box_name"],
-                    service_name=c["service_name"],
-                    is_up=c["is_up"],
-                    response_time_ms=c.get("response_time_ms"),
-                    error_message=c.get("error_message"),
-                    checked_at=c["checked_at"],
-                )
-                for c in data.get("checks", [])
-            ]
+            statuses = []
+            for team_data in data.get("series", []):
+                team_name = team_data["Name"]
+                team_id = team_data.get("ID", 0)
+                services = {item["X"]: item["Y"] for item in team_data.get("Data", [])}
 
-            logger.info(f"Fetched {len(checks)} service checks")
-            return checks
+                statuses.append(
+                    ServiceStatus(
+                        team_name=team_name,
+                        team_id=team_id,
+                        services=services,
+                    )
+                )
+
+            cache.set(cache_key, statuses, 60)  # 1 minute cache
+            logger.info(f"Fetched service status for {len(statuses)} teams")
+            return statuses
 
         except requests.RequestException as e:
-            logger.exception(f"Failed to fetch service checks from Quotient: {e}")
+            logger.exception(f"Failed to fetch service status from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
-            logger.exception(f"Failed to parse service checks response: {e}")
+            logger.exception(f"Failed to parse service status response: {e}")
             return None
 
-    def get_injects(self) -> list[Inject] | None:
+    def get_service_uptimes(self, force_refresh: bool = False) -> list[ServiceUptime] | None:
+        """
+        Fetch service uptimes for all teams from Quotient API.
+
+        Returns:
+            List of ServiceUptime objects or None if unavailable
+        """
+        cache_key = "quotient_uptimes"
+
+        if not force_refresh:
+            cached: list[ServiceUptime] | None = cache.get(cache_key)
+            if cached:
+                return cached
+
+        try:
+            session = self._get_session()
+            response = session.get(f"{self._get_active_url()}/api/graphs/uptimes", timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            uptimes = []
+            for team_data in data.get("series", []):
+                team_name = team_data["Name"]
+                uptime_map = {item["Service"]: item["Uptime"] for item in team_data.get("Data", [])}
+
+                uptimes.append(
+                    ServiceUptime(
+                        team_name=team_name,
+                        uptimes=uptime_map,
+                    )
+                )
+
+            cache.set(cache_key, uptimes, 60)  # 1 minute cache
+            logger.info(f"Fetched uptimes for {len(uptimes)} teams")
+            return uptimes
+
+        except requests.RequestException as e:
+            logger.exception(f"Failed to fetch uptimes from Quotient: {e}")
+            return None
+        except (KeyError, ValueError) as e:
+            logger.exception(f"Failed to parse uptimes response: {e}")
+            return None
+
+    def get_injects(self, force_refresh: bool = False) -> list[Inject] | None:
         """
         Fetch injects from Quotient API.
 
@@ -327,28 +378,31 @@ class QuotientClient:
             List of Inject objects or None if unavailable
         """
         cache_key = "quotient_injects"
-        cached: list[Inject] | None = cache.get(cache_key)
-        if cached:
-            return cached
+
+        if not force_refresh:
+            cached: list[Inject] | None = cache.get(cache_key)
+            if cached:
+                return cached
 
         try:
             session = self._get_session()
-            response = session.get(f"{self.base_url}/api/injects", timeout=10)
+            response = session.get(f"{self._get_active_url()}/api/injects", timeout=10)
             response.raise_for_status()
 
             data = response.json()
-            # API can return either a list directly or a dict with "injects" key
+            # API returns a list directly
             inject_list = data if isinstance(data, list) else data.get("injects", [])
 
             injects = [
                 Inject(
-                    inject_id=i["id"],
-                    title=i["title"],
-                    description=i["description"],
-                    points=i["points"],
-                    due_date=i.get("due_date"),
-                    is_published=i.get("is_published", False),
-                    team_submissions=i.get("submissions", {}),
+                    inject_id=i["ID"],
+                    title=i["Title"],
+                    description=i["Description"],
+                    open_time=i.get("OpenTime"),
+                    due_time=i.get("DueTime"),
+                    close_time=i.get("CloseTime"),
+                    files=i.get("InjectFileNames", []),
+                    submissions=i.get("Submissions", []),
                 )
                 for i in inject_list
             ]
@@ -404,6 +458,8 @@ class QuotientClient:
             [
                 "quotient_infrastructure",
                 "quotient_scores",
+                "quotient_service_status",
+                "quotient_uptimes",
                 "quotient_injects",
             ]
         )

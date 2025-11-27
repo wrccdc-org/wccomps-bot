@@ -101,12 +101,13 @@ def sync_service_scores(user: User | None = None) -> dict[str, int]:
             continue
 
         # Update or create service score
+        # Quotient's total_score includes service points
+        # Note: point_adjustments not included - uses model default for creates,
+        # preserves existing value for updates
         service_score, created = ServiceScore.objects.update_or_create(
             team=team,
             defaults={
-                "service_points": Decimal(str(team_score.service_score)),
-                # SLA violations might need to be calculated separately
-                # For now, we'll leave it at 0 and calculate from service checks if needed
+                "service_points": Decimal(str(team_score.total_score)),
                 "sla_violations": Decimal("0"),
                 "synced_by": user,
             },
