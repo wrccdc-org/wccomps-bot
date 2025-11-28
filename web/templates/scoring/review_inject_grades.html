@@ -1,0 +1,199 @@
+{% extends "scoring/base.html" %}
+
+{% block scoring_content %}
+<c-module>
+    <h2>Review Inject Grades</h2>
+    <p style="color: #666;">Spot-check and approve inject grades. Outliers (grades > 1.5 std dev from mean) are highlighted.</p>
+
+    <div style="display: flex; gap: 20px; margin: 20px 0; padding: 15px; background: #f8f8f8; border-radius: 4px;">
+        <div>
+            <strong>Total Grades:</strong> {{ total_grades }}
+        </div>
+        <div>
+            <strong>Approved:</strong> <span style="color: #28a745;">{{ approved_count }}</span>
+        </div>
+        <div>
+            <strong>Pending Approval:</strong> <span style="color: #ffc107;">{{ unapproved_count }}</span>
+        </div>
+    </div>
+
+    {% if not inject_groups %}
+    <c-alert variant="success">
+        <h3 style="margin-top: 0;">All Grades Approved</h3>
+        <p style="margin-bottom: 0;">All inject grades have been reviewed and approved. Great work!</p>
+    </c-alert>
+    {% else %}
+
+    <form method="post" action="{% url 'scoring:inject_grades_bulk_approve' %}" id="approvalForm">
+        {% csrf_token %}
+
+        <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+            <c-button type="submit" variant="primary">Approve Selected</c-button>
+            <c-button type="button" onclick="selectAll()">Select All</c-button>
+            <c-button type="button" onclick="deselectAll()">Deselect All</c-button>
+            <span id="selectionCount" style="margin-left: 10px; color: #666;"></span>
+        </div>
+
+        {% for inject_group in inject_groups %}
+        <div style="border: 1px solid #ddd; border-radius: 4px; margin-bottom: 25px; background: white;">
+            <div style="background: #f8f8f8; padding: 15px; border-bottom: 1px solid #ddd;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="margin: 0;">{{ inject_group.inject_name }}</h3>
+                        <small style="color: #666;">Inject ID: {{ inject_group.inject_id }}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <c-badge variant="primary">Max: {{ inject_group.max_points }} points</c-badge>
+                        <br><small style="color: #666;">{{ inject_group.grades|length }} grades pending</small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 15px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;" aria-label="Inject grades for {{ inject_group.inject_name }}">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #ddd;">
+                            <th style="width: 50px; padding: 8px; text-align: center;">
+                                <input type="checkbox" class="inject-select-all" data-inject="{{ inject_group.inject_id }}">
+                            </th>
+                            <th style="width: 150px; padding: 8px; text-align: left;">Team</th>
+                            <th style="width: 120px; padding: 8px; text-align: right;">Points</th>
+                            <th style="width: 100px; padding: 8px; text-align: right;">% of Max</th>
+                            <th style="padding: 8px; text-align: left;">Graded By</th>
+                            <th style="padding: 8px; text-align: left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in inject_group.grades %}
+                        <tr style="border-bottom: 1px solid #f0f0f0; {% if grade.is_outlier %}background-color: #fff3cd;{% endif %}">
+                            <td style="padding: 8px; text-align: center;">
+                                <input type="checkbox" name="grade_ids" value="{{ grade.id }}" class="grade-checkbox" data-inject="{{ inject_group.inject_id }}">
+                            </td>
+                            <td style="padding: 8px;">
+                                <strong>Team {{ grade.team.team_number }}</strong>
+                                {% if grade.team.team_name != "Team " %}
+                                <br><small style="color: #666;">{{ grade.team.team_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 8px; text-align: right;">
+                                <strong>{{ grade.points_awarded }}</strong>
+                            </td>
+                            <td style="padding: 8px; text-align: right; color: #666;">
+                                {% widthratio grade.points_awarded inject_group.max_points 100 %}%
+                            </td>
+                            <td style="padding: 8px;">
+                                {{ grade.graded_by.username|default:"Auto" }}
+                                <br><small style="color: #666;">{{ grade.graded_at|date:"m/d H:i" }}</small>
+                            </td>
+                            <td style="padding: 8px;">
+                                {% if grade.is_outlier %}
+                                <c-badge variant="warning">Outlier</c-badge>
+                                <br><small style="color: #666;">{{ grade.std_devs_from_mean|floatformat:2 }}σ from mean</small>
+                                {% else %}
+                                <c-badge variant="secondary">Normal</c-badge>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if grade.notes %}
+                        <tr style="border-bottom: 1px solid #f0f0f0;">
+                            <td></td>
+                            <td colspan="5" style="padding: 8px; background: #f9f9f9; font-size: 12px;">
+                                <strong>Notes:</strong> {{ grade.notes }}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div style="display: flex; gap: 10px; justify-content: space-between; margin-top: 20px;">
+            <c-link href="{% url 'scoring:inject_grading' %}">Back to Inject Grading</c-link>
+            <c-button type="submit" variant="primary">Approve Selected</c-button>
+        </div>
+    </form>
+
+    {% endif %}
+</c-module>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update selection count
+    function updateSelectionCount() {
+        const checked = document.querySelectorAll('.grade-checkbox:checked').length;
+        const countEl = document.getElementById('selectionCount');
+        if (checked > 0) {
+            countEl.textContent = `${checked} grade(s) selected`;
+            countEl.style.fontWeight = 'bold';
+        } else {
+            countEl.textContent = '';
+        }
+    }
+
+    // Individual checkbox change
+    document.querySelectorAll('.grade-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionCount);
+    });
+
+    // Inject-level "select all" checkboxes
+    document.querySelectorAll('.inject-select-all').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const injectId = this.getAttribute('data-inject');
+            const checked = this.checked;
+            document.querySelectorAll(`.grade-checkbox[data-inject="${injectId}"]`).forEach(cb => {
+                cb.checked = checked;
+            });
+            updateSelectionCount();
+        });
+    });
+
+    updateSelectionCount();
+});
+
+function selectAll() {
+    document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.inject-select-all').forEach(cb => cb.checked = true);
+    document.getElementById('selectionCount').textContent = document.querySelectorAll('.grade-checkbox').length + ' grade(s) selected';
+    document.getElementById('selectionCount').style.fontWeight = 'bold';
+}
+
+function deselectAll() {
+    document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.inject-select-all').forEach(cb => cb.checked = false);
+    document.getElementById('selectionCount').textContent = '';
+}
+
+// Confirm before submitting
+document.getElementById('approvalForm').addEventListener('submit', function(e) {
+    const checked = document.querySelectorAll('.grade-checkbox:checked').length;
+    if (checked === 0) {
+        e.preventDefault();
+        alert('Please select at least one grade to approve.');
+        return false;
+    }
+
+    if (!confirm(`Are you sure you want to approve ${checked} grade(s)? This action cannot be undone.`)) {
+        e.preventDefault();
+        return false;
+    }
+});
+</script>
+
+<style>
+.grade-checkbox, .inject-select-all {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+tr:hover {
+    background-color: #f8f8f8 !important;
+}
+
+tbody tr[style*="background-color: #fff3cd"]:hover {
+    background-color: #ffe69c !important;
+}
+</style>
+{% endblock %}

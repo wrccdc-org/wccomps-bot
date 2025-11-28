@@ -1,11 +1,10 @@
 {% extends "scoring/base.html" %}
-{% load crispy_forms_tags %}
 
 {% block scoring_content %}
 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
     <c-module>
         <h2 style="background: #417690; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Incident Report #{{ incident.id }}</h2>
-        <table style="width: 100%; font-size: 13px; margin-bottom: 15px;">
+        <table style="width: 100%; font-size: 13px; margin-bottom: 15px;" aria-label="Incident report details">
             <tr>
                 <th style="text-align: left; padding: 5px 0;">Team:</th>
                 <td style="padding: 5px 0;">{{ incident.team.team_name }}</td>
@@ -102,7 +101,44 @@
 
         <form method="post">
             {% csrf_token %}
-            {{ form|crispy }}
+            <c-fieldset aligned="true">
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.matched_to_red_finding.id_for_label }}">{{ form.matched_to_red_finding.label }}:</label>
+                        {{ form.matched_to_red_finding }}
+                        {% if form.matched_to_red_finding.errors %}
+                        <ul class="errorlist">{% for e in form.matched_to_red_finding.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.matched_to_red_finding.help_text %}
+                        <p class="help">{{ form.matched_to_red_finding.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.points_returned.id_for_label }}">{{ form.points_returned.label }}:</label>
+                        {{ form.points_returned }}
+                        {% if form.points_returned.errors %}
+                        <ul class="errorlist">{% for e in form.points_returned.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.points_returned.help_text %}
+                        <p class="help">{{ form.points_returned.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.reviewer_notes.id_for_label }}">{{ form.reviewer_notes.label }}:</label>
+                        {{ form.reviewer_notes }}
+                        {% if form.reviewer_notes.errors %}
+                        <ul class="errorlist">{% for e in form.reviewer_notes.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.reviewer_notes.help_text %}
+                        <p class="help">{{ form.reviewer_notes.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </c-fieldset>
 
             <c-alert variant="info" style="font-size: 12px;">
                 <strong>Review Guidelines:</strong>

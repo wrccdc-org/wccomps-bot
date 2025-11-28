@@ -1,11 +1,59 @@
 {% extends "scoring/base.html" %}
-{% load crispy_forms_tags %}
 
 {% block scoring_content %}
 <c-module>
     <form method="post">
         {% csrf_token %}
-        {{ form|crispy }}
+        <c-fieldset aligned="true">
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.team.id_for_label }}" class="required">{{ form.team.label }}:</label>
+                    {{ form.team }}
+                    {% if form.team.errors %}
+                    <ul class="errorlist">{% for e in form.team.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.team.help_text %}
+                    <p class="help">{{ form.team.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.check_type.id_for_label }}">{{ form.check_type.label }}:</label>
+                    {{ form.check_type }}
+                    {% if form.check_type.errors %}
+                    <ul class="errorlist">{% for e in form.check_type.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.check_type.help_text %}
+                    <p class="help">{{ form.check_type.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.description.id_for_label }}" class="required">{{ form.description.label }}:</label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                    <ul class="errorlist">{% for e in form.description.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.description.help_text %}
+                    <p class="help">{{ form.description.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.points_awarded.id_for_label }}" class="required">{{ form.points_awarded.label }}:</label>
+                    {{ form.points_awarded }}
+                    {% if form.points_awarded.errors %}
+                    <ul class="errorlist">{% for e in form.points_awarded.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.points_awarded.help_text %}
+                    <p class="help">{{ form.points_awarded.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </c-fieldset>
 
         <c-alert variant="info" style="margin-top: 15px;">
             <strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.

@@ -1,0 +1,73 @@
+{% extends "scoring/base.html" %}
+
+{% block title %}Export Data - Scoring{% endblock %}
+
+{% block scoring_content %}
+<h1>Export Scoring Data</h1>
+
+<p>Download scoring data in CSV or JSON format for analysis and archival purposes.</p>
+
+<div style="margin-top: 2rem;">
+    <h2>Available Exports</h2>
+
+    <table style="width: 100%; margin-top: 1rem;" aria-label="Available data exports">
+        <thead>
+            <tr>
+                <th style="text-align: left;">Data Type</th>
+                <th style="text-align: left;">Description</th>
+                <th style="text-align: center;">Export</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Red Team Findings</strong></td>
+                <td>All red team vulnerability findings with affected teams and points</td>
+                <td style="text-align: center;">
+                    <a href="{% url 'scoring:export_red_findings' %}?format=csv" class="button">CSV</a>
+                    <a href="{% url 'scoring:export_red_findings' %}?format=json" class="button">JSON</a>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Incident Reports</strong></td>
+                <td>Blue team incident submissions with review status and points returned</td>
+                <td style="text-align: center;">
+                    <a href="{% url 'scoring:export_incidents' %}?format=csv" class="button">CSV</a>
+                    <a href="{% url 'scoring:export_incidents' %}?format=json" class="button">JSON</a>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Orange Team Adjustments</strong></td>
+                <td>Customer service evaluations and point adjustments</td>
+                <td style="text-align: center;">
+                    <a href="{% url 'scoring:export_orange_adjustments' %}?format=csv" class="button">CSV</a>
+                    <a href="{% url 'scoring:export_orange_adjustments' %}?format=json" class="button">JSON</a>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Inject Grades</strong></td>
+                <td>All inject submissions with grades and approval status</td>
+                <td style="text-align: center;">
+                    <a href="{% url 'scoring:export_inject_grades' %}?format=csv" class="button">CSV</a>
+                    <a href="{% url 'scoring:export_inject_grades' %}?format=json" class="button">JSON</a>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Final Scores</strong></td>
+                <td>Calculated final scores with all component breakdowns</td>
+                <td style="text-align: center;">
+                    <a href="{% url 'scoring:export_final_scores' %}?format=csv" class="button">CSV</a>
+                    <a href="{% url 'scoring:export_final_scores' %}?format=json" class="button">JSON</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top: 2rem; padding: 1rem; background-color: #f8f9fa; border-left: 4px solid #007bff;">
+    <h3>Export Format Information</h3>
+    <ul>
+        <li><strong>CSV:</strong> Compatible with Excel, Google Sheets, and other spreadsheet applications</li>
+        <li><strong>JSON:</strong> Suitable for programmatic analysis and data integration</li>
+    </ul>
+</div>
+{% endblock %}

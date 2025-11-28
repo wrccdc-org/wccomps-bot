@@ -224,6 +224,414 @@ Student helpers are temporary support staff for invitationals who are assigned D
 - See all active and removed assignments
 - Audit trail with creation and removal timestamps
 
+## User Guide
+
+### Quick Start by Role
+
+#### Blue Team (Competition Participants)
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Join your team's voice and text channels
+3. Access the web interface at the competition URL
+
+**Submit Incident Reports:**
+1. Navigate to "Incidents" in the header
+2. Click "Submit Incident Report"
+3. Select target box (destination IP auto-fills)
+4. Choose source IP and attack type
+5. Describe what you detected
+6. Submit (goes to Gold Team for review)
+
+**View Your Incidents:**
+- Navigate to "Incidents" to see all your team's submissions
+- Review past reports to avoid duplicates
+
+**Create Support Tickets:**
+- Run `/ticket <category> <description>` in Discord
+- Or use the web interface at `/create-ticket/`
+- Track status in Discord thread or web dashboard
+
+**Download Team Packets:**
+- Navigate to `/team-packets/` to view available materials
+- Download pre-competition information and resources
+
+**Restrictions:**
+- Cannot view leaderboard during competition (use Quotient)
+- Cannot see other teams' data
+
+---
+
+#### Red Team (Attackers)
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the web interface at the competition URL
+
+**Submit Findings:**
+1. Navigate to "Red Team Findings" in the header
+2. Click "Submit Finding"
+3. Select target team and box
+4. Enter source IP and attack type
+5. Describe the attack method and result
+6. Submit (goes to Gold Team for approval)
+
+**View All Findings:**
+- Navigate to "Red Team Findings" to see ALL submissions from ALL red team members
+- Filter by target team, attack type, or submitter
+- Coordinate with team to avoid duplicate attacks
+
+**Restrictions:**
+- Cannot see if findings were matched to Blue Team incidents
+- Cannot see approval status
+- Cannot view leaderboard
+
+---
+
+#### Gold Team (Competition Organizers/Judges)
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the Scoring section at `/scoring/`
+
+**Review Incidents (Must Review All):**
+1. Navigate to Scoring > Review Incidents
+2. View each incident report in the queue
+3. Check for matching Red Team findings (auto-suggested by IP/time)
+4. Match incident to finding or reject if invalid
+5. Track review progress
+
+**Approve Red Team Findings (Spot Check):**
+1. Navigate to Scoring > Review Red Team
+2. Scan submissions for validity
+3. Flag suspicious entries for detailed review
+4. Bulk approve remaining entries
+
+**Review Orange Team Adjustments:**
+1. Navigate to Scoring > Orange Team
+2. Review adjustment submissions (team, points, reason)
+3. Approve or reject individual or bulk items
+
+**Review Inject Grades:**
+1. Navigate to Scoring > Inject Grading
+2. Spot-check grades for consistency
+3. Flag outliers for review
+4. Bulk approve when satisfied
+
+**View Leaderboard:**
+- Navigate to Scoring > Leaderboard for current standings
+- See score breakdown by category
+
+**Manage Team Info:**
+- Navigate to "Team Mappings" to view participant assignments
+- Navigate to "School Info" to manage contact information
+
+---
+
+#### White Team (Inject Graders)
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the Scoring section at `/scoring/`
+
+**Submit Inject Grades:**
+1. Navigate to Scoring > Inject Grading
+2. Select the inject to grade
+3. Select the team
+4. Enter score and optionally max points
+5. Submit (goes to Gold Team for approval)
+6. Track grading progress
+
+**View Leaderboard:**
+- Navigate to Scoring > Leaderboard for current standings
+
+**Restrictions:**
+- Cannot review incidents or red findings
+- Cannot submit orange adjustments
+
+---
+
+#### Orange Team (Bonus/Penalty Adjustments)
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the web interface at the competition URL
+
+**Submit Point Adjustments:**
+1. Navigate to Scoring > Orange Team
+2. Click "Submit Adjustment"
+3. Select target team
+4. Choose or create check type (e.g., "Customer service call", "Rule violation")
+5. Enter point value (positive for bonus, negative for penalty)
+6. Provide justification/reason
+7. Submit (goes to Gold Team for approval)
+
+**View Your Submissions:**
+- Navigate to Scoring > Orange Team to see your adjustments
+- Check approval status
+
+**Common Check Types:**
+- Customer service call answered
+- Network diagram completed
+- Password reset assistance
+- Rule violation (negative points)
+- Professional behavior bonus
+- (New types created on first use)
+
+**Restrictions:**
+- Cannot approve your own adjustments
+- Cannot view leaderboard
+
+---
+
+#### Ticketing Support
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the ticket dashboard at `/ops/tickets/`
+
+**View Ticket Queue:**
+- Dashboard shows all tickets with filters
+- Sort by age, team, category, status
+- Search by ticket number or description
+- Identify stale tickets needing attention
+
+**Work on Tickets:**
+1. Click "Claim" to assign ticket to yourself
+2. Add comments visible to the team
+3. Attach files if needed
+4. Click "Resolve" when complete
+5. Enter resolution notes
+6. Points are auto-assigned by category
+
+**Unclaim Tickets:**
+- Click "Unclaim" to release assignment if needed
+
+**Via Discord:**
+- View ticket details with bot commands
+- Add comments through Discord thread
+- Resolve directly from Discord
+
+**Restrictions:**
+- Cannot bulk operate on tickets
+- Cannot reassign to others
+- Cannot approve ticket points (Ticketing Admin does this)
+
+---
+
+#### Ticketing Admin
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access the ticket dashboard at `/ops/tickets/`
+
+**All Ticketing Support Features Plus:**
+
+**Bulk Operations:**
+1. Select multiple tickets using checkboxes
+2. Click "Bulk Claim" or "Bulk Resolve"
+3. Confirm action
+
+**Reassign Tickets:**
+- Change assignee to another support member
+- Useful for workload balancing
+
+**Change Ticket Category:**
+- Update category if initially misclassified
+- Affects point value
+
+**Reopen Resolved Tickets:**
+- Click "Reopen" if issue resurfaces
+- Adds back to queue
+
+**Batch Approve Ticket Points:**
+1. Navigate to Scoring > Review Tickets
+2. Review all resolved tickets
+3. Verify point values by category
+4. Bulk approve for final score aggregation
+
+**Administrative Actions:**
+- Create tickets for teams via `/tickets create`
+- Cancel tickets via `/tickets cancel`
+- Clear all tickets (reset operation)
+
+**View Leaderboard:**
+- Navigate to Scoring > Leaderboard
+
+---
+
+#### System Admin
+
+**Getting Started:**
+1. Run `/link` in Discord to connect your account
+2. Access Django admin at `/admin/`
+
+**All Features Available Plus:**
+
+**Configure Competition:**
+- Set start/end times: `/competition set-start-time` and `/competition set-end-time`
+- Set registration deadline and capacity
+- Configure controlled applications: `/competition set-apps`
+- Set max team members: `/competition set-max-members`
+
+**Manage Teams:**
+- List teams: `/teams list`
+- View team details: `/teams info <team_number>`
+- Unlink users: `/teams unlink <users>`
+- Reset team: `/teams reset <team_number>`
+
+**Competition Lifecycle:**
+- Start competition: `/competition start-competition` (or auto-starts at configured time)
+- End competition: `/competition end-competition` (or auto-ends at configured time)
+- Broadcast messages: `/competition broadcast <target> <message>`
+
+**Sync with Quotient:**
+1. Navigate to Scoring > Configuration
+2. View last sync time
+3. Trigger manual sync for metadata (boxes, services, injects)
+
+**Export Data:**
+1. Navigate to Django admin
+2. Select data type (findings, incidents, adjustments, grades, tickets)
+3. Export as CSV or JSON
+4. Download final aggregated scores
+
+**Manage Student Helpers:**
+- Add single helper: `/helpers add @user "Role Name"`
+- Import from role: `/helpers import @Role`
+- List helpers: `/helpers list`
+- Remove helper: `/helpers remove @user`
+
+**Team Packet Distribution:**
+1. Navigate to `/team-packets/ops/upload/`
+2. Upload packet file (PDF, documents, up to 25MB)
+3. Set title and notes
+4. Choose distribution methods (email/web)
+5. Click "Distribute Now"
+6. Monitor delivery at `/team-packets/ops/`
+
+---
+
+### Common Workflows
+
+#### Incident Reporting and Matching Workflow
+
+1. **Blue Team** detects attack and submits incident report
+2. **Red Team** documents attack as finding submission
+3. **Gold Team** reviews ALL incident reports
+4. **Gold Team** matches incidents to red findings based on IP/timing
+5. Matched incidents provide point recovery for Blue Team
+6. Unmatched red findings result in point penalties for Blue Team
+
+#### Finding Submission and Approval Workflow
+
+1. **Red Team** submits finding after successful attack
+2. Finding appears in Gold Team review queue
+3. **Gold Team** spot-checks submissions for validity
+4. **Gold Team** bulk approves valid findings
+5. Approved findings count toward final score adjustments
+
+#### Inject Grading Workflow
+
+1. Teams complete inject tasks in Quotient
+2. **White Team** reviews responses and assigns scores
+3. Grades submitted to WCComps
+4. **Gold Team** spot-checks for consistency
+5. **Gold Team** bulk approves grades
+6. Approved grades add to final team scores
+
+#### Ticket Resolution Workflow
+
+1. **Blue Team** creates ticket via `/ticket` or web
+2. Ticket appears in support dashboard
+3. **Ticketing Support** claims ticket
+4. Support member works with team to resolve
+5. Support member resolves ticket with notes
+6. Points auto-assigned by category
+7. **Ticketing Admin** batch approves at competition end
+8. Approved tickets add to final team scores
+
+---
+
+### Troubleshooting
+
+#### Access Issues
+
+**Problem:** Cannot access web interface
+- Check that you ran `/link` in Discord
+- Verify Authentik groups assigned correctly
+- Confirm OAuth redirect URI matches BASE_URL
+
+**Problem:** Navigation links not appearing
+- Verify your Authentik group membership
+- Check with admin that groups are configured
+- Try logging out and back in
+
+**Problem:** Permission denied on certain pages
+- Verify your role has access to that feature
+- Check user-roles-and-stories.md for role permissions
+- Contact admin if access should be granted
+
+#### Discord Issues
+
+**Problem:** Bot not responding to commands
+- Verify bot is online (check Discord server)
+- Check bot has proper permissions in channel
+- Contact admin to check bot logs
+
+**Problem:** Link command failing
+- Verify BASE_URL is configured correctly
+- Check Authentik OAuth credentials
+- Try `/link` again after a few minutes
+
+#### Ticket Issues
+
+**Problem:** Cannot create ticket
+- Verify you're a Blue Team member
+- Check ticket category is valid
+- Ensure description is not empty
+
+**Problem:** Ticket not appearing in dashboard
+- Check DISCORD_TICKET_QUEUE_CHANNEL_ID is set
+- Verify ticket was created successfully
+- Contact admin to check logs
+
+#### Data Issues
+
+**Problem:** Incident/Finding not appearing
+- Allow a few seconds for processing
+- Refresh the page
+- Check submission was successful (look for confirmation)
+
+**Problem:** Leaderboard not updating
+- Leaderboard shows approved items only
+- Wait for Gold Team review and approval
+- Final aggregation happens at competition end
+
+---
+
+### Getting Help
+
+**General Questions:**
+- Contact Gold Team or System Admin
+- Create ticket in Discord if urgent
+
+**Technical Issues:**
+- Contact System Admin
+- Check troubleshooting section above
+- Review logs if you have admin access
+
+**Competition Rules:**
+- Contact Gold Team for clarification
+- Review competition guidelines
+
+**Account/Access Issues:**
+- Contact System Admin
+- Verify Authentik group membership
+- Check that `/link` was completed
+
+---
+
 ## Development
 
 ```bash
