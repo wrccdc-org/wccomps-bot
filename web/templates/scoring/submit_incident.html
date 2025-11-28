@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
 
 {% block title %}Submit Incident Report{% endblock %}
 
@@ -9,7 +8,106 @@
     {% if team or is_admin %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {{ form|crispy }}
+        <c-fieldset aligned="true">
+            {% if is_admin %}
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.team.id_for_label }}" class="required">{{ form.team.label }}:</label>
+                    {{ form.team }}
+                    {% if form.team.errors %}
+                    <ul class="errorlist">{% for e in form.team.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.team.help_text %}
+                    <p class="help">{{ form.team.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.affected_box.id_for_label }}" class="required">{{ form.affected_box.label }}:</label>
+                    {{ form.affected_box }}
+                    {% if form.affected_box.errors %}
+                    <ul class="errorlist">{% for e in form.affected_box.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.affected_box.help_text %}
+                    <p class="help">{{ form.affected_box.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.destination_ip.id_for_label }}" class="required">{{ form.destination_ip.label }}:</label>
+                    {{ form.destination_ip }}
+                    {% if form.destination_ip.errors %}
+                    <ul class="errorlist">{% for e in form.destination_ip.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.destination_ip.help_text %}
+                    <p class="help">{{ form.destination_ip.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.affected_service.id_for_label }}">{{ form.affected_service.label }}:</label>
+                    {{ form.affected_service }}
+                    {% if form.affected_service.errors %}
+                    <ul class="errorlist">{% for e in form.affected_service.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.affected_service.help_text %}
+                    <p class="help">{{ form.affected_service.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.source_ip.id_for_label }}" class="required">{{ form.source_ip.label }}:</label>
+                    {{ form.source_ip }}
+                    {% if form.source_ip.errors %}
+                    <ul class="errorlist">{% for e in form.source_ip.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.source_ip.help_text %}
+                    <p class="help">{{ form.source_ip.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.attack_detected_at.id_for_label }}" class="required">{{ form.attack_detected_at.label }}:</label>
+                    {{ form.attack_detected_at }}
+                    {% if form.attack_detected_at.errors %}
+                    <ul class="errorlist">{% for e in form.attack_detected_at.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.attack_detected_at.help_text %}
+                    <p class="help">{{ form.attack_detected_at.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.attack_description.id_for_label }}" class="required">{{ form.attack_description.label }}:</label>
+                    {{ form.attack_description }}
+                    {% if form.attack_description.errors %}
+                    <ul class="errorlist">{% for e in form.attack_description.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.attack_description.help_text %}
+                    <p class="help">{{ form.attack_description.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.attack_mitigated.id_for_label }}">{{ form.attack_mitigated.label }}:</label>
+                    {{ form.attack_mitigated }}
+                    {% if form.attack_mitigated.errors %}
+                    <ul class="errorlist">{% for e in form.attack_mitigated.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    {% if form.attack_mitigated.help_text %}
+                    <p class="help">{{ form.attack_mitigated.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </c-fieldset>
 
         <div style="margin: 20px 0;">
             <label for="screenshots" style="display: block; margin-bottom: 5px; font-weight: 500;">Screenshots</label>
