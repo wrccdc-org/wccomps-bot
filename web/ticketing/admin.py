@@ -24,15 +24,15 @@ class TicketAttachmentInline(admin.TabularInline[TicketAttachment, Ticket]):
 class TicketCommentInline(admin.TabularInline[TicketComment, Ticket]):
     model = TicketComment
     extra = 0
-    readonly_fields = ["posted_at", "author_name"]
-    fields = ["author_name", "comment_text", "posted_at"]
+    readonly_fields = ["posted_at", "author"]
+    fields = ["author", "comment_text", "posted_at"]
 
 
 class TicketHistoryInline(admin.TabularInline[TicketHistory, Ticket]):
     model = TicketHistory
     extra = 0
-    readonly_fields = ["timestamp", "action", "actor_username"]
-    fields = ["action", "actor_username", "details", "timestamp"]
+    readonly_fields = ["timestamp", "action", "actor"]
+    fields = ["action", "actor", "details", "timestamp"]
 
 
 @admin.register(Ticket)
@@ -42,7 +42,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
         "team",
         "category",
         "status",
-        "assigned_to_discord_username",
+        "get_assigned_to_display",
         "points_charged",
         "created_at",
     ]
@@ -73,10 +73,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
             "Assignment",
             {
                 "fields": (
-                    "assigned_to_discord_id",
-                    "assigned_to_discord_username",
-                    "assigned_to_authentik_username",
-                    "assigned_to_authentik_user_id",
+                    "assigned_to",
                     "assigned_at",
                 )
             },
@@ -85,10 +82,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
             "Resolution",
             {
                 "fields": (
-                    "resolved_by_discord_id",
-                    "resolved_by_discord_username",
-                    "resolved_by_authentik_username",
-                    "resolved_by_authentik_user_id",
+                    "resolved_by",
                     "resolved_at",
                     "resolution_notes",
                     "duration_notes",
@@ -108,6 +102,11 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
         ),
         ("Audit", {"fields": ("created_at", "updated_at")}),
     )
+
+    @admin.display(description="Assigned To")
+    def get_assigned_to_display(self, obj: Ticket) -> str:
+        """Display assigned person."""
+        return str(obj.assigned_to) if obj.assigned_to else ""
 
     @admin.action(description="Export selected tickets as CSV")
     def export_as_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
@@ -140,6 +139,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
         )
 
         for ticket in queryset:
+            assigned_to_name = str(ticket.assigned_to) if ticket.assigned_to else ""
             writer.writerow(
                 [
                     ticket.ticket_number,
@@ -152,7 +152,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
                     ticket.hostname or "",
                     ticket.ip_address or "",
                     ticket.service_name or "",
-                    ticket.assigned_to_discord_username or "",
+                    assigned_to_name,
                     ticket.points_charged,
                     ticket.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     ticket.resolved_at.strftime("%Y-%m-%d %H:%M:%S") if ticket.resolved_at else "",
@@ -175,18 +175,18 @@ class TicketAttachmentAdmin(admin.ModelAdmin[TicketAttachment]):
 
 @admin.register(TicketComment)
 class TicketCommentAdmin(admin.ModelAdmin[TicketComment]):
-    list_display = ["ticket", "author_name", "posted_at"]
+    list_display = ["ticket", "author", "posted_at"]
     list_filter = ["posted_at"]
-    search_fields = ["ticket__ticket_number", "author_name", "comment_text"]
+    search_fields = ["ticket__ticket_number", "comment_text"]
     ordering = ["-posted_at"]
     readonly_fields = ["posted_at"]
 
 
 @admin.register(TicketHistory)
 class TicketHistoryAdmin(admin.ModelAdmin[TicketHistory]):
-    list_display = ["ticket", "action", "actor_username", "timestamp"]
+    list_display = ["ticket", "action", "actor", "timestamp"]
     list_filter = ["action", "timestamp"]
-    search_fields = ["ticket__ticket_number", "actor_username"]
+    search_fields = ["ticket__ticket_number"]
     ordering = ["-timestamp"]
     readonly_fields = ["timestamp"]
 

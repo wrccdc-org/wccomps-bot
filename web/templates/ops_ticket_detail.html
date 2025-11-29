@@ -45,11 +45,11 @@
                 </div>
             </div>
 
-            {% if ticket.assigned_to_discord_username %}
+            {% if ticket.assigned_to %}
             <div class="form-row">
                 <div>
                     <label>Assigned To:</label>
-                    <div class="readonly">{{ ticket.assigned_to_discord_username }}</div>
+                    <div class="readonly">{{ ticket.assigned_to }}</div>
                 </div>
             </div>
             {% endif %}
@@ -92,7 +92,7 @@
             <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">🎯 Actions</h3>
             {% if ticket.status == 'open' %}
             <div class="quick-actions">
-                <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" style="display: inline;">
+                <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
                     <c-button type="submit" variant="warning">Claim Ticket</c-button>
                 </form>
@@ -116,7 +116,7 @@
                 </div>
             </form>
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
-                <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" style="display: inline;">
+                <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
                     <c-button type="submit">Unclaim</c-button>
                 </form>
@@ -183,7 +183,7 @@
         <!-- Comments -->
         <c-fieldset heading="Comments">
             {% if comments %}
-            <table>
+            <table aria-label="Ticket comments">
                 <thead>
                     <tr>
                         <th>Author</th>
@@ -194,7 +194,7 @@
                 <tbody>
                     {% for comment in comments %}
                     <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>{{ comment.author_name }}</td>
+                        <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
                         <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
                         <td>{{ comment.posted_at|timesince }} ago</td>
                     </tr>
@@ -224,7 +224,7 @@
         <!-- Attachments -->
         <c-fieldset heading="Attachments">
             {% if attachments %}
-            <table>
+            <table aria-label="Ticket attachments">
                 <thead>
                     <tr>
                         <th>Filename</th>
@@ -272,7 +272,7 @@
         <!-- History -->
         <c-fieldset heading="History">
             {% if history %}
-            <table>
+            <table aria-label="Ticket history">
                 <thead>
                     <tr>
                         <th>Timestamp</th>
@@ -286,7 +286,7 @@
                     <tr class="{% cycle 'row1' 'row2' %}">
                         <td>{{ event.timestamp|timesince }} ago</td>
                         <td>{{ event.action }}</td>
-                        <td>{{ event.actor_username }}</td>
+                        <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
                         <td>{{ event.details }}</td>
                     </tr>
                     {% endfor %}

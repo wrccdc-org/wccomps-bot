@@ -80,7 +80,6 @@ def setup_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, list[Tick
     # Add related data
     TicketComment.objects.create(
         ticket=ticket1,
-        author_name="test_user",
         comment_text="Test comment",
     )
 
@@ -95,8 +94,7 @@ def setup_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, list[Tick
     TicketHistory.objects.create(
         ticket=ticket1,
         action="created",
-        actor_username="test_user",
-        details={},
+        details={"created_by": "test_user"},
     )
 
     return team1, team2, [ticket1, ticket2, ticket3]

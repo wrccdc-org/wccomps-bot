@@ -8,8 +8,74 @@ from django.db.models import F
 from django.utils import timezone
 
 from core.tickets_config import TICKET_CATEGORIES
+from person.models import Person
 from team.models import Team
 from ticketing.models import Ticket, TicketHistory
+
+
+def get_or_create_person_for_ticket(
+    discord_id: int | None = None,
+    discord_username: str | None = None,
+    authentik_username: str | None = None,
+    authentik_user_id: str | None = None,
+) -> Person | None:
+    """
+    Look up or create a Person for ticket assignment/resolution.
+
+    Tries to find by authentik_user_id first, then discord_id.
+    Creates a new Person if none exists and we have identifying info.
+
+    Returns None if no identifying info provided.
+    """
+    if not discord_id and not authentik_user_id:
+        return None
+
+    # Try to find by authentik_user_id first
+    if authentik_user_id:
+        person = Person.objects.filter(authentik_user_id=authentik_user_id).first()
+        if person:
+            # Update discord info if we have it and person doesn't
+            if discord_id and not person.discord_id:
+                person.discord_id = discord_id
+                person.discord_username = discord_username or ""
+                person.save(update_fields=["discord_id", "discord_username"])
+            return person
+
+    # Try to find by discord_id
+    if discord_id:
+        person = Person.objects.filter(discord_id=discord_id).first()
+        if person:
+            # Update authentik info if we have it and person doesn't
+            if authentik_user_id and not person.authentik_user_id:
+                person.authentik_user_id = authentik_user_id
+                person.authentik_username = authentik_username or person.authentik_username
+                person.save(update_fields=["authentik_user_id", "authentik_username"])
+            return person
+
+    # No existing person found - create one
+    from django.contrib.auth.models import User
+
+    username = authentik_username or discord_username or f"user_{discord_id or authentik_user_id}"
+    base_username = username[:140]
+    counter = 0
+    while User.objects.filter(username=username).exists():
+        counter += 1
+        username = f"{base_username}_{counter}"
+
+    user = User.objects.create(username=username)
+    # Person is auto-created by signal, update it with our data
+    person = user.person
+    if authentik_user_id:
+        person.authentik_user_id = authentik_user_id
+    if authentik_username:
+        person.authentik_username = authentik_username
+    if discord_id:
+        person.discord_id = discord_id
+    if discord_username:
+        person.discord_username = discord_username
+    person.save()
+
+    return person
 
 
 def create_ticket_atomic(
@@ -73,8 +139,7 @@ def create_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="created",
-            actor_username=actor_username,
-            details=f"Ticket created via {actor_username}",
+            details={"created_by": actor_username},
         )
 
     return ticket
@@ -156,12 +221,17 @@ def claim_ticket_atomic(
         if ticket.status != "open":
             return None, f"This ticket is already {ticket.status}."
 
+        # Get or create Person for assignee
+        person = get_or_create_person_for_ticket(
+            discord_id=discord_id,
+            discord_username=discord_username,
+            authentik_username=authentik_username,
+            authentik_user_id=authentik_user_id,
+        )
+
         # Update ticket
         ticket.status = "claimed"
-        ticket.assigned_to_discord_id = discord_id
-        ticket.assigned_to_discord_username = discord_username or ""
-        ticket.assigned_to_authentik_username = authentik_username or ""
-        ticket.assigned_to_authentik_user_id = authentik_user_id or ""
+        ticket.assigned_to = person
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -169,7 +239,7 @@ def claim_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="claimed",
-            actor_username=actor_username,
+            actor=person,
             details={
                 "claimed_by": actor_username,
                 "discord_username": discord_username,
@@ -277,23 +347,24 @@ def resolve_ticket_atomic(
             # Use default for fixed categories
             point_penalty = cat_info.get("points", 0)
 
+        # Get or create Person for resolver
+        person = get_or_create_person_for_ticket(
+            discord_id=discord_id,
+            discord_username=discord_username,
+            authentik_username=authentik_username,
+            authentik_user_id=authentik_user_id,
+        )
+
         # Update ticket
         ticket.status = "resolved"
         ticket.resolved_at = timezone.now()
-        ticket.resolved_by_discord_id = discord_id
-        ticket.resolved_by_discord_username = discord_username or ""
-        ticket.resolved_by_authentik_username = authentik_username or ""
-        ticket.resolved_by_authentik_user_id = authentik_user_id or ""
+        ticket.resolved_by = person
         ticket.resolution_notes = resolution_notes
         ticket.points_charged = point_penalty
 
         # If not already assigned, mark as assigned to resolver
-        if not ticket.assigned_to_discord_id and discord_id:
-            ticket.assigned_to_discord_id = discord_id
-            ticket.assigned_to_discord_username = discord_username or ""
-        if not ticket.assigned_to_authentik_username and authentik_username:
-            ticket.assigned_to_authentik_username = authentik_username
-            ticket.assigned_to_authentik_user_id = authentik_user_id or ""
+        if not ticket.assigned_to and person:
+            ticket.assigned_to = person
 
         # Schedule thread archiving if Discord thread exists
         if ticket.discord_thread_id:
@@ -307,7 +378,7 @@ def resolve_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="resolved",
-            actor_username=actor_username,
+            actor=person,
             details={
                 "resolved_by": actor_username,
                 "discord_username": discord_username,
@@ -388,10 +459,7 @@ def unclaim_ticket_atomic(
 
         # Reset ticket to open
         ticket.status = "open"
-        ticket.assigned_to_discord_id = None
-        ticket.assigned_to_discord_username = ""
-        ticket.assigned_to_authentik_username = ""
-        ticket.assigned_to_authentik_user_id = ""
+        ticket.assigned_to = None
         ticket.assigned_at = None
         ticket.save()
 
@@ -399,7 +467,6 @@ def unclaim_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="unclaimed",
-            actor_username=actor_username,
             details={"unclaimed_by": actor_username},
         )
 
@@ -463,18 +530,18 @@ def reassign_ticket_atomic(
             return None, f"Can only reassign claimed tickets. This ticket is {ticket.status}."
 
         # Store previous assignee for history
-        previous_assignee = {
-            "discord_id": ticket.assigned_to_discord_id,
-            "discord_username": ticket.assigned_to_discord_username,
-            "authentik_username": ticket.assigned_to_authentik_username,
-            "authentik_user_id": ticket.assigned_to_authentik_user_id,
-        }
+        previous_assignee = str(ticket.assigned_to) if ticket.assigned_to else None
+
+        # Get or create Person for new assignee
+        person = get_or_create_person_for_ticket(
+            discord_id=discord_id,
+            discord_username=discord_username,
+            authentik_username=authentik_username,
+            authentik_user_id=authentik_user_id,
+        )
 
         # Update ticket assignment
-        ticket.assigned_to_discord_id = discord_id
-        ticket.assigned_to_discord_username = discord_username or ""
-        ticket.assigned_to_authentik_username = authentik_username or ""
-        ticket.assigned_to_authentik_user_id = authentik_user_id or ""
+        ticket.assigned_to = person
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -482,16 +549,11 @@ def reassign_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="reassigned",
-            actor_username=actor_username,
+            actor=person,
             details={
                 "reassigned_by": actor_username,
                 "previous_assignee": previous_assignee,
-                "new_assignee": {
-                    "discord_id": discord_id,
-                    "discord_username": discord_username,
-                    "authentik_username": authentik_username,
-                    "authentik_user_id": authentik_user_id,
-                },
+                "new_assignee": str(person) if person else None,
             },
         )
 

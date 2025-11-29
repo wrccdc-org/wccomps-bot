@@ -6,6 +6,24 @@ from django.db import models
 class Ticket(models.Model):
     """Support ticket from team."""
 
+    # Person FK fields (new normalized references)
+    assigned_to = models.ForeignKey(
+        "person.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_tickets",
+        help_text="Person assigned to this ticket",
+    )
+    resolved_by = models.ForeignKey(
+        "person.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_tickets",
+        help_text="Person who resolved this ticket",
+    )
+
     STATUS_CHOICES = [
         ("open", "Open"),
         ("claimed", "Claimed"),
@@ -33,17 +51,9 @@ class Ticket(models.Model):
     tags = models.JSONField(default=list, blank=True)  # e.g., ['operations-issue', 'escalated']
 
     # Assignment
-    assigned_to_discord_id = models.BigIntegerField(null=True, blank=True)
-    assigned_to_discord_username = models.CharField(max_length=255, blank=True)
-    assigned_to_authentik_username = models.CharField(max_length=255, blank=True)
-    assigned_to_authentik_user_id = models.CharField(max_length=255, blank=True)
     assigned_at = models.DateTimeField(null=True, blank=True)
 
     # Resolution
-    resolved_by_discord_id = models.BigIntegerField(null=True, blank=True)
-    resolved_by_discord_username = models.CharField(max_length=255, blank=True)
-    resolved_by_authentik_username = models.CharField(max_length=255, blank=True)
-    resolved_by_authentik_user_id = models.CharField(max_length=255, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolution_notes = models.TextField(blank=True)
     duration_notes = models.TextField(blank=True)
@@ -75,7 +85,7 @@ class Ticket(models.Model):
         indexes = [
             models.Index(fields=["team", "status"]),
             models.Index(fields=["category", "status"]),
-            models.Index(fields=["assigned_to_discord_id"]),
+            models.Index(fields=["assigned_to"]),
             models.Index(fields=["discord_thread_id"]),
         ]
 
@@ -104,8 +114,14 @@ class TicketComment(models.Model):
     """Comment on ticket (bidirectional with Discord)."""
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comments")
-    author_name = models.CharField(max_length=255)
-    author_discord_id = models.BigIntegerField(null=True, blank=True)
+    author = models.ForeignKey(
+        "person.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="comments",
+        help_text="Person who authored this comment",
+    )
     comment_text = models.TextField()
     posted_at = models.DateTimeField(auto_now_add=True)
     discord_message_id = models.BigIntegerField(null=True, blank=True)
@@ -114,7 +130,8 @@ class TicketComment(models.Model):
         ordering = ["posted_at"]
 
     def __str__(self) -> str:
-        return f"Comment by {self.author_name} on {self.ticket.ticket_number}"
+        author_name = str(self.author) if self.author else "Unknown"
+        return f"Comment by {author_name} on {self.ticket.ticket_number}"
 
 
 class TicketHistory(models.Model):
@@ -122,8 +139,14 @@ class TicketHistory(models.Model):
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="history")
     action = models.CharField(max_length=50)
-    actor_discord_id = models.BigIntegerField(null=True)
-    actor_username = models.CharField(max_length=255, blank=True)
+    actor = models.ForeignKey(
+        "person.Person",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="history_entries",
+        help_text="Person who performed this action",
+    )
     details = models.JSONField(default=dict)
     timestamp = models.DateTimeField(auto_now_add=True)
 

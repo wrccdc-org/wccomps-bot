@@ -305,7 +305,8 @@ class TestTicketOperations:
         # Verify ticket was claimed
         test_ticket.refresh_from_db()
         assert test_ticket.status == "claimed"
-        assert test_ticket.assigned_to_discord_id == support_user.discord_id
+        assert test_ticket.assigned_to is not None
+        assert test_ticket.assigned_to.discord_id == support_user.discord_id
 
     def test_ticket_resolve_requires_authentication(self, db, test_ticket):
         """Ticket resolve should require authentication."""
@@ -329,8 +330,7 @@ class TestTicketOperations:
 
         # Claim ticket first
         test_ticket.status = "claimed"
-        test_ticket.assigned_to_discord_id = support_user.discord_id
-        test_ticket.assigned_to_authentik_username = support_user.authentik_username
+        test_ticket.assigned_to = support_user
         test_ticket.save()
 
         response = client.post(
@@ -378,8 +378,7 @@ class TestTicketOperations:
 
         # First user claims the ticket
         test_ticket.status = "claimed"
-        test_ticket.assigned_to_discord_id = support_user.discord_id
-        test_ticket.assigned_to_authentik_username = support_user.authentik_username
+        test_ticket.assigned_to = support_user
         test_ticket.save()
 
         # Second support user tries to resolve (should fail - not their ticket)
@@ -521,10 +520,10 @@ class TestConcurrentOperations:
         # Verify exactly one user claimed the ticket
         test_ticket.refresh_from_db()
         assert test_ticket.status == "claimed"
-        assert test_ticket.assigned_to_discord_id is not None
+        assert test_ticket.assigned_to is not None
         # Verify assigned user is one of the support users
         assigned_user = next(
-            (u for u in support_users if u.discord_id == test_ticket.assigned_to_discord_id),
+            (u for u in support_users if u.discord_id == test_ticket.assigned_to.discord_id),
             None,
         )
         assert assigned_user is not None, "Ticket assigned to unknown user"
@@ -627,7 +626,8 @@ class TestBulkOperations:
         for ticket in test_tickets:
             ticket.refresh_from_db()
             assert ticket.status == "claimed"
-            assert ticket.assigned_to_discord_id == support_user.discord_id
+            assert ticket.assigned_to is not None
+            assert ticket.assigned_to.discord_id == support_user.discord_id
 
     def test_bulk_resolve_with_points(self, db, test_tickets, support_user):
         """Bulk resolve should handle point assignment for all tickets."""
@@ -637,8 +637,7 @@ class TestBulkOperations:
         # Claim all tickets first
         for ticket in test_tickets:
             ticket.status = "claimed"
-            ticket.assigned_to_discord_id = support_user.discord_id
-            ticket.assigned_to_authentik_username = support_user.authentik_username
+            ticket.assigned_to = support_user
             ticket.save()
 
         ticket_numbers = ",".join([ticket.ticket_number for ticket in test_tickets])

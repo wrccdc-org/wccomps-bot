@@ -1,5 +1,6 @@
 """Views for WCComps linking and OAuth."""
 
+import contextlib
 import logging
 from typing import Any, Protocol, cast
 
@@ -13,8 +14,10 @@ from django.utils import timezone
 from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme
 
 from core.models import DiscordTask
+from person.models import Person
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.utils import get_or_create_person_for_ticket
 
 from .auth_utils import get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
@@ -27,6 +30,31 @@ class ModelWithObjects(Protocol):
 
 
 logger = logging.getLogger(__name__)
+
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def _save_attachment(ticket: Ticket, uploaded_file: Any, uploaded_by: str) -> HttpResponse | None:
+    """
+    Validate and save an attachment. Returns HttpResponse on error, None on success.
+    """
+    if not uploaded_file:
+        return HttpResponse("No file provided", status=400)
+
+    if uploaded_file.size is None or uploaded_file.size > MAX_ATTACHMENT_SIZE:
+        return HttpResponse("File too large (max 10MB)", status=400)
+
+    if not uploaded_file.name:
+        return HttpResponse("File must have a name", status=400)
+
+    TicketAttachment.objects.create(
+        ticket=ticket,
+        file_data=uploaded_file.read(),
+        filename=uploaded_file.name,
+        mime_type=uploaded_file.content_type or "application/octet-stream",
+        uploaded_by=uploaded_by,
+    )
+    return None
 
 
 @login_required
@@ -392,6 +420,11 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
     _authentik_username, groups, _ = get_authentik_data(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
+    # Admins without a team go straight to create ticket
+    is_admin = has_permission(user, "gold_team") or has_permission(user, "admin")
+    if not is_team and is_admin:
+        return redirect("create_ticket")
+
     if not is_team or not team:
         return render(
             request,
@@ -494,7 +527,7 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     # Get user's team
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
+    authentik_username, groups, authentik_user_id = get_authentik_data(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
@@ -521,11 +554,16 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Record rate limit
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
+    # Get or create Person for comment author
+    author_person = get_or_create_person_for_ticket(
+        authentik_user_id=authentik_user_id,
+        authentik_username=authentik_username,
+    )
+
     # Create comment
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author_name=authentik_username,
-        author_discord_id=None,  # Web comment, no Discord ID
+        author=author_person,
         comment_text=comment_text,
     )
 
@@ -553,7 +591,21 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     authentik_username, groups, _ = get_authentik_data(user)
     team, team_number, is_team = get_team_from_groups(groups)
 
-    if not is_team or not team:
+    # Allow admins to create tickets for any team
+    is_admin = has_permission(user, "gold_team") or has_permission(user, "admin")
+    teams = None
+
+    if is_admin:
+        teams = Team.objects.filter(is_active=True).order_by("team_number")
+        # If admin submitted form with team selection, use that team
+        if request.method == "POST":
+            team_id = request.POST.get("team_id")
+            if team_id:
+                with contextlib.suppress(Team.DoesNotExist, ValueError):
+                    team = Team.objects.get(id=team_id, is_active=True)
+                    team_number = team.team_number
+
+    if not is_admin and not team:
         return render(
             request,
             "tickets_error.html",
@@ -585,6 +637,23 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         ip_address = request.POST.get("ip_address", "").strip()
         service_name = request.POST.get("service_name", "").strip()
 
+        # Admins must select a team
+        if is_admin and not team:
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": TICKET_CATEGORIES,
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": "Please select a team.",
+                    "form_data": request.POST,
+                },
+            )
+
         # Validate category
         if category not in TICKET_CATEGORIES:
             return render(
@@ -592,6 +661,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 "create_ticket.html",
                 {
                     "team": team,
+                    "teams": teams,
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
@@ -626,6 +696,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 "create_ticket.html",
                 {
                     "team": team,
+                    "teams": teams,
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
@@ -638,6 +709,9 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         # For box-reset, use hostname as description
         if category == "box-reset" and hostname:
             description = hostname
+
+        if not team:
+            return HttpResponse("Team required", status=400)
 
         # Create ticket using shared atomic function
         from ticketing.utils import create_ticket_atomic
@@ -680,6 +754,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 "create_ticket.html",
                 {
                     "team": team,
+                    "teams": teams,
                     "categories": TICKET_CATEGORIES,
                     "service_choices": service_choices,
                     "box_names": box_names,
@@ -697,6 +772,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         "create_ticket.html",
         {
             "team": team,
+            "teams": teams,
             "categories": TICKET_CATEGORIES,
             "service_choices": service_choices,
             "box_names": box_names,
@@ -761,8 +837,7 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
     TicketHistory.objects.create(
         ticket=ticket,
         action="cancelled",
-        actor_username=authentik_username,
-        details={"reason": "Cancelled by team member via web (unclaimed)"},
+        details={"reason": "Cancelled by team member via web (unclaimed)", "cancelled_by": authentik_username},
     )
 
     logger.info(f"Ticket #{ticket_id} cancelled by {authentik_username} via web")
@@ -771,88 +846,88 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
 
 @login_required
-def ticket_attachment_upload(request: HttpRequest, ticket_id: int) -> HttpResponse:
-    """Upload an attachment to a ticket (team members only)."""
+def ticket_attachment_upload(
+    request: HttpRequest, ticket_id: int | None = None, ticket_number: str | None = None
+) -> HttpResponse:
+    """Upload an attachment to a ticket."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
 
-    # Get user's team
     user = cast(User, request.user)
     authentik_username, groups, _ = get_authentik_data(user)
     team, _, is_team = get_team_from_groups(groups)
+    is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
-    if not is_team or not team:
+    if not is_team and not is_ops:
         return HttpResponse("Access denied", status=403)
 
-    # Get ticket (must belong to user's team)
     try:
-        ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
+        if ticket_number:
+            if not is_ops:
+                return HttpResponse("Access denied", status=403)
+            ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+        elif ticket_id:
+            if is_team and team:
+                ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
+            elif is_ops:
+                ticket = Ticket.objects.select_related("team").get(id=ticket_id)
+            else:
+                return HttpResponse("Access denied", status=403)
+        else:
+            return HttpResponse("Ticket identifier required", status=400)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
-    uploaded_file = request.FILES.get("attachment")
-    if not uploaded_file:
-        return HttpResponse("No file provided", status=400)
+    if error := _save_attachment(ticket, request.FILES.get("attachment"), authentik_username):
+        return error
 
-    # Check file size (limit to 10MB)
-    max_size = 10 * 1024 * 1024  # 10MB
-    if uploaded_file.size is None or uploaded_file.size > max_size:
-        return HttpResponse("File too large (max 10MB)", status=400)
+    logger.info(f"Attachment uploaded to ticket {ticket.ticket_number} by {authentik_username}")
 
-    # Validate and sanitize filename
-    if not uploaded_file.name:
-        return HttpResponse("File must have a name", status=400)
-
-    # SECURITY: Sanitize filename to prevent client-side path traversal
-    # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
-    from pathlib import Path
-
-    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
-    safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
-    safe_filename = safe_filename.strip()
-
-    if not safe_filename or safe_filename.startswith("."):
-        safe_filename = "attachment.bin"
-
-    # Read file data
-    file_data = uploaded_file.read()
-
-    # Create attachment
-    TicketAttachment.objects.create(
-        ticket=ticket,
-        file_data=file_data,
-        filename=safe_filename,
-        mime_type=uploaded_file.content_type or "application/octet-stream",
-        uploaded_by=authentik_username,
-    )
-
-    logger.info(f"Attachment {safe_filename} uploaded to ticket #{ticket_id} by {authentik_username}")
-
-    return redirect("ticket_detail", ticket_id=ticket_id)
+    if ticket_number:
+        return redirect("ops_ticket_detail", ticket_number=ticket.ticket_number)
+    return redirect("ticket_detail", ticket_id=ticket.id)
 
 
 @login_required
-def ticket_attachment_download(request: HttpRequest, ticket_id: int, attachment_id: int) -> HttpResponse:
-    """Download an attachment from a ticket (team members only)."""
-    # Get user's team
+def ticket_attachment_download(
+    request: HttpRequest,
+    attachment_id: int,
+    ticket_id: int | None = None,
+    ticket_number: str | None = None,
+) -> HttpResponse:
+    """Download an attachment from a ticket."""
     user = cast(User, request.user)
     _, groups, _ = get_authentik_data(user)
     team, _, is_team = get_team_from_groups(groups)
+    is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
-    if not is_team or not team:
+    if not is_team and not is_ops:
         return HttpResponse("Access denied", status=403)
 
-    # Get attachment (ticket must belong to user's team)
     try:
-        attachment = TicketAttachment.objects.select_related("ticket", "ticket__team").get(
-            id=attachment_id, ticket_id=ticket_id, ticket__team=team
-        )
+        if ticket_number:
+            if not is_ops:
+                return HttpResponse("Access denied", status=403)
+            attachment = TicketAttachment.objects.select_related("ticket").get(
+                id=attachment_id, ticket__ticket_number=ticket_number
+            )
+        elif ticket_id:
+            if is_team and team:
+                attachment = TicketAttachment.objects.select_related("ticket", "ticket__team").get(
+                    id=attachment_id, ticket_id=ticket_id, ticket__team=team
+                )
+            elif is_ops:
+                attachment = TicketAttachment.objects.select_related("ticket").get(
+                    id=attachment_id, ticket_id=ticket_id
+                )
+            else:
+                return HttpResponse("Access denied", status=403)
+        else:
+            return HttpResponse("Ticket identifier required", status=400)
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
 
     response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
-    # SECURITY: as_attachment=True is CRITICAL. Never change to False without comprehensive
-    # MIME type validation, or you'll introduce XSS (browser will execute HTML/SVG content).
     response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
     return response
 
@@ -918,9 +993,11 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
 
     if assignee_filter:
         if assignee_filter == "unassigned":
-            query = query.filter(assigned_to_discord_username="")
+            query = query.filter(assigned_to__isnull=True)
         else:
-            query = query.filter(assigned_to_discord_username=assignee_filter)
+            # Filter by Person ID (assignee_filter is now a person ID string)
+            with contextlib.suppress(ValueError):
+                query = query.filter(assigned_to_id=int(assignee_filter))
 
     if search_query:
         from django.db.models import Q
@@ -943,8 +1020,8 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         "-team__team_number",
         "category",
         "-category",
-        "assigned_to_discord_username",
-        "-assigned_to_discord_username",
+        "assigned_to__authentik_username",
+        "-assigned_to__authentik_username",
     ]
     if sort_by not in valid_sort_fields:
         sort_by = "-created_at"
@@ -977,12 +1054,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page)
 
     # Get unique assignees for filter dropdown
-    assignees = (
-        Ticket.objects.exclude(assigned_to_discord_username="")
-        .values_list("assigned_to_discord_username", flat=True)
-        .distinct()
-        .order_by("assigned_to_discord_username")
-    )
+    assignees = Person.objects.filter(assigned_tickets__isnull=False).distinct().order_by("authentik_username")
 
     return render(
         request,
@@ -1090,7 +1162,7 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1113,11 +1185,16 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
+    # Get or create Person for comment author
+    author_person = get_or_create_person_for_ticket(
+        authentik_user_id=authentik_user_id,
+        authentik_username=authentik_username,
+    )
+
     # Create comment
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author_name=authentik_username,
-        author_discord_id=None,
+        author=author_person,
         comment_text=comment_text,
     )
 
@@ -1221,7 +1298,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     # Check if user claimed the ticket or is admin
     is_admin = has_permission(user, "ticketing_admin")
-    has_claimed = ticket_obj.assigned_to_authentik_username == authentik_username
+    has_claimed = ticket_obj.assigned_to and ticket_obj.assigned_to.authentik_username == authentik_username
 
     if not is_admin and not has_claimed:
         return HttpResponse("You can only unclaim tickets you have claimed", status=403)
@@ -1334,7 +1411,8 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Ticket not found", status=404)
 
     # Verify ownership: only the assigned user or admins can resolve
-    if not is_ticketing_admin and ticket_obj.assigned_to_authentik_username != authentik_username:
+    assigned_username = ticket_obj.assigned_to.authentik_username if ticket_obj.assigned_to else None
+    if not is_ticketing_admin and assigned_username != authentik_username:
         return HttpResponse(
             "Access denied: Only the assigned support member or administrators can resolve this ticket",
             status=403,
@@ -1418,14 +1496,13 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     ticket.save()
 
     # Create history entry
-    details = {"old_status": old_status}
+    details = {"old_status": old_status, "reopened_by": authentik_username}
     if reopen_reason:
         details["reason"] = reopen_reason
 
     TicketHistory.objects.create(
         ticket=ticket,
         action="reopened",
-        actor_username=authentik_username,
         details=details,
     )
 
@@ -1458,7 +1535,7 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
 
     # Check if user has claimed the ticket or is admin
     is_admin = has_permission(user, "ticketing_admin")
-    has_claimed = ticket.assigned_to_authentik_username == authentik_username
+    has_claimed = ticket.assigned_to and ticket.assigned_to.authentik_username == authentik_username
 
     if not is_admin and not has_claimed:
         return HttpResponse("You must claim the ticket first", status=403)
@@ -1483,8 +1560,8 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
     TicketHistory.objects.create(
         ticket=ticket,
         action="category_changed",
-        actor_username=authentik_username,
         details={
+            "changed_by": authentik_username,
             "old_category": old_category,
             "old_category_name": old_cat_info.get("display_name", old_category),
             "new_category": new_category,
@@ -1533,23 +1610,28 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
         discord_id = None
         discord_username = None
 
+    # Get or create Person for assignee
+    person = get_or_create_person_for_ticket(
+        discord_id=discord_id,
+        discord_username=discord_username,
+        authentik_username=authentik_username,
+        authentik_user_id=authentik_user_id,
+    )
+
     claimed_count = 0
     for ticket_number in ticket_numbers:
         try:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="open")
             ticket.status = "claimed"
-            ticket.assigned_to_discord_id = discord_id
-            ticket.assigned_to_discord_username = discord_username or ""
-            ticket.assigned_to_authentik_username = authentik_username
-            ticket.assigned_to_authentik_user_id = authentik_user_id or ""
+            ticket.assigned_to = person
             ticket.assigned_at = timezone.now()
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="claimed",
-                actor_username=authentik_username,
-                details={"claimed_by": discord_username, "bulk": True},
+                actor=person,
+                details={"claimed_by": authentik_username, "bulk": True},
             )
 
             claimed_count += 1
@@ -1591,24 +1673,29 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
         discord_id = None
         discord_username = None
 
+    # Get or create Person for resolver
+    person = get_or_create_person_for_ticket(
+        discord_id=discord_id,
+        discord_username=discord_username,
+        authentik_username=authentik_username,
+        authentik_user_id=authentik_user_id,
+    )
+
     resolved_count = 0
     for ticket_number in ticket_numbers:
         try:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="claimed")
             ticket.status = "resolved"
             ticket.resolved_at = timezone.now()
-            ticket.resolved_by_discord_id = discord_id
-            ticket.resolved_by_discord_username = discord_username or ""
-            ticket.resolved_by_authentik_username = authentik_username
-            ticket.resolved_by_authentik_user_id = authentik_user_id or ""
+            ticket.resolved_by = person
             ticket.resolution_notes = "Bulk resolved via web interface"
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="resolved",
-                actor_username=authentik_username,
-                details={"resolved_by": discord_username, "bulk": True},
+                actor=person,
+                details={"resolved_by": authentik_username, "bulk": True},
             )
 
             resolved_count += 1
@@ -1668,86 +1755,6 @@ def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
 
     logger.info(f"Cleared all tickets ({ticket_count}) by {authentik_username}")
     return redirect("ops_ticket_list")
-
-
-@login_required
-def ops_ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> HttpResponse:
-    """Upload an attachment to a ticket (operations team only)."""
-    if request.method != "POST":
-        return HttpResponse("Method not allowed", status=405)
-
-    user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
-
-    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
-        return HttpResponse("Access denied", status=403)
-
-    try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
-    except Ticket.DoesNotExist:
-        return HttpResponse("Ticket not found", status=404)
-
-    uploaded_file = request.FILES.get("attachment")
-    if not uploaded_file:
-        return HttpResponse("No file provided", status=400)
-
-    # Check file size (limit to 10MB)
-    max_size = 10 * 1024 * 1024  # 10MB
-    if uploaded_file.size is None or uploaded_file.size > max_size:
-        return HttpResponse("File too large (max 10MB)", status=400)
-
-    # Validate and sanitize filename
-    if not uploaded_file.name:
-        return HttpResponse("File must have a name", status=400)
-
-    # SECURITY: Sanitize filename to prevent client-side path traversal
-    # Without this, filename="../../../.bashrc" could overwrite files outside Downloads folder
-    from pathlib import Path
-
-    safe_filename = Path(uploaded_file.name).name  # Remove path components like ../
-    safe_filename = safe_filename.replace("\x00", "")  # Remove null bytes
-    safe_filename = safe_filename.strip()
-
-    if not safe_filename or safe_filename.startswith("."):
-        safe_filename = "attachment.bin"
-
-    # Read file data
-    file_data = uploaded_file.read()
-
-    # Create attachment
-    TicketAttachment.objects.create(
-        ticket=ticket,
-        file_data=file_data,
-        filename=safe_filename,
-        mime_type=uploaded_file.content_type or "application/octet-stream",
-        uploaded_by=authentik_username,
-    )
-
-    logger.info(f"Attachment {uploaded_file.name} uploaded to ticket {ticket_number} by {authentik_username}")
-
-    return redirect("ops_ticket_detail", ticket_number=ticket_number)
-
-
-@login_required
-def ops_ticket_attachment_download(request: HttpRequest, ticket_number: str, attachment_id: int) -> HttpResponse:
-    """Download an attachment from a ticket (operations team only)."""
-    user = cast(User, request.user)
-
-    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
-        return HttpResponse("Access denied", status=403)
-
-    try:
-        attachment = TicketAttachment.objects.select_related("ticket").get(
-            id=attachment_id, ticket__ticket_number=ticket_number
-        )
-    except TicketAttachment.DoesNotExist:
-        return HttpResponse("Attachment not found", status=404)
-
-    response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
-    # SECURITY: as_attachment=True is CRITICAL. Never change to False without comprehensive
-    # MIME type validation, or you'll introduce XSS (browser will execute HTML/SVG content).
-    response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
-    return response
 
 
 @login_required
@@ -1946,11 +1953,10 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
                         "errors": validation_result["errors"],
                         "warnings": parse_result["warnings"] + validation_result["warnings"],
                         "teams_to_create": validation_result["teams_to_create"],
-                        "teams_to_update": validation_result["teams_to_update"],
                         "can_import": not validation_result["errors"],
                     }
 
-                    # Store data in session for confirmation
+                    # Store data in session for confirmation (including assigned team numbers)
                     if preview_data["can_import"]:
                         request.session["csv_import_data"] = {
                             "teams_to_create": [
@@ -1964,49 +1970,41 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
                                 }
                                 for row in validation_result["teams_to_create"]
                             ],
-                            "teams_to_update": [
-                                {
-                                    "team_number": row["team_number"],
-                                    "school_name": row["school_name"],
-                                    "contact_email": row["contact_email"],
-                                    "secondary_email": row.get("secondary_email", ""),
-                                    "notes": row.get("notes", ""),
-                                    "team_name": row.get("team_name", ""),
-                                }
-                                for row in validation_result["teams_to_update"]
-                            ],
                         }
 
         elif "confirm" in request.POST:
             # Step 2: Confirm and import
             import_data = request.session.get("csv_import_data")
             if import_data:
-                # Re-validate to ensure data is still valid
+                from team.models import Team
+
                 teams_to_create = import_data["teams_to_create"]
-                teams_to_update = import_data["teams_to_update"]
 
-                # Reconstruct row data with team references
-                validation_result = validate_csv_data(teams_to_create + teams_to_update)
+                # Verify teams are still available and add _team references
+                team_numbers = [row["team_number"] for row in teams_to_create]
+                teams_by_number = {
+                    t.team_number: t for t in Team.objects.filter(team_number__in=team_numbers, is_active=True)
+                }
 
-                if validation_result["errors"]:
-                    # Data changed, show errors
+                errors = []
+                for row in teams_to_create:
+                    team_number = row["team_number"]
+                    if team_number not in teams_by_number:
+                        errors.append(f"Team {team_number} is no longer available")
+                    else:
+                        row["_team"] = teams_by_number[team_number]
+
+                if errors:
                     preview_data = {
-                        "errors": validation_result["errors"],
-                        "warnings": ["Data validation failed. Please re-upload the CSV file."],
+                        "errors": errors,
+                        "warnings": ["Please re-upload the CSV file."],
                         "can_import": False,
                     }
                 else:
                     # Apply import
-                    result = apply_csv_import(
-                        validation_result["teams_to_create"],
-                        validation_result["teams_to_update"],
-                        authentik_username,
-                    )
+                    result = apply_csv_import(teams_to_create, authentik_username)
 
-                    import_results = {
-                        "created": result["created"],
-                        "updated": result["updated"],
-                    }
+                    import_results = {"created": result["created"]}
 
                     # Clear session data
                     del request.session["csv_import_data"]
@@ -2268,8 +2266,8 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     TicketHistory.objects.create(
         ticket=ticket,
         action="points_verified",
-        actor_username=authentik_username,
         details={
+            "verified_by": authentik_username,
             "points_charged": ticket.points_charged,
             "verification_notes": verification_notes,
         },
@@ -2280,6 +2278,46 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
+    return redirect("ops_review_tickets")
+
+
+@login_required
+def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
+    """Batch verify all unverified resolved ticket points (admin only)."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username, _groups, _ = get_authentik_data(user)
+
+    if not has_permission(user, "ticketing_admin"):
+        return HttpResponse("Access denied - requires ticketing admin role", status=403)
+
+    # Get all unverified resolved tickets
+    unverified_tickets = Ticket.objects.filter(status="resolved", points_verified=False).select_related("team")
+
+    verified_count = 0
+    for ticket in unverified_tickets:
+        # Mark as verified
+        ticket.points_verified = True
+        ticket.points_verified_by = user
+        ticket.points_verified_at = timezone.now()
+        ticket.save()
+
+        # Create history entry
+        TicketHistory.objects.create(
+            ticket=ticket,
+            action="points_verified",
+            details={
+                "verified_by": authentik_username,
+                "points_charged": ticket.points_charged,
+                "batch": True,
+            },
+        )
+
+        verified_count += 1
+
+    logger.info(f"Batch verified {verified_count} tickets by {authentik_username}")
     return redirect("ops_review_tickets")
 
 

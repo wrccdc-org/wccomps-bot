@@ -38,11 +38,11 @@
                 </div>
             </div>
 
-            {% if ticket.assigned_to_discord_username %}
+            {% if ticket.assigned_to %}
             <div class="form-row">
                 <div>
                     <label>Assigned To:</label>
-                    <div class="readonly">{{ ticket.assigned_to_discord_username }}</div>
+                    <div class="readonly">{{ ticket.assigned_to }}</div>
                 </div>
             </div>
             {% endif %}
@@ -83,7 +83,7 @@
         <!-- Comments -->
         <c-fieldset heading="Comments">
             {% if comments %}
-            <table>
+            <table aria-label="Ticket comments">
                 <thead>
                     <tr>
                         <th>Author</th>
@@ -94,7 +94,7 @@
                 <tbody>
                     {% for comment in comments %}
                     <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>{{ comment.author_name }}</td>
+                        <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
                         <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
                         <td>{{ comment.posted_at|date:"Y-m-d H:i:s" }}</td>
                     </tr>
@@ -124,7 +124,7 @@
         <!-- Attachments -->
         <c-fieldset heading="Attachments">
             {% if attachments %}
-            <table>
+            <table aria-label="Ticket attachments">
                 <thead>
                     <tr>
                         <th>Filename</th>
