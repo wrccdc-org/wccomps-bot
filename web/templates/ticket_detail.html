@@ -102,20 +102,20 @@
                 </tbody>
             </table>
             {% else %}
-            <div style="text-align: center; padding: 30px;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No comments yet</strong></div>
-                <div style="color: #999; font-size: 12px;">Comments from the ticket thread will appear here</div>
+            <div class="text-center p-20">
+                <div class="empty-state-title"><strong>No comments yet</strong></div>
+                <div class="empty-state-desc">Comments from the ticket thread will appear here</div>
             </div>
             {% endif %}
 
             <!-- Add Comment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                <h3 style="margin-bottom: 10px;">Add Comment</h3>
+            <div class="pt-20-border">
+                <h3 class="mb-10">Add Comment</h3>
                 <form method="POST" action="{% url 'ticket_comment' ticket.id %}">
                     {% csrf_token %}
-                    <textarea name="comment" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace;" placeholder="Type your comment here..."></textarea>
-                    <c-button type="submit" variant="primary" style="margin-top: 10px;">Post Comment</c-button>
+                    <textarea name="comment" rows="4" class="w-full p-8 border rounded" style="font-family: monospace;" placeholder="Type your comment here..."></textarea>
+                    <c-button type="submit" variant="primary" class="mt-10">Post Comment</c-button>
                 </form>
             </div>
             {% endif %}
@@ -149,20 +149,20 @@
                 </tbody>
             </table>
             {% else %}
-            <div style="text-align: center; padding: 30px;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No attachments yet</strong></div>
-                <div style="color: #999; font-size: 12px;">Upload files to attach to this ticket</div>
+            <div class="text-center p-20">
+                <div class="empty-state-title"><strong>No attachments yet</strong></div>
+                <div class="empty-state-desc">Upload files to attach to this ticket</div>
             </div>
             {% endif %}
 
             <!-- Upload Attachment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                <h3 style="margin-bottom: 10px;">Upload Attachment</h3>
+            <div class="pt-20-border">
+                <h3 class="mb-10">Upload Attachment</h3>
                 <form method="POST" action="{% url 'ticket_attachment_upload' ticket.id %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" name="attachment" required style="margin-bottom: 10px;">
-                    <div style="color: #666; font-size: 12px; margin-bottom: 10px;">Max file size: 10MB</div>
+                    <input type="file" name="attachment" required class="mb-10">
+                    <div class="help-text mb-10">Max file size: 10MB</div>
                     <c-button type="submit" variant="primary">Upload File</c-button>
                 </form>
             </div>
@@ -171,7 +171,7 @@
 
         <!-- Cancel ticket option -->
         {% if ticket.status == 'open' %}
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <div class="pt-20-border">
             <form method="POST" action="{% url 'ticket_cancel' ticket.id %}" onsubmit="return confirm('Are you sure you want to cancel this ticket?');">
                 {% csrf_token %}
                 <c-button type="submit" variant="danger">Cancel Ticket</c-button>

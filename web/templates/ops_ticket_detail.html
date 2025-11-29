@@ -17,7 +17,7 @@
             {% if not ticket.discord_thread_id %}
             <c-alert variant="warning">
                 <strong>⚠️ Discord Thread Missing</strong>
-                <p style="margin: 5px 0 0 0;">
+                <p class="mt-5 mb-0">
                     This ticket's thread failed to create. Team can only interact via web interface.
                     Comments posted here will not sync to Discord.
                 </p>
@@ -88,8 +88,8 @@
         </c-fieldset>
 
         <!-- Actions -->
-        <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 6px; border: 2px solid #dee2e6;">
-            <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">🎯 Actions</h3>
+        <div class="action-box">
+            <h3>🎯 Actions</h3>
             {% if ticket.status == 'open' %}
             <div class="quick-actions">
                 <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" class="d-inline">
@@ -101,41 +101,41 @@
             {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div style="margin-bottom: 15px;">
-                    <label for="points_override" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Points Override</label>
-                    <input type="number" name="points_override" id="points_override" placeholder="Leave blank for default ({{ ticket.points_charged }}pt)" style="width: 200px; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
-                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Enter a value to override the default point penalty (e.g., 0 for ops errors)</div>
+                <div class="form-group">
+                    <label for="points_override">Points Override</label>
+                    <input type="number" name="points_override" id="points_override" placeholder="Leave blank for default ({{ ticket.points_charged }}pt)">
+                    <div class="help-text">Enter a value to override the default point penalty (e.g., 0 for ops errors)</div>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <label for="resolution_notes" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Resolution Notes</label>
-                    <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;" required></textarea>
-                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Explain how the issue was resolved</div>
+                <div class="form-group">
+                    <label for="resolution_notes">Resolution Notes</label>
+                    <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." required></textarea>
+                    <div class="help-text">Explain how the issue was resolved</div>
                 </div>
                 <div class="quick-actions">
                     <c-button type="submit" variant="success">✓ Resolve Ticket</c-button>
                 </div>
             </form>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+            <div class="divider">
                 <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
                     <c-button type="submit">Unclaim</c-button>
                 </form>
             </div>
             {% else %}
-            <div style="padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
+            <div class="warning-box">
                 <strong>⚠️ Ticket Claimed by Another User</strong>
-                <p style="margin: 5px 0 0 0;">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
+                <p class="mt-5 mb-0">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
             </div>
             {% endif %}
             {% if is_ticketing_support or is_ticketing_admin %}
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
-                <h4 style="margin-bottom: 10px; color: #2c3e50; font-size: 14px;">🔄 Reassign Ticket</h4>
+            <div class="divider">
+                <h4 class="mb-10">🔄 Reassign Ticket</h4>
                 <form method="POST" action="{% url 'ops_ticket_reassign' ticket.ticket_number %}">
                     {% csrf_token %}
-                    <div style="margin-bottom: 10px;">
-                        <label for="new_assignee_username" style="display: block; font-weight: 600; margin-bottom: 5px; color: #2c3e50; font-size: 13px;">New Assignee (Authentik Username)</label>
-                        <input type="text" name="new_assignee_username" id="new_assignee_username" placeholder="Enter Authentik username" style="width: 300px; padding: 8px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;" required>
-                        <div style="color: #666; font-size: 11px; margin-top: 3px;">Enter the Authentik username of the person to assign this ticket to</div>
+                    <div class="form-group">
+                        <label for="new_assignee_username" class="text-sm">New Assignee (Authentik Username)</label>
+                        <input type="text" name="new_assignee_username" id="new_assignee_username" placeholder="Enter Authentik username" required style="width: 300px;">
+                        <div class="help-text text-xs">Enter the Authentik username of the person to assign this ticket to</div>
                     </div>
                     <c-button type="submit" variant="primary">Reassign</c-button>
                 </form>
@@ -144,10 +144,10 @@
             {% elif ticket.status == 'resolved' and is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div style="margin-bottom: 15px;">
-                    <label for="reopen_reason" style="display: block; font-weight: 600; margin-bottom: 8px; color: #2c3e50;">Reopen Reason (Optional)</label>
-                    <textarea name="reopen_reason" id="reopen_reason" rows="3" placeholder="Optionally explain why this ticket is being reopened..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;"></textarea>
-                    <div style="color: #666; font-size: 12px; margin-top: 4px;">Describe why the ticket needs to be reopened (optional)</div>
+                <div class="form-group">
+                    <label for="reopen_reason">Reopen Reason (Optional)</label>
+                    <textarea name="reopen_reason" id="reopen_reason" rows="3" placeholder="Optionally explain why this ticket is being reopened..."></textarea>
+                    <div class="help-text">Describe why the ticket needs to be reopened (optional)</div>
                 </div>
                 <div class="quick-actions">
                     <c-button type="submit" variant="warning">🔄 Reopen Ticket</c-button>
@@ -158,20 +158,20 @@
 
         <!-- Change Category -->
         {% if ticket.status != 'resolved' and ticket.status != 'cancelled' and ticket.status == 'claimed' %}
-        <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-radius: 6px; border: 2px solid #ffc107;">
-            <h3 style="margin-top: 0; color: #856404; font-size: 16px;">🔄 Change Category</h3>
+        <div class="action-box action-box-warning">
+            <h3>🔄 Change Category</h3>
             <form method="POST" action="{% url 'ops_ticket_change_category' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div style="margin-bottom: 15px;">
-                    <label for="new_category" style="display: block; font-weight: 600; margin-bottom: 8px; color: #856404;">New Category</label>
-                    <select name="new_category" id="new_category" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px;" required>
+                <div class="form-group">
+                    <label for="new_category">New Category</label>
+                    <select name="new_category" id="new_category" required>
                         {% for cat_id, cat_info in categories.items %}
                         <option value="{{ cat_id }}" {% if cat_id == ticket.category %}selected{% endif %}>
                             {{ cat_info.display_name }} ({{ cat_info.points }}pt)
                         </option>
                         {% endfor %}
                     </select>
-                    <div style="color: #856404; font-size: 12px; margin-top: 4px;">Current: {{ category_name }}</div>
+                    <div class="help-text">Current: {{ category_name }}</div>
                 </div>
                 <div class="quick-actions">
                     <c-button type="submit" variant="warning">Change Category</c-button>
@@ -202,20 +202,20 @@
                 </tbody>
             </table>
             {% else %}
-            <div style="text-align: center; padding: 30px;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No comments yet</strong></div>
-                <div style="color: #999; font-size: 12px;">Comments from the ticket thread will appear here</div>
+            <div class="text-center p-20">
+                <div class="empty-state-title"><strong>No comments yet</strong></div>
+                <div class="empty-state-desc">Comments from the ticket thread will appear here</div>
             </div>
             {% endif %}
 
             <!-- Add Comment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 4px; border: 2px solid #dee2e6;">
-                <h3 style="margin-top: 0; color: #2c3e50;">💬 Add Comment</h3>
+            <div class="action-box">
+                <h3>💬 Add Comment</h3>
                 <form method="POST" action="{% url 'ops_ticket_comment' ticket.ticket_number %}">
                     {% csrf_token %}
-                    <textarea name="comment" rows="5" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;" placeholder="Type your comment here..."></textarea>
-                    <c-button type="submit" variant="primary" style="margin-top: 15px;">Post Comment</c-button>
+                    <textarea name="comment" rows="5" placeholder="Type your comment here..."></textarea>
+                    <c-button type="submit" variant="primary" class="mt-15">Post Comment</c-button>
                 </form>
             </div>
             {% endif %}
@@ -249,20 +249,20 @@
                 </tbody>
             </table>
             {% else %}
-            <div style="text-align: center; padding: 30px;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No attachments yet</strong></div>
-                <div style="color: #999; font-size: 12px;">Upload files to attach to this ticket</div>
+            <div class="text-center p-20">
+                <div class="empty-state-title"><strong>No attachments yet</strong></div>
+                <div class="empty-state-desc">Upload files to attach to this ticket</div>
             </div>
             {% endif %}
 
             <!-- Upload Attachment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                <h3 style="margin-bottom: 10px;">Upload Attachment</h3>
+            <div class="pt-20-border">
+                <h3 class="mb-10">Upload Attachment</h3>
                 <form method="POST" action="{% url 'ops_ticket_attachment_upload' ticket.ticket_number %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" name="attachment" required style="margin-bottom: 10px;">
-                    <div style="color: #666; font-size: 12px; margin-bottom: 10px;">Max file size: 10MB</div>
+                    <input type="file" name="attachment" required class="mb-10">
+                    <div class="help-text mb-10">Max file size: 10MB</div>
                     <c-button type="submit" variant="primary">Upload File</c-button>
                 </form>
             </div>
@@ -293,9 +293,9 @@
                 </tbody>
             </table>
             {% else %}
-            <div style="text-align: center; padding: 30px;">
-                <div style="color: #666; font-size: 14px; margin-bottom: 8px;"><strong>No history available</strong></div>
-                <div style="color: #999; font-size: 12px;">Ticket state changes and actions will be recorded here</div>
+            <div class="text-center p-20">
+                <div class="empty-state-title"><strong>No history available</strong></div>
+                <div class="empty-state-desc">Ticket state changes and actions will be recorded here</div>
             </div>
             {% endif %}
         </c-fieldset>
