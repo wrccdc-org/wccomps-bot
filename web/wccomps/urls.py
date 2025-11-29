@@ -51,6 +51,7 @@ urlpatterns = [
         name="ops_group_role_mappings",
     ),
     path("scoring/", include("scoring.urls")),
+    path("register/", include("registration.urls")),
 ]
 
 # Add ticket routes only if enabled
@@ -133,12 +134,12 @@ if TICKETING_ENABLED:
         ),
         path(
             "ops/ticket/<str:ticket_number>/attachment/upload/",
-            views.ops_ticket_attachment_upload,
+            views.ticket_attachment_upload,
             name="ops_ticket_attachment_upload",
         ),
         path(
             "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
-            views.ops_ticket_attachment_download,
+            views.ticket_attachment_download,
             name="ops_ticket_attachment_download",
         ),
         path(
@@ -150,5 +151,10 @@ if TICKETING_ENABLED:
             "ops/ticket/<str:ticket_number>/verify/",
             views.ops_verify_ticket,
             name="ops_verify_ticket",
+        ),
+        path(
+            "ops/tickets/batch-verify-points/",
+            views.ops_batch_verify_tickets,
+            name="ops_batch_verify_tickets",
         ),
     ]

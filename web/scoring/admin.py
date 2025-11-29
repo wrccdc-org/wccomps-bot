@@ -9,6 +9,7 @@ from .models import (
     IncidentReport,
     IncidentScreenshot,
     InjectGrade,
+    OrangeCheckType,
     OrangeTeamBonus,
     QuotientMetadataCache,
     RedTeamFinding,
@@ -183,16 +184,24 @@ class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
         return "N/A"
 
 
+@admin.register(OrangeCheckType)
+class OrangeCheckTypeAdmin(admin.ModelAdmin[OrangeCheckType]):
+    list_display = ["name", "created_at"]
+    search_fields = ["name"]
+    readonly_fields = ["created_at"]
+
+
 @admin.register(OrangeTeamBonus)
 class OrangeTeamBonusAdmin(admin.ModelAdmin[OrangeTeamBonus]):
     list_display = [
         "team",
+        "check_type",
         "description_short",
         "points_awarded",
         "submitted_by",
         "created_at",
     ]
-    list_filter = ["created_at"]
+    list_filter = ["check_type", "created_at"]
     search_fields = ["team__team_name", "description"]
     readonly_fields = ["created_at", "updated_at"]
 

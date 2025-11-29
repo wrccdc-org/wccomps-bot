@@ -104,6 +104,65 @@ Info, warning, error, success messages.
 <c-alert variant="success">Ticket created</c-alert>
 ```
 
+#### `<c-score_value>`
+Auto-colored score display with optional signed format.
+```django
+<c-score_value value='150' />           <!-- Green for positive -->
+<c-score_value value='-25' />           <!-- Red for negative -->
+<c-score_value value='0' />             <!-- Gray for zero -->
+<c-score_value value='50' format='signed' />  <!-- Shows "+50" in green -->
+<c-score_value :value="score" />        <!-- From template variable -->
+```
+
+Props:
+- `value` (required): Numeric value to display
+- `format` (optional): "default" (no + prefix) or "signed" (adds + to positive)
+
+Color mapping:
+- Positive values: #28a745 (green)
+- Negative values: #dc3545 (red)
+- Zero: #6c757d (gray)
+
+#### `<c-stats_card>`
+Stats card component for dashboard displays.
+```django
+<c-stats_card value="42" label="Total Teams" color="primary" />
+<c-stats_card value="+15" label="Points Gained" color="success" />
+<c-stats_card value="-5" label="Penalties" color="danger" />
+```
+
+Props:
+- `value` (required): The statistic number or value to display
+- `label` (required): Description of the statistic
+- `color` (optional): Color theme - primary|success|warning|danger (default: primary)
+
+Color mapping:
+- primary: #417690 (admin blue)
+- success: #28a745 (green)
+- warning: #ffc107 (yellow)
+- danger: #dc3545 (red)
+
+#### `<c-empty_state>`
+Empty state display for when no data is available.
+```django
+<c-empty_state title="No incidents found" />
+<c-empty_state icon="📋" title="No results" />
+<c-empty_state
+    icon="🔍"
+    title="No search results"
+    description="Try adjusting your filters.">
+    <a href="/reset/" class="button">Clear Filters</a>
+</c-empty_state>
+```
+
+Props:
+- `icon` (optional): Emoji or icon character displayed above title
+- `title` (required): Main heading text
+- `description` (optional): Secondary explanatory text in muted color
+- Slot: Optional action button or link
+
+Use cases: Empty lists, no search results, filtered views with zero matches.
+
 ### Tables
 
 #### `<c-table>`

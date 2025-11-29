@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Reject Registration - WCComps{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1>Reject Registration</h1>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-body">
+                    <p>You are about to reject the registration for:</p>
+                    <dl class="row">
+                        <dt class="col-sm-4">School Name</dt>
+                        <dd class="col-sm-8">{{ registration.school_name }}</dd>
+
+                        <dt class="col-sm-4">Contact Email</dt>
+                        <dd class="col-sm-8">{{ registration.contact_email }}</dd>
+                    </dl>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Rejection Reason</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" required></textarea>
+                            <div class="form-text">Please provide a reason for rejecting this registration.</div>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Reject Registration</button>
+                        <a href="{% url 'registration_review_list' %}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

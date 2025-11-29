@@ -43,6 +43,22 @@
             {% endif %}
 
             <c-fieldset>
+                {% if teams %}
+                <div class="form-row">
+                    <div>
+                        <label class="required" for="team_id">Team:</label>
+                        <select name="team_id" id="team_id" required>
+                            <option value="">Select a team...</option>
+                            {% for t in teams %}
+                            <option value="{{ t.id }}" {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
+                                Team {{ t.team_number }} - {{ t.team_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="form-row">
                     <div>
                         <label class="required" for="category">Category:</label>

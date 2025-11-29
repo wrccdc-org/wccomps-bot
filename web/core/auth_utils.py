@@ -41,6 +41,8 @@ def get_permissions_context(user: User) -> dict[str, bool]:
         "is_ticketing_admin": has_permission(user, "ticketing_admin"),
         "is_ticketing_support": has_permission(user, "ticketing_support"),
         "is_gold_team": has_permission(user, "gold_team"),
+        "is_white_team": has_permission(user, "white_team"),
+        "is_orange_team": has_permission(user, "orange_team"),
     }
 
 
@@ -54,6 +56,8 @@ def has_permission(user: User | AnonymousUser, permission_name: str) -> bool:
     - 'ticketing_support' -> WCComps_Ticketing_Support
     - 'gold_team' -> WCComps_GoldTeam
     - 'blue_team' -> WCComps_BlueTeam* (pattern match)
+    - 'white_team' -> WCComps_WhiteTeam
+    - 'orange_team' -> WCComps_OrangeTeam
     """
     groups = get_authentik_groups(user)
 
@@ -64,6 +68,8 @@ def has_permission(user: User | AnonymousUser, permission_name: str) -> bool:
         "ticketing_support": lambda g: "WCComps_Ticketing_Support" in g,
         "gold_team": lambda g: "WCComps_GoldTeam" in g or "WCComps_Discord_Admin" in g,
         "blue_team": lambda g: any(group.startswith("WCComps_BlueTeam") for group in g),
+        "white_team": lambda g: "WCComps_WhiteTeam" in g,
+        "orange_team": lambda g: "WCComps_OrangeTeam" in g,
     }
 
     # Check if user has the permission
@@ -140,3 +146,60 @@ def get_cached_authentik_groups(user_id: int) -> list[str]:
 def clear_user_cache(user: User) -> None:
     """Clear cached groups for a user (e.g., after permission change)."""
     get_cached_authentik_groups.cache_clear()
+
+
+def require_ops_permission(view_func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to require ticketing_support OR ticketing_admin permission.
+
+    Usage:
+        @require_ops_permission
+        def ops_ticket_list(request):
+            ...
+    """
+    from functools import wraps
+
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    @wraps(view_func)
+    def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        if not request.user.is_authenticated:
+            return redirect("/")
+        if not (has_permission(request.user, "ticketing_support") or has_permission(request.user, "ticketing_admin")):
+            messages.error(request, "You don't have permission to access this page.")
+            return redirect("/")
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
+
+
+def require_scoring_permission(view_func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to require gold_team OR white_team permission for scoring views.
+
+    Usage:
+        @require_scoring_permission
+        def leaderboard(request):
+            ...
+    """
+    from functools import wraps
+
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    @wraps(view_func)
+    def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        if not request.user.is_authenticated:
+            return redirect("/")
+        if not (
+            has_permission(request.user, "gold_team")
+            or has_permission(request.user, "white_team")
+            or has_permission(request.user, "ticketing_admin")
+            or request.user.is_staff
+        ):
+            messages.error(request, "You don't have permission to access this page.")
+            return redirect("/")
+        return view_func(request, *args, **kwargs)
+
+    return wrapped

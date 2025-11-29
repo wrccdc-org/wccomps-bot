@@ -4,43 +4,99 @@
 <c-module>
     <c-slot name="toolbar">
         <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Submit Adjustment</c-link>
+        {% if can_approve and bonuses %}
+        <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
+        {% endif %}
     </c-slot>
 
     {% if bonuses %}
-    <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
-        <c-slot name="headers">
-            <tr>
-                <th>ID</th>
-                <th>Team</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th style="text-align: right;">Points</th>
-                <th>Submitted</th>
-            </tr>
-        </c-slot>
+    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}">
+        {% csrf_token %}
+        <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
+            <c-slot name="headers">
+                <tr>
+                    {% if can_approve %}
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="select-all" aria-label="Select all adjustments">
+                    </th>
+                    {% endif %}
+                    <th>ID</th>
+                    <th>Team</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th style="text-align: right;">Points</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    {% if can_approve %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </c-slot>
 
-        {% for bonus in bonuses %}
-        <tr>
-            <td><strong>#{{ bonus.id }}</strong></td>
-            <td>{{ bonus.team.team_name }}</td>
-            <td>
-                <c-badge variant="warning">{{ bonus.category }}</c-badge>
-            </td>
-            <td>{{ bonus.description|truncatechars:60 }}</td>
-            <td style="text-align: right; color: {% if bonus.points >= 0 %}#28a745{% else %}#dc3545{% endif %};">
-                {% if bonus.points >= 0 %}+{% endif %}{{ bonus.points }}
-            </td>
-            <td>
-                <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
-                <small style="color: #666;">by {{ bonus.submitted_by.username }}</small>
-            </td>
-        </tr>
-        {% endfor %}
-    </c-table>
+            {% for bonus in bonuses %}
+            <tr>
+                {% if can_approve %}
+                <td>
+                    <input type="checkbox" name="adjustment_ids" value="{{ bonus.id }}" class="adjustment-checkbox" aria-label="Select adjustment {{ bonus.id }}">
+                </td>
+                {% endif %}
+                <td><strong>#{{ bonus.id }}</strong></td>
+                <td>{{ bonus.team.team_name }}</td>
+                <td>
+                    {% if bonus.check_type %}
+                        <c-badge variant="warning">{{ bonus.check_type.name }}</c-badge>
+                    {% else %}
+                        <c-badge variant="secondary">Uncategorized</c-badge>
+                    {% endif %}
+                </td>
+                <td>{{ bonus.description|truncatechars:60 }}</td>
+                <td style="text-align: right; color: {% if bonus.points_awarded >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+                    {% if bonus.points_awarded >= 0 %}+{% endif %}{{ bonus.points_awarded }}
+                </td>
+                <td>
+                    {% if bonus.is_approved %}
+                        <c-badge variant="success">Approved</c-badge>
+                        {% if bonus.approved_by %}
+                        <br><small class="text-muted">by {{ bonus.approved_by.username }}</small>
+                        {% endif %}
+                    {% else %}
+                        <c-badge variant="warning">Pending</c-badge>
+                    {% endif %}
+                </td>
+                <td>
+                    <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
+                    <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
+                </td>
+                {% if can_approve %}
+                <td>
+                    <form method="post" action="{% url 'scoring:approve_orange_adjustment' bonus.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="success" size="sm">Approve</c-button>
+                    </form>
+                    <form method="post" action="{% url 'scoring:reject_orange_adjustment' bonus.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="danger" size="sm">Reject</c-button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </c-table>
+    </form>
     {% else %}
     <c-alert variant="info">
         No orange team adjustments submitted yet.
     </c-alert>
     {% endif %}
 </c-module>
+
+{% if can_approve %}
+<script>
+    // Select all checkbox functionality
+    document.getElementById('select-all')?.addEventListener('change', function(e) {
+        const checkboxes = document.querySelectorAll('.adjustment-checkbox');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+</script>
+{% endif %}
 {% endblock %}

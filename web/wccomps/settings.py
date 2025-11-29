@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "quotient",
     "scoring",
     "packets",
+    "registration",
 ]
 
 MIDDLEWARE = [

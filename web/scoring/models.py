@@ -163,6 +163,25 @@ class RedTeamFinding(models.Model):
         help_text="Points deducted per affected team (assigned by Gold Team)",
     )
 
+    # Approval tracking
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Whether this finding has been approved by Gold Team",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this finding was approved",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="red_findings_approved",
+        help_text="Gold Team member who approved this finding",
+    )
+
     # Evidence
     notes = models.TextField(blank=True)
 
@@ -327,6 +346,25 @@ class InjectGrade(models.Model):
     )
     notes = models.TextField(blank=True, help_text="Grader notes")
 
+    # Approval tracking
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Grade has been approved by supervisor",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the grade was approved",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="injects_approved",
+        help_text="User who approved this grade",
+    )
+
     # Audit
     graded_by = models.ForeignKey(
         User,
@@ -348,6 +386,22 @@ class InjectGrade(models.Model):
         return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}/{self.max_points}"
 
 
+class OrangeCheckType(models.Model):
+    """Categories for orange team bonus/penalty checks."""
+
+    name = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "orange_check_type"
+        verbose_name = "Orange Check Type"
+        verbose_name_plural = "Orange Check Types"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class OrangeTeamBonus(models.Model):
     """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
@@ -364,11 +418,38 @@ class OrangeTeamBonus(models.Model):
     )
 
     # Point adjustment details
+    check_type = models.ForeignKey(
+        OrangeCheckType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bonuses",
+        help_text="Category of this check (optional for backwards compatibility)",
+    )
     description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
     points_awarded = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         help_text="Points to add (positive) or deduct (negative)",
+    )
+
+    # Approval tracking
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Whether this bonus has been approved",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this bonus was approved",
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orange_bonuses_approved",
+        help_text="User who approved this bonus",
     )
 
     # Audit

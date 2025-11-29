@@ -2,9 +2,8 @@
 
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
-from competition.models import Competition
 from scoring.calculator import get_leaderboard, recalculate_all_scores
 
 
@@ -21,11 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         show_leaderboard = options.get("show_leaderboard", False)
 
-        competition = Competition.objects.first()
-        if not competition:
-            raise CommandError("No competition found. Create one first.") from None
-
-        self.stdout.write(f"Recalculating scores for: {competition.name}")
+        self.stdout.write("Recalculating scores...")
 
         try:
             recalculate_all_scores()

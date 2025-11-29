@@ -16,7 +16,7 @@
 
     <div class="module">
         <h2>Packet Information</h2>
-        <table>
+        <table aria-label="Packet information">
             <tr>
                 <th>Status:</th>
                 <td><span class="status-{{ packet.status }}">{{ packet.get_status_display }}</span></td>
@@ -61,7 +61,7 @@
 
     <div class="module">
         <h2>Distribution Statistics</h2>
-        <table>
+        <table aria-label="Distribution statistics">
             <tr>
                 <th>Total Teams:</th>
                 <td>{{ stats.total }}</td>
@@ -87,14 +87,14 @@
 
     <div class="toolbar">
         {% if packet.status == "draft" %}
-            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" style="display: inline;">
+            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
                 <input type="submit" value="Distribute Now" class="button" onclick="return confirm('Distribute this team packet to all teams now?');">
             </form>
         {% endif %}
 
         {% if packet.status not in "cancelled" %}
-            <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" style="display: inline;">
+            <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
                 <input type="submit" value="Cancel Distribution" class="button" onclick="return confirm('Cancel this packet distribution?');">
             </form>
@@ -107,7 +107,7 @@
     <div class="module">
         <h2>Distribution Status by Team</h2>
         {% if distributions %}
-            <table id="result_list">
+            <table id="result_list" aria-label="Distribution status by team">
                 <thead>
                     <tr>
                         <th>Team</th>

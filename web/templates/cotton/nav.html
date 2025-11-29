@@ -1,0 +1,9 @@
+{# Navigation wrapper component - horizontal navigation with current page highlighting #}
+{# Usage: <c-nav current="leaderboard"><c-nav_item name="leaderboard" href="/scoring/">Leaderboard</c-nav_item></c-nav> #}
+{# Props: current (name of current page for highlighting) #}
+
+<c-vars current="" />
+
+<nav role="navigation" aria-label="Primary navigation">
+    {{ slot }}
+</nav>

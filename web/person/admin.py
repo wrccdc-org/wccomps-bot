@@ -4,6 +4,7 @@ from typing import Any
 
 from django.contrib import admin
 from django.http import HttpRequest
+from django.utils.html import format_html
 
 from .models import Person
 
@@ -18,9 +19,10 @@ class PersonAdmin(admin.ModelAdmin[Person]):
         "discord_username",
         "team_display",
         "staff_role_display",
+        "helper_status_display",
         "last_login_at",
     ]
-    list_filter = ["created_at", "last_login_at"]
+    list_filter = ["created_at", "last_login_at", "is_student_helper"]
     search_fields = [
         "authentik_username",
         "authentik_email",
@@ -33,6 +35,8 @@ class PersonAdmin(admin.ModelAdmin[Person]):
         "updated_at",
         "last_login_at",
         "authentik_groups_display",
+        "helper_activated_at",
+        "helper_deactivated_at",
     ]
     ordering = ["authentik_username"]
 
@@ -55,6 +59,19 @@ class PersonAdmin(admin.ModelAdmin[Person]):
         (
             "Discord Integration",
             {"fields": ("discord_id", "discord_username")},
+        ),
+        (
+            "Student Helper",
+            {
+                "fields": (
+                    "is_student_helper",
+                    "helper_role_name",
+                    "helper_role_id",
+                    "helper_activated_at",
+                    "helper_deactivated_at",
+                    "helper_removal_reason",
+                )
+            },
         ),
         (
             "Audit",
@@ -85,6 +102,17 @@ class PersonAdmin(admin.ModelAdmin[Person]):
         if obj.is_black_team():
             roles.append("Black")
         return ", ".join(roles) if roles else "-"
+
+    @admin.display(description="Helper")
+    def helper_status_display(self, obj: Person) -> str:
+        """Display helper status with badge."""
+        if obj.is_student_helper:
+            return format_html(
+                '<span style="background-color: #28A745; color: white; '
+                'padding: 2px 8px; border-radius: 3px;">{}</span>',
+                obj.helper_role_name or "Active",
+            )
+        return "-"
 
     @admin.display(description="Authentik Groups")
     def authentik_groups_display(self, obj: Person) -> str:

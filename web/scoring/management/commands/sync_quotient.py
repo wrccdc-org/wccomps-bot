@@ -2,9 +2,8 @@
 
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
-from competition.models import Competition
 from scoring.quotient_sync import sync_quotient_metadata, sync_service_scores
 
 
@@ -27,11 +26,7 @@ class Command(BaseCommand):
         metadata_only = options.get("metadata_only", False)
         scores_only = options.get("scores_only", False)
 
-        competition = Competition.objects.first()
-        if not competition:
-            raise CommandError("No competition found. Create one first.") from None
-
-        self.stdout.write(f"Syncing data for competition: {competition.name}")
+        self.stdout.write("Syncing data from Quotient...")
 
         # Sync metadata unless scores-only
         if not scores_only:

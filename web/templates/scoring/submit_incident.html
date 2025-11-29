@@ -3,132 +3,171 @@
 {% block title %}Submit Incident Report{% endblock %}
 
 {% block content %}
-<div class="module">
-    <h1>Submit Incident Report</h1>
-    {% if team or is_admin %}
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <c-fieldset aligned="true">
-            {% if is_admin %}
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.team.id_for_label }}" class="required">{{ form.team.label }}:</label>
+<div style="max-width: 1200px; margin: 0 auto;">
+    <c-module>
+        <h2>Submit Incident Report</h2>
+        {% if team or is_admin %}
+        <form method="post" enctype="multipart/form-data" id="incidentForm">
+            {% csrf_token %}
+
+            <!-- Target Information Section -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
+
+                {% if is_admin %}
+                <div style="margin-bottom: 15px;">
+                    <label for="{{ form.team.id_for_label }}" class="form-label required">
+                        {{ form.team.label }}
+                    </label>
                     {{ form.team }}
-                    {% if form.team.errors %}
-                    <ul class="errorlist">{% for e in form.team.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
                     {% if form.team.help_text %}
-                    <p class="help">{{ form.team.help_text }}</p>
+                        <div class="form-text">{{ form.team.help_text }}</div>
+                    {% endif %}
+                    {% if form.team.errors %}
+                        <div class="text-danger">{{ form.team.errors }}</div>
                     {% endif %}
                 </div>
-            </div>
-            {% endif %}
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.affected_box.id_for_label }}" class="required">{{ form.affected_box.label }}:</label>
-                    {{ form.affected_box }}
-                    {% if form.affected_box.errors %}
-                    <ul class="errorlist">{% for e in form.affected_box.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.affected_box.help_text %}
-                    <p class="help">{{ form.affected_box.help_text }}</p>
-                    {% endif %}
+                {% endif %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="mb-3">
+                        <label for="{{ form.affected_box.id_for_label }}" class="form-label required">
+                            {{ form.affected_box.label }}
+                        </label>
+                        {{ form.affected_box }}
+                        {% if form.affected_box.help_text %}
+                            <div class="form-text">{{ form.affected_box.help_text }}</div>
+                        {% endif %}
+                        {% if form.affected_box.errors %}
+                            <div class="text-danger">{{ form.affected_box.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.affected_service.id_for_label }}" class="form-label">
+                            {{ form.affected_service.label }}
+                        </label>
+                        {{ form.affected_service }}
+                        {% if form.affected_service.help_text %}
+                            <div class="form-text">{{ form.affected_service.help_text }}</div>
+                        {% endif %}
+                        {% if form.affected_service.errors %}
+                            <div class="text-danger">{{ form.affected_service.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.destination_ip.id_for_label }}" class="required">{{ form.destination_ip.label }}:</label>
+
+                <div class="mb-3">
+                    <label for="{{ form.destination_ip.id_for_label }}" class="form-label required">
+                        {{ form.destination_ip.label }}
+                    </label>
                     {{ form.destination_ip }}
+                    <div class="form-text">Auto-populated based on selected box</div>
                     {% if form.destination_ip.errors %}
-                    <ul class="errorlist">{% for e in form.destination_ip.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.destination_ip.help_text %}
-                    <p class="help">{{ form.destination_ip.help_text }}</p>
+                        <div class="text-danger">{{ form.destination_ip.errors }}</div>
                     {% endif %}
                 </div>
             </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.affected_service.id_for_label }}">{{ form.affected_service.label }}:</label>
-                    {{ form.affected_service }}
-                    {% if form.affected_service.errors %}
-                    <ul class="errorlist">{% for e in form.affected_service.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.affected_service.help_text %}
-                    <p class="help">{{ form.affected_service.help_text }}</p>
-                    {% endif %}
+
+            <!-- Attack Details Section -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="mb-3">
+                        <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
+                            {{ form.source_ip.label }}
+                        </label>
+                        {{ form.source_ip }}
+                        {% if form.source_ip.help_text %}
+                            <div class="form-text">{{ form.source_ip.help_text }}</div>
+                        {% endif %}
+                        {% if form.source_ip.errors %}
+                            <div class="text-danger">{{ form.source_ip.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.attack_detected_at.id_for_label }}" class="form-label required">
+                            {{ form.attack_detected_at.label }}
+                        </label>
+                        {{ form.attack_detected_at }}
+                        {% if form.attack_detected_at.help_text %}
+                            <div class="form-text">{{ form.attack_detected_at.help_text }}</div>
+                        {% endif %}
+                        {% if form.attack_detected_at.errors %}
+                            <div class="text-danger">{{ form.attack_detected_at.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.source_ip.id_for_label }}" class="required">{{ form.source_ip.label }}:</label>
-                    {{ form.source_ip }}
-                    {% if form.source_ip.errors %}
-                    <ul class="errorlist">{% for e in form.source_ip.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.source_ip.help_text %}
-                    <p class="help">{{ form.source_ip.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.attack_detected_at.id_for_label }}" class="required">{{ form.attack_detected_at.label }}:</label>
-                    {{ form.attack_detected_at }}
-                    {% if form.attack_detected_at.errors %}
-                    <ul class="errorlist">{% for e in form.attack_detected_at.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.attack_detected_at.help_text %}
-                    <p class="help">{{ form.attack_detected_at.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.attack_description.id_for_label }}" class="required">{{ form.attack_description.label }}:</label>
+
+                <div class="mb-3">
+                    <label for="{{ form.attack_description.id_for_label }}" class="form-label required">
+                        {{ form.attack_description.label }}
+                    </label>
                     {{ form.attack_description }}
-                    {% if form.attack_description.errors %}
-                    <ul class="errorlist">{% for e in form.attack_description.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
                     {% if form.attack_description.help_text %}
-                    <p class="help">{{ form.attack_description.help_text }}</p>
+                        <div class="form-text">{{ form.attack_description.help_text }}</div>
+                    {% endif %}
+                    {% if form.attack_description.errors %}
+                        <div class="text-danger">{{ form.attack_description.errors }}</div>
                     {% endif %}
                 </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.attack_mitigated.id_for_label }}">{{ form.attack_mitigated.label }}:</label>
+
+                <div class="form-check mb-2">
                     {{ form.attack_mitigated }}
-                    {% if form.attack_mitigated.errors %}
-                    <ul class="errorlist">{% for e in form.attack_mitigated.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
+                    <label class="form-check-label" for="{{ form.attack_mitigated.id_for_label }}">
+                        {{ form.attack_mitigated.label }}
+                    </label>
                     {% if form.attack_mitigated.help_text %}
-                    <p class="help">{{ form.attack_mitigated.help_text }}</p>
+                        <div class="form-text">{{ form.attack_mitigated.help_text }}</div>
                     {% endif %}
                 </div>
             </div>
-        </c-fieldset>
 
-        <div style="margin: 20px 0;">
-            <label for="screenshots" style="display: block; margin-bottom: 5px; font-weight: 500;">Screenshots</label>
-            <input type="file"
-                   class="form-control"
-                   id="screenshots"
-                   name="screenshots"
-                   accept="image/*"
-                   multiple
-                   onchange="previewScreenshots(this)">
-            <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;"></div>
-        </div>
+            <!-- Screenshot Evidence Section -->
+            <div class="mb-4">
+                <h5 class="border-bottom pb-2 mb-3">Screenshot Evidence</h5>
 
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <c-button type="submit" variant="primary">Submit</c-button>
-            <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
-        </div>
-    </form>
-    {% else %}
-    <p>You must be associated with a team to submit incident reports.</p>
-    {% endif %}
+                <div class="mb-3">
+                    <label for="screenshots" class="form-label">Upload Screenshots</label>
+                    <input type="file"
+                           class="form-control"
+                           id="screenshots"
+                           name="screenshots"
+                           accept="image/*"
+                           multiple
+                           onchange="previewScreenshots(this)">
+                    <div class="form-text">
+                        Upload screenshots showing attack evidence. Maximum 20 files.
+                    </div>
+                </div>
+
+                <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;"></div>
+            </div>
+
+            <c-alert variant="info" style="margin-bottom: 20px;">
+                <h3 style="margin-top: 0; font-size: 16px;">Submission Guidelines</h3>
+                <ul style="margin-bottom: 0;">
+                    <li>Report attacks as soon as they are detected</li>
+                    <li>Include the source IP address of the attacker</li>
+                    <li>Describe what you observed and any mitigation steps taken</li>
+                    <li>Gold Team will review and match to Red Team findings</li>
+                </ul>
+            </c-alert>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
+                <c-button type="submit" variant="primary">Submit Report</c-button>
+            </div>
+        </form>
+        {% else %}
+        <c-alert variant="warning">
+            You must be associated with a team to submit incident reports.
+        </c-alert>
+        {% endif %}
+    </c-module>
+</div>
 
 {{ box_metadata|json_script:"box-metadata" }}
 <script>
@@ -138,7 +177,6 @@ let teamNumber = {% if team %}{{ team.team_number }}{% else %}null{% endif %};
 function getSelectedTeamNumber() {
     const teamSelect = document.getElementById('id_team');
     if (teamSelect && teamSelect.value) {
-        // Extract team number from the selected option text (e.g., "BlueTeam09" -> 9)
         const match = teamSelect.selectedOptions[0].text.match(/(\d+)/);
         return match ? parseInt(match[1], 10) : null;
     }
@@ -166,37 +204,31 @@ function updateIPAndServices() {
 
     // Update service dropdown
     if (serviceSelect) {
+        const currentService = serviceSelect.value;
         serviceSelect.innerHTML = '<option value="">-- None --</option>';
         if (boxData && boxData.services) {
             boxData.services.forEach(function(svc) {
                 const option = document.createElement('option');
                 option.value = svc;
                 option.textContent = svc;
+                if (svc === currentService) {
+                    option.selected = true;
+                }
                 serviceSelect.appendChild(option);
             });
         }
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const boxSelect = document.getElementById('id_affected_box');
-    const teamSelect = document.getElementById('id_team');
-
-    if (boxSelect) {
-        boxSelect.addEventListener('change', updateIPAndServices);
-    }
-    if (teamSelect) {
-        teamSelect.addEventListener('change', updateIPAndServices);
-    }
-});
-
 function previewScreenshots(input) {
     const preview = document.getElementById('screenshotPreview');
     preview.innerHTML = '';
+
     if (input.files) {
         if (input.files.length > 20) {
-            alert('Maximum 20 screenshots allowed.');
+            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
         }
+
         Array.from(input.files).slice(0, 20).forEach((file, index) => {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -211,6 +243,78 @@ function previewScreenshots(input) {
         });
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const boxSelect = document.getElementById('id_affected_box');
+    const teamSelect = document.getElementById('id_team');
+
+    if (boxSelect) {
+        boxSelect.addEventListener('change', updateIPAndServices);
+        if (boxSelect.value) {
+            updateIPAndServices();
+        }
+    }
+    if (teamSelect) {
+        teamSelect.addEventListener('change', updateIPAndServices);
+    }
+});
 </script>
-</div>
+
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+
+.mb-3 {
+    margin-bottom: 15px;
+}
+
+.mb-4 {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.text-danger {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #ddd;
+}
+
+.pb-2 {
+    padding-bottom: 10px;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-check-label {
+    margin-bottom: 0;
+}
+
+h5 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+</style>
 {% endblock %}

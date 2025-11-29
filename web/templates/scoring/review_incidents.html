@@ -43,18 +43,18 @@
             <td>{{ incident.team.team_name }}</td>
             <td>
                 <strong>{{ incident.affected_box }}</strong><br>
-                <small style="color: #666;">{{ incident.affected_service }}</small>
+                <small class="text-muted">{{ incident.affected_service }}</small>
             </td>
             <td>{{ incident.attack_vector|truncatechars:40 }}</td>
             <td>
                 <small>{{ incident.attack_detected_at|date:"m/d H:i" }}</small><br>
-                <small style="color: #666;">Submitted: {{ incident.created_at|date:"m/d H:i" }}</small>
+                <small class="text-muted">Submitted: {{ incident.created_at|date:"m/d H:i" }}</small>
             </td>
             <td>
                 {% if incident.screenshots.exists %}
                     <c-badge variant="success">{{ incident.screenshots.count }} files</c-badge>
                 {% else %}
-                    <span style="color: #666;">None</span>
+                    <span class="text-muted">None</span>
                 {% endif %}
             </td>
             <td>

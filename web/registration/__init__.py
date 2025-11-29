@@ -1,0 +1,1 @@
+"""Team registration app."""

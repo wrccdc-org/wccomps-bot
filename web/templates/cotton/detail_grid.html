@@ -1,0 +1,28 @@
+{# Detail Grid component - two-column layout for detail pages #}
+{# Usage: <c-detail_grid gap="20px"><c-slot name="left">...</c-slot><c-slot name="right">...</c-slot></c-detail_grid> #}
+{# Props: gap (optional spacing, default "20px") #}
+
+<c-vars gap="20px" />
+
+<style>
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: {{ gap }};
+    }
+
+    @media (max-width: 768px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="detail-grid">
+    <div class="detail-grid-left">
+        {{ left }}
+    </div>
+    <div class="detail-grid-right">
+        {{ right }}
+    </div>
+</div>

@@ -1,0 +1,29 @@
+{# Empty state component - displays consistent empty state messages #}
+{# Usage: <c-empty_state icon="📋" title="No items found" description="Optional help text"><action button></c-empty_state> #}
+{# Props: icon (optional emoji/character), title (required), description (optional secondary text) #}
+
+<c-vars icon="" title="" description="" />
+
+<div style="text-align: center; padding: 40px 20px; color: #666;">
+    {% if icon %}
+    <div style="font-size: 48px; margin-bottom: 16px; line-height: 1;">
+        {{ icon }}
+    </div>
+    {% endif %}
+
+    <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 8px;">
+        {{ title }}
+    </div>
+
+    {% if description %}
+    <div style="font-size: 14px; color: #999; margin-bottom: 20px; max-width: 400px; margin-left: auto; margin-right: auto;">
+        {{ description }}
+    </div>
+    {% endif %}
+
+    {% if slot %}
+    <div style="margin-top: 20px;">
+        {{ slot }}
+    </div>
+    {% endif %}
+</div>

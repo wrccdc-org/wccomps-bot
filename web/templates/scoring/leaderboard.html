@@ -31,10 +31,10 @@
             <td>{{ score.team.team_name }}</td>
             <td style="text-align: right;">{{ score.service_points|floatformat:2 }}</td>
             <td style="text-align: right;">{{ score.inject_points|floatformat:2 }}</td>
-            <td style="text-align: right; color: #28a745;">+{{ score.orange_points|floatformat:2 }}</td>
-            <td style="text-align: right; color: #dc3545;">{{ score.red_deductions|floatformat:2 }}</td>
-            <td style="text-align: right; color: #28a745;">+{{ score.incident_recovery_points|floatformat:2 }}</td>
-            <td style="text-align: right; color: #dc3545;">{{ score.sla_penalties|floatformat:2 }}</td>
+            <td style="text-align: right;"><c-score_value :value="score.orange_points" format="signed" /></td>
+            <td style="text-align: right;"><c-score_value :value="score.red_deductions" /></td>
+            <td style="text-align: right;"><c-score_value :value="score.incident_recovery_points" format="signed" /></td>
+            <td style="text-align: right;"><c-score_value :value="score.sla_penalties" /></td>
             <td style="text-align: right;">{{ score.black_adjustments|floatformat:2 }}</td>
             <td style="text-align: right;"><strong>{{ score.total_score|floatformat:2 }}</strong></td>
         </tr>

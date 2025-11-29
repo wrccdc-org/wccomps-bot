@@ -37,7 +37,7 @@
 <c-module>
     <h2>Quotient Integration</h2>
     {% if metadata %}
-    <table style="width: 100%; margin-bottom: 15px;">
+    <table style="width: 100%; margin-bottom: 15px;" aria-label="Quotient integration status">
         <tr><th style="text-align: left; width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
         <tr><th style="text-align: left;">Event:</th><td>{{ metadata.event_name }}</td></tr>
         <tr><th style="text-align: left;">Teams:</th><td>{{ metadata.team_count }}</td></tr>
@@ -52,7 +52,7 @@
         <c-button type="submit">Sync Metadata</c-button>
     </form>
 
-    <form method="post" action="{% url 'scoring:sync_scores' %}" style="display: inline;">
+    <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
         {% csrf_token %}
         <c-button type="submit">Sync Service Scores</c-button>
     </form>
