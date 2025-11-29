@@ -8,7 +8,7 @@ Remaining tasks to bring codebase into conformance with specification documents.
 
 | Priority | Remaining | Description |
 |----------|-----------|-------------|
-| P2 | 2 | UI polish tasks |
+| P2 | 1 | UI polish tasks |
 | P3 | 2 | Documentation |
 
 ---
@@ -16,8 +16,6 @@ Remaining tasks to bring codebase into conformance with specification documents.
 ## Remaining Tasks
 
 ### UI Polish (P2)
-
-**UI-8**: Audit non-scoring templates for missing aria-labels on tables.
 
 **UI-10**: Extract remaining inline styles to utility classes.
 
@@ -65,6 +63,7 @@ Remaining tasks to bring codebase into conformance with specification documents.
 - ✅ UI-5: `<c-score_value>` Component
 - ✅ UI-6: Fix Template Field Reference Error
 - ✅ UI-7: Convert `registration/register.html` to Cotton fieldset (removed crispy-forms dependency)
+- ✅ UI-8: Audit non-scoring templates for aria-labels (all tables already compliant)
 - ✅ UI-9: Migrate Sub-Navigation to `<c-nav>`
 - ✅ TEST-1: Permission Integration Tests (`scoring/tests/test_permissions.py`, `core/tests/test_permissions.py`)
 - ✅ TEST-2: Workflow Integration Tests (`scoring/tests/test_workflows.py`, `core/tests/test_ticket_workflow.py`)
