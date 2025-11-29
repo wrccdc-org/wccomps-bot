@@ -3,7 +3,7 @@
 {% block scoring_content %}
 <c-module>
     <h2>Review Inject Grades</h2>
-    <p style="color: #666;">Spot-check and approve inject grades. Outliers (grades > 1.5 std dev from mean) are highlighted.</p>
+    <p class="text-muted">Spot-check and approve inject grades. Outliers (grades > 1.5 std dev from mean) are highlighted.</p>
 
     <div style="display: flex; gap: 20px; margin: 20px 0; padding: 15px; background: #f8f8f8; border-radius: 4px;">
         <div>
@@ -40,11 +40,11 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h3 style="margin: 0;">{{ inject_group.inject_name }}</h3>
-                        <small style="color: #666;">Inject ID: {{ inject_group.inject_id }}</small>
+                        <small class="text-muted">Inject ID: {{ inject_group.inject_id }}</small>
                     </div>
                     <div style="text-align: right;">
                         <c-badge variant="primary">Max: {{ inject_group.max_points }} points</c-badge>
-                        <br><small style="color: #666;">{{ inject_group.grades|length }} grades pending</small>
+                        <br><small class="text-muted">{{ inject_group.grades|length }} grades pending</small>
                     </div>
                 </div>
             </div>
@@ -72,7 +72,7 @@
                             <td style="padding: 8px;">
                                 <strong>Team {{ grade.team.team_number }}</strong>
                                 {% if grade.team.team_name != "Team " %}
-                                <br><small style="color: #666;">{{ grade.team.team_name }}</small>
+                                <br><small class="text-muted">{{ grade.team.team_name }}</small>
                                 {% endif %}
                             </td>
                             <td style="padding: 8px; text-align: right;">
@@ -83,12 +83,12 @@
                             </td>
                             <td style="padding: 8px;">
                                 {{ grade.graded_by.username|default:"Auto" }}
-                                <br><small style="color: #666;">{{ grade.graded_at|date:"m/d H:i" }}</small>
+                                <br><small class="text-muted">{{ grade.graded_at|date:"m/d H:i" }}</small>
                             </td>
                             <td style="padding: 8px;">
                                 {% if grade.is_outlier %}
                                 <c-badge variant="warning">Outlier</c-badge>
-                                <br><small style="color: #666;">{{ grade.std_devs_from_mean|floatformat:2 }}σ from mean</small>
+                                <br><small class="text-muted">{{ grade.std_devs_from_mean|floatformat:2 }}σ from mean</small>
                                 {% else %}
                                 <c-badge variant="secondary">Normal</c-badge>
                                 {% endif %}

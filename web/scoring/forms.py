@@ -212,7 +212,7 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
 
     class Meta:
         model = OrangeTeamBonus
-        fields = ["team", "description", "points_awarded"]
+        fields = ["team", "check_type", "description", "points_awarded"]
         widgets = {
             "description": forms.Textarea(
                 attrs={
@@ -222,7 +222,11 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
             ),
         }
         labels = {
+            "check_type": "Check Type",
             "points_awarded": "Points Adjustment",
+        }
+        help_texts = {
+            "check_type": "Select the type of check (optional)",
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

@@ -16,6 +16,8 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
             "is_gold_team": False,
             "is_blue_team": False,
             "is_red_team": False,
+            "is_white_team": False,
+            "is_orange_team": False,
             "is_admin": False,
             "authentik_username": "",
         }

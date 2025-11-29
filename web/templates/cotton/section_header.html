@@ -1,0 +1,55 @@
+{# Section header component - flex layout with title/subtitle and actions #}
+{# Usage: <c-section_header title="Title" subtitle="Description"><c-slot name="actions">buttons</c-slot></c-section_header> #}
+{# Props: title (required), subtitle (optional), align (optional: "start"|"center"|"space-between", default "space-between") #}
+
+<c-vars title="" subtitle="" align="space-between" />
+
+<style>
+    .section-header {
+        display: flex;
+        justify-content: {{ align }};
+        align-items: center;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .section-header-content h2 {
+        margin: 0;
+        font-size: 20px;
+        color: #333;
+    }
+
+    .section-header-content p {
+        color: #666;
+        margin: 5px 0 0 0;
+        font-size: 14px;
+    }
+
+    .section-header-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    @media (max-width: 768px) {
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+    }
+</style>
+
+<div class="section-header">
+    <div class="section-header-content">
+        <h2>{{ title }}</h2>
+        {% if subtitle %}
+        <p>{{ subtitle }}</p>
+        {% endif %}
+    </div>
+    {% if actions %}
+    <div class="section-header-actions">
+        {{ actions }}
+    </div>
+    {% endif %}
+</div>

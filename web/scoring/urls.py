@@ -12,15 +12,23 @@ urlpatterns = [
     # Red Team
     path("red-team/", views.red_team_portal, name="red_team_portal"),
     path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),
+    path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),
     # Incident Reports (Blue Team)
+    path("incident/list/", views.incident_list, name="incident_list"),
     path("incident/submit/", views.submit_incident_report, name="submit_incident_report"),
     path("incident/<int:incident_id>/", views.view_incident_report, name="view_incident_report"),
     # Orange Team
     path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
     path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),
+    path("orange-team/<int:adjustment_id>/approve/", views.approve_orange_adjustment, name="approve_orange_adjustment"),
+    path("orange-team/<int:adjustment_id>/reject/", views.reject_orange_adjustment, name="reject_orange_adjustment"),
+    path("orange-team/bulk-approve/", views.bulk_approve_orange_adjustments, name="bulk_approve_orange_adjustments"),
+    path("orange-team/bulk-reject/", views.bulk_reject_orange_adjustments, name="bulk_reject_orange_adjustments"),
     # Inject Grading (White/Gold Team)
     path("injects/", views.inject_grading, name="inject_grading"),
     path("injects/submit/", views.submit_inject_grades, name="submit_inject_grades"),
+    path("injects/review/", views.inject_grades_review, name="inject_grades_review"),
+    path("injects/bulk-approve/", views.inject_grades_bulk_approve, name="inject_grades_bulk_approve"),
     # Gold Team - Incident Review
     path("gold-team/incidents/", views.review_incidents, name="review_incidents"),
     path("gold-team/incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
@@ -33,4 +41,11 @@ urlpatterns = [
     path("api/scores/", views.api_scores, name="api_scores"),
     path("api/team/<int:team_number>/", views.api_team_detail, name="api_team_detail"),
     path("api/attack-types/", views.api_attack_types, name="api_attack_types"),
+    # Export endpoints
+    path("export/", views.export_index, name="export_index"),
+    path("export/red-findings/", views.export_red_findings, name="export_red_findings"),
+    path("export/incidents/", views.export_incidents, name="export_incidents"),
+    path("export/orange-adjustments/", views.export_orange_adjustments, name="export_orange_adjustments"),
+    path("export/inject-grades/", views.export_inject_grades, name="export_inject_grades"),
+    path("export/final-scores/", views.export_final_scores, name="export_final_scores"),
 ]

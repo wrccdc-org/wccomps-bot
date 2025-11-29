@@ -100,15 +100,15 @@ class Command(BaseCommand):
         # Check 5: Test critical view imports
         self.stdout.write("Testing view imports...")
         try:
-            from core import utils, views
+            from core import auth_utils, utils, views
 
             # Verify key functions exist
             if not callable(utils.get_authentik_data):
                 raise RuntimeError("utils.get_authentik_data is not callable")
             if not callable(utils.get_team_from_groups):
                 raise RuntimeError("utils.get_team_from_groups is not callable")
-            if not callable(utils.check_permissions):
-                raise RuntimeError("utils.check_permissions is not callable")
+            if not callable(auth_utils.has_permission):
+                raise RuntimeError("auth_utils.has_permission is not callable")
             if not callable(views.home):
                 raise RuntimeError("views.home is not callable")
             if not callable(views.team_tickets):

@@ -1,0 +1,59 @@
+{# Selectable table component with select-all checkbox functionality #}
+{# Usage: #}
+{#   <c-selectable_table id="my_table" checkbox_class="item-checkbox" checkbox_name="item_ids" form_id="bulk-form"> #}
+{#       <c-slot name="extra_headers">...additional header cells...</c-slot> #}
+{#       ...table rows with checkboxes... #}
+{#   </c-selectable_table> #}
+{# #}
+{# Props: #}
+{#   id: Table ID (required) #}
+{#   checkbox_class: CSS class for row checkboxes (required) #}
+{#   checkbox_name: Name attribute for row checkboxes (for form submission) #}
+{#   form_id: ID of form to submit for bulk actions #}
+{#   aria_label: Accessibility label for the table #}
+{#   confirm_message: Message for bulk action confirmation (use {count} placeholder) #}
+
+<c-vars id="" checkbox_class="" checkbox_name="selected_ids" form_id="" aria_label="Selectable data table" confirm_message="Process {count} item(s)?" />
+
+<div class="results">
+    <table id="{{ id }}" role="grid" aria-label="{{ aria_label }}">
+        <thead>
+            <tr>
+                <th style="width: 40px;">
+                    <input type="checkbox"
+                           id="{{ id }}-select-all"
+                           aria-label="Select all items"
+                           data-checkbox-class="{{ checkbox_class }}">
+                </th>
+                {{ extra_headers }}
+            </tr>
+        </thead>
+        <tbody>
+            {{ slot }}
+        </tbody>
+    </table>
+</div>
+
+<script>
+(function() {
+    const selectAll = document.getElementById('{{ id }}-select-all');
+    if (!selectAll) return;
+
+    const checkboxClass = selectAll.dataset.checkboxClass;
+
+    selectAll.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.' + checkboxClass);
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+
+    // Update select-all state when individual checkboxes change
+    document.querySelectorAll('.' + checkboxClass).forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allCheckboxes = document.querySelectorAll('.' + checkboxClass);
+            const checkedCount = document.querySelectorAll('.' + checkboxClass + ':checked').length;
+            selectAll.checked = checkedCount === allCheckboxes.length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
+        });
+    });
+})();
+</script>

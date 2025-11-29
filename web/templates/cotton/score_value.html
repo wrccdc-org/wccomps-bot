@@ -1,0 +1,8 @@
+{# Score value component - auto-colored score display #}
+{# Usage: <c-score_value value="150" /> #}
+{# Usage: <c-score_value :value="score" format="signed" /> #}
+{# Props: value (numeric), format (optional: "default" or "signed") #}
+
+<c-vars value="0" format="default" />
+
+{% with num_value=value|add:0 %}<span style="color: {% if num_value > 0 %}#28a745{% elif num_value < 0 %}#dc3545{% else %}#6c757d{% endif %};">{% if format == "signed" and num_value > 0 %}+{% endif %}{{ value }}</span>{% endwith %}

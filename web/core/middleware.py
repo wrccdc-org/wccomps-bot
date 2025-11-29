@@ -18,6 +18,7 @@ class AuthentikRequiredMiddleware:
             "/static/",  # Static files
             "/auth/link",  # Discord linking entry point (redirects to OAuth)
             "/health/",  # Health check endpoint for monitoring
+            "/register/",  # Public registration form
         ]
 
     def __call__(self, request: HttpRequest) -> HttpResponse:

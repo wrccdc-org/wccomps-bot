@@ -123,18 +123,17 @@ class AdminCompetitionCog(commands.Cog):
                 await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
                 # Remove all student helper roles
-                from competition.models import StudentHelper
+                from person.models import Person
 
-                active_helpers = [helper async for helper in StudentHelper.objects.filter(status="active").all()]
+                active_helpers = [p async for p in Person.objects.filter(is_student_helper=True).all()]
 
                 helpers_removed = 0
-                for helper in active_helpers:
+                for person in active_helpers:
                     try:
                         # Remove Discord role
-                        if helper.discord_role_id:
-                            role = guild.get_role(helper.discord_role_id)
+                        if person.helper_role_id:
+                            role = guild.get_role(person.helper_role_id)
                             if role:
-                                # Remove role from all members who have it
                                 for member in guild.members:
                                     if role in member.roles:
                                         try:
@@ -143,27 +142,27 @@ class AdminCompetitionCog(commands.Cog):
                                             logger.warning(f"Could not remove helper role from {member}: {e}")
 
                         # Mark helper as removed in database
-                        helper.status = "removed"
-                        helper.removal_reason = "Competition ended"
-                        helper.deactivated_at = timezone.now()
-                        await helper.asave()
+                        person.is_student_helper = False
+                        person.helper_removal_reason = "Competition ended"
+                        person.helper_deactivated_at = timezone.now()
+                        await person.asave()
                         helpers_removed += 1
 
                         # Create audit log
                         await AuditLog.objects.acreate(
                             action="helper_removed",
                             admin_user=str(interaction.user),
-                            target_entity="student_helper",
-                            target_id=helper.id,
+                            target_entity="person",
+                            target_id=person.user_id,
                             details={
-                                "discord_id": helper.discord_id,
-                                "discord_username": helper.discord_username,
-                                "role_name": helper.discord_role_name,
+                                "discord_id": person.discord_id,
+                                "discord_username": person.discord_username,
+                                "role_name": person.helper_role_name,
                                 "reason": "competition_ended",
                             },
                         )
                     except Exception as e:
-                        logger.exception(f"Error removing helper {helper.authentik_username}: {e}")
+                        logger.exception(f"Error removing helper {person.authentik_username}: {e}")
 
                 if helpers_removed > 0:
                     await log_to_ops_channel(self.bot, f"Removed {helpers_removed} student helper role(s)")

@@ -72,8 +72,48 @@ def require_team_role(
     return decorator
 
 
+def _get_user_team(user: User) -> Team | None:
+    """Get team for a user based on their Person object."""
+    if not hasattr(user, "person"):
+        return None
+
+    team_number = user.person.get_team_number()
+    if not team_number:
+        return None
+
+    return Team.objects.filter(team_number=team_number).first()
+
+
+def require_leaderboard_access(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+    """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin."""
+
+    @wraps(view_func)
+    def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        from django.http import HttpResponseForbidden
+
+        user = cast(User, request.user)
+
+        # Staff always has access
+        if user.is_staff:
+            return view_func(request, *args, **kwargs)
+
+        # Check if user has person object with required role
+        if not hasattr(user, "person"):
+            return HttpResponseForbidden("You do not have permission to access this page")
+
+        person = user.person
+        if person.is_gold_team() or person.is_white_team() or person.has_group("WCComps_Ticketing_Admin"):
+            return view_func(request, *args, **kwargs)
+
+        return HttpResponseForbidden("You do not have permission to access this page")
+
+    return wrapped_view
+
+
+@login_required
+@require_leaderboard_access
 def leaderboard(request: HttpRequest) -> HttpResponse:
-    """Public leaderboard view."""
+    """Restricted leaderboard view - accessible only by Gold/White Team, Ticketing Admin, and System Admin."""
     scores = get_leaderboard()
 
     context = {
@@ -91,12 +131,37 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     """Red team portal - list and review findings."""
     base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots")
 
-    pending_findings = base_query.filter(points_per_team=0).order_by("-created_at")
-    reviewed_findings = base_query.exclude(points_per_team=0).order_by("-created_at")
+    # Apply filters from query parameters
+    team_filter = request.GET.get("team")
+    attack_type_filter = request.GET.get("attack_type")
+    submitter_filter = request.GET.get("submitter")
+
+    if team_filter:
+        base_query = base_query.filter(affected_teams__id=team_filter)
+
+    if attack_type_filter:
+        base_query = base_query.filter(attack_vector__icontains=attack_type_filter)
+
+    if submitter_filter:
+        base_query = base_query.filter(submitted_by__id=submitter_filter)
+
+    # Apply distinct to avoid duplicates from M2M joins
+    base_query = base_query.distinct()
+
+    pending_findings = base_query.filter(is_approved=False).order_by("-created_at")
+    reviewed_findings = base_query.filter(is_approved=True).order_by("-created_at")
 
     total_findings = RedTeamFinding.objects.count()
     pending_count = pending_findings.count()
     reviewed_count = total_findings - pending_count
+
+    # Get available teams and submitters for filter dropdowns
+    available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
+    available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
+
+    # Check if user is Gold Team
+    user = cast(User, request.user)
+    is_gold_team = user.is_staff or (hasattr(user, "person") and user.person.is_gold_team())
 
     context = {
         "pending_findings": pending_findings,
@@ -104,8 +169,65 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "total_findings": total_findings,
         "pending_count": pending_count,
         "reviewed_count": reviewed_count,
+        "available_teams": available_teams,
+        "available_submitters": available_submitters,
+        "selected_team": team_filter,
+        "selected_attack_type": attack_type_filter,
+        "selected_submitter": submitter_filter,
+        "is_gold_team": is_gold_team,
     }
     return render(request, "scoring/red_team_portal.html", context)
+
+
+@login_required
+@require_team_role(
+    lambda p: p.is_gold_team(),
+    "Only Gold Team members can bulk approve findings",
+)
+@transaction.atomic
+@require_http_methods(["POST"])
+def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
+    """Bulk approve red team findings (Gold Team only)."""
+    user = cast(User, request.user)
+
+    # Get finding IDs from POST data
+    finding_ids = request.POST.getlist("finding_ids")
+
+    if not finding_ids:
+        messages.info(request, "No findings selected for approval")
+        return redirect("scoring:red_team_portal")
+
+    # Convert to integers and filter out invalid values
+    valid_ids = []
+    for fid in finding_ids:
+        try:
+            valid_ids.append(int(fid))
+        except (ValueError, TypeError):
+            continue
+
+    if not valid_ids:
+        messages.warning(request, "No valid finding IDs provided")
+        return redirect("scoring:red_team_portal")
+
+    # Approve findings that are not already approved
+    findings_to_approve = RedTeamFinding.objects.filter(id__in=valid_ids, is_approved=False)
+
+    approved_count = 0
+    now = timezone.now()
+
+    for finding in findings_to_approve:
+        finding.is_approved = True
+        finding.approved_at = now
+        finding.approved_by = user
+        finding.save()
+        approved_count += 1
+
+    if approved_count > 0:
+        messages.success(request, f"Successfully approved {approved_count} finding(s)")
+    else:
+        messages.info(request, "No unapproved findings found to approve")
+
+    return redirect("scoring:red_team_portal")
 
 
 @login_required
@@ -258,20 +380,37 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def incident_list(request: HttpRequest) -> HttpResponse:
+    """List all incidents for the user's team (blue team view)."""
+    from django.http import HttpResponseForbidden
+
+    user = cast(User, request.user)
+
+    if user.is_staff:
+        incidents = IncidentReport.objects.all().select_related("team", "submitted_by").order_by("-created_at")
+    else:
+        user_team = _get_user_team(user)
+        if not user_team:
+            return HttpResponseForbidden("You do not have permission to access this page")
+
+        incidents = (
+            IncidentReport.objects.filter(team=user_team).select_related("team", "submitted_by").order_by("-created_at")
+        )
+
+    context = {
+        "incidents": incidents,
+    }
+    return render(request, "scoring/incident_list.html", context)
+
+
+@login_required
 def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse:
     """View incident report details."""
     incident = get_object_or_404(IncidentReport, id=incident_id)
 
-    # Check authorization: must be the owning team or staff
     user = cast(User, request.user)
     if not user.is_staff:
-        # Check if user's team owns this incident
-        user_team: Team | None = None
-        if hasattr(user, "person"):
-            team_number = user.person.get_team_number()
-            if team_number:
-                user_team = Team.objects.filter(team_number=team_number).first()
-
+        user_team = _get_user_team(user)
         if not user_team or incident.team != user_team:
             messages.error(request, "You do not have permission to view this incident report")
             return redirect("scoring:leaderboard")
@@ -283,13 +422,26 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
 
 
 @login_required
-@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team members can access this page")
+@require_team_role(
+    lambda p: p.is_orange_team() or p.is_gold_team(),
+    "Only Orange Team or Gold Team members can access this page",
+)
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
     """Orange team portal - list existing bonuses."""
-    bonuses = OrangeTeamBonus.objects.all().select_related("team")
+    user = cast(User, request.user)
+
+    # Gold Team and Admin see all bonuses; Orange Team sees only their own
+    base_query = OrangeTeamBonus.objects.all()
+    can_see_all = user.is_staff or (hasattr(user, "person") and user.person.is_gold_team())
+
+    if can_see_all:
+        bonuses = base_query.select_related("team")
+    else:
+        bonuses = base_query.filter(submitted_by=user).select_related("team")
 
     context = {
         "bonuses": bonuses,
+        "can_approve": can_see_all,
     }
     return render(request, "scoring/orange_team_portal.html", context)
 
@@ -656,3 +808,289 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
                 seen.add(attack_type.lower())
 
     return JsonResponse({"suggestions": sorted(suggestions)})
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can review inject grades")
+def inject_grades_review(request: HttpRequest) -> HttpResponse:
+    """Review and approve inject grades (Gold Team)."""
+    import statistics
+    from collections import defaultdict
+
+    # Get all unapproved grades
+    unapproved_grades = (
+        InjectGrade.objects.filter(is_approved=False)
+        .select_related("team", "graded_by")
+        .order_by("inject_id", "team__team_number")
+    )
+
+    # Get stats
+    total_grades = InjectGrade.objects.count()
+    approved_count = InjectGrade.objects.filter(is_approved=True).count()
+    unapproved_count = total_grades - approved_count
+
+    # Group grades by inject_id
+    inject_groups_dict: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"inject_id": "", "inject_name": "", "max_points": Decimal("0"), "grades": []}
+    )
+
+    for grade in unapproved_grades:
+        if grade.inject_id not in inject_groups_dict:
+            inject_groups_dict[grade.inject_id] = {
+                "inject_id": grade.inject_id,
+                "inject_name": grade.inject_name,
+                "max_points": grade.max_points,
+                "grades": [],
+            }
+        inject_groups_dict[grade.inject_id]["grades"].append(grade)
+
+    # Calculate outliers for each inject group
+    for group in inject_groups_dict.values():
+        grades = group["grades"]
+
+        # Need at least 3 grades for meaningful std dev
+        if len(grades) >= 3:
+            points_list = [float(g.points_awarded) for g in grades]
+            mean = statistics.mean(points_list)
+            try:
+                std_dev = statistics.stdev(points_list)
+
+                # Flag outliers (> 1.5 std dev from mean)
+                for grade in grades:
+                    points = float(grade.points_awarded)
+                    z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
+                    grade.is_outlier = z_score > 1.5
+                    grade.std_devs_from_mean = z_score
+            except statistics.StatisticsError:
+                # Handle case with zero variance
+                for grade in grades:
+                    grade.is_outlier = False
+                    grade.std_devs_from_mean = 0
+        else:
+            # Not enough data for outlier detection
+            for grade in grades:
+                grade.is_outlier = False
+                grade.std_devs_from_mean = 0
+
+    # Convert to list for template
+    inject_groups = list(inject_groups_dict.values())
+
+    context = {
+        "inject_groups": inject_groups,
+        "unapproved_count": unapproved_count,
+        "approved_count": approved_count,
+        "total_grades": total_grades,
+    }
+    return render(request, "scoring/review_inject_grades.html", context)
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can approve inject grades")
+@transaction.atomic
+@require_http_methods(["POST"])
+def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
+    """Bulk approve inject grades (Gold Team)."""
+    user = cast(User, request.user)
+
+    # Get grade IDs from POST data
+    grade_ids_raw = request.POST.getlist("grade_ids")
+
+    if not grade_ids_raw:
+        messages.info(request, "No grades selected for approval")
+        return redirect("scoring:inject_grades_review")
+
+    # Convert to integers and filter invalid IDs
+    grade_ids = []
+    for grade_id in grade_ids_raw:
+        try:
+            grade_ids.append(int(grade_id))
+        except (ValueError, TypeError):
+            continue
+
+    if not grade_ids:
+        messages.warning(request, "Invalid grade IDs provided")
+        return redirect("scoring:inject_grades_review")
+
+    # Get grades to approve (only unapproved ones)
+    grades_to_approve = InjectGrade.objects.filter(id__in=grade_ids, is_approved=False)
+
+    if not grades_to_approve.exists():
+        messages.warning(request, "No unapproved grades found with provided IDs")
+        return redirect("scoring:inject_grades_review")
+
+    # Approve grades
+    approval_time = timezone.now()
+    approved_count = 0
+
+    for grade in grades_to_approve:
+        grade.is_approved = True
+        grade.approved_at = approval_time
+        grade.approved_by = user
+        grade.save()
+        approved_count += 1
+
+    messages.success(request, f"Successfully approved {approved_count} inject grades")
+    return redirect("scoring:inject_grades_review")
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_index(request: HttpRequest) -> HttpResponse:
+    """Export data index page (admin only)."""
+    return render(request, "scoring/export_index.html")
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_red_findings(request: HttpRequest) -> HttpResponse:
+    """Export red team findings (admin only)."""
+    from .export import export_red_findings_csv, export_red_findings_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_red_findings_json()
+    return export_red_findings_csv()
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_incidents(request: HttpRequest) -> HttpResponse:
+    """Export incident reports (admin only)."""
+    from .export import export_incidents_csv, export_incidents_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_incidents_json()
+    return export_incidents_csv()
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
+    """Export orange team adjustments (admin only)."""
+    from .export import export_orange_adjustments_csv, export_orange_adjustments_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_orange_adjustments_json()
+    return export_orange_adjustments_csv()
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_inject_grades(request: HttpRequest) -> HttpResponse:
+    """Export inject grades (admin only)."""
+    from .export import export_inject_grades_csv, export_inject_grades_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_inject_grades_json()
+    return export_inject_grades_csv()
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_final_scores(request: HttpRequest) -> HttpResponse:
+    """Export final scores (admin only)."""
+    from .export import export_final_scores_csv, export_final_scores_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_final_scores_json()
+    return export_final_scores_csv()
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can approve adjustments")
+@transaction.atomic
+@require_http_methods(["POST"])
+def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
+    """Approve individual Orange adjustment."""
+    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+
+    adjustment.is_approved = True
+    adjustment.approved_at = timezone.now()
+    adjustment.approved_by = cast(User, request.user)
+    adjustment.save()
+
+    messages.success(request, f"Adjustment #{adjustment.id} approved")
+    return redirect("scoring:orange_team_portal")
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can reject adjustments")
+@transaction.atomic
+@require_http_methods(["POST"])
+def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
+    """Reject individual Orange adjustment."""
+    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+
+    adjustment.is_approved = False
+    adjustment.approved_at = None
+    adjustment.approved_by = None
+    adjustment.save()
+
+    messages.success(request, f"Adjustment #{adjustment.id} rejected")
+    return redirect("scoring:orange_team_portal")
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can bulk approve adjustments")
+@transaction.atomic
+@require_http_methods(["POST"])
+def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
+    """Bulk approve Orange adjustments."""
+    adjustment_ids = request.POST.getlist("adjustment_ids")
+
+    if not adjustment_ids:
+        messages.info(request, "No adjustments selected")
+        return redirect("scoring:orange_team_portal")
+
+    # Convert to integers and filter valid IDs
+    valid_ids = []
+    for adj_id in adjustment_ids:
+        try:
+            valid_ids.append(int(adj_id))
+        except (ValueError, TypeError):
+            continue
+
+    # Bulk update adjustments
+    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+        is_approved=True,
+        approved_at=timezone.now(),
+        approved_by=cast(User, request.user),
+    )
+
+    messages.success(request, f"Approved {count} adjustment(s)")
+    return redirect("scoring:orange_team_portal")
+
+
+@login_required
+@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can bulk reject adjustments")
+@transaction.atomic
+@require_http_methods(["POST"])
+def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
+    """Bulk reject Orange adjustments."""
+    adjustment_ids = request.POST.getlist("adjustment_ids")
+
+    if not adjustment_ids:
+        messages.info(request, "No adjustments selected")
+        return redirect("scoring:orange_team_portal")
+
+    # Convert to integers and filter valid IDs
+    valid_ids = []
+    for adj_id in adjustment_ids:
+        try:
+            valid_ids.append(int(adj_id))
+        except (ValueError, TypeError):
+            continue
+
+    # Bulk update adjustments
+    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+        is_approved=False,
+        approved_at=None,
+        approved_by=None,
+    )
+
+    messages.success(request, f"Rejected {count} adjustment(s)")
+    return redirect("scoring:orange_team_portal")

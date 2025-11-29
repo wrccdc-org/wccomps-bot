@@ -3,27 +3,33 @@
 {% block title %}Scoring{% endblock %}
 
 {% block content %}
-<style>
-    .breadcrumbs a.current {
-        font-weight: bold;
-        color: #fff;
-    }
-</style>
-<div class="breadcrumbs" style="margin-top: 0;">
-    <a href="{% url 'scoring:leaderboard' %}"{% if request.resolver_match.url_name == 'leaderboard' %} class="current"{% endif %}>Leaderboard</a>
-    {% if user.is_authenticated %}
-    | <a href="{% url 'scoring:red_team_portal' %}"{% if 'red_team' in request.resolver_match.url_name %} class="current"{% endif %}>Review Red Team</a>
-    | <a href="{% url 'scoring:orange_team_portal' %}"{% if 'orange' in request.resolver_match.url_name %} class="current"{% endif %}>Orange Team</a>
-    | <a href="{% url 'scoring:inject_grading' %}"{% if 'inject' in request.resolver_match.url_name %} class="current"{% endif %}>Inject Grading</a>
-    | <a href="{% url 'scoring:review_incidents' %}"{% if 'review_incident' in request.resolver_match.url_name %} class="current"{% endif %}>Review Incidents</a>
-    {% if is_ticketing_admin %}
-    | <a href="{% url 'ops_review_tickets' %}"{% if 'review_tickets' in request.resolver_match.url_name %} class="current"{% endif %}>Review Tickets</a>
+{% load cotton %}
+
+{% if is_gold_team or is_white_team or is_orange_team or is_ticketing_admin or is_admin %}
+<c-nav current="{% if request.resolver_match.url_name == 'leaderboard' %}leaderboard{% elif 'red_team' in request.resolver_match.url_name %}red_team{% elif 'review_incident' in request.resolver_match.url_name or 'match_incident' in request.resolver_match.url_name %}review_incidents{% elif 'orange' in request.resolver_match.url_name %}orange_team{% elif request.resolver_match.url_name == 'inject_grading' or 'submit_inject' in request.resolver_match.url_name %}inject_grading{% elif 'inject_grades_review' in request.resolver_match.url_name or 'inject_grades_bulk' in request.resolver_match.url_name %}inject_grades_review{% elif 'review_tickets' in request.resolver_match.url_name %}review_tickets{% elif 'config' in request.resolver_match.url_name or 'sync_' in request.resolver_match.url_name or 'recalculate' in request.resolver_match.url_name %}config{% elif 'export' in request.resolver_match.url_name %}export{% endif %}">
+    <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
+    {% if is_gold_team or is_admin %}
+    <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>
+    <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incidents</c-nav_item>
     {% endif %}
-    {% if user.is_staff %}
-    | <a href="{% url 'scoring:scoring_config' %}"{% if 'config' in request.resolver_match.url_name %} class="current"{% endif %}>Configuration</a>
+    {% if is_gold_team or is_orange_team or is_admin %}
+    <c-nav_item name="orange_team" href="{% url 'scoring:orange_team_portal' %}">Orange Team</c-nav_item>
     {% endif %}
+    {% if is_white_team or is_gold_team or is_admin %}
+    <c-nav_item name="inject_grading" href="{% url 'scoring:inject_grading' %}">Inject Grading</c-nav_item>
     {% endif %}
-</div>
+    {% if is_gold_team or is_admin %}
+    <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Review Inject Grades</c-nav_item>
+    {% endif %}
+    {% if is_ticketing_admin or is_admin %}
+    <c-nav_item name="review_tickets" href="{% url 'ops_review_tickets' %}">Review Tickets</c-nav_item>
+    {% endif %}
+    {% if is_admin %}
+    <c-nav_item name="config" href="{% url 'scoring:scoring_config' %}">Configuration</c-nav_item>
+    <c-nav_item name="export" href="{% url 'scoring:export_index' %}">Export Data</c-nav_item>
+    {% endif %}
+</c-nav>
+{% endif %}
 
 <div class="module">
     {% block scoring_content %}{% endblock %}

@@ -51,7 +51,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <p style="color: #666;">No screenshots</p>
+                <p class="text-muted">No screenshots</p>
             {% endif %}
         </div>
     </c-module>
@@ -77,7 +77,7 @@
                         <c-badge variant="success" style="margin-left: 5px;">IP Match</c-badge>
                         {% endif %}
                         <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
-                        <br><small style="color: #666;">
+                        <br><small class="text-muted">
                             {{ finding.affected_box }} / {{ finding.affected_service }}
                         </small>
                         <br><small style="{% if finding.source_ip == incident.source_ip %}color: #28a745; font-weight: bold;{% else %}color: #666;{% endif %}">

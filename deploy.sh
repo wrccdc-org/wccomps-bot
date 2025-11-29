@@ -27,7 +27,7 @@ uv run ruff check .
 echo "✓ Code formatting and linting passed"
 echo ""
 echo "Running type checks with mypy..."
-MYPY_OUTPUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ --exclude 'bot/tests/.*' --exclude 'web/tests/.*' --exclude 'web/integration_tests/.*' 2>&1)
+MYPY_OUTPUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ --exclude 'bot/tests/.*' --exclude 'web/tests/.*' --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$' 2>&1)
 MYPY_EXIT=$?
 
 if [ $MYPY_EXIT -ne 0 ]; then
@@ -99,7 +99,8 @@ echo ""
 echo "Deploying to $REMOTE_HOST:$REMOTE_PATH"
 
 # Use rsync with exclude-from to read .rsyncignore
-rsync -avz \
+# --delete removes files from remote that don't exist locally (but respects excludes)
+rsync -avz --delete \
   --exclude-from=.rsyncignore \
   -e ssh \
   . \

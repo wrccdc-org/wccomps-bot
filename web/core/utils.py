@@ -1,12 +1,44 @@
 """Utility functions for WCComps core functionality."""
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from allauth.socialaccount.models import SocialAccount, SocialLogin
 from django.contrib.auth.models import User
 
 from team.models import Team
+
+
+@dataclass
+class AuthentikContext:
+    """Context object containing Authentik user information.
+
+    Provides a structured way to access Authentik user data throughout the application.
+
+    Attributes:
+        username: The Authentik preferred username
+        groups: List of Authentik group names the user belongs to
+        user_id: The Authentik user ID (sub claim), or None if not available
+    """
+
+    username: str
+    groups: list[str]
+    user_id: str | None
+
+
+def get_authentik_context(user: User) -> AuthentikContext:
+    """
+    Get a structured AuthentikContext object for a user.
+
+    Args:
+        user: Django User instance
+
+    Returns:
+        AuthentikContext containing the user's Authentik data
+    """
+    username, groups, user_id = get_authentik_data(user)
+    return AuthentikContext(username=username, groups=groups, user_id=user_id)
 
 
 def get_authentik_data(user: User) -> tuple[str, list[str], str | None]:
@@ -89,24 +121,30 @@ def get_team_from_groups(
     return None, None, False
 
 
-def check_permissions(user: User, groups: list[str]) -> dict[str, bool]:
+def get_discord_identity(authentik_user_id: str | None, authentik_username: str) -> tuple[int | None, str | None]:
     """
-    Check user permissions based on Django flags and Authentik groups.
+    Get Discord identity from DiscordLink.
+
+    Looks up the Discord user ID and username associated with an Authentik account.
+    For blue teams (shared Authentik accounts), this may return the first active link.
 
     Args:
-        user: Django User instance
-        groups: List of Authentik group names
+        authentik_user_id: The Authentik user ID (preferred lookup)
+        authentik_username: The Authentik username (fallback lookup)
 
     Returns:
-        dict: Dictionary with permission flags
-            - is_admin: Django staff/superuser status
-            - is_ticketing_admin: Has ticketing admin group
-            - is_ticketing_support: Has ticketing support group
-            - is_gold_team: Has GoldTeam group
+        tuple: (discord_id, discord_username) or (None, None) if not found
     """
-    return {
-        "is_admin": user.is_staff or user.is_superuser,
-        "is_ticketing_admin": "WCComps_Ticketing_Admin" in groups,
-        "is_ticketing_support": "WCComps_Ticketing_Support" in groups,
-        "is_gold_team": "WCComps_GoldTeam" in groups or user.is_staff or user.is_superuser,
-    }
+    from team.models import DiscordLink
+
+    try:
+        if authentik_user_id:
+            link = DiscordLink.objects.filter(authentik_user_id=authentik_user_id, is_active=True).first()
+        else:
+            link = DiscordLink.objects.filter(authentik_username=authentik_username, is_active=True).first()
+
+        if link:
+            return link.discord_id, link.discord_username
+        return None, None
+    except Exception:
+        return None, None

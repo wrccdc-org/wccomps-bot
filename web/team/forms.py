@@ -2,6 +2,7 @@
 
 import csv
 import io
+import random
 from typing import Any
 
 from django import forms
@@ -18,8 +19,8 @@ class CSVUploadForm(forms.Form):
         label="CSV File",
         help_text=(
             "Upload a CSV file with team school information. "
-            "Required columns: team_number, school_name, contact_email. "
-            "Optional: secondary_email, notes"
+            "Required columns: school_name, contact_email. "
+            "Optional: team_number, secondary_email, notes"
         ),
     )
 
@@ -59,7 +60,7 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
         reader = csv.DictReader(io.StringIO(content))
 
         # Validate headers
-        required_headers = {"team_number", "school_name", "contact_email"}
+        required_headers = {"school_name", "contact_email"}
         optional_headers = {"secondary_email", "notes", "team_name"}
         all_headers = required_headers | optional_headers
 
@@ -84,20 +85,6 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
             row_errors: list[str] = []
             row_data: dict[str, Any] = {}
-
-            # Validate team_number
-            team_number_str = row.get("team_number", "").strip()
-            if not team_number_str:
-                row_errors.append(f"Row {row_num}: team_number is required")
-            else:
-                try:
-                    team_number = int(team_number_str)
-                    if team_number < 1 or team_number > 50:
-                        row_errors.append(f"Row {row_num}: team_number must be between 1 and 50")
-                    else:
-                        row_data["team_number"] = team_number
-                except ValueError:
-                    row_errors.append(f"Row {row_num}: team_number must be a number")
 
             # Validate school_name
             school_name = row.get("school_name", "").strip()
@@ -157,60 +144,41 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
 
 def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """
-    Validate CSV data against database.
-
-    Checks:
-    - Team numbers exist in database
-    - Duplicate team numbers in CSV
-    - Which teams will be created vs updated
+    Validate CSV data against database and assign random team numbers.
 
     Returns:
-        dict with 'teams_to_create', 'teams_to_update', 'errors', 'warnings'
+        dict with 'teams_to_create', 'errors', 'warnings'
     """
     teams_to_create: list[dict[str, Any]] = []
-    teams_to_update: list[dict[str, Any]] = []
     errors: list[str] = []
     warnings: list[str] = []
 
-    # Check for duplicate team numbers in CSV
-    team_numbers = [row["team_number"] for row in rows]
-    duplicates = {num for num in team_numbers if team_numbers.count(num) > 1}
-    if duplicates:
-        errors.append(f"Duplicate team numbers in CSV: {', '.join(map(str, sorted(duplicates)))}")
+    # Get teams without school info (available for assignment)
+    existing_school_info_team_ids = set(SchoolInfo.objects.values_list("team_id", flat=True))
+    available_teams = list(Team.objects.filter(is_active=True).exclude(id__in=existing_school_info_team_ids))
+
+    if len(rows) > len(available_teams):
+        errors.append(
+            f"Not enough available teams. CSV has {len(rows)} rows but only "
+            f"{len(available_teams)} teams without school info."
+        )
         return {
             "teams_to_create": teams_to_create,
-            "teams_to_update": teams_to_update,
             "errors": errors,
             "warnings": warnings,
         }
 
-    # Get all teams from database
-    existing_teams = {team.team_number: team for team in Team.objects.filter(is_active=True)}
-    existing_school_infos = {si.team.team_number: si for si in SchoolInfo.objects.select_related("team").all()}
+    # Shuffle and assign teams randomly
+    random.shuffle(available_teams)
 
-    for row in rows:
-        team_number = row["team_number"]
-
-        # Check if team exists
-        if team_number not in existing_teams:
-            errors.append(f"Team {team_number} does not exist in the database")
-            continue
-
-        team = existing_teams[team_number]
-
-        # Check if we're creating or updating
-        if team_number in existing_school_infos:
-            school_info = existing_school_infos[team_number]
-            row["_existing_school_info"] = school_info
-            row["_team"] = team
-            teams_to_update.append(row)
-        else:
-            row["_team"] = team
-            teams_to_create.append(row)
+    for i, row in enumerate(rows):
+        team = available_teams[i]
+        row["_team"] = team
+        row["team_number"] = team.team_number
+        teams_to_create.append(row)
 
     return {
         "teams_to_create": teams_to_create,
-        "teams_to_update": teams_to_update,
         "errors": errors,
         "warnings": warnings,
     }
@@ -218,7 +186,6 @@ def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 def apply_csv_import(
     teams_to_create: list[dict[str, Any]],
-    teams_to_update: list[dict[str, Any]],
     updated_by: str,
 ) -> dict[str, int]:
     """
@@ -226,19 +193,16 @@ def apply_csv_import(
 
     Args:
         teams_to_create: List of team data to create SchoolInfo for
-        teams_to_update: List of team data to update SchoolInfo for
         updated_by: Username of person performing the import
 
     Returns:
-        dict with 'created' and 'updated' counts
+        dict with 'created' count
     """
     created = 0
-    updated = 0
 
-    # Create new school info records
     for row in teams_to_create:
         team = row["_team"]
-        school_info = SchoolInfo.objects.create(
+        SchoolInfo.objects.create(
             team=team,
             school_name=row["school_name"],
             contact_email=row["contact_email"],
@@ -253,22 +217,4 @@ def apply_csv_import(
             team.team_name = row["team_name"]
             team.save()
 
-    # Update existing school info records
-    for row in teams_to_update:
-        school_info = row["_existing_school_info"]
-        team = row["_team"]
-
-        school_info.school_name = row["school_name"]
-        school_info.contact_email = row["contact_email"]
-        school_info.secondary_email = row.get("secondary_email", "")
-        school_info.notes = row.get("notes", "")
-        school_info.updated_by = updated_by
-        school_info.save()
-        updated += 1
-
-        # Update team name if provided
-        if "team_name" in row and row["team_name"]:
-            team.team_name = row["team_name"]
-            team.save()
-
-    return {"created": created, "updated": updated}
+    return {"created": created}

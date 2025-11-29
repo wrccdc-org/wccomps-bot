@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 
 class Person(models.Model):
@@ -61,6 +62,37 @@ class Person(models.Model):
         max_length=100,
         blank=True,
         help_text="Discord username (not guaranteed unique)",
+    )
+
+    # Student helper fields
+    is_student_helper = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this person is currently a student helper",
+    )
+    helper_role_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Discord role name (e.g., "UCI Invitationals 2026")',
+    )
+    helper_role_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Discord role ID (snowflake)",
+    )
+    helper_activated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When helper access was granted",
+    )
+    helper_deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When helper access was revoked",
+    )
+    helper_removal_reason = models.TextField(
+        blank=True,
+        help_text="Reason for helper access removal",
     )
 
     # Audit fields
@@ -134,6 +166,24 @@ class Person(models.Model):
     def is_blue_team(self) -> bool:
         """Check if user is in a BlueTeam."""
         return self.get_team_number() is not None
+
+    def set_helper(self, role_name: str, role_id: int) -> None:
+        """Grant student helper access."""
+        self.is_student_helper = True
+        self.helper_role_name = role_name
+        self.helper_role_id = role_id
+        self.helper_activated_at = timezone.now()
+        self.helper_deactivated_at = None
+        self.helper_removal_reason = ""
+        self.save()
+
+    def remove_helper(self, reason: str = "") -> None:
+        """Revoke student helper access."""
+        if self.is_student_helper:
+            self.is_student_helper = False
+            self.helper_deactivated_at = timezone.now()
+            self.helper_removal_reason = reason
+            self.save()
 
     def refresh_from_authentik(self) -> None:
         """

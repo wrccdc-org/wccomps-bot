@@ -1,108 +1,109 @@
 """Tests for packet models."""
 
-from django.test import TestCase
+import pytest
 
 from team.models import Team
 
 from ..models import PacketDistribution, TeamPacket
 
 
-class TeamPacketTestCase(TestCase):
+@pytest.fixture
+def team(db):
+    """Create test team."""
+    return Team.objects.create(team_number=1, team_name="Test Team", authentik_group="WCComps_BlueTeam01")
+
+
+@pytest.fixture
+def packet(db):
+    """Create test packet."""
+    return TeamPacket.objects.create(
+        title="Test Packet",
+        file_data=b"test file content",
+        filename="test.pdf",
+        mime_type="application/pdf",
+        file_size=100,
+        uploaded_by="testuser",
+    )
+
+
+@pytest.mark.django_db
+class TestTeamPacket:
     """Test TeamPacket model."""
 
-    def setUp(self):
-        """Create test data."""
-        self.packet = TeamPacket.objects.create(
-            title="Test Packet",
-            file_data=b"test file content",
-            filename="test.pdf",
-            mime_type="application/pdf",
-            file_size=100,
-            uploaded_by="testuser",
-        )
-
-    def test_packet_creation(self):
+    def test_packet_creation(self, packet):
         """Test packet can be created."""
-        self.assertEqual(self.packet.title, "Test Packet")
-        self.assertEqual(self.packet.status, "draft")
-        self.assertTrue(self.packet.send_via_email)
-        self.assertTrue(self.packet.web_access_enabled)
+        assert packet.title == "Test Packet"
+        assert packet.status == "draft"
+        assert packet.send_via_email is True
+        assert packet.web_access_enabled is True
 
-    def test_is_ready_for_distribution(self):
+    def test_is_ready_for_distribution(self, packet):
         """Test packet readiness check."""
         # Draft packet is ready
-        self.assertTrue(self.packet.is_ready_for_distribution())
+        assert packet.is_ready_for_distribution() is True
 
         # Distributing packet is not ready
-        self.packet.status = "distributing"
-        self.packet.save()
-        self.assertFalse(self.packet.is_ready_for_distribution())
+        packet.status = "distributing"
+        packet.save()
+        assert packet.is_ready_for_distribution() is False
 
         # Completed packet is not ready
-        self.packet.status = "completed"
-        self.packet.save()
-        self.assertFalse(self.packet.is_ready_for_distribution())
+        packet.status = "completed"
+        packet.save()
+        assert packet.is_ready_for_distribution() is False
 
-    def test_mark_as_distributing(self):
+    def test_mark_as_distributing(self, packet):
         """Test marking packet as distributing."""
-        self.packet.mark_as_distributing()
-        self.assertEqual(self.packet.status, "distributing")
-        self.assertIsNotNone(self.packet.actual_distribution_time)
+        packet.mark_as_distributing()
+        assert packet.status == "distributing"
+        assert packet.actual_distribution_time is not None
 
-    def test_mark_as_completed(self):
+    def test_mark_as_completed(self, packet):
         """Test marking packet as completed."""
-        self.packet.mark_as_completed()
-        self.assertEqual(self.packet.status, "completed")
+        packet.mark_as_completed()
+        assert packet.status == "completed"
 
 
-class PacketDistributionTestCase(TestCase):
+@pytest.mark.django_db
+class TestPacketDistribution:
     """Test PacketDistribution model."""
 
-    def setUp(self):
-        """Create test data."""
-        self.team = Team.objects.create(team_number=1, team_name="Test Team", authentik_group="WCComps_BlueTeam01")
-        self.packet = TeamPacket.objects.create(
-            title="Test Packet",
-            file_data=b"test file content",
-            filename="test.pdf",
-            mime_type="application/pdf",
-            file_size=100,
-            uploaded_by="testuser",
-        )
-        self.distribution = PacketDistribution.objects.create(packet=self.packet, team=self.team)
-
-    def test_distribution_creation(self):
+    def test_distribution_creation(self, team, packet):
         """Test distribution can be created."""
-        self.assertEqual(self.distribution.email_status, "pending")
-        self.assertEqual(self.distribution.download_count, 0)
-        self.assertTrue(self.distribution.web_access_enabled)
+        distribution = PacketDistribution.objects.create(packet=packet, team=team)
+        assert distribution.email_status == "pending"
+        assert distribution.download_count == 0
+        assert distribution.web_access_enabled is True
 
-    def test_mark_as_sent(self):
+    def test_mark_as_sent(self, team, packet):
         """Test marking distribution as sent."""
+        distribution = PacketDistribution.objects.create(packet=packet, team=team)
         email = "test@example.com"
-        self.distribution.mark_as_sent(email)
-        self.assertEqual(self.distribution.email_status, "sent")
-        self.assertEqual(self.distribution.email_sent_to, email)
-        self.assertIsNotNone(self.distribution.email_sent_at)
+        distribution.mark_as_sent(email)
+        assert distribution.email_status == "sent"
+        assert distribution.email_sent_to == email
+        assert distribution.email_sent_at is not None
 
-    def test_mark_as_failed(self):
+    def test_mark_as_failed(self, team, packet):
         """Test marking distribution as failed."""
+        distribution = PacketDistribution.objects.create(packet=packet, team=team)
         error = "SMTP connection failed"
-        self.distribution.mark_as_failed(error)
-        self.assertEqual(self.distribution.email_status, "failed")
-        self.assertEqual(self.distribution.email_error_message, error)
+        distribution.mark_as_failed(error)
+        assert distribution.email_status == "failed"
+        assert distribution.email_error_message == error
 
-    def test_record_download(self):
+    def test_record_download(self, team, packet):
         """Test recording a download."""
+        distribution = PacketDistribution.objects.create(packet=packet, team=team)
         username = "testuser"
-        self.distribution.record_download(username)
+        distribution.record_download(username)
 
-        self.assertEqual(self.distribution.download_count, 1)
-        self.assertEqual(self.distribution.downloaded_by, username)
-        self.assertIsNotNone(self.distribution.downloaded_at)
-        self.assertIsNotNone(self.distribution.last_downloaded_at)
+        assert distribution.download_count == 1
+        assert distribution.downloaded_by == username
+        assert distribution.downloaded_at is not None
+        assert distribution.last_downloaded_at is not None
 
         # Record second download
-        self.distribution.record_download("testuser2")
-        self.assertEqual(self.distribution.download_count, 2)
-        self.assertEqual(self.distribution.downloaded_by, "testuser2")
+        distribution.record_download("testuser2")
+        assert distribution.download_count == 2
+        assert distribution.downloaded_by == "testuser2"

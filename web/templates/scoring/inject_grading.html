@@ -2,7 +2,7 @@
 
 {% block scoring_content %}
 <c-module>
-    <p style="color: #666;">Grade inject submissions for all teams. Inject definitions come from Quotient.</p>
+    <p class="text-muted">Grade inject submissions for all teams. Inject definitions come from Quotient.</p>
 
     {% if not quotient_available %}
     <c-alert variant="warning">
@@ -34,7 +34,7 @@
         {% endfor %}
     </c-table>
     {% else %}
-    <p style="color: #666;">No grades entered yet.</p>
+    <p class="text-muted">No grades entered yet.</p>
     {% endif %}
     {% else %}
 
@@ -66,7 +66,7 @@
                     <div style="text-align: right;">
                         <c-badge variant="primary">{{ inject.max_points }} points</c-badge>
                         {% if inject.due_date %}
-                        <br><small style="color: #666;">Due: {{ inject.due_date }}</small>
+                        <br><small class="text-muted">Due: {{ inject.due_date }}</small>
                         {% endif %}
                     </div>
                 </div>
@@ -76,7 +76,7 @@
                 <input type="hidden" name="inject_name_{{ inject.inject_id }}" value="{{ inject.title }}">
                 <input type="hidden" name="max_points_{{ inject.inject_id }}" value="{{ inject.max_points }}">
 
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;" aria-label="Team grades for {{ inject.title }}">
                     <thead>
                         <tr style="border-bottom: 1px solid #ddd;">
                             <th style="width: 200px; padding: 8px; text-align: left;">Team</th>
@@ -90,7 +90,7 @@
                             <td style="padding: 8px;">
                                 <strong>Team {{ team_grade.team.team_number }}</strong>
                                 {% if team_grade.team.team_name != "Team " %}
-                                <br><small style="color: #666;">{{ team_grade.team.team_name }}</small>
+                                <br><small class="text-muted">{{ team_grade.team.team_name }}</small>
                                 {% endif %}
                             </td>
                             <td style="padding: 8px;">
@@ -107,12 +107,12 @@
                             </td>
                             <td style="padding: 8px;">
                                 {% if team_grade.grade %}
-                                <small style="color: #666;">
+                                <small class="text-muted">
                                     Graded by {{ team_grade.grade.graded_by.username|default:"Auto" }}
                                     on {{ team_grade.grade.graded_at|date:"m/d H:i" }}
                                 </small>
                                 {% else %}
-                                <small style="color: #666;">Not graded</small>
+                                <small class="text-muted">Not graded</small>
                                 {% endif %}
                             </td>
                         </tr>
