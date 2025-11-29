@@ -1,38 +1,67 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
 
 {% block title %}Team Registration - WCComps{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <h1>Team Registration</h1>
-            <p class="lead">Register your school's team for the competition.</p>
+<div id="content-main">
+    <h1>Team Registration</h1>
+    <p>Register your school's team for the competition.</p>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {% if messages %}
+        {% for message in messages %}
+            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+                {{ message }}
+            </c-alert>
+        {% endfor %}
+    {% endif %}
+
+    <c-module>
+        <form method="post">
+            {% csrf_token %}
+            <c-fieldset heading="Registration Details" aligned="true">
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.school_name.id_for_label }}" class="required">{{ form.school_name.label }}:</label>
+                        {{ form.school_name }}
+                        {% if form.school_name.errors %}
+                        <ul class="errorlist">{% for e in form.school_name.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.school_name.help_text %}
+                        <p class="help">{{ form.school_name.help_text }}</p>
+                        {% endif %}
                     </div>
-                {% endfor %}
-            {% endif %}
-
-            <div class="card">
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-                        <button type="submit" class="btn btn-primary">Submit Registration</button>
-                    </form>
                 </div>
-            </div>
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.contact_email.id_for_label }}" class="required">{{ form.contact_email.label }}:</label>
+                        {{ form.contact_email }}
+                        {% if form.contact_email.errors %}
+                        <ul class="errorlist">{% for e in form.contact_email.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.contact_email.help_text %}
+                        <p class="help">{{ form.contact_email.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label for="{{ form.phone.id_for_label }}" class="required">{{ form.phone.label }}:</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <ul class="errorlist">{% for e in form.phone.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                        {% endif %}
+                        {% if form.phone.help_text %}
+                        <p class="help">{{ form.phone.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </c-fieldset>
 
-            <div class="mt-3">
-                <p>Already registered? <a href="{% url 'registration_status' %}">Check your registration status</a></p>
+            <div class="mt-20">
+                <c-button type="submit" variant="primary">Submit Registration</c-button>
             </div>
-        </div>
-    </div>
+        </form>
+    </c-module>
+
 </div>
 {% endblock %}

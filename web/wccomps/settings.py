@@ -56,8 +56,6 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
-    "crispy_forms",
-    "crispy_bootstrap5",
     "django_cotton",
     "core",
     "team",
@@ -84,10 +82,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "wccomps.urls"
-
-# Crispy Forms configuration
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
-CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 TEMPLATES = [
     {
