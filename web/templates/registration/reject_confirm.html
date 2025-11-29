@@ -3,44 +3,46 @@
 {% block title %}Reject Registration - WCComps{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <h1>Reject Registration</h1>
+<div id="content-main">
+    <h1>Reject Registration</h1>
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    {% if messages %}
+        {% for message in messages %}
+            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+                {{ message }}
+            </c-alert>
+        {% endfor %}
+    {% endif %}
+
+    <c-module>
+        <p>You are about to reject the registration for:</p>
+
+        <c-detail_grid>
+            <c-slot name="items">
+                <dt>School Name</dt>
+                <dd>{{ registration.school_name }}</dd>
+                <dt>Contact Email</dt>
+                <dd>{{ registration.contact_email }}</dd>
+            </c-slot>
+        </c-detail_grid>
+
+        <form method="post">
+            {% csrf_token %}
+            <c-fieldset aligned="true">
+                <div class="form-row">
+                    <div>
+                        <label for="reason" class="required">Rejection Reason:</label>
+                        <textarea id="reason" name="reason" rows="4" required style="width: 100%;"></textarea>
+                        <p class="help">Please provide a reason for rejecting this registration.</p>
                     </div>
-                {% endfor %}
-            {% endif %}
-
-            <div class="card">
-                <div class="card-body">
-                    <p>You are about to reject the registration for:</p>
-                    <dl class="row">
-                        <dt class="col-sm-4">School Name</dt>
-                        <dd class="col-sm-8">{{ registration.school_name }}</dd>
-
-                        <dt class="col-sm-4">Contact Email</dt>
-                        <dd class="col-sm-8">{{ registration.contact_email }}</dd>
-                    </dl>
-
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="reason" class="form-label">Rejection Reason</label>
-                            <textarea class="form-control" id="reason" name="reason" rows="4" required></textarea>
-                            <div class="form-text">Please provide a reason for rejecting this registration.</div>
-                        </div>
-                        <button type="submit" class="btn btn-danger">Reject Registration</button>
-                        <a href="{% url 'registration_review_list' %}" class="btn btn-secondary">Cancel</a>
-                    </form>
                 </div>
+            </c-fieldset>
+
+            <div class="mt-20">
+                <c-button type="submit" variant="danger">Reject Registration</c-button>
+                <c-link href="{% url 'registration_review_list' %}">Cancel</c-link>
             </div>
-        </div>
-    </div>
+        </form>
+    </c-module>
 </div>
 {% endblock %}

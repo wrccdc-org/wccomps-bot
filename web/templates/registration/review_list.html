@@ -3,81 +3,73 @@
 {% block title %}Review Registrations - WCComps{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div id="content-main">
     <h1>Team Registration Review</h1>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+            </c-alert>
         {% endfor %}
     {% endif %}
 
-    <div class="card mb-3">
-        <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label for="status" class="form-label">Filter by Status</label>
-                    <select class="form-select" id="status" name="status">
-                        <option value="">All Statuses</option>
-                        {% for value, label in status_choices %}
-                            <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
-                                {{ label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary d-block">Filter</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <c-module filtered="true">
+        <c-filter_toolbar>
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status" onchange="this.form.submit()">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
+        </c-filter_toolbar>
 
-    <div class="table-responsive">
-        <table class="table table-striped" aria-label="Team registration requests">
-            <thead>
-                <tr>
-                    <th>School Name</th>
-                    <th>Contact Email</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for registration in registrations %}
+        <div class="results">
+            <table id="result_list" aria-label="Team registration requests">
+                <thead>
                     <tr>
-                        <td>{{ registration.school_name }}</td>
-                        <td>{{ registration.contact_email }}</td>
-                        <td>{{ registration.phone }}</td>
-                        <td>
-                            <span class="badge bg-{% if registration.status == 'approved' %}success{% elif registration.status == 'rejected' %}danger{% elif registration.status == 'credentials_sent' %}info{% else %}warning{% endif %}">
-                                {{ registration.get_status_display }}
-                            </span>
-                        </td>
-                        <td>{{ registration.submitted_at|date:"Y-m-d H:i" }}</td>
-                        <td>
-                            {% if registration.status == 'pending' %}
-                                <form method="post" action="{% url 'registration_approve' registration.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
-                                </form>
-                                <a href="{% url 'registration_reject' registration.id %}" class="btn btn-sm btn-danger">Reject</a>
-                            {% endif %}
-                        </td>
+                        <th scope="col"><div class="text">School Name</div></th>
+                        <th scope="col"><div class="text">Contact Email</div></th>
+                        <th scope="col"><div class="text">Phone</div></th>
+                        <th scope="col"><div class="text">Status</div></th>
+                        <th scope="col"><div class="text">Submitted</div></th>
+                        <th scope="col"><div class="text">Actions</div></th>
                     </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No registrations found.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    {% for registration in registrations %}
+                        <tr class="{% cycle 'row1' 'row2' %}">
+                            <td>{{ registration.school_name }}</td>
+                            <td>{{ registration.contact_email }}</td>
+                            <td>{{ registration.phone }}</td>
+                            <td>
+                                <c-badge variant="{% if registration.status == 'approved' %}success{% elif registration.status == 'rejected' %}danger{% elif registration.status == 'credentials_sent' %}info{% else %}warning{% endif %}">
+                                    {{ registration.get_status_display }}
+                                </c-badge>
+                            </td>
+                            <td>{{ registration.submitted_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                {% if registration.status == 'pending' %}
+                                    <form method="post" action="{% url 'registration_approve' registration.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <c-button type="submit" variant="primary">Approve</c-button>
+                                    </form>
+                                    <c-link href="{% url 'registration_reject' registration.id %}" class="deletelink">Reject</c-link>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No registrations found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </c-module>
 </div>
 {% endblock %}
