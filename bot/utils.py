@@ -182,11 +182,12 @@ def log_action(
 
     ticket_history = None
     if ticket:
+        history_details = details if isinstance(details, dict) else {"message": details}
+        history_details["actor"] = actor_username
         ticket_history = TicketHistory.objects.create(
             ticket=ticket,
             action=action,
-            actor_username=actor_username,
-            details=details if isinstance(details, dict) else {"message": details},
+            details=history_details,
         )
 
     return audit_log, ticket_history

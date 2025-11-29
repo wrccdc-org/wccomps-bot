@@ -66,9 +66,7 @@ class TicketingCog(commands.Cog):
                     await TicketHistory.objects.acreate(
                         ticket=ticket,
                         action="thread_archived",
-                        actor_discord_id=None,
-                        actor_username="System",
-                        details={"archived_at": str(now)},
+                        details={"archived_at": str(now), "actor": "System"},
                     )
 
                     logger.info(f"Archived thread for ticket #{ticket.id} (60s grace period expired)")
@@ -307,10 +305,18 @@ class TicketingCog(commands.Cog):
             existing = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
 
             if not existing:
+                # Get or create Person for author
+                from asgiref.sync import sync_to_async
+
+                from ticketing.utils import get_or_create_person_for_ticket
+
+                author_person = await sync_to_async(get_or_create_person_for_ticket)(
+                    discord_id=message.author.id,
+                    discord_username=str(message.author),
+                )
                 await TicketComment.objects.acreate(
                     ticket=ticket,
-                    author_name=str(message.author),
-                    author_discord_id=message.author.id,
+                    author=author_person,
                     comment_text=message.content,
                     discord_message_id=message.id,
                 )
@@ -441,7 +447,10 @@ async def post_comment_to_discord(bot: commands.Bot, comment: TicketComment) -> 
         return None
 
     # Format comment message
-    message_content = f"**{comment.author_name}**\n{comment.comment_text}"
+    author_display = "Unknown"
+    if comment.author:
+        author_display = comment.author.discord_username or comment.author.authentik_username or "Unknown"
+    message_content = f"**{author_display}**\n{comment.comment_text}"
 
     # Post to Discord
     try:

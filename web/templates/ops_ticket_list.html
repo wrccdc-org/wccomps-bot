@@ -38,8 +38,8 @@
                 <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
                     <option value="">All Assignees</option>
                     <option value="unassigned" {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
-                    {% for assignee in assignees %}
-                    <option value="{{ assignee }}" {% if assignee_filter == assignee %}selected{% endif %}>{{ assignee }}</option>
+                    {% for person in assignees %}
+                    <option value="{{ person.id }}" {% if assignee_filter == person.id|stringformat:"i" %}selected{% endif %}>{{ person }}</option>
                     {% endfor %}
                 </select>
             </c-filter_field>
@@ -59,12 +59,12 @@
                 <span>
                     <strong id="selected-count" aria-live="polite">0</strong> tickets selected
                 </span>
-                <form method="post" action="/ops/tickets/bulk-claim/" style="display: inline;" id="bulk-claim-form">
+                <form method="post" action="/ops/tickets/bulk-claim/" class="d-inline" id="bulk-claim-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-claim-tickets" />
                     <c-button type="submit">Claim Selected</c-button>
                 </form>
-                <form method="post" action="/ops/tickets/bulk-resolve/" style="display: inline;" id="bulk-resolve-form">
+                <form method="post" action="/ops/tickets/bulk-resolve/" class="d-inline" id="bulk-resolve-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-resolve-tickets" />
                     <c-button type="submit">Resolve Selected</c-button>
@@ -115,8 +115,8 @@
                         </th>
                         <th scope="col" class="sortable">
                             <div class="text">
-                                <a href="?sort={% if sort_by == 'assigned_to_discord_username' %}-{% endif %}assigned_to_discord_username&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
-                                    Assigned {% if sort_by == 'assigned_to_discord_username' %}▲{% elif sort_by == '-assigned_to_discord_username' %}▼{% endif %}
+                                <a href="?sort={% if sort_by == 'assigned_to__authentik_username' %}-{% endif %}assigned_to__authentik_username&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">
+                                    Assigned {% if sort_by == 'assigned_to__authentik_username' %}▲{% elif sort_by == '-assigned_to__authentik_username' %}▼{% endif %}
                                 </a>
                             </div>
                         </th>
@@ -160,10 +160,8 @@
                             <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
                         </td>
                         <td class="field-assigned">
-                            {% if item.ticket.assigned_to_discord_username %}
-                                {{ item.ticket.assigned_to_discord_username }}
-                            {% elif item.ticket.assigned_to_authentik_username %}
-                                {{ item.ticket.assigned_to_authentik_username }}
+                            {% if item.ticket.assigned_to %}
+                                {{ item.ticket.assigned_to }}
                             {% else %}
                                 Unassigned
                             {% endif %}
@@ -171,17 +169,17 @@
                         <td class="field-created">{{ item.ticket.created_at|timesince }} ago</td>
                         <td class="field-actions">
                             {% if item.ticket.status == "open" %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/claim/" style="display: inline;">
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/claim/" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Claim</c-button>
                                 </form>
                             {% elif item.ticket.status == "claimed" %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/resolve/" style="display: inline;">
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/resolve/" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Resolve</c-button>
                                 </form>
-                                {% if item.ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" style="display: inline;">
+                                {% if item.ticket.assigned_to.authentik_username == authentik_username or is_ticketing_admin %}
+                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Unclaim</c-button>
                                 </form>

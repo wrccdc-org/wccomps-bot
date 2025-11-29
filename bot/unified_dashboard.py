@@ -309,8 +309,10 @@ class UnifiedDashboard:
 
                         # Assignee
                         assignee = ""
-                        if ticket.assigned_to_discord_username:
-                            assignee = f" - {ticket.assigned_to_discord_username}"
+                        if ticket.assigned_to:
+                            assignee = (
+                                f" - {ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username}"
+                            )
 
                         lines.append(
                             f"{status_emoji} {ticket_display} {ticket.team.team_name}{assignee}{stale}\n"

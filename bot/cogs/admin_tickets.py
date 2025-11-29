@@ -238,8 +238,8 @@ class AdminTicketsCog(commands.Cog):
                 f"Status: {ticket.status}\n"
                 f"Created: {discord.utils.format_dt(ticket.created_at, style='R')}"
             )
-            if ticket.assigned_to_discord_username:
-                value += f"\nAssigned: {ticket.assigned_to_discord_username}"
+            if ticket.assigned_to:
+                value += f"\nAssigned: {ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username}"
 
             embed.add_field(
                 name=f"{ticket.ticket_number}: {ticket.title}",
@@ -305,16 +305,25 @@ class AdminTicketsCog(commands.Cog):
         else:
             point_penalty = cat_info.get("points", 0)
 
+        # Get or create Person for resolver
+        from asgiref.sync import sync_to_async
+
+        from ticketing.utils import get_or_create_person_for_ticket
+
+        resolver = await sync_to_async(get_or_create_person_for_ticket)(
+            discord_id=interaction.user.id,
+            discord_username=str(interaction.user),
+        )
+
         # Update ticket
         ticket.status = "resolved"
         ticket.resolved_at = timezone.now()
-        ticket.resolved_by_discord_id = interaction.user.id
-        ticket.resolved_by_discord_username = str(interaction.user)
+        ticket.resolved_by = resolver
         ticket.resolution_notes = notes
         ticket.points_charged = point_penalty
-        if not ticket.assigned_to_discord_id:
-            ticket.assigned_to_discord_id = interaction.user.id
-            ticket.assigned_to_discord_username = str(interaction.user)
+        if not ticket.assigned_to:
+            ticket.assigned_to = resolver
+            ticket.assigned_at = timezone.now()
 
         # Schedule thread archiving after 60 seconds
         if ticket.discord_thread_id:
@@ -326,8 +335,7 @@ class AdminTicketsCog(commands.Cog):
         await TicketHistory.objects.acreate(
             ticket=ticket,
             action="resolved",
-            actor_username=str(interaction.user),
-            details={"notes": notes, "point_penalty": point_penalty},
+            details={"notes": notes, "point_penalty": point_penalty, "actor": str(interaction.user)},
         )
 
         # Update dashboard
@@ -370,14 +378,24 @@ class AdminTicketsCog(commands.Cog):
             )
             return
 
+        # Get or create Person for canceller
+        from asgiref.sync import sync_to_async
+
+        from ticketing.utils import get_or_create_person_for_ticket
+
+        canceller = await sync_to_async(get_or_create_person_for_ticket)(
+            discord_id=interaction.user.id,
+            discord_username=str(interaction.user),
+        )
+
         # Update ticket
         ticket.status = "cancelled"
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = reason or "Cancelled by admin"
         ticket.points_charged = 0
-        if not ticket.assigned_to_discord_id:
-            ticket.assigned_to_discord_id = interaction.user.id
-            ticket.assigned_to_discord_username = str(interaction.user)
+        if not ticket.assigned_to:
+            ticket.assigned_to = canceller
+            ticket.assigned_at = timezone.now()
 
         # Schedule thread archiving if Discord thread exists
         if ticket.discord_thread_id:
@@ -391,8 +409,7 @@ class AdminTicketsCog(commands.Cog):
         await TicketHistory.objects.acreate(
             ticket=ticket,
             action="cancelled",
-            actor_username=str(interaction.user),
-            details={"reason": reason},
+            details={"reason": reason, "actor": str(interaction.user)},
         )
 
         # Update dashboard
@@ -455,8 +472,8 @@ class AdminTicketsCog(commands.Cog):
         await TicketHistory.objects.acreate(
             ticket=ticket,
             action="category_changed",
-            actor_username=str(interaction.user),
             details={
+                "actor": str(interaction.user),
                 "old_category": old_category,
                 "old_category_name": old_cat_info.get("display_name", old_category),
                 "new_category": new_category,
@@ -515,7 +532,11 @@ class AdminTicketsCog(commands.Cog):
             await interaction.followup.send(f"Cannot reassign {ticket.status} ticket", ephemeral=True)
             return
 
-        old_assignee = ticket.assigned_to_discord_username or "Unassigned"
+        old_assignee = (
+            (ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username)
+            if ticket.assigned_to
+            else "Unassigned"
+        )
 
         if volunteer:
             # If ticket is open, claim it first
@@ -630,9 +651,8 @@ class AdminTicketsCog(commands.Cog):
         await TicketHistory.objects.acreate(
             ticket=ticket,
             action="reopened",
-            actor_discord_id=interaction.user.id,
-            actor_username=str(interaction.user),
             details={
+                "actor": str(interaction.user),
                 "reason": reason,
                 "old_status": old_status,
             },

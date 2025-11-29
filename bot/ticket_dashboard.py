@@ -46,18 +46,20 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
     embed.add_field(name="Status", value=status_display, inline=True)
 
     # Assigned to
-    if ticket.assigned_to_discord_id:
-        embed.add_field(
-            name="Assigned To",
-            value=f"<@{ticket.assigned_to_discord_id}> ({ticket.assigned_to_discord_username})",
-            inline=False,
-        )
-    elif ticket.assigned_to_authentik_username:
-        embed.add_field(
-            name="Assigned To",
-            value=f"{ticket.assigned_to_authentik_username} (web user)",
-            inline=False,
-        )
+    if ticket.assigned_to:
+        if ticket.assigned_to.discord_id:
+            display_name = ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username
+            embed.add_field(
+                name="Assigned To",
+                value=f"<@{ticket.assigned_to.discord_id}> ({display_name})",
+                inline=False,
+            )
+        else:
+            embed.add_field(
+                name="Assigned To",
+                value=f"{ticket.assigned_to.authentik_username} (web user)",
+                inline=False,
+            )
 
     # Point impact
     points = cat_info.get("points", 0)
@@ -331,8 +333,7 @@ class TicketActionView(discord.ui.View):
         await TicketHistory.objects.acreate(
             ticket=ticket,
             action="cancelled",
-            actor_username=str(interaction.user),
-            details={"reason": "Cancelled by team member (unclaimed)"},
+            details={"reason": "Cancelled by team member (unclaimed)", "actor": str(interaction.user)},
         )
 
         # Update dashboard

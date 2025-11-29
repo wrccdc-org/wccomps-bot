@@ -483,7 +483,10 @@ class DiscordQueueProcessor:
             raise TypeError(f"Channel {ticket.discord_thread_id} is not a text channel or thread")
 
         # Format message
-        message_content = f"**{comment.author_name}**\n{comment.comment_text}"
+        author_display = "Unknown"
+        if comment.author:
+            author_display = comment.author.discord_username or comment.author.authentik_username or "Unknown"
+        message_content = f"**{author_display}**\n{comment.comment_text}"
 
         # Post to thread
         message = await thread.send(message_content)
