@@ -31,9 +31,9 @@
             <c-table aria_label="Team grades">
                 <c-slot name="headers">
                     <tr>
-                        <th>Team</th>
-                        <th class="col-small">Points</th>
-                        <th>Current Grade</th>
+                        <c-table_header sortable="false">Team</c-table_header>
+                        <c-table_header sortable="false" class="col-small">Points</c-table_header>
+                        <c-table_header sortable="false">Current Grade</c-table_header>
                     </tr>
                 </c-slot>
                 {% for item in team_data %}
