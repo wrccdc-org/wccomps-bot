@@ -199,7 +199,6 @@ class TestTicketingCog:
         # Create existing comment
         comment = await TicketComment.objects.acreate(
             ticket=ticket,
-            author_name="testuser",
             comment_text="Original text",
             discord_message_id=8888999000,
         )
@@ -244,7 +243,6 @@ class TestTicketingCog:
         # Create comment
         comment = await TicketComment.objects.acreate(
             ticket=ticket,
-            author_name="testuser",
             comment_text="Will be deleted",
             discord_message_id=9999000111,
         )
@@ -332,11 +330,12 @@ class TestTicketingCog:
         assert await TicketComment.objects.acount() == initial_count + 1
 
         # Verify comment has correct data
-        comment = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
+        comment = await TicketComment.objects.select_related("author").filter(discord_message_id=message.id).afirst()
         assert comment is not None
         assert comment.ticket_id == ticket.id
-        assert comment.author_name == "testuser#1234"
-        assert comment.author_discord_id == 123456789
+        assert comment.author is not None
+        assert comment.author.discord_username == "testuser#1234"
+        assert comment.author.discord_id == 123456789
         assert comment.comment_text == "This is a test message"
         assert comment.discord_message_id == 999888777666
 
@@ -355,8 +354,6 @@ class TestTicketingCog:
         # Create existing comment
         await TicketComment.objects.acreate(
             ticket=ticket,
-            author_name="testuser",
-            author_discord_id=123456789,
             comment_text="Original",
             discord_message_id=111222333444,
         )

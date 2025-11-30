@@ -69,7 +69,7 @@ class TestTicketCreationAtomic:
         history = TicketHistory.objects.filter(ticket=ticket).first()
         assert history is not None
         assert history.action == "created"
-        assert history.actor_username == "web_user"
+        assert history.details["created_by"] == "web_user"
 
     def test_create_ticket_atomic_with_optional_fields(self):
         """Test ticket creation with all optional fields."""
@@ -179,7 +179,7 @@ class TestAsyncTicketCreationAtomic:
         history = await TicketHistory.objects.filter(ticket=ticket).afirst()
         assert history is not None
         assert history.action == "created"
-        assert history.actor_username == "discord:user#1234"
+        assert history.details["created_by"] == "discord:user#1234"
 
     async def test_acreate_ticket_atomic_concurrent_safety(self):
         """Test that concurrent ticket creation doesn't create duplicate numbers."""

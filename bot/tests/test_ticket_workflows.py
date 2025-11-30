@@ -155,8 +155,6 @@ class TestTicketResolutionWorkflow:
             title="Service Check",
             description="Check my service",
             status="claimed",
-            assigned_to_discord_id=123456789,
-            assigned_to_discord_username="volunteer1",
         )
 
         with patch("bot.cogs.admin_tickets.update_ticket_dashboard", new_callable=AsyncMock):
@@ -169,11 +167,13 @@ class TestTicketResolutionWorkflow:
                 points=5,
             )
 
-        await ticket.arefresh_from_db()
+        # Refresh ticket with resolved_by relation
+        ticket = await Ticket.objects.select_related("resolved_by").aget(pk=ticket.pk)
 
         assert ticket.status == "resolved"
         assert ticket.resolved_at is not None
-        assert ticket.resolved_by_discord_id == mock_admin_user._discord_id
+        assert ticket.resolved_by is not None
+        assert ticket.resolved_by.discord_id == mock_admin_user._discord_id
         assert ticket.resolution_notes == "Fixed the issue"
         assert ticket.points_charged == 10
 
@@ -280,7 +280,6 @@ class TestTicketResolutionWorkflow:
             description="Reset",
             status="resolved",
             resolved_at=timezone.now(),
-            resolved_by_discord_id=999999,
         )
 
         cog = AdminTicketsCog(mock_bot)
