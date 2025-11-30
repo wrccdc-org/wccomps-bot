@@ -17,18 +17,12 @@ Extends existing ops dashboard tests with comprehensive coverage of:
 These tests ensure ops team members can efficiently manage tickets via the WebUI.
 """
 
-import os
-
 import pytest
 from playwright.sync_api import Page, expect
-
-# Skip all tests if ticketing is not enabled
-TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 
 pytestmark = [
     pytest.mark.browser,
     pytest.mark.integration,
-    pytest.mark.skipif(not TICKETING_ENABLED, reason="Ticketing not enabled"),
 ]
 
 

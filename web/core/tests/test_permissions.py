@@ -141,7 +141,7 @@ class TestGroupRoleMappingsPermissions:
 
 
 class TestTicketViewsPermissions:
-    """Test permissions for ticketing views (requires TICKETING_ENABLED=true)."""
+    """Test permissions for ticketing views."""
 
     def test_team_tickets_unauthenticated_redirects(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""

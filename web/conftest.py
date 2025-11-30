@@ -1,7 +1,6 @@
 """Shared pytest fixtures for all web tests."""
 
-import os
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -9,14 +8,6 @@ from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.test import Client
-
-
-@pytest.fixture(scope="session", autouse=True)
-def enable_ticketing() -> Generator[None, None, None]:
-    """Enable ticketing for all tests."""
-    os.environ["TICKETING_ENABLED"] = "true"
-    yield
-    os.environ.pop("TICKETING_ENABLED", None)
 
 
 @pytest.fixture

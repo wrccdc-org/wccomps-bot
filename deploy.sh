@@ -79,7 +79,6 @@ if [ -f .env.test ]; then
 fi
 
 export USE_POSTGRES_FOR_TESTS=1
-export TICKETING_ENABLED=true
 export PYTHONPATH="$(pwd)/web:$(pwd)"
 
 uv run pytest -m critical --tb=short -v

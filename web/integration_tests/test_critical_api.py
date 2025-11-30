@@ -5,8 +5,6 @@ These tests MUST pass before deployment. They test the most error-prone
 endpoints with real database and API calls to catch 500 errors.
 """
 
-import os
-
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
@@ -15,12 +13,9 @@ from django.urls import reverse
 from team.models import Team
 from ticketing.models import Ticket
 
-# Skip all tests in this file if ticketing is not enabled
-TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 pytestmark = [
     pytest.mark.critical,
     pytest.mark.integration,
-    pytest.mark.skipif(not TICKETING_ENABLED, reason="Ticketing not enabled"),
 ]
 
 
