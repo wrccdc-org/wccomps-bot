@@ -442,11 +442,13 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    return render(
-        request,
-        "team_tickets.html",
-        {"team": team, "tickets": tickets_with_info, "status_filter": status_filter},
-    )
+    context = {"team": team, "tickets": tickets_with_info, "status_filter": status_filter}
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "partials/ticket_list.html", context)
+
+    return render(request, "team_tickets.html", context)
 
 
 @login_required
