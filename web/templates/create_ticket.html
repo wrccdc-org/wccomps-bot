@@ -125,7 +125,6 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Format: hostname - service name</p>
                     </div>
                 </div>
 
@@ -148,12 +147,14 @@
 
 {{ categories|json_script:"categories-data" }}
 {{ box_ip_map|json_script:"box-ip-map-data" }}
+{{ service_choices|json_script:"service-choices-data" }}
 
 <script>
     const categories = JSON.parse(document.getElementById('categories-data').textContent);
     const categorySelect = document.getElementById('category');
     const categoryWarning = document.getElementById('categoryWarning');
     const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
+    const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
 
     const fields = {
         'hostname': document.getElementById('field-hostname'),
@@ -166,17 +167,52 @@
     const ipAddressInput = document.getElementById('ip_address');
     const serviceSelect = document.getElementById('service_name');
 
-    // Auto-populate IP address when hostname is selected (for box-reset)
-    hostnameSelect.addEventListener('change', function() {
-        const boxName = this.value;
-        if (boxName && boxIpMap[boxName]) {
-            ipAddressInput.value = boxIpMap[boxName];
+    // Filter services by selected hostname (same pattern as incident reports)
+    function updateServicesForHostname() {
+        const boxName = hostnameSelect.value;
+        const currentService = serviceSelect.value;
+
+        serviceSelect.innerHTML = '<option value="">Select a service...</option>';
+
+        if (boxName) {
+            // Filter to services for this box
+            const filteredServices = allServiceChoices.filter(s => s.box_name === boxName);
+            filteredServices.forEach(function(svc) {
+                const option = document.createElement('option');
+                option.value = svc.value;
+                option.textContent = svc.service_name;
+                option.dataset.box = svc.box_name;
+                option.dataset.ip = svc.box_ip;
+                if (svc.value === currentService) {
+                    option.selected = true;
+                }
+                serviceSelect.appendChild(option);
+            });
+
+            // Update IP address
+            if (boxIpMap[boxName]) {
+                ipAddressInput.value = boxIpMap[boxName];
+            }
         } else {
+            // Show all services when no hostname selected
+            allServiceChoices.forEach(function(svc) {
+                const option = document.createElement('option');
+                option.value = svc.value;
+                option.textContent = svc.label;
+                option.dataset.box = svc.box_name;
+                option.dataset.ip = svc.box_ip;
+                if (svc.value === currentService) {
+                    option.selected = true;
+                }
+                serviceSelect.appendChild(option);
+            });
             ipAddressInput.value = '';
         }
-    });
+    }
 
-    // Auto-populate hostname and IP when service is selected (for service checks)
+    hostnameSelect.addEventListener('change', updateServicesForHostname);
+
+    // Auto-populate hostname and IP when service is selected
     serviceSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         if (selectedOption.value) {
@@ -256,6 +292,11 @@
     // Trigger on page load if category already selected
     if (categorySelect.value) {
         categorySelect.dispatchEvent(new Event('change'));
+    }
+
+    // Filter services if hostname already selected on page load
+    if (hostnameSelect.value) {
+        updateServicesForHostname();
     }
 </script>
 {% endblock %}
