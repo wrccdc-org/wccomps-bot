@@ -19,19 +19,19 @@
             <c-slot name="headers">
                 <tr>
                     {% if can_approve %}
-                    <th style="width: 40px;">
+                    <th scope="col" style="width: 40px;">
                         <input type="checkbox" id="select-all" aria-label="Select all adjustments">
                     </th>
                     {% endif %}
-                    <th>ID</th>
-                    <th>Team</th>
-                    <th>Category</th>
-                    <th>Description</th>
-                    <th style="text-align: right;">Points</th>
-                    <th>Status</th>
-                    <th>Submitted</th>
+                    <c-table_header sortable="false">ID</c-table_header>
+                    <c-table_header sortable="false">Team</c-table_header>
+                    <c-table_header sortable="false">Category</c-table_header>
+                    <c-table_header sortable="false">Description</c-table_header>
+                    <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Submitted</c-table_header>
                     {% if can_approve %}
-                    <th>Actions</th>
+                    <c-table_header sortable="false">Actions</c-table_header>
                     {% endif %}
                 </tr>
             </c-slot>
