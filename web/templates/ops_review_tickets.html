@@ -10,7 +10,7 @@
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter">
             <c-slot name="actions">
-                <form method="post" action="/ops/tickets/batch-verify-points/" class="d-inline" onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.');">
+                <form method="post" action="{% url 'ops_batch_verify_tickets' %}" class="d-inline" onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.');">
                     {% csrf_token %}
                     <c-button type="submit" variant="success">Approve All Unverified</c-button>
                 </form>
@@ -116,7 +116,7 @@
                     <tr>
                         <td colspan="8">
                             {% if search_query or verified_filter != 'unverified' or team_filter %}
-                                No tickets match your filters. Try adjusting your filters or <a href="/ops/review-tickets/">clearing all filters</a>
+                                No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_review_tickets' %}">clearing all filters</a>
                             {% else %}
                                 No unverified tickets found. All resolved tickets have been verified.
                             {% endif %}

@@ -12,7 +12,7 @@
 
         <c-module>
             <c-slot name="toolbar">
-                <c-link href="/ops/school-info/" variant="history">Back to School Information</c-link>
+                <c-link href="{% url 'ops_school_info' %}" variant="history">Back to School Information</c-link>
             </c-slot>
 
             {% if error %}
@@ -79,7 +79,7 @@
 
             <div class="submit-row">
                 <c-button type="submit" variant="primary">Save School Information</c-button>
-                <c-link href="/ops/school-info/" class="button cancel-link">Cancel</c-link>
+                <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
             </div>
 
             {% if school_info %}

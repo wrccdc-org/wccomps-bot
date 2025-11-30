@@ -4,7 +4,7 @@
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="/ops/tickets/">WCComps</a></h1>
+<h1 id="site-name"><a href="{% url 'ops_ticket_list' %}">WCComps</a></h1>
 {% endblock %}
 
 {% block breadcrumbs %}{% endblock %}
@@ -14,29 +14,29 @@
 {% block nav-global %}
 <nav class="primary-navigation">
     {% if is_ticketing_support or is_ticketing_admin %}
-    <a href="/ops/tickets/">Tickets</a>
+    <a href="{% url 'ops_ticket_list' %}">Tickets</a>
     {% endif %}
     {% if is_blue_team or is_admin %}
-    <a href="/scoring/incident/submit/">Incidents</a>
+    <a href="{% url 'scoring:submit_incident_report' %}">Incidents</a>
     {% endif %}
     {% if is_red_team or is_admin %}
-    <a href="/scoring/red-team/submit/">Red Team Findings</a>
+    <a href="{% url 'scoring:submit_red_finding' %}">Red Team Findings</a>
     {% endif %}
     {% if is_orange_team or is_admin %}
-    <a href="/scoring/orange-team/">Orange Team</a>
+    <a href="{% url 'scoring:orange_team_portal' %}">Orange Team</a>
     {% endif %}
     {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
-    <a href="/scoring/">Scoring</a>
+    <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
     {% endif %}
     {% if is_gold_team or is_admin %}
-    <a href="/ops/school-info/">School Info</a>
+    <a href="{% url 'ops_school_info' %}">School Info</a>
     {% endif %}
     {% if user.is_staff %}
-    <a href="/admin/">Admin</a>
+    <a href="{% url 'admin:index' %}">Admin</a>
     {% endif %}
     <span class="nav-spacer"></span>
     <span class="nav-user">{{ authentik_username|default:user.username }}</span>
-    <a href="/accounts/logout/">Log out</a>
+    <a href="{% url 'account_logout' %}">Log out</a>
 </nav>
 {% endblock %}
 
