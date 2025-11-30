@@ -5,15 +5,14 @@
 {% block content %}
 {% load cotton %}
 
-{% if is_gold_team or is_white_team or is_orange_team or is_ticketing_admin or is_admin %}
-<c-nav current="{% if request.resolver_match.url_name == 'leaderboard' %}leaderboard{% elif 'red_team' in request.resolver_match.url_name %}red_team{% elif 'review_incident' in request.resolver_match.url_name or 'match_incident' in request.resolver_match.url_name %}review_incidents{% elif 'orange' in request.resolver_match.url_name %}orange_team{% elif request.resolver_match.url_name == 'inject_grading' or 'submit_inject' in request.resolver_match.url_name %}inject_grading{% elif 'inject_grades_review' in request.resolver_match.url_name or 'inject_grades_bulk' in request.resolver_match.url_name %}inject_grades_review{% elif 'review_tickets' in request.resolver_match.url_name %}review_tickets{% elif 'config' in request.resolver_match.url_name or 'sync_' in request.resolver_match.url_name or 'recalculate' in request.resolver_match.url_name %}config{% elif 'export' in request.resolver_match.url_name %}export{% endif %}">
+{% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
+<c-nav current="{% if request.resolver_match.url_name == 'leaderboard' %}leaderboard{% elif 'red_team' in request.resolver_match.url_name %}red_team{% elif 'review_incident' in request.resolver_match.url_name or 'match_incident' in request.resolver_match.url_name %}review_incidents{% elif request.resolver_match.url_name == 'inject_grading' or 'submit_inject' in request.resolver_match.url_name %}inject_grading{% elif 'inject_grades_review' in request.resolver_match.url_name or 'inject_grades_bulk' in request.resolver_match.url_name %}inject_grades_review{% elif 'review_tickets' in request.resolver_match.url_name %}review_tickets{% elif 'config' in request.resolver_match.url_name or 'sync_' in request.resolver_match.url_name or 'recalculate' in request.resolver_match.url_name %}config{% elif 'export' in request.resolver_match.url_name %}export{% endif %}">
     <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
     {% if is_gold_team or is_admin %}
     <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>
-    <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incidents</c-nav_item>
     {% endif %}
-    {% if is_gold_team or is_orange_team or is_admin %}
-    <c-nav_item name="orange_team" href="{% url 'scoring:orange_team_portal' %}">Orange Team</c-nav_item>
+    {% if is_gold_team or is_admin %}
+    <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incidents</c-nav_item>
     {% endif %}
     {% if is_white_team or is_gold_team or is_admin %}
     <c-nav_item name="inject_grading" href="{% url 'scoring:inject_grading' %}">Inject Grading</c-nav_item>
