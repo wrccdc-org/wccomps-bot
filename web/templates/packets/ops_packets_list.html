@@ -19,18 +19,17 @@
         </c-slot>
 
         {% if packets_with_stats %}
-        <c-table>
-            <thead>
+        <c-table aria_label="Team packets">
+            <c-slot name="headers">
                 <tr>
-                    <th>Title</th>
-                    <th>File</th>
-                    <th>Status</th>
-                    <th>Distribution Stats</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <c-table_header sortable="false">Title</c-table_header>
+                    <c-table_header sortable="false">File</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Distribution Stats</c-table_header>
+                    <c-table_header sortable="false">Created</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
                 </tr>
-            </thead>
-            <tbody>
+            </c-slot>
                 {% for item in packets_with_stats %}
                 <tr>
                     <td>
@@ -68,7 +67,6 @@
                     </td>
                 </tr>
                 {% endfor %}
-            </tbody>
         </c-table>
         {% else %}
         <c-empty_state title="No packets uploaded yet" description="Upload a team packet to distribute to teams" />

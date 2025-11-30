@@ -14,17 +14,16 @@
 
     <c-module>
         {% if distributions %}
-        <c-table>
-            <thead>
+        <c-table aria_label="Team packets">
+            <c-slot name="headers">
                 <tr>
-                    <th>Team Packet Title</th>
-                    <th>File</th>
-                    <th>Distributed</th>
-                    <th>Downloaded</th>
-                    <th>Actions</th>
+                    <c-table_header sortable="false">Team Packet Title</c-table_header>
+                    <c-table_header sortable="false">File</c-table_header>
+                    <c-table_header sortable="false">Distributed</c-table_header>
+                    <c-table_header sortable="false">Downloaded</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
                 </tr>
-            </thead>
-            <tbody>
+            </c-slot>
                 {% for dist in distributions %}
                 <tr>
                     <td>
@@ -58,7 +57,6 @@
                     </td>
                 </tr>
                 {% endfor %}
-            </tbody>
         </c-table>
         {% else %}
         <c-empty_state title="No team packets available" description="Team packets will appear here when distributed" />
