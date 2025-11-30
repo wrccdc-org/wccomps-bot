@@ -71,43 +71,17 @@
                                 <input type="checkbox" id="select-all" title="Select all">
                             </th>
                             {% endif %}
-                            <th scope="col">
-                                <div class="text"><span>ID</span></div>
-                            </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'attack_vector' %}-{% endif %}attack_vector&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">
-                                        Attack Vector {% if sort_by == 'attack_vector' %}▲{% elif sort_by == '-attack_vector' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Box</span></div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Service</span></div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Teams</span></div>
-                            </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'created_at' %}-{% endif %}created_at&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">
-                                        Submitted {% if sort_by == 'created_at' %}▲{% elif sort_by == '-created_at' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Evidence</span></div>
-                            </th>
+                            <c-table_header sortable="false">ID</c-table_header>
+                            <c-table_header sort_field="attack_vector" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Attack Vector</c-table_header>
+                            <c-table_header sortable="false">Box</c-table_header>
+                            <c-table_header sortable="false">Service</c-table_header>
+                            <c-table_header sortable="false">Teams</c-table_header>
+                            <c-table_header sort_field="created_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Submitted</c-table_header>
+                            <c-table_header sortable="false">Evidence</c-table_header>
                             {% if is_gold_team %}
-                            <th scope="col">
-                                <div class="text"><span>Points</span></div>
-                            </th>
+                            <c-table_header sortable="false">Points</c-table_header>
                             {% endif %}
-                            <th scope="col">
-                                <div class="text"><span>Status</span></div>
-                            </th>
+                            <c-table_header sortable="false">Status</c-table_header>
                         </tr>
                     </thead>
                     <tbody>

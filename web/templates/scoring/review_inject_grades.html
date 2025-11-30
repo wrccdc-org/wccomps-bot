@@ -70,43 +70,13 @@
                             <th scope="col">
                                 <input type="checkbox" id="select-all" title="Select all">
                             </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'inject_name' %}-{% endif %}inject_name&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
-                                        Inject {% if sort_by == 'inject_name' %}▲{% elif sort_by == '-inject_name' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
-                                        Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'points_awarded' %}-{% endif %}points_awarded&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
-                                        Points {% if sort_by == 'points_awarded' %}▲{% elif sort_by == '-points_awarded' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Max</span></div>
-                            </th>
-                            <th scope="col" class="sortable">
-                                <div class="text">
-                                    <a href="?sort={% if sort_by == 'graded_at' %}-{% endif %}graded_at&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
-                                        Graded {% if sort_by == 'graded_at' %}▲{% elif sort_by == '-graded_at' %}▼{% endif %}
-                                    </a>
-                                </div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Outlier</span></div>
-                            </th>
-                            <th scope="col">
-                                <div class="text"><span>Status</span></div>
-                            </th>
+                            <c-table_header sort_field="inject_name" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Inject</c-table_header>
+                            <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Team</c-table_header>
+                            <c-table_header sort_field="points_awarded" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Points</c-table_header>
+                            <c-table_header sortable="false">Max</c-table_header>
+                            <c-table_header sort_field="graded_at" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Graded</c-table_header>
+                            <c-table_header sortable="false">Outlier</c-table_header>
+                            <c-table_header sortable="false">Status</c-table_header>
                         </tr>
                     </thead>
                     <tbody>
