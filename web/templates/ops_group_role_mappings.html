@@ -1,16 +1,21 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
 
-{% block title %}Team Mappings - WCComps{% endblock %}
+{% block title %}Team Mappings{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; Team Mappings
+</div>
+{% endblock %}
 
 {% block content %}
+<h1>Team Mappings</h1>
 <div id="content-main">
-    <c-page_header title="Team Mappings" />
-
-    <c-module id="changelist">
-
+    <div id="changelist" class="module">
         <div class="toolbar">
-            <input type="text" id="team-search" placeholder="Search teams by number or name..." />
+            <input type="text" id="team-search" placeholder="Search teams by number or name..." style="padding: 6px 10px; font-size: 13px;" />
         </div>
 
         <div class="results">
@@ -78,7 +83,7 @@
         <p class="paginator">
             {{ team_status|length }} team(s)
         </p>
-    </c-module>
+    </div>
 </div>
 
 <script>
