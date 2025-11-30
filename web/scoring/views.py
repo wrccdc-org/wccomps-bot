@@ -208,6 +208,11 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "sort_by": sort_by,
         "is_gold_team": is_gold_team,
     }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "partials/red_findings_table.html", context)
+
     return render(request, "scoring/red_team_portal.html", context)
 
 
@@ -639,6 +644,11 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
         "selected_inject_id": selected_inject_id,
         "team_data": team_data,
     }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "partials/inject_grading_content.html", context)
+
     return render(request, "scoring/inject_grading.html", context)
 
 

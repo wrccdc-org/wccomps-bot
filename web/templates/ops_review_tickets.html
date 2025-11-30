@@ -1,5 +1,5 @@
 {% extends "scoring/base.html" %}
-{% load static %}
+{% load static cotton %}
 
 {% block title %}Review Tickets - WCComps{% endblock %}
 
@@ -8,124 +8,55 @@
 {% block scoring_content %}
 <div id="content-main">
     <c-module filtered="true" id="changelist">
-        <c-filter_toolbar form_id="changelist-filter">
-            <c-slot name="actions">
+        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+            <form
+                id="changelist-filter"
+                method="GET"
+                hx-get="{% url 'ops_review_tickets' %}"
+                hx-target="#review-tickets-content"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                role="search"
+                aria-label="Filter results"
+                style="flex: 1;">
+                <div id="filter-content">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <c-filter_field label="Search" id="id_search" min_width="200px">
+                            <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/" hx-trigger="input changed delay:500ms">
+                        </c-filter_field>
+
+                        <c-filter_field label="Verification Status" id="id_verified">
+                            <select name="verified" id="id_verified" aria-label="Filter by verification status" hx-trigger="change">
+                                <option value="unverified" {% if verified_filter == 'unverified' %}selected{% endif %}>Unverified Only</option>
+                                <option value="verified" {% if verified_filter == 'verified' %}selected{% endif %}>Verified Only</option>
+                                <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>All</option>
+                            </select>
+                        </c-filter_field>
+
+                        <c-filter_field label="Team Number" id="id_team">
+                            <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number" hx-trigger="change, keyup[key=='Enter']">
+                        </c-filter_field>
+
+                        <c-filter_field label="Results Per Page" id="id_page_size">
+                            <select name="page_size" id="id_page_size" aria-label="Results per page" hx-trigger="change">
+                                <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                                <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
+                            </select>
+                        </c-filter_field>
+                    </div>
+                </div>
+            </form>
+            <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
                 <form method="post" action="{% url 'ops_batch_verify_tickets' %}" class="d-inline" onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.');">
                     {% csrf_token %}
                     <c-button type="submit" variant="success">Approve All Unverified</c-button>
                 </form>
-            </c-slot>
-            <c-filter_field label="Search" id="id_search" min_width="200px">
-                <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/">
-            </c-filter_field>
-
-            <c-filter_field label="Verification Status" id="id_verified">
-                <select name="verified" id="id_verified" aria-label="Filter by verification status">
-                    <option value="unverified" {% if verified_filter == 'unverified' %}selected{% endif %}>Unverified Only</option>
-                    <option value="verified" {% if verified_filter == 'verified' %}selected{% endif %}>Verified Only</option>
-                    <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>All</option>
-                </select>
-            </c-filter_field>
-
-            <c-filter_field label="Team Number" id="id_team">
-                <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
-            </c-filter_field>
-
-            <c-filter_field label="Results Per Page" id="id_page_size">
-                <select name="page_size" id="id_page_size" aria-label="Results per page">
-                    <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
-                    <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                    <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-                    <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-                </select>
-            </c-filter_field>
-        </c-filter_toolbar>
-
-        <div class="results">
-            <table id="result_list" role="grid" aria-label="Resolved tickets list" style="table-layout: fixed; width: 100%;">
-                <colgroup>
-                    <col style="width: 10%;">
-                    <col style="width: 10%;">
-                    <col style="width: 12%;">
-                    <col style="width: 10%;">
-                    <col style="width: 8%;">
-                    <col style="width: 10%;">
-                    <col style="width: 12%;">
-                    <col style="width: 28%;">
-                </colgroup>
-                <thead>
-                    <tr role="row">
-                        <c-table_header sortable="false">Ticket</c-table_header>
-                        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Team</c-table_header>
-                        <c-table_header sort_field="category" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Category</c-table_header>
-                        <c-table_header sortable="false">Resolved By</c-table_header>
-                        <c-table_header sort_field="points_charged" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Points</c-table_header>
-                        <c-table_header sort_field="resolved_at" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Resolved</c-table_header>
-                        <c-table_header sortable="false">Verification</c-table_header>
-                        <c-table_header sortable="false">Actions</c-table_header>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in page_obj %}
-                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
-                        <th class="field-ticket_number">
-                            <c-link href="{% url 'ops_ticket_detail' item.ticket.ticket_number %}">{{ item.ticket.ticket_number }}</c-link>
-                        </th>
-                        <td class="field-team">{{ item.ticket.team.team_name }}</td>
-                        <td class="field-category">{{ item.category_name }}</td>
-                        <td class="field-resolved-by">
-                            {% if item.ticket.resolved_by %}
-                                {{ item.ticket.resolved_by }}
-                            {% else %}
-                                Unknown
-                            {% endif %}
-                        </td>
-                        <td class="field-points">
-                            {{ item.ticket.points_charged }}
-                            {% if item.ticket.points_charged != item.expected_points %}
-                            <span title="Expected: {{ item.expected_points }}" class="text-warning">⚠️</span>
-                            {% endif %}
-                        </td>
-                        <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
-                        <td class="field-verified">
-                            {% if item.ticket.points_verified %}
-                                <c-badge status="resolved">✓ Verified</c-badge>
-                                <div class="text-sm text-muted">
-                                    by {{ item.ticket.points_verified_by.username }}
-                                </div>
-                            {% else %}
-                                <c-badge status="claimed">⏳ Pending</c-badge>
-                            {% endif %}
-                        </td>
-                        <td class="field-actions">
-                            {% if not item.ticket.points_verified %}
-                            <form method="post" action="{% url 'ops_ticket_verify' item.ticket.ticket_number %}" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
-                                {% csrf_token %}
-                                <input type="hidden" name="points_adjustment" id="points_{{ item.ticket.ticket_number }}" value="{{ item.ticket.points_charged }}" />
-                                <input type="hidden" name="verification_notes" id="notes_{{ item.ticket.ticket_number }}" value="" />
-                                <c-button type="submit">Verify</c-button>
-                            </form>
-                            {% else %}
-                                <span class="text-secondary">Verified</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8">
-                            {% if search_query or verified_filter != 'unverified' or team_filter %}
-                                No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_review_tickets' %}">clearing all filters</a>
-                            {% else %}
-                                No unverified tickets found. All resolved tickets have been verified.
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            </div>
         </div>
 
-        <c-pagination :page_obj="page_obj" query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}" />
+        <c-review_tickets_table :page_obj="page_obj" :verified_filter="verified_filter" :team_filter="team_filter" :search_query="search_query" :sort_by="sort_by" :page_size="page_size" />
     </c-module>
 </div>
 
@@ -136,7 +67,6 @@ function showVerificationDialog(event, ticketNumber, currentPoints, expectedPoin
     let adjustedPoints = currentPoints;
     let notes = '';
 
-    // Show confirmation dialog
     if (currentPoints !== expectedPoints) {
         const confirmation = confirm(
             `Ticket ${ticketNumber}\n\n` +
@@ -171,64 +101,11 @@ function showVerificationDialog(event, ticketNumber, currentPoints, expectedPoin
         }
     }
 
-    // Set form values
     document.getElementById(`points_${ticketNumber}`).value = adjustedPoints;
     document.getElementById(`notes_${ticketNumber}`).value = notes;
 
-    // Submit the form
     event.target.submit();
     return true;
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-submit filter form
-    const filterForm = document.getElementById('changelist-filter');
-    const searchInput = document.getElementById('id_search');
-    const verifiedSelect = document.getElementById('id_verified');
-    const teamInput = document.getElementById('id_team');
-    const pageSizeSelect = document.getElementById('id_page_size');
-
-    // Debounce function for search input
-    let searchTimeout;
-    function debounceSearch() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            sessionStorage.setItem('searchFocus', 'true');
-            sessionStorage.setItem('searchCursorPos', searchInput.selectionStart);
-            filterForm.submit();
-        }, 800);
-    }
-
-    // Auto-submit on change for all filters
-    verifiedSelect.addEventListener('change', () => filterForm.submit());
-    pageSizeSelect.addEventListener('change', () => filterForm.submit());
-
-    // Debounced search
-    searchInput.addEventListener('input', debounceSearch);
-
-    // Restore focus to search input after page load if it was being used
-    if (sessionStorage.getItem('searchFocus') === 'true') {
-        searchInput.focus();
-        const cursorPos = parseInt(sessionStorage.getItem('searchCursorPos') || searchInput.value.length);
-        searchInput.setSelectionRange(cursorPos, cursorPos);
-        sessionStorage.removeItem('searchFocus');
-        sessionStorage.removeItem('searchCursorPos');
-    }
-
-    // Submit on Enter for team input
-    teamInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            filterForm.submit();
-        }
-    });
-
-    // Auto-submit on blur for team input
-    teamInput.addEventListener('blur', function() {
-        if (this.value !== '{{ team_filter }}') {
-            filterForm.submit();
-        }
-    });
-});
 </script>
 {% endblock %}
