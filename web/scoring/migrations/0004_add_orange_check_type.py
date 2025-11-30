@@ -4,35 +4,6 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-def create_initial_check_types(apps, schema_editor):
-    """Create initial orange check types."""
-    OrangeCheckType = apps.get_model("scoring", "OrangeCheckType")
-    initial_types = [
-        "Customer service call answered",
-        "Network diagram completed",
-        "Password reset assistance",
-        "Rule violation",
-        "Professional behavior bonus",
-    ]
-
-    for type_name in initial_types:
-        OrangeCheckType.objects.get_or_create(name=type_name)
-
-
-def reverse_create_initial_check_types(apps, schema_editor):
-    """Remove initial check types."""
-    OrangeCheckType = apps.get_model("scoring", "OrangeCheckType")
-    initial_types = [
-        "Customer service call answered",
-        "Network diagram completed",
-        "Password reset assistance",
-        "Rule violation",
-        "Professional behavior bonus",
-    ]
-
-    OrangeCheckType.objects.filter(name__in=initial_types).delete()
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -59,5 +30,4 @@ class Migration(migrations.Migration):
             name='check_type',
             field=models.ForeignKey(blank=True, help_text='Category of this check (optional for backwards compatibility)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='bonuses', to='scoring.orangechecktype'),
         ),
-        migrations.RunPython(create_initial_check_types, reverse_create_initial_check_types),
     ]

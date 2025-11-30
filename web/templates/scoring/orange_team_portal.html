@@ -1,9 +1,12 @@
-{% extends "scoring/base.html" %}
+{% extends "base.html" %}
+{% block title %}Orange Team{% endblock %}
 
-{% block scoring_content %}
+{% block content %}
+{% load cotton %}
 <c-module>
     <c-slot name="toolbar">
         <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Submit Adjustment</c-link>
+        <c-link href="{% url 'scoring:manage_check_types' %}">Manage Check Types</c-link>
         {% if can_approve and bonuses %}
         <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
         {% endif %}

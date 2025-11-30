@@ -186,7 +186,7 @@ class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
 
 @admin.register(OrangeCheckType)
 class OrangeCheckTypeAdmin(admin.ModelAdmin[OrangeCheckType]):
-    list_display = ["name", "created_at"]
+    list_display = ["name", "default_points", "created_at"]
     search_fields = ["name"]
     readonly_fields = ["created_at"]
 

@@ -12,6 +12,7 @@ from .models import (
     BlackTeamAdjustment,
     IncidentReport,
     InjectGrade,
+    OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
     ScoringTemplate,
@@ -216,17 +217,15 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
         widgets = {
             "description": forms.Textarea(
                 attrs={
-                    "rows": 3,
-                    "placeholder": "Describe why points are adjusted (positive to award, negative to deduct)",
+                    "rows": 2,
+                    "placeholder": "Additional notes (optional)",
                 }
             ),
         }
         labels = {
             "check_type": "Check Type",
-            "points_awarded": "Points Adjustment",
-        }
-        help_texts = {
-            "check_type": "Select the type of check (optional)",
+            "description": "Notes",
+            "points_awarded": "Points",
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -234,6 +233,26 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
         # Only show active teams
         team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
         team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
+        # Make check_type required, description optional
+        self.fields["check_type"].required = True
+        self.fields["description"].required = False
+
+
+class OrangeCheckTypeForm(forms.ModelForm[OrangeCheckType]):
+    """Form for managing orange check types."""
+
+    class Meta:
+        model = OrangeCheckType
+        fields = ["name", "default_points"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "e.g., Customer service call"}),
+        }
+        labels = {
+            "default_points": "Default Points",
+        }
+        help_texts = {
+            "default_points": "Use negative for penalties",
+        }
 
 
 class InjectGradeForm(forms.ModelForm[InjectGrade]):

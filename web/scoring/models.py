@@ -390,6 +390,12 @@ class OrangeCheckType(models.Model):
     """Categories for orange team bonus/penalty checks."""
 
     name = models.CharField(max_length=100, unique=True)
+    default_points = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Default point value when this check type is selected",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

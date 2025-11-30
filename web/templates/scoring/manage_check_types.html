@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Manage Check Types{% endblock %}
+
+{% block content %}
+{% load cotton %}
+<c-module>
+    <c-slot name="toolbar">
+        <c-link href="{% url 'scoring:orange_team_portal' %}">Back to Portal</c-link>
+    </c-slot>
+
+    <h3>Add Check Type</h3>
+    <form method="post" class="mb-20">
+        {% csrf_token %}
+        <c-fieldset aligned="true">
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="required">Name:</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <ul class="errorlist">{% for e in form.name.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.default_points.id_for_label }}" class="required">{{ form.default_points.label }}:</label>
+                    {{ form.default_points }}
+                    {% if form.default_points.errors %}
+                    <ul class="errorlist">{% for e in form.default_points.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+                    {% endif %}
+                    <p class="help">{{ form.default_points.help_text }}</p>
+                </div>
+            </div>
+        </c-fieldset>
+        <c-button type="submit" variant="success" class="mt-10">Add Check Type</c-button>
+    </form>
+
+    <h3>Existing Check Types</h3>
+    {% if check_types %}
+    <c-table aria_label="Orange check types">
+        <c-slot name="headers">
+            <tr>
+                <th>Name</th>
+                <th style="text-align: right;">Default Points</th>
+                <th>Actions</th>
+            </tr>
+        </c-slot>
+
+        {% for ct in check_types %}
+        <tr>
+            <td>{{ ct.name }}</td>
+            <td style="text-align: right; color: {% if ct.default_points >= 0 %}#28a745{% else %}#dc3545{% endif %};">
+                {% if ct.default_points >= 0 %}+{% endif %}{{ ct.default_points }}
+            </td>
+            <td>
+                <c-link href="{% url 'scoring:edit_check_type' ct.id %}" variant="warning" size="sm">Edit</c-link>
+                <form method="post" action="{% url 'scoring:delete_check_type' ct.id %}" class="d-inline" onsubmit="return confirm('Delete check type \'{{ ct.name }}\'?');">
+                    {% csrf_token %}
+                    <c-button type="submit" variant="danger" size="sm">Delete</c-button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </c-table>
+    {% else %}
+    <c-alert variant="info">
+        No check types defined. Add some above to get started.
+    </c-alert>
+    {% endif %}
+</c-module>
+{% endblock %}
