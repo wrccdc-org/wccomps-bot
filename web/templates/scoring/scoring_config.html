@@ -7,10 +7,10 @@
     <h2>Scoring Formula</h2>
     <c-alert variant="info">
         <p><strong>Current Formula:</strong></p>
-        <code style="display: block; padding: 10px; background: white; border-left: 3px solid #417690; margin: 10px 0;">
+        <code class="code-block">
             Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
         </code>
-        <p style="margin: 0; font-size: 12px;">
+        <p class="m-0 text-sm">
             Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
         </p>
     </c-alert>
@@ -37,17 +37,17 @@
 <c-module>
     <h2>Quotient Integration</h2>
     {% if metadata %}
-    <table style="width: 100%; margin-bottom: 15px;" aria-label="Quotient integration status">
-        <tr><th style="text-align: left; width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
-        <tr><th style="text-align: left;">Event:</th><td>{{ metadata.event_name }}</td></tr>
-        <tr><th style="text-align: left;">Teams:</th><td>{{ metadata.team_count }}</td></tr>
-        <tr><th style="text-align: left;">Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
+    <table class="detail-table mb-15" aria-label="Quotient integration status">
+        <tr><th style="width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
+        <tr><th>Event:</th><td>{{ metadata.event_name }}</td></tr>
+        <tr><th>Teams:</th><td>{{ metadata.team_count }}</td></tr>
+        <tr><th>Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
     </table>
     {% else %}
     <c-alert variant="warning">Metadata not synced yet</c-alert>
     {% endif %}
 
-    <form method="post" action="{% url 'scoring:sync_metadata' %}" style="display: inline; margin-right: 10px;">
+    <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline mr-10">
         {% csrf_token %}
         <c-button type="submit">Sync Metadata</c-button>
     </form>
@@ -64,7 +64,7 @@
         {% csrf_token %}
         <c-button type="submit">Recalculate All Scores</c-button>
     </form>
-    <p style="margin-top: 10px; color: #666; font-size: 12px;">
+    <p class="help-text mt-10">
         Recalculates final scores for all teams based on current data and multipliers
     </p>
 </c-module>

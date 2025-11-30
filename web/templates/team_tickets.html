@@ -14,7 +14,7 @@
             <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
 
-        <div class="toolbar" style="margin-top: 10px;">
+        <div class="toolbar mt-10">
             <form method="GET" id="filter-form" role="search" aria-label="Filter tickets">
                 <label for="id_status">Status:</label>
                 <select name="status" id="id_status" aria-label="Filter by status">
@@ -24,7 +24,7 @@
                     <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
                     <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
-                <c-link href="{% url 'team_tickets' %}" class="button" style="color: white; margin-left: 10px;">Clear</c-link>
+                <c-link href="{% url 'team_tickets' %}" class="button ml-10">Clear</c-link>
             </form>
         </div>
 
@@ -62,15 +62,15 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" style="text-align: center; padding: 40px;">
-                            <div style="color: #666; font-size: 16px; margin-bottom: 10px;">
+                        <td colspan="4" class="text-center p-20">
+                            <div class="empty-state-title text-lg">
                                 {% if status_filter != 'all' %}
                                     <strong>No tickets match your filter</strong>
                                 {% else %}
                                     <strong>No tickets yet</strong>
                                 {% endif %}
                             </div>
-                            <div style="color: #999; font-size: 13px;">
+                            <div class="empty-state-desc text-md">
                                 {% if status_filter != 'all' %}
                                     Try <a href="{% url 'team_tickets' %}">clearing the filter</a> or <a href="{% url 'create_ticket' %}">create a new ticket</a>
                                 {% else %}

@@ -7,41 +7,41 @@
     <h1>Incident Reports</h1>
 <c-module>
     <c-slot name="toolbar">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h2 style="margin: 0;">Your Team's Incident Reports</h2>
+        <div class="d-flex justify-between items-center w-full">
+            <h2 class="m-0">Your Team's Incident Reports</h2>
             <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit New Incident</c-link>
         </div>
     </c-slot>
 
     {% if incidents %}
-    <table style="width: 100%; border-collapse: collapse;" aria-label="Your team's incident reports">
+    <table class="w-full" aria-label="Your team's incident reports">
         <thead>
-            <tr style="border-bottom: 2px solid #ddd;">
-                <th style="text-align: left; padding: 12px 8px;">ID</th>
-                <th style="text-align: left; padding: 12px 8px;">Submitted</th>
-                <th style="text-align: left; padding: 12px 8px;">Attack Detected</th>
-                <th style="text-align: left; padding: 12px 8px;">Affected Box</th>
-                <th style="text-align: left; padding: 12px 8px;">Attack Description</th>
-                <th style="text-align: left; padding: 12px 8px;">Status</th>
-                <th style="text-align: left; padding: 12px 8px;">Actions</th>
+            <tr class="border-top">
+                <th class="text-left p-8">ID</th>
+                <th class="text-left p-8">Submitted</th>
+                <th class="text-left p-8">Attack Detected</th>
+                <th class="text-left p-8">Affected Box</th>
+                <th class="text-left p-8">Attack Description</th>
+                <th class="text-left p-8">Status</th>
+                <th class="text-left p-8">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for incident in incidents %}
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 12px 8px;"><strong>#{{ incident.id }}</strong></td>
-                <td style="padding: 12px 8px;">{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
-                <td style="padding: 12px 8px;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                <td style="padding: 12px 8px;">{{ incident.affected_box|default:"N/A" }}</td>
-                <td style="padding: 12px 8px;">{{ incident.attack_description|truncatewords:10 }}</td>
-                <td style="padding: 12px 8px;">
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <td class="p-8"><strong>#{{ incident.id }}</strong></td>
+                <td class="p-8">{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td class="p-8">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+                <td class="p-8">{{ incident.affected_box|default:"N/A" }}</td>
+                <td class="p-8">{{ incident.attack_description|truncatewords:10 }}</td>
+                <td class="p-8">
                     {% if incident.gold_team_reviewed %}
                         <c-badge variant="success">Reviewed</c-badge>
                     {% else %}
                         <c-badge variant="warning">Pending</c-badge>
                     {% endif %}
                 </td>
-                <td style="padding: 12px 8px;">
+                <td class="p-8">
                     <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="primary">View Details</c-link>
                 </td>
             </tr>
@@ -50,8 +50,8 @@
     </table>
     {% else %}
     <c-alert variant="info">
-        <p style="margin: 0;">No incident reports submitted yet.</p>
-        <p style="margin: 10px 0 0 0;">
+        <p class="m-0">No incident reports submitted yet.</p>
+        <p class="mt-10 mb-0">
             <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit your first incident report</c-link>
         </p>
     </c-alert>

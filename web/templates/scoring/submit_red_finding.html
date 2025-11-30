@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 1200px; margin: 0 auto;">
+<div class="max-w-1200">
     <c-module>
         <form method="post" enctype="multipart/form-data" id="findingForm">
                     {% csrf_token %}
@@ -10,7 +10,7 @@
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="grid-2">
                             <div class="mb-3">
                                 <label for="{{ form.attack_vector.id_for_label }}" class="form-label required">
                                     {{ form.attack_vector.label }}
@@ -44,7 +44,7 @@
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
 
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                        <div class="grid-2">
                             <div class="mb-3">
                                 <label for="{{ form.affected_box.id_for_label }}" class="form-label">
                                     {{ form.affected_box.label }}
@@ -106,13 +106,13 @@
                     <!-- Affected Teams Section -->
                     <div class="mb-4">
                         <h5 class="border-bottom pb-2 mb-3">Affected Teams</h5>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <label class="form-label required" style="margin-bottom: 0;">{{ form.affected_teams.label }}</label>
-                            <div style="display: flex; gap: 5px;">
-                                <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #417690; background: white; color: #417690; border-radius: 4px; cursor: pointer;" onclick="selectAllTeams()">
+                        <div class="d-flex justify-between items-center mb-10">
+                            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
+                            <div class="d-flex gap-5">
+                                <button type="button" class="btn-secondary btn-primary-outline" onclick="selectAllTeams()">
                                     Select All
                                 </button>
-                                <button type="button" style="padding: 5px 10px; font-size: 13px; border: 1px solid #ddd; background: white; color: #333; border-radius: 4px; cursor: pointer;" onclick="deselectAllTeams()">
+                                <button type="button" class="btn-secondary" onclick="deselectAllTeams()">
                                     Deselect All
                                 </button>
                             </div>
@@ -122,37 +122,35 @@
                         {% endif %}
 
                         <!-- Hidden checkboxes for form submission -->
-                        <div style="display: none;" id="teamCheckboxes">
+                        <div class="d-none" id="teamCheckboxes">
                             {% for checkbox in form.affected_teams %}
                                 {{ checkbox.tag }}
                             {% endfor %}
                         </div>
 
                         <!-- Visual team selector buttons -->
-                        <div style="border: 1px solid #ddd; border-radius: 4px; background: white;">
-                            <div style="padding: 15px;">
-                                <div id="teamButtons" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <div class="border rounded">
+                            <div class="p-15">
+                                <div id="teamButtons" class="d-flex flex-wrap gap-10">
                                     {% for checkbox in form.affected_teams %}
                                         <button type="button"
                                                 class="team-btn"
-                                                style="padding: 8px 16px; min-width: 60px; font-weight: 500; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;"
                                                 data-team-id="{{ checkbox.data.value }}"
                                                 data-team-label="{{ checkbox.choice_label }}"
                                                 onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')">
-                                            <!-- Label will be set by JavaScript -->
                                         </button>
                                     {% endfor %}
                                 </div>
                             </div>
                         </div>
 
-                        <div style="margin-top: 10px;">
+                        <div class="mt-10">
                             <small class="text-muted">
                                 <span id="selectedCount">0</span> teams selected - Click teams to toggle selection
                             </small>
                         </div>
                         {% if form.affected_teams.errors %}
-                            <div class="text-danger" style="margin-top: 10px;">{{ form.affected_teams.errors }}</div>
+                            <div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -175,7 +173,7 @@
                             </div>
                         </div>
 
-                        <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;"></div>
+                        <div id="screenshotPreview" class="grid-4 mb-15"></div>
                     </div>
 
                     <!-- Additional Notes Section -->
@@ -196,9 +194,9 @@
                         </div>
                     </div>
 
-                    <c-alert variant="info" style="margin-bottom: 20px;">
-                        <h3 style="margin-top: 0; font-size: 16px;">Submission Guidelines</h3>
-                        <ul style="margin-bottom: 0;">
+                    <c-alert variant="info" class="mb-20">
+                        <h3 class="mt-0 text-lg">Submission Guidelines</h3>
+                        <ul class="mb-0">
                             <li>Provide detailed technical information about the vulnerability or attack</li>
                             <li>Include all relevant IP addresses visible in screenshots</li>
                             <li>Select all teams that were successfully compromised</li>
@@ -206,7 +204,7 @@
                         </ul>
                     </c-alert>
 
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <div class="d-flex gap-10 justify-end">
                         <c-link href="{% url 'scoring:red_team_portal' %}">Cancel</c-link>
                         <c-button type="submit" variant="danger">Submit Finding</c-button>
                     </div>
@@ -473,15 +471,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<style>
-.required::after {
-    content: " *";
-    color: red;
-}
-
-.team-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-</style>
 {% endblock %}

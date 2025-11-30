@@ -8,14 +8,14 @@
 {% block scoring_content %}
 <div id="content-main">
     <c-module filtered="true" id="changelist">
-        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="d-flex justify-between items-center mb-15">
             <div>
-                <h2 style="margin: 0;">Review Ticket Points</h2>
+                <h2 class="m-0">Review Ticket Points</h2>
             </div>
             <div>
                 <form method="post" action="/ops/tickets/batch-verify-points/" class="d-inline" onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.');">
                     {% csrf_token %}
-                    <c-button type="submit" style="background-color: #4caf50;">Approve All Unverified</c-button>
+                    <c-button type="submit" variant="success">Approve All Unverified</c-button>
                 </form>
             </div>
         </div>
@@ -122,18 +122,18 @@
                         <td class="field-points">
                             {{ item.ticket.points_charged }}
                             {% if item.ticket.points_charged != item.expected_points %}
-                            <span title="Expected: {{ item.expected_points }}" style="color: #f57c00;">⚠️</span>
+                            <span title="Expected: {{ item.expected_points }}" class="text-warning">⚠️</span>
                             {% endif %}
                         </td>
                         <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
                         <td class="field-verified">
                             {% if item.ticket.points_verified %}
-                                <span style="color: #4caf50; font-weight: 600;">✓ Verified</span>
-                                <div style="font-size: 0.9em; color: #666;">
+                                <span class="text-success font-semibold">✓ Verified</span>
+                                <div class="text-sm text-muted">
                                     by {{ item.ticket.points_verified_by.username }}
                                 </div>
                             {% else %}
-                                <span style="color: #f57c00; font-weight: 600;">⏳ Pending</span>
+                                <span class="text-warning font-semibold">⏳ Pending</span>
                             {% endif %}
                         </td>
                         <td class="field-actions">
@@ -145,7 +145,7 @@
                                 <c-button type="submit">Verify</c-button>
                             </form>
                             {% else %}
-                                <span style="color: #999;">Verified</span>
+                                <span class="text-secondary">Verified</span>
                             {% endif %}
                         </td>
                     </tr>

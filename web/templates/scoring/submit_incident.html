@@ -3,7 +3,7 @@
 {% block title %}Submit Incident Report{% endblock %}
 
 {% block content %}
-<div style="max-width: 1200px; margin: 0 auto;">
+<div class="max-w-1200">
     <c-module>
         <h2>Submit Incident Report</h2>
         {% if team or is_admin %}
@@ -15,7 +15,7 @@
                 <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
 
                 {% if is_admin %}
-                <div style="margin-bottom: 15px;">
+                <div class="mb-15">
                     <label for="{{ form.team.id_for_label }}" class="form-label required">
                         {{ form.team.label }}
                     </label>
@@ -29,7 +29,7 @@
                 </div>
                 {% endif %}
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="grid-2">
                     <div class="mb-3">
                         <label for="{{ form.affected_box.id_for_label }}" class="form-label required">
                             {{ form.affected_box.label }}
@@ -73,7 +73,7 @@
             <div class="mb-4">
                 <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="grid-2">
                     <div class="mb-3">
                         <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
                             {{ form.source_ip.label }}
@@ -143,12 +143,12 @@
                     </div>
                 </div>
 
-                <div id="screenshotPreview" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;"></div>
+                <div id="screenshotPreview" class="grid-4 mb-15"></div>
             </div>
 
-            <c-alert variant="info" style="margin-bottom: 20px;">
-                <h3 style="margin-top: 0; font-size: 16px;">Submission Guidelines</h3>
-                <ul style="margin-bottom: 0;">
+            <c-alert variant="info" class="mb-20">
+                <h3 class="mt-0 text-lg">Submission Guidelines</h3>
+                <ul class="mb-0">
                     <li>Report attacks as soon as they are detected</li>
                     <li>Include the source IP address of the attacker</li>
                     <li>Describe what you observed and any mitigation steps taken</li>
@@ -156,7 +156,7 @@
                 </ul>
             </c-alert>
 
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <div class="d-flex gap-10 justify-end">
                 <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Submit Report</c-button>
             </div>
@@ -261,55 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.required::after {
-    content: " *";
-    color: red;
-}
-
-.mb-3 {
-    margin-bottom: 15px;
-}
-
-.mb-4 {
-    margin-bottom: 20px;
-}
-
-.form-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-}
-
-.form-text {
-    font-size: 12px;
-    color: #666;
-    margin-top: 4px;
-}
-
-.text-danger {
-    color: #dc3545;
-    font-size: 13px;
-    margin-top: 4px;
-}
-
-.border-bottom {
-    border-bottom: 1px solid #ddd;
-}
-
-.pb-2 {
-    padding-bottom: 10px;
-}
-
-.form-check {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.form-check-label {
-    margin-bottom: 0;
-}
-
 h5 {
     font-size: 16px;
     font-weight: 600;
