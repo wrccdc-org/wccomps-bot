@@ -69,9 +69,7 @@
                     {% for item in page_obj %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
                         <th class="field-ticket_number">
-                            <a href="/ops/ticket/{{ item.ticket.ticket_number }}/">
-                                {{ item.ticket.ticket_number }}
-                            </a>
+                            <c-link href="/ops/ticket/{{ item.ticket.ticket_number }}/">{{ item.ticket.ticket_number }}</c-link>
                         </th>
                         <td class="field-team">{{ item.ticket.team.team_name }}</td>
                         <td class="field-category">{{ item.category_name }}</td>

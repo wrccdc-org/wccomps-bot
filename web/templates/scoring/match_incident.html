@@ -102,42 +102,17 @@
         <form method="post">
             {% csrf_token %}
             <c-fieldset aligned="true">
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.matched_to_red_finding.id_for_label }}">{{ form.matched_to_red_finding.label }}:</label>
-                        {{ form.matched_to_red_finding }}
-                        {% if form.matched_to_red_finding.errors %}
-                        <ul class="errorlist">{% for e in form.matched_to_red_finding.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.matched_to_red_finding.help_text %}
-                        <p class="help">{{ form.matched_to_red_finding.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.points_returned.id_for_label }}">{{ form.points_returned.label }}:</label>
-                        {{ form.points_returned }}
-                        {% if form.points_returned.errors %}
-                        <ul class="errorlist">{% for e in form.points_returned.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.points_returned.help_text %}
-                        <p class="help">{{ form.points_returned.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.reviewer_notes.id_for_label }}">{{ form.reviewer_notes.label }}:</label>
-                        {{ form.reviewer_notes }}
-                        {% if form.reviewer_notes.errors %}
-                        <ul class="errorlist">{% for e in form.reviewer_notes.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.reviewer_notes.help_text %}
-                        <p class="help">{{ form.reviewer_notes.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
+                <c-form_field label="{{ form.matched_to_red_finding.label }}" id="{{ form.matched_to_red_finding.id_for_label }}" help_text="{{ form.matched_to_red_finding.help_text }}" error="{% for e in form.matched_to_red_finding.errors %}{{ e }}{% endfor %}">
+                    {{ form.matched_to_red_finding }}
+                </c-form_field>
+
+                <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="{% for e in form.points_returned.errors %}{{ e }}{% endfor %}">
+                    {{ form.points_returned }}
+                </c-form_field>
+
+                <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="{% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}">
+                    {{ form.reviewer_notes }}
+                </c-form_field>
             </c-fieldset>
 
             <c-alert variant="info" class="text-sm">

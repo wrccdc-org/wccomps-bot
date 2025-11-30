@@ -3,71 +3,68 @@
 {% block title %}Team Packets - WCComps{% endblock %}
 
 {% block content %}
-<div id="content" class="colM">
-    <h1>Your Team Packets</h1>
+<div id="content-main">
+    <c-page_header title="Your Team Packets" />
 
     {% if messages %}
         {% for message in messages %}
-            <div class="messagelist">
-                <div class="{{ message.tags }}">{{ message }}</div>
-            </div>
+        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
         {% endfor %}
     {% endif %}
 
-    <div class="module">
+    <c-module>
         {% if distributions %}
-            <table id="result_list" aria-label="Your team packets">
-                <thead>
-                    <tr>
-                        <th>Team Packet Title</th>
-                        <th>File</th>
-                        <th>Distributed</th>
-                        <th>Downloaded</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for dist in distributions %}
-                        <tr>
-                            <td>
-                                <strong>{{ dist.packet.title }}</strong>
-                                {% if dist.packet.notes %}
-                                    <br><small>{{ dist.packet.notes }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {{ dist.packet.filename }}
-                                <br><small>{{ dist.packet.file_size|filesizeformat }}</small>
-                            </td>
-                            <td>
-                                {% if dist.packet.actual_distribution_time %}
-                                    {{ dist.packet.actual_distribution_time|date:"Y-m-d H:i" }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if dist.downloaded_at %}
-                                    <span class="status-yes">✓</span>
-                                    {{ dist.download_count }} time(s)
-                                    <br><small>Last: {{ dist.last_downloaded_at|date:"Y-m-d H:i" }}</small>
-                                {% else %}
-                                    <span class="status-no">Not yet</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'download_packet' dist.packet.id %}" class="button">Download</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <c-table>
+            <thead>
+                <tr>
+                    <th>Team Packet Title</th>
+                    <th>File</th>
+                    <th>Distributed</th>
+                    <th>Downloaded</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dist in distributions %}
+                <tr>
+                    <td>
+                        <strong>{{ dist.packet.title }}</strong>
+                        {% if dist.packet.notes %}
+                            <br><small>{{ dist.packet.notes }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ dist.packet.filename }}
+                        <br><small>{{ dist.packet.file_size|filesizeformat }}</small>
+                    </td>
+                    <td>
+                        {% if dist.packet.actual_distribution_time %}
+                            {{ dist.packet.actual_distribution_time|date:"Y-m-d H:i" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if dist.downloaded_at %}
+                        <c-badge status="success">✓</c-badge>
+                        {{ dist.download_count }} time(s)
+                        <br><small>Last: {{ dist.last_downloaded_at|date:"Y-m-d H:i" }}</small>
+                        {% else %}
+                        <span class="text-muted">Not yet</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <c-button type="button" onclick="window.location='{% url 'download_packet' dist.packet.id %}'">Download</c-button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </c-table>
         {% else %}
-            <p>No team packets available at this time.</p>
+        <c-empty_state title="No team packets available" description="Team packets will appear here when distributed" />
         {% endif %}
-    </div>
+    </c-module>
 
-    <br>
-    <p><a href="{% url 'home' %}">← Back to Home</a></p>
+    <p class="mt-20"><c-link href="{% url 'home' %}" variant="history">Back to Home</c-link></p>
 </div>
 {% endblock %}

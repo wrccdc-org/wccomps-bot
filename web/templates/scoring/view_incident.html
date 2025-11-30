@@ -3,19 +3,15 @@
 {% block title %}Incident Report #{{ incident.id }}{% endblock %}
 
 {% block content %}
-<div class="module">
-    <h1>Incident Report</h1>
+<div id="content-main">
+<c-page_header title="Incident Report #{{ incident.id }}" />
 <c-module>
     <c-slot name="toolbar">
-        <c-section_header title="Incident Report #{{ incident.id }}" align="space-between">
-            <c-slot name="actions">
-                {% if incident.gold_team_reviewed %}
-                    <c-badge variant="success">Reviewed</c-badge>
-                {% else %}
-                    <c-badge variant="warning">Pending Review</c-badge>
-                {% endif %}
-            </c-slot>
-        </c-section_header>
+        {% if incident.gold_team_reviewed %}
+            <c-badge status="resolved">Reviewed</c-badge>
+        {% else %}
+            <c-badge status="claimed">Pending Review</c-badge>
+        {% endif %}
     </c-slot>
 
     <c-detail_grid gap="20px">

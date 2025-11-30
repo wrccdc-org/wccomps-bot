@@ -3,18 +3,15 @@
 {% block title %}Incident Reports{% endblock %}
 
 {% block content %}
-<div class="module">
-    <h1>Incident Reports</h1>
+<div id="content-main">
+<c-page_header title="Incident Reports" />
 <c-module>
     <c-slot name="toolbar">
-        <div class="d-flex justify-between items-center w-full">
-            <h2 class="m-0">Your Team's Incident Reports</h2>
-            <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit New Incident</c-link>
-        </div>
+        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Submit New Incident</c-link>
     </c-slot>
 
     {% if incidents %}
-    <table class="w-full" aria-label="Your team's incident reports">
+    <c-table>
         <thead>
             <tr class="border-top">
                 <th class="text-left p-8">ID</th>
@@ -36,25 +33,22 @@
                 <td class="p-8">{{ incident.attack_description|truncatewords:10 }}</td>
                 <td class="p-8">
                     {% if incident.gold_team_reviewed %}
-                        <c-badge variant="success">Reviewed</c-badge>
+                        <c-badge status="resolved">Reviewed</c-badge>
                     {% else %}
-                        <c-badge variant="warning">Pending</c-badge>
+                        <c-badge status="claimed">Pending</c-badge>
                     {% endif %}
                 </td>
                 <td class="p-8">
-                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="primary">View Details</c-link>
+                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View Details</c-link>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
-    </table>
+    </c-table>
     {% else %}
-    <c-alert variant="info">
-        <p class="m-0">No incident reports submitted yet.</p>
-        <p class="mt-10 mb-0">
-            <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit your first incident report</c-link>
-        </p>
-    </c-alert>
+    <c-empty_state title="No incident reports submitted yet" description="Submit an incident report when you detect suspicious activity">
+        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Submit your first incident report</c-link>
+    </c-empty_state>
     {% endif %}
 </c-module>
 </div>

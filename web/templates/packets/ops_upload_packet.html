@@ -3,76 +3,52 @@
 {% block title %}Upload Team Packet - WCComps{% endblock %}
 
 {% block content %}
-<div id="content" class="colM">
-    <h1>Upload Team Packet</h1>
+<div id="content-main">
+    <c-page_header title="Upload Team Packet" />
 
     {% if messages %}
         {% for message in messages %}
-            <div class="messagelist">
-                <div class="{{ message.tags }}">{{ message }}</div>
-            </div>
+        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
         {% endfor %}
     {% endif %}
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <fieldset class="module aligned">
-            <h2>Team Packet Information</h2>
+        <c-module>
+            <c-slot name="toolbar">
+                <c-link href="{% url 'ops_packets_list' %}" variant="history">Back to Packets</c-link>
+            </c-slot>
 
-            <div class="form-row">
-                <div>
-                    <label for="id_title" class="required">Title:</label>
+            <c-fieldset heading="Team Packet Information">
+                <c-form_field label="Title" required="true" id="id_title" help_text="Brief description of the packet (e.g., 'Competition Rules and Schedule')">
                     <input type="text" name="title" id="id_title" class="vTextField" required maxlength="255">
-                    <p class="help">Brief description of the packet (e.g., "Competition Rules and Schedule")</p>
-                </div>
-            </div>
+                </c-form_field>
 
-            <div class="form-row">
-                <div>
-                    <label for="id_packet_file" class="required">File:</label>
+                <c-form_field label="File" required="true" id="id_packet_file" help_text="Maximum file size: 25 MB. All file types supported.">
                     <input type="file" name="packet_file" id="id_packet_file" required>
-                    <p class="help">Maximum file size: 25 MB. All file types supported.</p>
-                </div>
-            </div>
+                </c-form_field>
 
-            <div class="form-row">
-                <div>
-                    <label for="id_notes">Notes (optional):</label>
+                <c-form_field label="Notes (optional)" id="id_notes" help_text="Internal notes about this packet (visible to GoldTeam only)">
                     <textarea name="notes" id="id_notes" class="vLargeTextField" rows="4"></textarea>
-                    <p class="help">Internal notes about this packet (visible to GoldTeam only)</p>
-                </div>
+                </c-form_field>
+            </c-fieldset>
+
+            <c-fieldset heading="Distribution Settings">
+                <c-form_field label="Send via email" help_text="Send packet to team contact emails from SchoolInfo">
+                    <input type="checkbox" name="send_via_email" id="id_send_via_email" checked>
+                </c-form_field>
+
+                <c-form_field label="Enable web access" help_text="Allow teams to download from web interface">
+                    <input type="checkbox" name="web_access_enabled" id="id_web_access_enabled" checked>
+                </c-form_field>
+            </c-fieldset>
+
+            <div class="submit-row">
+                <c-button type="submit" variant="primary">Upload Team Packet</c-button>
+                <c-link href="{% url 'ops_packets_list' %}" class="button cancel-link">Cancel</c-link>
             </div>
-        </fieldset>
-
-        <fieldset class="module aligned">
-            <h2>Distribution Settings</h2>
-
-            <div class="form-row">
-                <div>
-                    <label for="id_send_via_email">
-                        <input type="checkbox" name="send_via_email" id="id_send_via_email" checked>
-                        Send via email
-                    </label>
-                    <p class="help">Send packet to team contact emails from SchoolInfo</p>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div>
-                    <label for="id_web_access_enabled">
-                        <input type="checkbox" name="web_access_enabled" id="id_web_access_enabled" checked>
-                        Enable web access
-                    </label>
-                    <p class="help">Allow teams to download from web interface</p>
-                </div>
-            </div>
-        </fieldset>
-
-        <div class="submit-row">
-            <input type="submit" value="Upload Team Packet" class="default">
-            <a href="{% url 'ops_packets_list' %}" class="button">Cancel</a>
-        </div>
+        </c-module>
     </form>
 </div>
 {% endblock %}

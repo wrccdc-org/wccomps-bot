@@ -50,9 +50,7 @@
                     {% for item in tickets %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
                         <th class="field-ticket_number" role="gridcell">
-                            <a href="{% url 'ticket_detail' item.ticket.id %}">
-                                {{ item.ticket.ticket_number }}
-                            </a>
+                            <c-link href="{% url 'ticket_detail' item.ticket.id %}">{{ item.ticket.ticket_number }}</c-link>
                         </th>
                         <td class="field-category" role="gridcell">{{ item.category_name }}</td>
                         <td class="field-status" role="gridcell">
@@ -62,21 +60,16 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center p-20">
-                            <div class="empty-state-title text-lg">
-                                {% if status_filter != 'all' %}
-                                    <strong>No tickets match your filter</strong>
-                                {% else %}
-                                    <strong>No tickets yet</strong>
-                                {% endif %}
-                            </div>
-                            <div class="empty-state-desc text-md">
-                                {% if status_filter != 'all' %}
-                                    Try <a href="{% url 'team_tickets' %}">clearing the filter</a> or <a href="{% url 'create_ticket' %}">create a new ticket</a>
-                                {% else %}
-                                    <a href="{% url 'create_ticket' %}">Create your first ticket</a> to get started!
-                                {% endif %}
-                            </div>
+                        <td colspan="4">
+                            {% if status_filter != 'all' %}
+                            <c-empty_state title="No tickets match your filter">
+                                Try <c-link href="{% url 'team_tickets' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
+                            </c-empty_state>
+                            {% else %}
+                            <c-empty_state title="No tickets yet">
+                                <c-link href="{% url 'create_ticket' %}" variant="add">Create your first ticket</c-link> to get started!
+                            </c-empty_state>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

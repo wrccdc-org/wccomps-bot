@@ -95,7 +95,7 @@
                             </td>
                             {% endif %}
                             <th class="field-id">
-                                <a href="{% url 'admin:scoring_redteamfinding_change' finding.id %}">#{{ finding.id }}</a>
+                                <c-link href="{% url 'admin:scoring_redteamfinding_change' finding.id %}">#{{ finding.id }}</c-link>
                             </th>
                             <td class="field-attack_vector">{{ finding.attack_vector|truncatechars:50 }}</td>
                             <td class="field-box">{{ finding.affected_box }}</td>
