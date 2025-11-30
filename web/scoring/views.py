@@ -535,143 +535,81 @@ def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
 @require_team_role(
     lambda p: p.is_white_team() or p.is_gold_team(), "Only White/Gold Team members can access inject grading"
 )
+@transaction.atomic
 def inject_grading(request: HttpRequest) -> HttpResponse:
-    """Inject grading interface (white/gold team)."""
+    """Inject grading interface - select inject, grade all teams."""
     from quotient.client import QuotientClient
 
-    teams = Team.objects.filter(is_active=True).order_by("team_number")
-
-    # Fetch injects from Quotient
     client = QuotientClient()
     injects = client.get_injects()
 
     if not injects:
-        # Fallback to showing existing grades only
-        grades = InjectGrade.objects.all().select_related("team").order_by("inject_name", "team__team_number")
-        context = {
-            "teams": teams,
-            "grades": grades,
-            "injects": [],
-            "quotient_available": False,
-        }
+        context: dict[str, Any] = {"quotient_available": False}
         return render(request, "scoring/inject_grading.html", context)
 
-    # Get existing grades for these injects
-    inject_ids = [i.inject_id for i in injects]
-    existing_grades = InjectGrade.objects.filter(inject_id__in=inject_ids).select_related("team")
+    inject_choices = [(str(i.inject_id), i.title) for i in injects]
+    inject_lookup = {str(i.inject_id): i for i in injects}
 
-    # Build grade lookup: {inject_id: {team_number: grade}}
-    grade_lookup: dict[str, dict[int, InjectGrade]] = {}
-    for grade in existing_grades:
-        if grade.inject_id not in grade_lookup:
-            grade_lookup[grade.inject_id] = {}
-        grade_lookup[grade.inject_id][grade.team.team_number] = grade
+    # Get selected inject from query param or POST
+    selected_inject_id = request.GET.get("inject") or request.POST.get("inject_id")
+    selected_inject = inject_lookup.get(selected_inject_id) if selected_inject_id else None
 
-    # Build data structure for template
-    inject_data = []
-    for inject in injects:
-        # All injects from API are available for grading
-        team_grades = []
+    teams = Team.objects.filter(is_active=True).order_by("team_number")
+
+    if request.method == "POST" and selected_inject:
+        # Process grade submissions for all teams
+        grades_saved = 0
+        user = cast(User, request.user)
+
         for team in teams:
-            team_grade: InjectGrade | None = grade_lookup.get(str(inject.inject_id), {}).get(team.team_number)
-            team_grades.append(
+            field_name = f"points_team_{team.team_number}"
+            points_value = request.POST.get(field_name, "").strip()
+
+            if points_value:
+                try:
+                    points = Decimal(points_value)
+                    InjectGrade.objects.update_or_create(
+                        team=team,
+                        inject_id=selected_inject_id,
+                        defaults={
+                            "inject_name": selected_inject.title,
+                            "points_awarded": points,
+                            "graded_by": user,
+                            "graded_at": timezone.now(),
+                        },
+                    )
+                    grades_saved += 1
+                except (ValueError, TypeError):
+                    pass
+
+        if grades_saved:
+            messages.success(request, f"Saved {grades_saved} grades for {selected_inject.title}")
+        return redirect(f"{request.path}?inject={selected_inject_id}")
+
+    # Get existing grades for selected inject and merge with teams
+    team_data = []
+    if selected_inject:
+        existing = InjectGrade.objects.filter(inject_id=selected_inject_id).select_related("team", "graded_by")
+        grade_by_team = {g.team_id: g for g in existing}
+
+        for team in teams:
+            grade = grade_by_team.get(team.id)
+            team_data.append(
                 {
                     "team": team,
-                    "grade": team_grade,
-                    "points_awarded": team_grade.points_awarded if team_grade else None,
+                    "grade": grade,
+                    "points": grade.points_awarded if grade else None,
                 }
             )
 
-        inject_data.append(
-            {
-                "inject_id": inject.inject_id,
-                "title": inject.title,
-                "description": inject.description,
-                "max_points": 100,  # Default max points, can be configured per inject
-                "due_date": inject.due_time,
-                "team_grades": team_grades,
-            }
-        )
-
     context = {
-        "teams": teams,
-        "inject_data": inject_data,
         "quotient_available": True,
+        "inject_choices": inject_choices,
+        "selected_inject": selected_inject,
+        "selected_inject_id": selected_inject_id,
+        "team_data": team_data,
     }
     return render(request, "scoring/inject_grading.html", context)
-
-
-@login_required
-@require_team_role(
-    lambda p: p.is_white_team() or p.is_gold_team(), "Only White/Gold Team members can submit inject grades"
-)
-@transaction.atomic
-@require_http_methods(["POST"])
-def submit_inject_grades(request: HttpRequest) -> HttpResponse:
-    """Submit inject grades (white/gold team)."""
-    user = cast(User, request.user)
-
-    # Parse form data: inject_{inject_id}_team_{team_number} = points_awarded
-    grades_saved = 0
-    errors = []
-
-    for key, value in request.POST.items():
-        if not key.startswith("inject_"):
-            continue
-
-        try:
-            # Parse: inject_{inject_id}_team_{team_number}
-            parts = key.split("_team_")
-            if len(parts) != 2:
-                continue
-
-            inject_id = parts[0].replace("inject_", "")
-            team_number = int(parts[1])
-
-            # Skip empty values - request.POST values can be str or list
-            value_str: str = (str(value[0]) if value else "") if isinstance(value, list) else value
-            if not value_str or not value_str.strip():
-                continue
-
-            points_awarded = Decimal(value_str)
-
-            # Get team
-            team = Team.objects.get(team_number=team_number)
-
-            # Get or create grade
-            grade, created = InjectGrade.objects.get_or_create(
-                team=team,
-                inject_id=inject_id,
-                defaults={
-                    "inject_name": request.POST.get(f"inject_name_{inject_id}", ""),
-                    "max_points": Decimal(request.POST.get(f"max_points_{inject_id}", "0")),
-                    "points_awarded": points_awarded,
-                    "graded_by": user,
-                },
-            )
-
-            if not created:
-                # Update existing grade
-                grade.points_awarded = points_awarded
-                grade.graded_by = user
-                grade.save()
-
-            grades_saved += 1
-
-        except (ValueError, Team.DoesNotExist, KeyError) as e:
-            errors.append(f"Error processing {key}: {e}")
-            continue
-
-    if errors:
-        for error in errors:
-            messages.warning(request, error)
-
-    if grades_saved > 0:
-        messages.success(request, f"Saved {grades_saved} inject grades")
-    else:
-        messages.info(request, "No grades to save")
-
-    return redirect("scoring:inject_grading")
 
 
 @login_required
