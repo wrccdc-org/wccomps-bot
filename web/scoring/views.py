@@ -211,7 +211,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 
     # Return partial for htmx requests
     if request.headers.get("HX-Request"):
-        return render(request, "partials/red_findings_table.html", context)
+        return render(request, "cotton/red_findings_table.html", context)
 
     return render(request, "scoring/red_team_portal.html", context)
 
@@ -647,7 +647,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
 
     # Return partial for htmx requests
     if request.headers.get("HX-Request"):
-        return render(request, "partials/inject_grading_content.html", context)
+        return render(request, "cotton/inject_grading_content.html", context)
 
     return render(request, "scoring/inject_grading.html", context)
 
@@ -720,6 +720,11 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
         "status_filter": status_filter,
         "sort_by": sort_by,
     }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "cotton/review_incidents_table.html", context)
+
     return render(request, "scoring/review_incidents.html", context)
 
 
@@ -1018,6 +1023,11 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         "status_filter": status_filter,
         "sort_by": sort_by,
     }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "cotton/inject_grades_table.html", context)
+
     return render(request, "scoring/review_inject_grades.html", context)
 
 

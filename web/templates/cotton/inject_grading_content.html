@@ -7,7 +7,7 @@
         {% if selected_inject.description %}
         <p class="text-muted mb-15">{{ selected_inject.description }}</p>
         {% endif %}
-        <form method="post">
+        <form method="post" x-data="{ clearForm() { this.$el.querySelectorAll('input[name^=\'points_team_\']').forEach(i => i.value = ''); } }">
             {% csrf_token %}
             <input type="hidden" name="inject_id" value="{{ selected_inject_id }}">
 
@@ -53,7 +53,7 @@
 
             <c-button_row class="mt-15">
                 <c-button type="submit" variant="primary">Save Grades</c-button>
-                <c-button type="button" onclick="clearForm()">Clear Form</c-button>
+                <c-button type="button" @click="clearForm()">Clear Form</c-button>
             </c-button_row>
         </form>
     </c-fieldset>

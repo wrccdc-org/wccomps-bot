@@ -42,9 +42,9 @@
             </td>
             <td>
                 <c-link href="{% url 'scoring:edit_check_type' ct.id %}" variant="warning" size="sm">Edit</c-link>
-                <form method="post" action="{% url 'scoring:delete_check_type' ct.id %}" class="d-inline" onsubmit="return confirm('Delete check type \'{{ ct.name }}\'?');">
+                <form method="post" action="{% url 'scoring:delete_check_type' ct.id %}" class="d-inline">
                     {% csrf_token %}
-                    <c-button type="submit" variant="danger" size="sm">Delete</c-button>
+                    <c-button type="submit" variant="danger" size="sm" hx-confirm="Delete check type '{{ ct.name }}'?">Delete</c-button>
                 </form>
             </td>
         </tr>

@@ -130,9 +130,9 @@
         <!-- Cancel ticket option -->
         {% if ticket.status == 'open' %}
         <c-action_box heading="Cancel Ticket" variant="warning">
-            <form method="POST" action="{% url 'ticket_cancel' ticket.id %}" onsubmit="return confirm('Are you sure you want to cancel this ticket?');">
+            <form method="POST" action="{% url 'ticket_cancel' ticket.id %}">
                 {% csrf_token %}
-                <c-button type="submit" variant="danger">Cancel Ticket</c-button>
+                <c-button type="submit" variant="danger" hx-confirm="Are you sure you want to cancel this ticket?">Cancel Ticket</c-button>
             </form>
         </c-action_box>
         {% endif %}

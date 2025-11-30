@@ -446,7 +446,7 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
 
     # Return partial for htmx requests
     if request.headers.get("HX-Request"):
-        return render(request, "partials/ticket_list.html", context)
+        return render(request, "cotton/ticket_list.html", context)
 
     return render(request, "team_tickets.html", context)
 
@@ -1039,24 +1039,31 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     # Get unique assignees for filter dropdown
     assignees = Person.objects.filter(assigned_tickets__isnull=False).distinct().order_by("authentik_username")
 
-    return render(
-        request,
-        "ops_ticket_list.html",
-        {
-            "page_obj": page_obj,
-            "status_filter": status_filter,
-            "team_filter": team_filter,
-            "category_filter": category_filter,
-            "assignee_filter": assignee_filter,
-            "assignees": assignees,
-            "search_query": search_query,
-            "sort_by": sort_by,
-            "page_size": page_size,
-            "categories": TICKET_CATEGORIES,
-            "show_ops_nav": True,
-            "nav_active": "tickets",
-        },
-    )
+    # Check if user is ticketing admin
+    is_ticketing_admin = has_permission(user, "ticketing_admin")
+
+    context = {
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+        "team_filter": team_filter,
+        "category_filter": category_filter,
+        "assignee_filter": assignee_filter,
+        "assignees": assignees,
+        "search_query": search_query,
+        "sort_by": sort_by,
+        "page_size": page_size,
+        "categories": TICKET_CATEGORIES,
+        "show_ops_nav": True,
+        "nav_active": "tickets",
+        "authentik_username": authentik_username,
+        "is_ticketing_admin": is_ticketing_admin,
+    }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "cotton/ops_ticket_list_table.html", context)
+
+    return render(request, "ops_ticket_list.html", context)
 
 
 @login_required
@@ -2200,7 +2207,7 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
 
     # Return partial for htmx requests
     if request.headers.get("HX-Request"):
-        return render(request, "partials/review_tickets_table.html", context)
+        return render(request, "cotton/review_tickets_table.html", context)
 
     return render(request, "ops_review_tickets.html", context)
 
