@@ -1,6 +1,5 @@
 """Forms for scoring system."""
 
-from decimal import Decimal
 from typing import Any, cast
 
 from django import forms
@@ -9,9 +8,7 @@ from django.db.models import QuerySet
 from team.models import Team
 
 from .models import (
-    BlackTeamAdjustment,
     IncidentReport,
-    InjectGrade,
     OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -255,50 +252,6 @@ class OrangeCheckTypeForm(forms.ModelForm[OrangeCheckType]):
         }
 
 
-class InjectGradeForm(forms.ModelForm[InjectGrade]):
-    """Form for white/gold team to grade inject submissions."""
-
-    class Meta:
-        model = InjectGrade
-        fields = ["points_awarded", "notes"]
-        widgets = {
-            "notes": forms.Textarea(attrs={"rows": 2, "placeholder": "Grader notes (optional)"}),
-        }
-
-    def __init__(self, max_points: Decimal | None = None, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-        if max_points:
-            self.fields["points_awarded"].widget.attrs["max"] = float(max_points)
-            self.fields["points_awarded"].help_text = f"Maximum: {max_points} points"
-
-
-class BulkInjectGradingForm(forms.Form):
-    """Form for bulk inject grading (spreadsheet-style interface)."""
-
-    def __init__(self, injects: list[dict[str, Any]], teams: list[Team], *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-        # Create a field for each team-inject combination
-        for inject in injects:
-            for team in teams:
-                field_name = f"inject_{inject['inject_id']}_team_{team.team_number}"
-                self.fields[field_name] = forms.DecimalField(
-                    required=False,
-                    min_value=Decimal("0"),
-                    max_value=inject["points"],
-                    decimal_places=2,
-                    widget=forms.NumberInput(
-                        attrs={
-                            "class": "inject-score-input",
-                            "placeholder": "0",
-                            "data-inject": inject["inject_id"],
-                            "data-team": team.team_number,
-                        }
-                    ),
-                )
-
-
 class IncidentMatchForm(forms.ModelForm[IncidentReport]):
     """Form for gold team to match incident reports to red team findings."""
 
@@ -344,19 +297,3 @@ class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
             "sla_multiplier": "Multiplier applied to SLA penalties (e.g., 1.0 = 100%)",
             "recovery_multiplier": "Multiplier applied to incident recovery points (e.g., 1.0 = 100%)",
         }
-
-
-class BlackTeamAdjustmentForm(forms.ModelForm[BlackTeamAdjustment]):
-    """Form for manual point adjustments."""
-
-    class Meta:
-        model = BlackTeamAdjustment
-        fields = ["team", "reason", "point_adjustment"]
-        widgets = {
-            "reason": forms.Textarea(attrs={"rows": 3}),
-        }
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
-        team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
