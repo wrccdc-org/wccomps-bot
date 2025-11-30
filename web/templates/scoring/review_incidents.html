@@ -74,19 +74,19 @@
                         </td>
                         <td class="field-evidence">
                             {% if incident.screenshots.exists %}
-                                <c-badge variant="success">{{ incident.screenshots.count }} files</c-badge>
+                                <c-badge status="success">{{ incident.screenshots.count }} files</c-badge>
                             {% else %}
                                 <span class="text-muted">None</span>
                             {% endif %}
                         </td>
                         <td class="field-status">
                             {% if incident.gold_team_reviewed %}
-                                <span class="text-success font-semibold">✓ Reviewed</span>
+                                <c-badge status="resolved">✓ Reviewed</c-badge>
                                 {% if incident.points_returned %}
-                                <div class="text-sm text-muted">+{{ incident.points_returned }} pts</div>
+                                <div class="text-sm"><c-score_value :value="incident.points_returned" format="signed" /></div>
                                 {% endif %}
                             {% else %}
-                                <span class="text-warning font-semibold">⏳ Pending</span>
+                                <c-badge status="claimed">⏳ Pending</c-badge>
                             {% endif %}
                         </td>
                         <td class="field-actions">

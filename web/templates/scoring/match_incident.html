@@ -4,32 +4,20 @@
 <div class="grid-2 gap-20">
     <c-module>
         <h2 class="module-header">Incident Report #{{ incident.id }}</h2>
-        <table class="detail-table mb-15" aria-label="Incident report details">
-            <tr>
-                <th>Team:</th>
-                <td>{{ incident.team.team_name }}</td>
-            </tr>
-            <tr>
-                <th>Affected Box:</th>
-                <td>{{ incident.affected_box }}</td>
-            </tr>
-            <tr>
-                <th>Affected Service:</th>
-                <td>{{ incident.affected_service }}</td>
-            </tr>
-            <tr>
-                <th>Source IP:</th>
-                <td><code>{{ incident.source_ip }}</code></td>
-            </tr>
-            <tr>
-                <th>Detected At:</th>
-                <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-            </tr>
-            <tr>
-                <th>Attack Description:</th>
-                <td>{{ incident.attack_description }}</td>
-            </tr>
-        </table>
+        <c-detail_grid class="mb-15">
+            <dt>Team</dt>
+            <dd>{{ incident.team.team_name }}</dd>
+            <dt>Affected Box</dt>
+            <dd>{{ incident.affected_box }}</dd>
+            <dt>Affected Service</dt>
+            <dd>{{ incident.affected_service }}</dd>
+            <dt>Source IP</dt>
+            <dd><code>{{ incident.source_ip }}</code></dd>
+            <dt>Detected At</dt>
+            <dd>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</dd>
+            <dt>Attack Description</dt>
+            <dd>{{ incident.attack_description }}</dd>
+        </c-detail_grid>
 
         <div class="mb-15">
             <h3 class="text-md mt-0">Description</h3>
@@ -74,7 +62,7 @@
                     <div>
                         <strong>Finding #{{ finding.id }}</strong>
                         {% if finding.source_ip == incident.source_ip %}
-                        <c-badge variant="success" class="ml-5">IP Match</c-badge>
+                        <c-badge status="success" class="ml-5">IP Match</c-badge>
                         {% endif %}
                         <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
                         <br><small class="text-muted">
@@ -84,7 +72,7 @@
                             Source IP: <code>{{ finding.source_ip }}</code>
                         </small>
                     </div>
-                    <c-badge variant="danger">-{{ finding.points_per_team }} pts</c-badge>
+                    <c-badge status="danger">-{{ finding.points_per_team }} pts</c-badge>
                 </div>
                 <small class="text-muted d-block mt-5">
                     Submitted: {{ finding.created_at|date:"m/d H:i" }}

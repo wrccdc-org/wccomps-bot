@@ -37,12 +37,16 @@
 <c-module>
     <h2>Quotient Integration</h2>
     {% if metadata %}
-    <table class="detail-table mb-15" aria-label="Quotient integration status">
-        <tr><th style="width: 150px;">Last Synced:</th><td>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</td></tr>
-        <tr><th>Event:</th><td>{{ metadata.event_name }}</td></tr>
-        <tr><th>Teams:</th><td>{{ metadata.team_count }}</td></tr>
-        <tr><th>Boxes:</th><td>{{ metadata.boxes|length }}</td></tr>
-    </table>
+    <c-detail_grid class="mb-15">
+        <dt>Last Synced</dt>
+        <dd>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</dd>
+        <dt>Event</dt>
+        <dd>{{ metadata.event_name }}</dd>
+        <dt>Teams</dt>
+        <dd>{{ metadata.team_count }}</dd>
+        <dt>Boxes</dt>
+        <dd>{{ metadata.boxes|length }}</dd>
+    </c-detail_grid>
     {% else %}
     <c-alert variant="warning">Metadata not synced yet</c-alert>
     {% endif %}

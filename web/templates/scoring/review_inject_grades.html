@@ -114,9 +114,9 @@
                             </td>
                             <td class="field-status">
                                 {% if grade.is_approved %}
-                                    <span class="text-success font-semibold">✓ Approved</span>
+                                    <c-badge status="resolved">✓ Approved</c-badge>
                                 {% else %}
-                                    <span class="text-warning font-semibold">⏳ Pending</span>
+                                    <c-badge status="claimed">⏳ Pending</c-badge>
                                 {% endif %}
                             </td>
                         </tr>

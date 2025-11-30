@@ -4,7 +4,7 @@
 
 {% block content %}
 <div id="content-main">
-    <h1>Team Registration Review</h1>
+    <c-page_header title="Team Registration Review" />
 
     {% if messages %}
         {% for message in messages %}
@@ -47,7 +47,7 @@
                             <td>{{ registration.contact_email }}</td>
                             <td>{{ registration.phone }}</td>
                             <td>
-                                <c-badge variant="{% if registration.status == 'approved' %}success{% elif registration.status == 'rejected' %}danger{% elif registration.status == 'credentials_sent' %}info{% else %}warning{% endif %}">
+                                <c-badge status="{% if registration.status == 'approved' %}resolved{% elif registration.status == 'rejected' %}danger{% elif registration.status == 'credentials_sent' %}info{% else %}claimed{% endif %}">
                                     {{ registration.get_status_display }}
                                 </c-badge>
                             </td>
@@ -64,7 +64,9 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center">No registrations found.</td>
+                            <td colspan="6">
+                                <c-empty_state title="No registrations found" description="Registration requests will appear here" />
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

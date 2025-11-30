@@ -115,21 +115,21 @@
                             </td>
                             <td class="field-evidence">
                                 {% if finding.screenshots.exists %}
-                                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
+                                    <c-badge status="success">{{ finding.screenshots.count }} files</c-badge>
                                 {% else %}
                                     <span class="text-muted">None</span>
                                 {% endif %}
                             </td>
                             {% if is_gold_team %}
-                            <td class="field-points" style="color: #dc3545;">
-                                {% if finding.is_approved %}-{{ finding.points_per_team }}{% else %}—{% endif %}
+                            <td class="field-points">
+                                {% if finding.is_approved %}<span style="color: #dc3545;">-{{ finding.points_per_team }}</span>{% else %}—{% endif %}
                             </td>
                             {% endif %}
                             <td class="field-status">
                                 {% if finding.is_approved %}
-                                    <span class="text-success font-semibold">✓ Reviewed</span>
+                                    <c-badge status="resolved">✓ Reviewed</c-badge>
                                 {% else %}
-                                    <span class="text-warning font-semibold">⏳ Pending</span>
+                                    <c-badge status="claimed">⏳ Pending</c-badge>
                                 {% endif %}
                             </td>
                         </tr>

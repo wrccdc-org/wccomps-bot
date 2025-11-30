@@ -89,12 +89,12 @@
                         <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
                         <td class="field-verified">
                             {% if item.ticket.points_verified %}
-                                <span class="text-success font-semibold">✓ Verified</span>
+                                <c-badge status="resolved">✓ Verified</c-badge>
                                 <div class="text-sm text-muted">
                                     by {{ item.ticket.points_verified_by.username }}
                                 </div>
                             {% else %}
-                                <span class="text-warning font-semibold">⏳ Pending</span>
+                                <c-badge status="claimed">⏳ Pending</c-badge>
                             {% endif %}
                         </td>
                         <td class="field-actions">

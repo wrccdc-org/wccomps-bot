@@ -11,108 +11,43 @@
             {% csrf_token %}
 
             <!-- Target Information Section -->
-            <div class="mb-4">
-                <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
-
+            <c-fieldset legend="Target Information">
                 {% if is_admin %}
-                <div class="mb-15">
-                    <label for="{{ form.team.id_for_label }}" class="form-label required">
-                        {{ form.team.label }}
-                    </label>
+                <c-form_field label="{{ form.team.label }}" required="true" :id="form.team.id_for_label" help_text="{{ form.team.help_text }}" error="{{ form.team.errors|join:', ' }}">
                     {{ form.team }}
-                    {% if form.team.help_text %}
-                        <div class="form-text">{{ form.team.help_text }}</div>
-                    {% endif %}
-                    {% if form.team.errors %}
-                        <div class="text-danger">{{ form.team.errors }}</div>
-                    {% endif %}
-                </div>
+                </c-form_field>
                 {% endif %}
 
                 <div class="grid-2">
-                    <div class="mb-3">
-                        <label for="{{ form.affected_box.id_for_label }}" class="form-label required">
-                            {{ form.affected_box.label }}
-                        </label>
+                    <c-form_field label="{{ form.affected_box.label }}" required="true" :id="form.affected_box.id_for_label" help_text="{{ form.affected_box.help_text }}" error="{{ form.affected_box.errors|join:', ' }}">
                         {{ form.affected_box }}
-                        {% if form.affected_box.help_text %}
-                            <div class="form-text">{{ form.affected_box.help_text }}</div>
-                        {% endif %}
-                        {% if form.affected_box.errors %}
-                            <div class="text-danger">{{ form.affected_box.errors }}</div>
-                        {% endif %}
-                    </div>
+                    </c-form_field>
 
-                    <div class="mb-3">
-                        <label for="{{ form.affected_service.id_for_label }}" class="form-label">
-                            {{ form.affected_service.label }}
-                        </label>
+                    <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" help_text="{{ form.affected_service.help_text }}" error="{{ form.affected_service.errors|join:', ' }}">
                         {{ form.affected_service }}
-                        {% if form.affected_service.help_text %}
-                            <div class="form-text">{{ form.affected_service.help_text }}</div>
-                        {% endif %}
-                        {% if form.affected_service.errors %}
-                            <div class="text-danger">{{ form.affected_service.errors }}</div>
-                        {% endif %}
-                    </div>
+                    </c-form_field>
                 </div>
 
-                <div class="mb-3">
-                    <label for="{{ form.destination_ip.id_for_label }}" class="form-label required">
-                        {{ form.destination_ip.label }}
-                    </label>
+                <c-form_field label="{{ form.destination_ip.label }}" required="true" :id="form.destination_ip.id_for_label" help_text="Auto-populated based on selected box" error="{{ form.destination_ip.errors|join:', ' }}">
                     {{ form.destination_ip }}
-                    <div class="form-text">Auto-populated based on selected box</div>
-                    {% if form.destination_ip.errors %}
-                        <div class="text-danger">{{ form.destination_ip.errors }}</div>
-                    {% endif %}
-                </div>
-            </div>
+                </c-form_field>
+            </c-fieldset>
 
             <!-- Attack Details Section -->
-            <div class="mb-4">
-                <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
-
+            <c-fieldset legend="Attack Details">
                 <div class="grid-2">
-                    <div class="mb-3">
-                        <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
-                            {{ form.source_ip.label }}
-                        </label>
+                    <c-form_field label="{{ form.source_ip.label }}" required="true" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
                         {{ form.source_ip }}
-                        {% if form.source_ip.help_text %}
-                            <div class="form-text">{{ form.source_ip.help_text }}</div>
-                        {% endif %}
-                        {% if form.source_ip.errors %}
-                            <div class="text-danger">{{ form.source_ip.errors }}</div>
-                        {% endif %}
-                    </div>
+                    </c-form_field>
 
-                    <div class="mb-3">
-                        <label for="{{ form.attack_detected_at.id_for_label }}" class="form-label required">
-                            {{ form.attack_detected_at.label }}
-                        </label>
+                    <c-form_field label="{{ form.attack_detected_at.label }}" required="true" :id="form.attack_detected_at.id_for_label" help_text="{{ form.attack_detected_at.help_text }}" error="{{ form.attack_detected_at.errors|join:', ' }}">
                         {{ form.attack_detected_at }}
-                        {% if form.attack_detected_at.help_text %}
-                            <div class="form-text">{{ form.attack_detected_at.help_text }}</div>
-                        {% endif %}
-                        {% if form.attack_detected_at.errors %}
-                            <div class="text-danger">{{ form.attack_detected_at.errors }}</div>
-                        {% endif %}
-                    </div>
+                    </c-form_field>
                 </div>
 
-                <div class="mb-3">
-                    <label for="{{ form.attack_description.id_for_label }}" class="form-label required">
-                        {{ form.attack_description.label }}
-                    </label>
+                <c-form_field label="{{ form.attack_description.label }}" required="true" :id="form.attack_description.id_for_label" help_text="{{ form.attack_description.help_text }}" error="{{ form.attack_description.errors|join:', ' }}">
                     {{ form.attack_description }}
-                    {% if form.attack_description.help_text %}
-                        <div class="form-text">{{ form.attack_description.help_text }}</div>
-                    {% endif %}
-                    {% if form.attack_description.errors %}
-                        <div class="text-danger">{{ form.attack_description.errors }}</div>
-                    {% endif %}
-                </div>
+                </c-form_field>
 
                 <div class="form-check mb-2">
                     {{ form.attack_mitigated }}
@@ -123,14 +58,11 @@
                         <div class="form-text">{{ form.attack_mitigated.help_text }}</div>
                     {% endif %}
                 </div>
-            </div>
+            </c-fieldset>
 
             <!-- Screenshot Evidence Section -->
-            <div class="mb-4">
-                <h5 class="border-bottom pb-2 mb-3">Screenshot Evidence</h5>
-
-                <div class="mb-3">
-                    <label for="screenshots" class="form-label">Upload Screenshots</label>
+            <c-fieldset legend="Screenshot Evidence">
+                <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload screenshots showing attack evidence. Maximum 20 files.">
                     <input type="file"
                            class="form-control"
                            id="screenshots"
@@ -138,13 +70,10 @@
                            accept="image/*"
                            multiple
                            onchange="previewScreenshots(this)">
-                    <div class="form-text">
-                        Upload screenshots showing attack evidence. Maximum 20 files.
-                    </div>
-                </div>
+                </c-form_field>
 
                 <div id="screenshotPreview" class="grid-4 mb-15"></div>
-            </div>
+            </c-fieldset>
 
             <c-alert variant="info" class="mb-20">
                 <h3 class="mt-0 text-lg">Submission Guidelines</h3>
@@ -260,12 +189,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<style>
-h5 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
-}
-</style>
 {% endblock %}
