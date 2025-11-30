@@ -1,21 +1,28 @@
 {# Filter toolbar component - search and filter form #}
 {# Usage: <c-filter_toolbar form_id="filter-form" method="GET">Filter fields here</c-filter_toolbar> #}
 {# Props: form_id, method (GET|POST), action, class, aria_label #}
+{# Slots: default (filter fields), actions (buttons on the right) #}
 
 <c-vars form_id="changelist-filter" method="GET" action="" class="" aria_label="Filter results" />
 
-<div class="toolbar">
+<div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
     <form
         id="{{ form_id }}"
         method="{{ method }}"
         {% if action %}action="{{ action }}"{% endif %}
         role="search"
         aria-label="{{ aria_label }}"
-        class="{{ class }}">
+        class="{{ class }}"
+        style="flex: 1;">
         <div id="filter-content">
             <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                 {{ slot }}
             </div>
         </div>
     </form>
+    {% if actions %}
+    <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
+        {{ actions }}
+    </div>
+    {% endif %}
 </div>

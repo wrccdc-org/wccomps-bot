@@ -1,76 +1,162 @@
 {% extends "scoring/base.html" %}
 
+{% block title %}Review Incidents - WCComps{% endblock %}
+
+{% block scoring_title %}Review Incidents{% endblock %}
+
 {% block scoring_content %}
-<c-module class="mb-20">
-    <h2>Gold Team - Incident Review</h2>
-    <div class="stats-grid">
-        <div>
-            <h2 class="text-primary">{{ total_incidents }}</h2>
-            <p>Total Reports</p>
-        </div>
-        <div>
-            <h2 class="text-success">{{ reviewed_count }}</h2>
-            <p>Reviewed</p>
-        </div>
-        <div>
-            <h2 class="text-warning">{{ pending_count }}</h2>
-            <p>Pending</p>
-        </div>
-    </div>
-</c-module>
+<div id="content-main">
+    <c-module filtered="true" id="changelist">
+        <c-filter_toolbar form_id="changelist-filter">
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+                    <option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </c-filter_field>
 
-<c-module>
-    <h2>Pending Incidents</h2>
-    <p class="text-muted mt-0">Match incident reports to red team findings and award recovery points</p>
+            <c-filter_field label="Team" id="id_team">
+                <select name="team" id="id_team" aria-label="Filter by team">
+                    <option value="">All Teams</option>
+                    {% for team in available_teams %}
+                        <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
+                            {{ team.team_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
 
-    {% if incidents %}
-    <c-table id="pending_incidents" aria_label="Pending incident reports">
-        <c-slot name="headers">
-            <tr>
-                <th>ID</th>
-                <th>Team</th>
-                <th>Box/Service</th>
-                <th>Attack Vector</th>
-                <th>Detected At</th>
-                <th>Evidence</th>
-                <th>Actions</th>
-            </tr>
-        </c-slot>
+            <c-filter_field label="Box" id="id_box" min_width="120px">
+                <input type="text" name="box" id="id_box" value="{{ selected_box|default:'' }}" placeholder="Box name..." aria-label="Filter by box">
+            </c-filter_field>
+        </c-filter_toolbar>
 
-        {% for incident in incidents %}
-        <tr>
-            <td><strong>#{{ incident.id }}</strong></td>
-            <td>{{ incident.team.team_name }}</td>
-            <td>
-                <strong>{{ incident.affected_box }}</strong><br>
-                <small class="text-muted">{{ incident.affected_service }}</small>
-            </td>
-            <td>{{ incident.attack_vector|truncatechars:40 }}</td>
-            <td>
-                <small>{{ incident.attack_detected_at|date:"m/d H:i" }}</small><br>
-                <small class="text-muted">Submitted: {{ incident.created_at|date:"m/d H:i" }}</small>
-            </td>
-            <td>
-                {% if incident.screenshots.exists %}
-                    <c-badge variant="success">{{ incident.screenshots.count }} files</c-badge>
-                {% else %}
-                    <span class="text-muted">None</span>
-                {% endif %}
-            </td>
-            <td>
-                <div class="d-flex gap-5">
-                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}">View</c-link>
-                    <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </c-table>
-    {% else %}
-    <c-alert variant="success">
-        <h3 class="mt-0">All incidents reviewed!</h3>
-        <p class="mb-0">There are no pending incident reports to review.</p>
-    </c-alert>
-    {% endif %}
-</c-module>
+        <div class="results">
+            <table id="result_list" role="grid" aria-label="Incident reports list" style="table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 6%;">
+                    <col style="width: 15%;">
+                    <col style="width: 15%;">
+                    <col style="width: 22%;">
+                    <col style="width: 14%;">
+                    <col style="width: 8%;">
+                    <col style="width: 10%;">
+                    <col style="width: 10%;">
+                </colgroup>
+                <thead>
+                    <tr role="row">
+                        <th scope="col">
+                            <div class="text"><span>ID</span></div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">
+                                    Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col">
+                            <div class="text"><span>Box/Service</span></div>
+                        </th>
+                        <th scope="col">
+                            <div class="text"><span>Attack Vector</span></div>
+                        </th>
+                        <th scope="col" class="sortable">
+                            <div class="text">
+                                <a href="?sort={% if sort_by == 'attack_detected_at' %}-{% endif %}attack_detected_at&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">
+                                    Detected {% if sort_by == 'attack_detected_at' %}▲{% elif sort_by == '-attack_detected_at' %}▼{% endif %}
+                                </a>
+                            </div>
+                        </th>
+                        <th scope="col">
+                            <div class="text"><span>Evidence</span></div>
+                        </th>
+                        <th scope="col">
+                            <div class="text"><span>Status</span></div>
+                        </th>
+                        <th scope="col">
+                            <div class="text"><span>Actions</span></div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for incident in page_obj %}
+                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
+                        <th class="field-id">
+                            <a href="{% url 'scoring:view_incident_report' incident.id %}">#{{ incident.id }}</a>
+                        </th>
+                        <td class="field-team">{{ incident.team.team_name }}</td>
+                        <td class="field-box">
+                            {{ incident.affected_box }}
+                            <div class="text-sm text-muted">{{ incident.affected_service }}</div>
+                        </td>
+                        <td class="field-attack_vector">{{ incident.attack_vector|truncatechars:50 }}</td>
+                        <td class="field-detected">
+                            {{ incident.attack_detected_at|timesince }} ago
+                            <div class="text-sm text-muted">Submitted: {{ incident.created_at|date:"m/d H:i" }}</div>
+                        </td>
+                        <td class="field-evidence">
+                            {% if incident.screenshots.exists %}
+                                <c-badge variant="success">{{ incident.screenshots.count }} files</c-badge>
+                            {% else %}
+                                <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="field-status">
+                            {% if incident.gold_team_reviewed %}
+                                <span class="text-success font-semibold">✓ Reviewed</span>
+                                {% if incident.points_returned %}
+                                <div class="text-sm text-muted">+{{ incident.points_returned }} pts</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-warning font-semibold">⏳ Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="field-actions">
+                            {% if not incident.gold_team_reviewed %}
+                            <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
+                            {% else %}
+                            <span class="text-secondary">Reviewed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            {% if selected_team or selected_box or status_filter != 'pending' %}
+                                No incidents match your filters. Try adjusting your filters or <a href="{% url 'scoring:review_incidents' %}">clearing all filters</a>
+                            {% else %}
+                                No pending incidents. All incident reports have been reviewed.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}&sort={{ sort_by }}" />
+    </c-module>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('changelist-filter');
+    const statusSelect = document.getElementById('id_status');
+    const teamSelect = document.getElementById('id_team');
+    const boxInput = document.getElementById('id_box');
+
+    // Auto-submit on change for select filters
+    statusSelect.addEventListener('change', () => filterForm.submit());
+    teamSelect.addEventListener('change', () => filterForm.submit());
+
+    // Debounced search for box
+    let searchTimeout;
+    boxInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => filterForm.submit(), 800);
+    });
+});
+</script>
 {% endblock %}
