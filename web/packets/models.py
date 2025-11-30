@@ -138,11 +138,6 @@ class PacketDistribution(models.Model):
             ]
         )
 
-    def mark_as_delivered(self) -> None:
-        """Mark email as delivered (requires email delivery tracking)."""
-        self.email_status = "delivered"
-        self.save(update_fields=["email_status", "updated_at"])
-
     def mark_as_failed(self, error_message: str) -> None:
         """Mark email delivery as failed."""
         self.email_status = "failed"

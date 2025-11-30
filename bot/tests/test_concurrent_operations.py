@@ -97,42 +97,6 @@ class TestConcurrentGroupRoleAssignments:
         member1.add_roles.assert_called_once()
         member2.add_roles.assert_called_once()
 
-    async def test_concurrent_assign_and_remove_same_user(self) -> None:
-        """Test concurrent assign and remove operations on same user."""
-        guild = MagicMock(spec=discord.Guild)
-        member = MagicMock(spec=discord.Member)
-        member.add_roles = AsyncMock()
-        member.remove_roles = AsyncMock()
-
-        whiteteam_role = MagicMock(spec=discord.Role)
-        whiteteam_role.id = 647838503505362957
-        whiteteam_role.name = "WhiteTeam"
-
-        blackteam_role = MagicMock(spec=discord.Role)
-        blackteam_role.id = 779192640540639263
-        blackteam_role.name = "BlackTeam"
-
-        member.roles = [blackteam_role]
-
-        role_map = {
-            647838503505362957: whiteteam_role,
-            779192640540639263: blackteam_role,
-        }
-
-        guild.get_role = MagicMock(side_effect=lambda rid: role_map.get(rid))
-
-        manager = DiscordManager(guild)
-
-        # Concurrently add WhiteTeam and remove BlackTeam
-        results = await asyncio.gather(
-            manager.assign_group_roles(member, ["WCComps_WhiteTeam"]),
-            manager.remove_group_roles(member, ["WCComps_BlackTeam"]),
-        )
-
-        assert all(results)
-        member.add_roles.assert_called_once()
-        member.remove_roles.assert_called_once()
-
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)

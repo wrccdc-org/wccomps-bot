@@ -73,25 +73,3 @@ class AuthentikManager:
             else:
                 logger.exception(f"Failed to update Authentik user discord_id: {e}")
             raise
-
-    def get_user_by_discord_id(self, discord_id: int) -> dict[str, Any] | None:
-        """
-        Find Authentik user by Discord ID.
-
-        Args:
-            discord_id: Discord user ID (snowflake)
-
-        Returns:
-            dict: User data or None if not found
-        """
-        try:
-            # Search for user with discord_id attribute
-            response = self.client.get(
-                "/api/v3/core/users/",
-                params={"attributes__discord_id": str(discord_id)},
-            )
-            results = response.get("results", [])
-            return results[0] if results else None
-        except Exception as e:
-            logger.exception(f"Failed to search for user by discord_id: {e}")
-            return None

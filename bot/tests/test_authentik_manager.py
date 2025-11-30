@@ -264,61 +264,6 @@ class TestAuthentikManager:
             assert error is not None
             assert "No BlueTeam group found" in error
 
-    def test_find_blueteam_group_from_first_app(self, manager: AuthentikManager) -> None:
-        """Test finding BlueTeam group from first application."""
-        app_slugs = ["netbird", "scoring", "vault"]
-
-        # Mock get_application_by_slug to return app for first slug
-        with (
-            patch.object(manager, "get_application_by_slug") as mock_get_app,
-            patch.object(manager, "get_blueteam_group") as mock_get_group,
-        ):
-            mock_get_app.return_value = {"pk": "app-netbird"}
-            mock_get_group.return_value = ("group-blueteam-123", None)
-
-            group_pk, error = manager.find_blueteam_group_from_any_app(app_slugs)
-
-            assert group_pk == "group-blueteam-123"
-            assert error is None
-            mock_get_app.assert_called_once_with("netbird")
-
-    def test_find_blueteam_group_from_second_app(self, manager: AuthentikManager) -> None:
-        """Test finding BlueTeam group from second application."""
-        app_slugs = ["netbird", "scoring", "vault"]
-
-        with (
-            patch.object(manager, "get_application_by_slug") as mock_get_app,
-            patch.object(manager, "get_blueteam_group") as mock_get_group,
-        ):
-            # First app exists but no group, second app has group
-            mock_get_app.side_effect = [{"pk": "app-netbird"}, {"pk": "app-scoring"}]
-            mock_get_group.side_effect = [
-                (None, "Not found"),
-                ("group-blueteam-123", None),
-            ]
-
-            group_pk, error = manager.find_blueteam_group_from_any_app(app_slugs)
-
-            assert group_pk == "group-blueteam-123"
-            assert error is None
-
-    def test_find_blueteam_group_not_found_any_app(self, manager: AuthentikManager) -> None:
-        """Test BlueTeam group not found in any application."""
-        app_slugs = ["netbird", "scoring"]
-
-        with (
-            patch.object(manager, "get_application_by_slug") as mock_get_app,
-            patch.object(manager, "get_blueteam_group") as mock_get_group,
-        ):
-            mock_get_app.side_effect = [{"pk": "app-1"}, {"pk": "app-2"}]
-            mock_get_group.return_value = (None, "Not found")
-
-            group_pk, error = manager.find_blueteam_group_from_any_app(app_slugs)
-
-            assert group_pk is None
-            assert error is not None
-            assert "Could not find BlueTeam group" in error
-
     def test_update_binding_enabled_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating binding enabled state."""
         binding = {

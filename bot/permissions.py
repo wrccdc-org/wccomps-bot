@@ -181,17 +181,6 @@ async def is_gold_team_async(interaction: discord.Interaction) -> bool:
         return False
 
 
-async def get_permission_level_async(interaction: discord.Interaction) -> str:
-    """Get user's permission level for logging (async version)."""
-    if await is_admin_async(interaction):
-        return "admin"
-    if await can_manage_tickets_async(interaction):
-        return "ticketing_admin"
-    if await can_support_tickets_async(interaction):
-        return "ticketing_support"
-    return "none"
-
-
 # Permission check functions for use with @app_commands.check()
 async def check_admin(interaction: discord.Interaction) -> bool:
     """Check if user has admin permissions."""

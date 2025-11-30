@@ -177,65 +177,6 @@ class AuthentikManager:
             logger.error(error_msg, exc_info=True)
             return None, error_msg
 
-    def get_blueteam_group(self, app_pk: str) -> tuple[str | None, str | None]:
-        """Get the BlueTeam group PK from an application's bindings.
-
-        Args:
-            app_pk: Application primary key to query bindings for
-
-        Returns:
-            tuple[Optional[str], Optional[str]]: (group_pk, error_message)
-        """
-        url = f"{self.base_url}/api/v3/policies/bindings/"
-        try:
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params={"target": app_pk},
-                timeout=10,
-            )
-            response.raise_for_status()
-            bindings = response.json().get("results", [])
-
-            for binding in bindings:
-                group_obj = binding.get("group_obj", {})
-                group_pk = binding.get("group")
-
-                if group_obj and "blueteam" in group_obj.get("name", "").lower():
-                    logger.info(f"Found BlueTeam group PK: {group_pk}")
-                    return group_pk, None
-
-            error_msg = f"No BlueTeam group found in bindings for application {app_pk}"
-            return None, error_msg
-
-        except Exception as e:
-            error_msg = f"Error getting BlueTeam group: {e}"
-            logger.exception(error_msg)
-            return None, error_msg
-
-    def find_blueteam_group_from_any_app(self, app_slugs: list[str]) -> tuple[str | None, str | None]:
-        """Find the BlueTeam group by checking bindings across multiple apps.
-
-        Args:
-            app_slugs: List of application slugs to check
-
-        Returns:
-            tuple[Optional[str], Optional[str]]: (group_pk, error_message)
-        """
-        for slug in app_slugs:
-            app = self.get_application_by_slug(slug)
-            if not app:
-                continue
-
-            group_pk, _ = self.get_blueteam_group(app["pk"])
-            if group_pk:
-                logger.info(f"Found BlueTeam group {group_pk} from application '{slug}'")
-                return group_pk, None
-
-        error_msg = f"Could not find BlueTeam group in any of the applications: {app_slugs}"
-        logger.error(error_msg)
-        return None, error_msg
-
     def update_binding_enabled(self, binding: dict[str, Any], enabled: bool) -> bool:
         """Update the enabled state of a binding.
 

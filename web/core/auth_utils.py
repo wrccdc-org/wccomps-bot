@@ -3,7 +3,6 @@ Simplified Authentik-only authorization utilities.
 """
 
 from collections.abc import Callable
-from functools import lru_cache
 from typing import Any
 
 from allauth.socialaccount.models import SocialAccount
@@ -125,81 +124,3 @@ def require_permission(
         return wrapped
 
     return decorator
-
-
-# Cache decorator for performance (optional)
-# Groups rarely change during a session
-@lru_cache(maxsize=128, typed=False)
-def get_cached_authentik_groups(user_id: int) -> list[str]:
-    """
-    Cached version of group fetching (5 minute TTL).
-    Use this for non-critical checks where slight staleness is acceptable.
-    """
-    try:
-        user = User.objects.get(id=user_id)
-        return get_authentik_groups(user)
-    except User.DoesNotExist:
-        return []
-
-
-# Clear cache when needed
-def clear_user_cache(user: User) -> None:
-    """Clear cached groups for a user (e.g., after permission change)."""
-    get_cached_authentik_groups.cache_clear()
-
-
-def require_ops_permission(view_func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator to require ticketing_support OR ticketing_admin permission.
-
-    Usage:
-        @require_ops_permission
-        def ops_ticket_list(request):
-            ...
-    """
-    from functools import wraps
-
-    from django.contrib import messages
-    from django.shortcuts import redirect
-
-    @wraps(view_func)
-    def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
-        if not request.user.is_authenticated:
-            return redirect("/")
-        if not (has_permission(request.user, "ticketing_support") or has_permission(request.user, "ticketing_admin")):
-            messages.error(request, "You don't have permission to access this page.")
-            return redirect("/")
-        return view_func(request, *args, **kwargs)
-
-    return wrapped
-
-
-def require_scoring_permission(view_func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator to require gold_team OR white_team permission for scoring views.
-
-    Usage:
-        @require_scoring_permission
-        def leaderboard(request):
-            ...
-    """
-    from functools import wraps
-
-    from django.contrib import messages
-    from django.shortcuts import redirect
-
-    @wraps(view_func)
-    def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
-        if not request.user.is_authenticated:
-            return redirect("/")
-        if not (
-            has_permission(request.user, "gold_team")
-            or has_permission(request.user, "white_team")
-            or has_permission(request.user, "ticketing_admin")
-            or request.user.is_staff
-        ):
-            messages.error(request, "You don't have permission to access this page.")
-            return redirect("/")
-        return view_func(request, *args, **kwargs)
-
-    return wrapped

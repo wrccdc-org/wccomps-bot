@@ -7,9 +7,7 @@ import discord
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
-from core.models import AuditLog
 from team.models import Team
-from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
 
@@ -38,21 +36,6 @@ async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.E
             logger.error(f"Channel {channel_id} is not a text channel or thread")
     except Exception as e:
         logger.exception(f"Failed to log to ops channel: {e}")
-
-
-def format_team_name(team_number: int) -> str:
-    """Format team name consistently."""
-    return f"BlueTeam{team_number:02d}"
-
-
-def format_role_name(team_number: int) -> str:
-    """Format role name consistently."""
-    return f"Team {team_number:02d}"
-
-
-def format_category_name(team_number: int) -> str:
-    """Format category name consistently."""
-    return f"team {team_number:02d}"
 
 
 async def get_team_or_respond(
@@ -103,27 +86,6 @@ async def safe_remove_role(member: discord.Member, role: discord.Role, reason: s
         return False
 
 
-async def safe_add_role(member: discord.Member, role: discord.Role, reason: str | None = None) -> bool:
-    """
-    Safely add a role to a member, catching permission errors.
-
-    Returns:
-        True if role was added or member already had it, False on error
-    """
-    if role in member.roles:
-        return True
-
-    try:
-        await member.add_roles(role, reason=reason)
-        return True
-    except discord.errors.Forbidden:
-        logger.warning(f"Permission denied adding role {role.name} to {member}")
-        return False
-    except Exception as e:
-        logger.exception(f"Error adding role {role.name} to {member}: {e}")
-        return False
-
-
 async def remove_blueteam_role(member: discord.Member, guild: discord.Guild, reason: str | None = None) -> bool:
     """
     Remove Blueteam role from a member if they have it.
@@ -136,78 +98,6 @@ async def remove_blueteam_role(member: discord.Member, guild: discord.Guild, rea
         return True
 
     return await safe_remove_role(member, blueteam_role, reason)
-
-
-def log_action(
-    actor_username: str,
-    action: str,
-    details: str | dict[str, str],
-    ticket: Optional["Ticket"] = None,
-    team: Optional["Team"] = None,
-) -> tuple["AuditLog", Optional["TicketHistory"]]:
-    """
-    Create audit log and optionally ticket history for an action.
-
-    Args:
-        actor_username: Username performing the action
-        action: Action type (e.g., 'resolved', 'cancelled')
-        details: Detailed description
-        ticket: Optional ticket object for ticket-related actions
-        team: Optional team object for team-related actions
-
-    Returns:
-        Tuple of (AuditLog, TicketHistory or None)
-    """
-    from core.models import AuditLog
-    from ticketing.models import TicketHistory
-
-    # Determine target entity and ID
-    if ticket:
-        target_entity = "ticket"
-        target_id = ticket.id
-    elif team:
-        target_entity = "team"
-        target_id = team.id
-    else:
-        target_entity = "system"
-        target_id = 0
-
-    audit_log = AuditLog.objects.create(
-        action=action,
-        admin_user=actor_username,
-        target_entity=target_entity,
-        target_id=target_id,
-        details=details if isinstance(details, dict) else {"message": details},
-    )
-
-    ticket_history = None
-    if ticket:
-        history_details = details if isinstance(details, dict) else {"message": details}
-        history_details["actor"] = actor_username
-        ticket_history = TicketHistory.objects.create(
-            ticket=ticket,
-            action=action,
-            details=history_details,
-        )
-
-    return audit_log, ticket_history
-
-
-async def safe_post_to_dashboard(bot: discord.Client, ticket: "Ticket") -> bool:
-    """
-    Post ticket to dashboard, catching and logging errors.
-
-    Returns:
-        True if posted successfully, False on error
-    """
-    from bot.ticket_dashboard import post_ticket_to_dashboard
-
-    try:
-        await post_ticket_to_dashboard(bot, ticket)
-        return True
-    except Exception as e:
-        logger.exception(f"Failed to post ticket to dashboard: {e}")
-        return False
 
 
 @sync_to_async

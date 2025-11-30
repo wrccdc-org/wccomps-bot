@@ -249,17 +249,6 @@ class TicketingCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
         logger.info(f"Ticket {ticket.ticket_number} created by {interaction.user} for {link.team.team_name}")
 
-    def _format_point_impact(self, cat_info: dict[str, Any]) -> str:
-        """Format point impact message."""
-        points = cat_info.get("points", 0)
-        if points == 0:
-            return "No point penalty"
-        if cat_info.get("variable_points", False):
-            min_pts = cat_info.get("min_points", 0)
-            max_pts = cat_info.get("max_points", 0)
-            return f"Point penalty: {min_pts}-{max_pts} points (set by volunteer)"
-        return f"Point penalty: {points} points"
-
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         """Handle messages in ticket threads (attachments and rate limiting)."""

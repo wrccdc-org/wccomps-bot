@@ -65,13 +65,13 @@ def unauthenticated_client() -> Client:
 @pytest.fixture
 def blue_team_user(create_user_with_groups: Callable[..., User]) -> User:
     """Create a Blue Team user."""
-    return create_user_with_groups("blueteam01", ["WCComps_BlueTeam_01"])
+    return create_user_with_groups("blueteam01", ["WCComps_BlueTeam01"])
 
 
 @pytest.fixture
 def blue_team_02_user(create_user_with_groups: Callable[..., User]) -> User:
     """Create a second Blue Team user."""
-    return create_user_with_groups("blueteam02", ["WCComps_BlueTeam_02"])
+    return create_user_with_groups("blueteam02", ["WCComps_BlueTeam02"])
 
 
 @pytest.fixture
