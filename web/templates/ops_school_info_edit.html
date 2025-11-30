@@ -20,61 +20,21 @@
             {% endif %}
 
             <c-fieldset aligned="true">
-                <div class="form-row">
-                    <div>
-                        <label class="required" for="school_name">School Name:</label>
-                        <input
-                            type="text"
-                            name="school_name"
-                            id="school_name"
-                            value="{% if school_info %}{{ school_info.school_name }}{% endif %}"
-                            required
-                            placeholder="e.g., University of Example"
-                        >
-                    </div>
-                </div>
+                <c-form_field label="School Name" required="true" id="school_name">
+                    <input type="text" name="school_name" id="school_name" value="{% if school_info %}{{ school_info.school_name }}{% endif %}" required placeholder="e.g., University of Example">
+                </c-form_field>
 
-                <div class="form-row">
-                    <div>
-                        <label class="required" for="contact_email">Contact Email:</label>
-                        <input
-                            type="email"
-                            name="contact_email"
-                            id="contact_email"
-                            value="{% if school_info %}{{ school_info.contact_email }}{% endif %}"
-                            required
-                            placeholder="e.g., coach@example.edu"
-                        >
-                        <p class="help">Primary contact for this team</p>
-                    </div>
-                </div>
+                <c-form_field label="Contact Email" required="true" id="contact_email" help_text="Primary contact for this team">
+                    <input type="email" name="contact_email" id="contact_email" value="{% if school_info %}{{ school_info.contact_email }}{% endif %}" required placeholder="e.g., coach@example.edu">
+                </c-form_field>
 
-                <div class="form-row">
-                    <div>
-                        <label for="secondary_email">Secondary Email:</label>
-                        <input
-                            type="email"
-                            name="secondary_email"
-                            id="secondary_email"
-                            value="{% if school_info %}{{ school_info.secondary_email }}{% endif %}"
-                            placeholder="e.g., alternate@example.edu"
-                        >
-                        <p class="help">Optional secondary contact</p>
-                    </div>
-                </div>
+                <c-form_field label="Secondary Email" id="secondary_email" help_text="Optional secondary contact">
+                    <input type="email" name="secondary_email" id="secondary_email" value="{% if school_info %}{{ school_info.secondary_email }}{% endif %}" placeholder="e.g., alternate@example.edu">
+                </c-form_field>
 
-                <div class="form-row">
-                    <div>
-                        <label for="notes">Notes:</label>
-                        <textarea
-                            name="notes"
-                            id="notes"
-                            rows="4"
-                            placeholder="Additional notes about this team..."
-                        >{% if school_info %}{{ school_info.notes }}{% endif %}</textarea>
-                        <p class="help">Optional internal notes</p>
-                    </div>
-                </div>
+                <c-form_field label="Notes" id="notes" help_text="Optional internal notes">
+                    <textarea name="notes" id="notes" rows="4" placeholder="Additional notes about this team...">{% if school_info %}{{ school_info.notes }}{% endif %}</textarea>
+                </c-form_field>
             </c-fieldset>
 
             <div class="submit-row">

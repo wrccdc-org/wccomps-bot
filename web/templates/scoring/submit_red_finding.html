@@ -109,12 +109,8 @@
                         <div class="d-flex justify-between items-center mb-10">
                             <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
                             <div class="d-flex gap-5">
-                                <button type="button" class="btn-secondary btn-primary-outline" onclick="selectAllTeams()">
-                                    Select All
-                                </button>
-                                <button type="button" class="btn-secondary" onclick="deselectAllTeams()">
-                                    Deselect All
-                                </button>
+                                <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
+                                <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
                             </div>
                         </div>
                         {% if form.affected_teams.help_text %}

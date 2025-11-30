@@ -29,13 +29,9 @@
         <form method="post">
             {% csrf_token %}
             <c-fieldset aligned="true">
-                <div class="form-row">
-                    <div>
-                        <label for="reason" class="required">Rejection Reason:</label>
-                        <textarea id="reason" name="reason" rows="4" required style="width: 100%;"></textarea>
-                        <p class="help">Please provide a reason for rejecting this registration.</p>
-                    </div>
-                </div>
+                <c-form_field label="Rejection Reason" required="true" id="reason" help_text="Please provide a reason for rejecting this registration.">
+                    <textarea id="reason" name="reason" rows="4" required style="width: 100%;"></textarea>
+                </c-form_field>
             </c-fieldset>
 
             <div class="mt-20">

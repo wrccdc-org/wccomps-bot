@@ -7,52 +7,21 @@
     <form method="post">
         {% csrf_token %}
         <c-fieldset aligned="true">
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.team.id_for_label }}" class="required">{{ form.team.label }}:</label>
-                    {{ form.team }}
-                    {% if form.team.errors %}
-                    <ul class="errorlist">{% for e in form.team.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.team.help_text %}
-                    <p class="help">{{ form.team.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.check_type.id_for_label }}" class="required">{{ form.check_type.label }}:</label>
-                    {{ form.check_type }}
-                    {% if form.check_type.errors %}
-                    <ul class="errorlist">{% for e in form.check_type.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    <p class="help">Select a check type to auto-fill points</p>
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.description.id_for_label }}">{{ form.description.label }}:</label>
-                    {{ form.description }}
-                    {% if form.description.errors %}
-                    <ul class="errorlist">{% for e in form.description.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.description.help_text %}
-                    <p class="help">{{ form.description.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label for="{{ form.points_awarded.id_for_label }}" class="required">{{ form.points_awarded.label }}:</label>
-                    {{ form.points_awarded }}
-                    {% if form.points_awarded.errors %}
-                    <ul class="errorlist">{% for e in form.points_awarded.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                    {% endif %}
-                    {% if form.points_awarded.help_text %}
-                    <p class="help">{{ form.points_awarded.help_text }}</p>
-                    {% endif %}
-                </div>
-            </div>
+            <c-form_field label="{{ form.team.label }}" required="true" id="{{ form.team.id_for_label }}" help_text="{{ form.team.help_text }}" error="{% for e in form.team.errors %}{{ e }}{% endfor %}">
+                {{ form.team }}
+            </c-form_field>
+
+            <c-form_field label="{{ form.check_type.label }}" required="true" id="{{ form.check_type.id_for_label }}" help_text="Select a check type to auto-fill points" error="{% for e in form.check_type.errors %}{{ e }}{% endfor %}">
+                {{ form.check_type }}
+            </c-form_field>
+
+            <c-form_field label="{{ form.description.label }}" id="{{ form.description.id_for_label }}" help_text="{{ form.description.help_text }}" error="{% for e in form.description.errors %}{{ e }}{% endfor %}">
+                {{ form.description }}
+            </c-form_field>
+
+            <c-form_field label="{{ form.points_awarded.label }}" required="true" id="{{ form.points_awarded.id_for_label }}" help_text="{{ form.points_awarded.help_text }}" error="{% for e in form.points_awarded.errors %}{{ e }}{% endfor %}">
+                {{ form.points_awarded }}
+            </c-form_field>
         </c-fieldset>
 
         <c-alert variant="info" class="mt-15">

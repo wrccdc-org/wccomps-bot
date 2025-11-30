@@ -60,7 +60,7 @@
                     {% for incident in page_obj %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
                         <th class="field-id">
-                            <a href="{% url 'scoring:view_incident_report' incident.id %}">#{{ incident.id }}</a>
+                            <c-link href="{% url 'scoring:view_incident_report' incident.id %}">#{{ incident.id }}</c-link>
                         </th>
                         <td class="field-team">{{ incident.team.team_name }}</td>
                         <td class="field-box">

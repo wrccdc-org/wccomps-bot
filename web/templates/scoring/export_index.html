@@ -1,16 +1,16 @@
 {% extends "scoring/base.html" %}
+{% load cotton %}
 
 {% block title %}Export Data - Scoring{% endblock %}
 
 {% block scoring_content %}
-<h1>Export Scoring Data</h1>
+<c-module>
+    <c-section_header title="Export Scoring Data" />
+    <p>Download scoring data in CSV or JSON format for analysis and archival purposes.</p>
 
-<p>Download scoring data in CSV or JSON format for analysis and archival purposes.</p>
+    <h2 class="mt-20">Available Exports</h2>
 
-<div class="mt-20">
-    <h2>Available Exports</h2>
-
-    <table class="w-full mt-10" aria-label="Available data exports">
+    <c-table>
         <thead>
             <tr>
                 <th class="text-left">Data Type</th>
@@ -23,51 +23,51 @@
                 <td><strong>Red Team Findings</strong></td>
                 <td>All red team vulnerability findings with affected teams and points</td>
                 <td class="text-center">
-                    <a href="{% url 'scoring:export_red_findings' %}?format=csv" class="button">CSV</a>
-                    <a href="{% url 'scoring:export_red_findings' %}?format=json" class="button">JSON</a>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_red_findings' %}?format=csv'">CSV</c-button>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_red_findings' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
             <tr>
                 <td><strong>Incident Reports</strong></td>
                 <td>Blue team incident submissions with review status and points returned</td>
                 <td class="text-center">
-                    <a href="{% url 'scoring:export_incidents' %}?format=csv" class="button">CSV</a>
-                    <a href="{% url 'scoring:export_incidents' %}?format=json" class="button">JSON</a>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_incidents' %}?format=csv'">CSV</c-button>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_incidents' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
             <tr>
                 <td><strong>Orange Team Adjustments</strong></td>
                 <td>Customer service evaluations and point adjustments</td>
                 <td class="text-center">
-                    <a href="{% url 'scoring:export_orange_adjustments' %}?format=csv" class="button">CSV</a>
-                    <a href="{% url 'scoring:export_orange_adjustments' %}?format=json" class="button">JSON</a>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_orange_adjustments' %}?format=csv'">CSV</c-button>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_orange_adjustments' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
             <tr>
                 <td><strong>Inject Grades</strong></td>
                 <td>All inject submissions with grades and approval status</td>
                 <td class="text-center">
-                    <a href="{% url 'scoring:export_inject_grades' %}?format=csv" class="button">CSV</a>
-                    <a href="{% url 'scoring:export_inject_grades' %}?format=json" class="button">JSON</a>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_inject_grades' %}?format=csv'">CSV</c-button>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_inject_grades' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
             <tr>
                 <td><strong>Final Scores</strong></td>
                 <td>Calculated final scores with all component breakdowns</td>
                 <td class="text-center">
-                    <a href="{% url 'scoring:export_final_scores' %}?format=csv" class="button">CSV</a>
-                    <a href="{% url 'scoring:export_final_scores' %}?format=json" class="button">JSON</a>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_final_scores' %}?format=csv'">CSV</c-button>
+                    <c-button type="button" onclick="window.location='{% url 'scoring:export_final_scores' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
         </tbody>
-    </table>
-</div>
+    </c-table>
 
-<div class="info-box info-box-primary mt-20">
-    <h3>Export Format Information</h3>
-    <ul>
-        <li><strong>CSV:</strong> Compatible with Excel, Google Sheets, and other spreadsheet applications</li>
-        <li><strong>JSON:</strong> Suitable for programmatic analysis and data integration</li>
-    </ul>
-</div>
+    <c-alert variant="info" class="mt-20">
+        <h3 class="mt-0">Export Format Information</h3>
+        <ul class="mb-0">
+            <li><strong>CSV:</strong> Compatible with Excel, Google Sheets, and other spreadsheet applications</li>
+            <li><strong>JSON:</strong> Suitable for programmatic analysis and data integration</li>
+        </ul>
+    </c-alert>
+</c-module>
 {% endblock %}

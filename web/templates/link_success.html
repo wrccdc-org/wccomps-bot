@@ -7,30 +7,18 @@
     <c-page_header title="Successfully Linked" />
 
     <c-module>
-        <c-fieldset aligned="true">
-            <div class="form-row">
-                <div>
-                    <label>Discord Account:</label>
-                    <div class="readonly">{{ discord_username }}</div>
-                </div>
-            </div>
+        <c-detail_grid>
+            <dt>Discord Account</dt>
+            <dd>{{ discord_username }}</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Authentik Username:</label>
-                    <div class="readonly">{{ authentik_username }}</div>
-                </div>
-            </div>
+            <dt>Authentik Username</dt>
+            <dd>{{ authentik_username }}</dd>
 
             {% if is_team_account %}
-            <div class="form-row">
-                <div>
-                    <label>Team:</label>
-                    <div class="readonly">{{ team_name }} (#{{ team_number }})</div>
-                </div>
-            </div>
+            <dt>Team</dt>
+            <dd>{{ team_name }} (#{{ team_number }})</dd>
             {% endif %}
-        </c-fieldset>
+        </c-detail_grid>
 
         {% if is_team_account %}
         <p style="margin-top: 20px;">

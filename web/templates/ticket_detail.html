@@ -16,68 +16,37 @@
 
         <!-- Ticket Details -->
         <c-fieldset heading="Ticket Information">
+            <c-detail_grid>
+                <dt>Ticket Number</dt>
+                <dd>{{ ticket.ticket_number }}</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Ticket Number:</label>
-                    <div class="readonly">{{ ticket.ticket_number }}</div>
-                </div>
-            </div>
+                <dt>Category</dt>
+                <dd>{{ category_name }}</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Category:</label>
-                    <div class="readonly">{{ category_name }}</div>
-                </div>
-            </div>
+                <dt>Status</dt>
+                <dd>{{ status_display }}</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Status:</label>
-                    <div class="readonly">{{ status_display }}</div>
-                </div>
-            </div>
+                {% if ticket.assigned_to %}
+                <dt>Assigned To</dt>
+                <dd>{{ ticket.assigned_to }}</dd>
+                {% endif %}
 
-            {% if ticket.assigned_to %}
-            <div class="form-row">
-                <div>
-                    <label>Assigned To:</label>
-                    <div class="readonly">{{ ticket.assigned_to }}</div>
-                </div>
-            </div>
-            {% endif %}
+                <dt>Description</dt>
+                <dd>{{ ticket.description }}</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Description:</label>
-                    <div class="readonly">{{ ticket.description }}</div>
-                </div>
-            </div>
+                <dt>Created</dt>
+                <dd>{{ ticket.created_at|date:"Y-m-d H:i:s" }} UTC</dd>
 
-            <div class="form-row">
-                <div>
-                    <label>Created:</label>
-                    <div class="readonly">{{ ticket.created_at|date:"Y-m-d H:i:s" }} UTC</div>
-                </div>
-            </div>
+                {% if ticket.resolved_at %}
+                <dt>Resolved</dt>
+                <dd>{{ ticket.resolved_at|date:"Y-m-d H:i:s" }} UTC</dd>
+                {% endif %}
 
-            {% if ticket.resolved_at %}
-            <div class="form-row">
-                <div>
-                    <label>Resolved:</label>
-                    <div class="readonly">{{ ticket.resolved_at|date:"Y-m-d H:i:s" }} UTC</div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if ticket.resolution_notes %}
-            <div class="form-row">
-                <div>
-                    <label>Resolution Notes:</label>
-                    <div class="readonly">{{ ticket.resolution_notes }}</div>
-                </div>
-            </div>
-            {% endif %}
+                {% if ticket.resolution_notes %}
+                <dt>Resolution Notes</dt>
+                <dd>{{ ticket.resolution_notes }}</dd>
+                {% endif %}
+            </c-detail_grid>
         </c-fieldset>
 
         <!-- Comments -->
@@ -102,10 +71,7 @@
                 </tbody>
             </table>
             {% else %}
-            <div class="text-center p-20">
-                <div class="empty-state-title"><strong>No comments yet</strong></div>
-                <div class="empty-state-desc">Comments from the ticket thread will appear here</div>
-            </div>
+            <c-empty_state title="No comments yet" description="Comments from the ticket thread will appear here" />
             {% endif %}
 
             <!-- Add Comment Form -->
@@ -140,19 +106,16 @@
                         <td>{{ attachment.uploaded_by }}</td>
                         <td>{{ attachment.uploaded_at|timesince }} ago</td>
                         <td>
-                            <a href="{% url 'ticket_attachment_download' ticket.id attachment.id %}" class="viewlink">
+                            <c-link href="{% url 'ticket_attachment_download' ticket.id attachment.id %}" variant="change">
                                 Download
-                            </a>
+                            </c-link>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             {% else %}
-            <div class="text-center p-20">
-                <div class="empty-state-title"><strong>No attachments yet</strong></div>
-                <div class="empty-state-desc">Upload files to attach to this ticket</div>
-            </div>
+            <c-empty_state title="No attachments yet" description="Upload files to attach to this ticket" />
             {% endif %}
 
             <!-- Upload Attachment Form -->

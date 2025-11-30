@@ -1,6 +1,6 @@
 {# Status badge component - displays ticket/item status with appropriate styling #}
 {# Usage: <c-badge status="open">Open</c-badge> #}
-{# Props: status (open|claimed|resolved|cancelled), aria_label (optional) #}
+{# Props: status (open|claimed|resolved|cancelled|draft|distributing|completed|pending|sent|failed|success|warning|danger|info), aria_label (optional) #}
 
 <c-vars status="default" aria_label="" />
 
@@ -9,10 +9,11 @@
     aria-label="{{ aria_label|default:status|title }}"
     class="field-status"
     style="display: inline-block; padding: 4px 10px; font-weight: 600; font-size: 12px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;
-    {% if status == 'open' %}background: #e3f2fd; color: #1976d2; border: 1px solid #90caf9;
-    {% elif status == 'claimed' %}background: #fff3e0; color: #f57c00; border: 1px solid #ffb74d;
-    {% elif status == 'resolved' %}background: #e8f5e9; color: #388e3c; border: 1px solid #81c784;
-    {% elif status == 'cancelled' %}background: #f5f5f5; color: #757575; border: 1px solid #bdbdbd;
+    {% if status == 'open' or status == 'info' %}background: #e3f2fd; color: #1976d2; border: 1px solid #90caf9;
+    {% elif status == 'claimed' or status == 'warning' or status == 'draft' or status == 'distributing' %}background: #fff3e0; color: #f57c00; border: 1px solid #ffb74d;
+    {% elif status == 'resolved' or status == 'success' or status == 'completed' or status == 'sent' %}background: #e8f5e9; color: #388e3c; border: 1px solid #81c784;
+    {% elif status == 'cancelled' or status == 'pending' %}background: #f5f5f5; color: #757575; border: 1px solid #bdbdbd;
+    {% elif status == 'danger' or status == 'failed' %}background: #ffebee; color: #c62828; border: 1px solid #ef9a9a;
     {% else %}background: #f5f5f5; color: #333; border: 1px solid #ddd;{% endif %}">
     {{ slot }}
 </span>

@@ -19,42 +19,17 @@
         <form method="post">
             {% csrf_token %}
             <c-fieldset heading="Registration Details" aligned="true">
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.school_name.id_for_label }}" class="required">{{ form.school_name.label }}:</label>
-                        {{ form.school_name }}
-                        {% if form.school_name.errors %}
-                        <ul class="errorlist">{% for e in form.school_name.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.school_name.help_text %}
-                        <p class="help">{{ form.school_name.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.contact_email.id_for_label }}" class="required">{{ form.contact_email.label }}:</label>
-                        {{ form.contact_email }}
-                        {% if form.contact_email.errors %}
-                        <ul class="errorlist">{% for e in form.contact_email.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.contact_email.help_text %}
-                        <p class="help">{{ form.contact_email.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div>
-                        <label for="{{ form.phone.id_for_label }}" class="required">{{ form.phone.label }}:</label>
-                        {{ form.phone }}
-                        {% if form.phone.errors %}
-                        <ul class="errorlist">{% for e in form.phone.errors %}<li>{{ e }}</li>{% endfor %}</ul>
-                        {% endif %}
-                        {% if form.phone.help_text %}
-                        <p class="help">{{ form.phone.help_text }}</p>
-                        {% endif %}
-                    </div>
-                </div>
+                <c-form_field label="{{ form.school_name.label }}" required="true" id="{{ form.school_name.id_for_label }}" help_text="{{ form.school_name.help_text }}" error="{% for e in form.school_name.errors %}{{ e }}{% endfor %}">
+                    {{ form.school_name }}
+                </c-form_field>
+
+                <c-form_field label="{{ form.contact_email.label }}" required="true" id="{{ form.contact_email.id_for_label }}" help_text="{{ form.contact_email.help_text }}" error="{% for e in form.contact_email.errors %}{{ e }}{% endfor %}">
+                    {{ form.contact_email }}
+                </c-form_field>
+
+                <c-form_field label="{{ form.phone.label }}" required="true" id="{{ form.phone.id_for_label }}" help_text="{{ form.phone.help_text }}" error="{% for e in form.phone.errors %}{{ e }}{% endfor %}">
+                    {{ form.phone }}
+                </c-form_field>
             </c-fieldset>
 
             <div class="mt-20">

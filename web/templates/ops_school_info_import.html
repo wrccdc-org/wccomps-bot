@@ -83,7 +83,7 @@
         <form method="POST">
             {% csrf_token %}
             <div class="submit-row mt-20">
-                <input type="submit" name="confirm" value="Confirm and Import" class="default">
+                <c-button type="submit" name="confirm" value="true" variant="primary">Confirm and Import</c-button>
                 <c-link href="{% url 'ops_school_info_import' %}" class="button cancel-link">Cancel</c-link>
             </div>
         </form>
@@ -119,24 +119,13 @@ Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
                 {% csrf_token %}
 
                 <c-fieldset aligned="true">
-                    <div class="form-row">
-                        <div>
-                            <label class="required" for="id_csv_file">CSV File:</label>
-                            {{ form.csv_file }}
-                            {% if form.csv_file.errors %}
-                            <ul class="errorlist">
-                                {% for error in form.csv_file.errors %}
-                                <li>{{ error }}</li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                            <p class="help">{{ form.csv_file.help_text }}</p>
-                        </div>
-                    </div>
+                    <c-form_field label="CSV File" required="true" id="id_csv_file" help_text="{{ form.csv_file.help_text }}" error="{% for error in form.csv_file.errors %}{{ error }}{% endfor %}">
+                        {{ form.csv_file }}
+                    </c-form_field>
                 </c-fieldset>
 
                 <div class="submit-row">
-                    <input type="submit" name="upload" value="Upload and Preview" class="default">
+                    <c-button type="submit" name="upload" value="true" variant="primary">Upload and Preview</c-button>
                     <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
                 </div>
             </form>
