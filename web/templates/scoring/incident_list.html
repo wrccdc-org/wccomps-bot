@@ -11,39 +11,37 @@
     </c-slot>
 
     {% if incidents %}
-    <c-table>
-        <thead>
-            <tr class="border-top">
-                <th class="text-left p-8">ID</th>
-                <th class="text-left p-8">Submitted</th>
-                <th class="text-left p-8">Attack Detected</th>
-                <th class="text-left p-8">Affected Box</th>
-                <th class="text-left p-8">Attack Description</th>
-                <th class="text-left p-8">Status</th>
-                <th class="text-left p-8">Actions</th>
+    <c-table aria_label="Incident reports">
+        <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">ID</c-table_header>
+                <c-table_header sortable="false">Submitted</c-table_header>
+                <c-table_header sortable="false">Attack Detected</c-table_header>
+                <c-table_header sortable="false">Affected Box</c-table_header>
+                <c-table_header sortable="false">Attack Description</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Actions</c-table_header>
             </tr>
-        </thead>
-        <tbody>
+        </c-slot>
             {% for incident in incidents %}
             <tr class="{% cycle 'row1' 'row2' %}">
-                <td class="p-8"><strong>#{{ incident.id }}</strong></td>
-                <td class="p-8">{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
-                <td class="p-8">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                <td class="p-8">{{ incident.affected_box|default:"N/A" }}</td>
-                <td class="p-8">{{ incident.attack_description|truncatewords:10 }}</td>
-                <td class="p-8">
+                <td><strong>#{{ incident.id }}</strong></td>
+                <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ incident.affected_box|default:"N/A" }}</td>
+                <td>{{ incident.attack_description|truncatewords:10 }}</td>
+                <td>
                     {% if incident.gold_team_reviewed %}
                         <c-badge status="resolved">Reviewed</c-badge>
                     {% else %}
                         <c-badge status="claimed">Pending</c-badge>
                     {% endif %}
                 </td>
-                <td class="p-8">
+                <td>
                     <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View Details</c-link>
                 </td>
             </tr>
             {% endfor %}
-        </tbody>
     </c-table>
     {% else %}
     <c-empty_state title="No incident reports submitted yet" description="Submit an incident report when you detect suspicious activity">
