@@ -9,9 +9,6 @@ Tests cover the complete end-to-end flow:
 These tests verify data integrity and workflow state transitions at the model level.
 """
 
-import os
-from collections.abc import Generator
-
 import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -20,14 +17,6 @@ from team.models import Team
 from ticketing.models import Ticket, TicketHistory
 
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture(scope="session", autouse=True)
-def enable_ticketing() -> Generator[None, None, None]:
-    """Enable ticketing for all tests in this module."""
-    os.environ["TICKETING_ENABLED"] = "true"
-    yield
-    os.environ.pop("TICKETING_ENABLED", None)
 
 
 @pytest.fixture

@@ -405,68 +405,6 @@ class TicketingCog(commands.Cog):
             logger.info(f"Marked comment {comment.id} as deleted for ticket #{ticket.id}")
 
 
-async def post_comment_to_discord(bot: commands.Bot, comment: TicketComment) -> discord.Message | None:
-    """
-    Post a TicketComment to the ticket's Discord thread.
-
-    Args:
-        bot: Discord bot instance
-        comment: TicketComment model instance
-    """
-
-    # Get ticket and thread
-    ticket = comment.ticket
-    if not ticket.discord_thread_id:
-        logger.warning(f"Cannot post comment to Discord: ticket #{ticket.id} has no thread")
-        return None
-
-    # Get thread
-    try:
-        thread = bot.get_channel(ticket.discord_thread_id)
-        if not thread:
-            # Try fetching if not in cache
-            thread = await bot.fetch_channel(ticket.discord_thread_id)
-
-        if not thread:
-            logger.error(f"Thread {ticket.discord_thread_id} not found for ticket #{ticket.id}")
-            return None
-    except Exception as e:
-        logger.exception(f"Failed to get thread {ticket.discord_thread_id}: {e}")
-        return None
-
-    # Format comment message
-    author_display = "Unknown"
-    if comment.author:
-        author_display = comment.author.discord_username or comment.author.authentik_username or "Unknown"
-    message_content = f"**{author_display}**\n{comment.comment_text}"
-
-    # Post to Discord
-    try:
-        if not isinstance(
-            thread,
-            (
-                discord.Thread,
-                discord.TextChannel,
-                discord.VoiceChannel,
-                discord.StageChannel,
-            ),
-        ):
-            logger.error(f"Channel {ticket.discord_thread_id} is not a messageable channel")
-            return None
-        message = await thread.send(message_content)
-
-        # Store Discord message ID in comment
-        comment.discord_message_id = message.id
-        await comment.asave()
-
-        logger.info(f"Posted comment to Discord thread {thread.id} (message {message.id})")
-        return message
-
-    except Exception as e:
-        logger.exception(f"Failed to post comment to Discord: {e}")
-        return None
-
-
 async def setup(bot: commands.Bot) -> None:
     """Setup function to add cog to bot."""
     await bot.add_cog(TicketingCog(bot))

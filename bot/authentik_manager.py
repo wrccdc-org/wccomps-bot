@@ -40,8 +40,6 @@ class AuthentikAPIError(Exception):
 class AuthentikManager:
     """Manager for Authentik API operations."""
 
-    BLUETEAM_BLOCK_POLICY_NAME = "Group BlueTeam"
-
     def __init__(self) -> None:
         self.base_url = settings.AUTHENTIK_URL
         self.token = settings.AUTHENTIK_TOKEN

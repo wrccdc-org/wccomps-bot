@@ -1,7 +1,5 @@
 """Tests for clear tickets functionality."""
 
-import os
-from collections.abc import Generator
 from io import StringIO
 from typing import Any
 
@@ -17,14 +15,6 @@ from team.models import Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture(scope="session", autouse=True)
-def enable_ticketing() -> Generator[None, None, None]:
-    """Enable ticketing for all tests in this module."""
-    os.environ["TICKETING_ENABLED"] = "true"
-    yield
-    os.environ.pop("TICKETING_ENABLED", None)
 
 
 @pytest.fixture
