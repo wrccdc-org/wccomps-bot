@@ -17,7 +17,6 @@ from bot.permissions import (
     check_gold_team,
     check_ticketing_admin,
     check_ticketing_support,
-    get_permission_level_async,
     is_admin_async,
     is_gold_team_async,
 )
@@ -447,103 +446,6 @@ class TestPermissionChecks:
             result = await is_gold_team_async(interaction)
 
             assert result is False
-
-    async def test_get_permission_level_async_admin(self) -> None:
-        """Test get_permission_level_async returns 'admin' for admins."""
-        team = await Team.objects.acreate(team_number=15, team_name="Test Team", max_members=5)
-
-        user = await User.objects.acreate(username="admin_level")
-
-        await SocialAccount.objects.acreate(
-            user=user,
-            provider="authentik",
-            uid="admin-level-uid",
-            extra_data={"groups": ["WCComps_Discord_Admin"]},
-        )
-
-        await DiscordLink.objects.acreate(
-            team=team,
-            discord_id=1818181818,
-            discord_username="admin_level",
-            authentik_username=user.username,
-            is_active=True,
-        )
-
-        interaction = Mock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = 1818181818
-
-        result = await get_permission_level_async(interaction)
-
-        assert result == "admin"
-
-    async def test_get_permission_level_async_ticketing_admin(self) -> None:
-        """Test get_permission_level_async returns 'ticketing_admin'."""
-        team = await Team.objects.acreate(team_number=16, team_name="Test Team", max_members=5)
-
-        user = await User.objects.acreate(username="ticketing_level")
-
-        await SocialAccount.objects.acreate(
-            user=user,
-            provider="authentik",
-            uid="ticketing-level-uid",
-            extra_data={"groups": ["WCComps_Ticketing_Admin"]},
-        )
-
-        await DiscordLink.objects.acreate(
-            team=team,
-            discord_id=1919191919,
-            discord_username="ticketing_level",
-            authentik_username=user.username,
-            is_active=True,
-        )
-
-        interaction = Mock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = 1919191919
-
-        result = await get_permission_level_async(interaction)
-
-        assert result == "ticketing_admin"
-
-    async def test_get_permission_level_async_ticketing_support(self) -> None:
-        """Test get_permission_level_async returns 'ticketing_support'."""
-        team = await Team.objects.acreate(team_number=17, team_name="Test Team", max_members=5)
-
-        user = await User.objects.acreate(username="support_level")
-
-        await SocialAccount.objects.acreate(
-            user=user,
-            provider="authentik",
-            uid="support-level-uid",
-            extra_data={"groups": ["WCComps_Ticketing_Support"]},
-        )
-
-        await DiscordLink.objects.acreate(
-            team=team,
-            discord_id=2020202020,
-            discord_username="support_level",
-            authentik_username=user.username,
-            is_active=True,
-        )
-
-        interaction = Mock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = 2020202020
-
-        result = await get_permission_level_async(interaction)
-
-        assert result == "ticketing_support"
-
-    async def test_get_permission_level_async_none(self) -> None:
-        """Test get_permission_level_async returns 'none' for no permissions."""
-        interaction = Mock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = 2121212121
-
-        result = await get_permission_level_async(interaction)
-
-        assert result == "none"
 
 
 @pytest.mark.asyncio

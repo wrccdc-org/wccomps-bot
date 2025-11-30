@@ -161,28 +161,3 @@ def get_service_choices(box_name: str | None = None) -> list[tuple[str, str]]:
     else:
         # Return all unique services
         return [(s["name"], s["display_name"] or s["name"]) for s in metadata.services]
-
-
-def get_ip_template_for_box(box_name: str) -> str:
-    """
-    Get IP template for a box (e.g., 10.100.1X.22).
-
-    Args:
-        box_name: Box name
-
-    Returns:
-        IP template string
-    """
-    metadata = QuotientMetadataCache.objects.first()
-    if not metadata:
-        return ""
-
-    for box in metadata.boxes:
-        if box["name"] == box_name:
-            # Replace team-specific part with X placeholder
-            # Quotient uses underscore in templates (e.g., 10.100.1_.2)
-            ip = str(box["ip"])
-            if "_" in ip:
-                return ip.replace("_", "X")
-            return ip
-    return ""

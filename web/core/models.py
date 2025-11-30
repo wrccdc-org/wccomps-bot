@@ -1,6 +1,7 @@
 """Database models for WCComps ticket system."""
 
 from django.db import models
+from django.utils import timezone
 
 
 class AuditLog(models.Model):

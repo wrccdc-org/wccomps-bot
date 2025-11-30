@@ -160,7 +160,9 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user1)
 
         # Filter by team AND submitter
-        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id, "submitter": red_user1.id, "status": "all"})
+        response = client.get(
+            reverse("scoring:red_team_portal"), {"team": team1.id, "submitter": red_user1.id, "status": "all"}
+        )
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}

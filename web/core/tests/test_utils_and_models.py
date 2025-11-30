@@ -9,10 +9,9 @@ from django.utils import timezone
 from core.models import AuditLog, CompetitionConfig, DiscordTask
 from core.utils import (
     get_authentik_data,
-    get_discord_identity,
     get_team_from_groups,
 )
-from team.models import DiscordLink, Team
+from team.models import Team
 
 pytestmark = pytest.mark.django_db
 
@@ -99,64 +98,6 @@ class TestGetTeamFromGroups:
         """Should ignore team numbers outside 1-50 range."""
         team, team_number, is_team = get_team_from_groups(["WCComps_BlueTeam99"])
         assert team is None
-
-
-class TestGetDiscordIdentity:
-    """Tests for get_discord_identity function."""
-
-    def test_finds_link_by_authentik_user_id(self):
-        """Should find Discord link by Authentik user ID."""
-        team = Team.objects.create(team_number=1, team_name="Team 1", max_members=10)
-        DiscordLink.objects.create(
-            discord_id=123456789,
-            discord_username="testuser",
-            authentik_username="auth_user",
-            authentik_user_id="auth-id-123",
-            team=team,
-            is_active=True,
-        )
-
-        discord_id, discord_username = get_discord_identity("auth-id-123", "auth_user")
-        assert discord_id == 123456789
-        assert discord_username == "testuser"
-
-    def test_falls_back_to_authentik_username(self):
-        """Should fall back to Authentik username if no user ID provided."""
-        team = Team.objects.create(team_number=1, team_name="Team 1", max_members=10)
-        DiscordLink.objects.create(
-            discord_id=987654321,
-            discord_username="fallback_user",
-            authentik_username="fallback_auth",
-            authentik_user_id="some-id",
-            team=team,
-            is_active=True,
-        )
-
-        discord_id, discord_username = get_discord_identity(None, "fallback_auth")
-        assert discord_id == 987654321
-        assert discord_username == "fallback_user"
-
-    def test_returns_none_for_inactive_link(self):
-        """Should not find inactive links."""
-        team = Team.objects.create(team_number=1, team_name="Team 1", max_members=10)
-        DiscordLink.objects.create(
-            discord_id=111111111,
-            discord_username="inactive_user",
-            authentik_username="inactive_auth",
-            authentik_user_id="inactive-id",
-            team=team,
-            is_active=False,
-        )
-
-        discord_id, discord_username = get_discord_identity("inactive-id", "inactive_auth")
-        assert discord_id is None
-        assert discord_username is None
-
-    def test_returns_none_for_nonexistent_link(self):
-        """Should return None for nonexistent link."""
-        discord_id, discord_username = get_discord_identity("nonexistent", "nonexistent")
-        assert discord_id is None
-        assert discord_username is None
 
 
 class TestAuditLogModel:
@@ -280,5 +221,3 @@ class TestCompetitionConfigModel:
         """__str__ should indicate not scheduled when no start time."""
         config = CompetitionConfig.get_config()
         assert str(config) == "Competition not scheduled"
-
-

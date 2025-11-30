@@ -148,7 +148,7 @@ class TestInjectGradesGrouping:
         )
 
         # Create unapproved grade
-        unapproved_grade = InjectGrade.objects.create(
+        InjectGrade.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Security Policy",

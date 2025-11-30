@@ -1,5 +1,6 @@
 """Tests for management commands."""
 
+import contextlib
 from io import StringIO
 
 import pytest
@@ -177,60 +178,48 @@ class TestCheckDbHealthCommand:
     def test_checks_database_connection(self):
         """Command should check database connection."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Checking database connection" in out.getvalue()
 
     def test_checks_migrations(self):
         """Command should check for unapplied migrations."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Checking migrations" in out.getvalue()
 
     def test_checks_model_integrity(self):
         """Command should verify model integrity."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Checking model integrity" in out.getvalue()
 
     def test_checks_critical_queries(self):
         """Command should test critical queries."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Testing critical queries" in out.getvalue()
 
     def test_checks_view_imports(self):
         """Command should test view imports."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Testing view imports" in out.getvalue()
 
     def test_checks_template_syntax(self):
         """Command should test template syntax."""
         out = StringIO()
-        try:
+        with contextlib.suppress(SystemExit):
             call_command("check_db_health", stdout=out)
-        except SystemExit:
-            pass
 
         assert "Testing template syntax" in out.getvalue()
 
