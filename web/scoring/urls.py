@@ -20,6 +20,9 @@ urlpatterns = [
     # Orange Team
     path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
     path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),
+    path("orange-team/check-types/", views.manage_check_types, name="manage_check_types"),
+    path("orange-team/check-types/<int:check_type_id>/edit/", views.edit_check_type, name="edit_check_type"),
+    path("orange-team/check-types/<int:check_type_id>/delete/", views.delete_check_type, name="delete_check_type"),
     path("orange-team/<int:adjustment_id>/approve/", views.approve_orange_adjustment, name="approve_orange_adjustment"),
     path("orange-team/<int:adjustment_id>/reject/", views.reject_orange_adjustment, name="reject_orange_adjustment"),
     path("orange-team/bulk-approve/", views.bulk_approve_orange_adjustments, name="bulk_approve_orange_adjustments"),
@@ -41,6 +44,7 @@ urlpatterns = [
     path("api/scores/", views.api_scores, name="api_scores"),
     path("api/team/<int:team_number>/", views.api_team_detail, name="api_team_detail"),
     path("api/attack-types/", views.api_attack_types, name="api_attack_types"),
+    path("api/orange-check-types/", views.api_orange_check_types, name="api_orange_check_types"),
     # Export endpoints
     path("export/", views.export_index, name="export_index"),
     path("export/red-findings/", views.export_red_findings, name="export_red_findings"),

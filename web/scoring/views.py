@@ -26,6 +26,7 @@ from .calculator import (
 from .forms import (
     IncidentMatchForm,
     IncidentReportForm,
+    OrangeCheckTypeForm,
     OrangeTeamBonusForm,
     RedTeamFindingForm,
     ScoringTemplateForm,
@@ -34,6 +35,7 @@ from .models import (
     IncidentReport,
     IncidentScreenshot,
     InjectGrade,
+    OrangeCheckType,
     OrangeTeamBonus,
     QuotientMetadataCache,
     RedTeamFinding,
@@ -451,6 +453,9 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
 @transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     """Submit orange team bonus."""
+    if not OrangeCheckType.objects.exists():
+        messages.warning(request, "No check types defined. Set up check types first.")
+        return redirect("scoring:manage_check_types")
 
     if request.method == "POST":
         form = OrangeTeamBonusForm(request.POST)
@@ -469,6 +474,61 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
         "form": form,
     }
     return render(request, "scoring/submit_orange_bonus.html", context)
+
+
+@login_required
+@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+def manage_check_types(request: HttpRequest) -> HttpResponse:
+    """Manage orange check types."""
+    check_types = OrangeCheckType.objects.all().order_by("name")
+    form = OrangeCheckTypeForm()
+
+    if request.method == "POST":
+        form = OrangeCheckTypeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Check type '{form.cleaned_data['name']}' created")
+            return redirect("scoring:manage_check_types")
+
+    context = {
+        "check_types": check_types,
+        "form": form,
+    }
+    return render(request, "scoring/manage_check_types.html", context)
+
+
+@login_required
+@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
+    """Edit an orange check type."""
+    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
+
+    if request.method == "POST":
+        form = OrangeCheckTypeForm(request.POST, instance=check_type)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Check type '{check_type.name}' updated")
+            return redirect("scoring:manage_check_types")
+    else:
+        form = OrangeCheckTypeForm(instance=check_type)
+
+    context = {
+        "form": form,
+        "check_type": check_type,
+    }
+    return render(request, "scoring/edit_check_type.html", context)
+
+
+@login_required
+@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+@require_http_methods(["POST"])
+def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
+    """Delete an orange check type."""
+    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
+    name = check_type.name
+    check_type.delete()
+    messages.success(request, f"Check type '{name}' deleted")
+    return redirect("scoring:manage_check_types")
 
 
 @login_required
@@ -808,6 +868,13 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
                 seen.add(attack_type.lower())
 
     return JsonResponse({"suggestions": sorted(suggestions)})
+
+
+def api_orange_check_types(request: HttpRequest) -> JsonResponse:
+    """API endpoint for orange check types with default points."""
+    check_types = OrangeCheckType.objects.all().order_by("name")
+    data = [{"id": ct.id, "name": ct.name, "default_points": float(ct.default_points)} for ct in check_types]
+    return JsonResponse({"check_types": data})
 
 
 @login_required

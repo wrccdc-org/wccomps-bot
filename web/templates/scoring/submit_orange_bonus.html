@@ -1,6 +1,8 @@
-{% extends "scoring/base.html" %}
+{% extends "base.html" %}
+{% block title %}Submit Adjustment{% endblock %}
 
-{% block scoring_content %}
+{% block content %}
+{% load cotton %}
 <c-module>
     <form method="post">
         {% csrf_token %}
@@ -19,19 +21,17 @@
             </div>
             <div class="form-row">
                 <div>
-                    <label for="{{ form.check_type.id_for_label }}">{{ form.check_type.label }}:</label>
+                    <label for="{{ form.check_type.id_for_label }}" class="required">{{ form.check_type.label }}:</label>
                     {{ form.check_type }}
                     {% if form.check_type.errors %}
                     <ul class="errorlist">{% for e in form.check_type.errors %}<li>{{ e }}</li>{% endfor %}</ul>
                     {% endif %}
-                    {% if form.check_type.help_text %}
-                    <p class="help">{{ form.check_type.help_text }}</p>
-                    {% endif %}
+                    <p class="help">Select a check type to auto-fill points</p>
                 </div>
             </div>
             <div class="form-row">
                 <div>
-                    <label for="{{ form.description.id_for_label }}" class="required">{{ form.description.label }}:</label>
+                    <label for="{{ form.description.id_for_label }}">{{ form.description.label }}:</label>
                     {{ form.description }}
                     {% if form.description.errors %}
                     <ul class="errorlist">{% for e in form.description.errors %}<li>{{ e }}</li>{% endfor %}</ul>
@@ -55,14 +55,37 @@
             </div>
         </c-fieldset>
 
-        <c-alert variant="info" style="margin-top: 15px;">
+        <c-alert variant="info" class="mt-15">
             <strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.
         </c-alert>
 
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <div class="flex gap-10 mt-15">
             <c-button type="submit" variant="warning">Submit Adjustment</c-button>
             <c-link href="{% url 'scoring:orange_team_portal' %}">Cancel</c-link>
         </div>
     </form>
 </c-module>
+
+<script>
+(function() {
+    const checkTypeSelect = document.getElementById('{{ form.check_type.id_for_label }}');
+    const pointsInput = document.getElementById('{{ form.points_awarded.id_for_label }}');
+    let checkTypes = {};
+
+    fetch('{% url "scoring:api_orange_check_types" %}')
+        .then(r => r.json())
+        .then(data => {
+            data.check_types.forEach(ct => {
+                checkTypes[ct.id] = ct.default_points;
+            });
+        });
+
+    checkTypeSelect.addEventListener('change', function() {
+        const typeId = this.value;
+        if (typeId && checkTypes[typeId] !== undefined) {
+            pointsInput.value = checkTypes[typeId];
+        }
+    });
+})();
+</script>
 {% endblock %}
