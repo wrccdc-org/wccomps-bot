@@ -387,7 +387,6 @@ class TestTicketHistoryCreation:
         """Cancelling a ticket creates history entry."""
         team, tickets = team_with_tickets
         open_ticket = tickets[0]
-        initial_history_count = TicketHistory.objects.filter(ticket=open_ticket).count()
 
         client = Client()
         client.force_login(blue_team_user)

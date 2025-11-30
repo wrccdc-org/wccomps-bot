@@ -47,3 +47,15 @@ class TeamRegistration(models.Model):
         self.status = "rejected"
         self.rejection_reason = reason
         self.save()
+
+    def mark_as_paid(self) -> None:
+        """Mark registration as paid."""
+        self.status = "paid"
+        self.paid_at = timezone.now()
+        self.save()
+
+    def mark_credentials_sent(self) -> None:
+        """Mark credentials as sent."""
+        self.status = "credentials_sent"
+        self.credentials_sent_at = timezone.now()
+        self.save()

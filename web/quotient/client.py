@@ -50,23 +50,6 @@ class TeamScore:
 
 
 @dataclass
-class ServiceStatus:
-    """Service status for a team from Quotient."""
-
-    team_name: str
-    team_id: int
-    services: dict[str, int]  # {service_name: status} where status is 0=down, 1=partial, 2=up
-
-
-@dataclass
-class ServiceUptime:
-    """Service uptime for a team from Quotient."""
-
-    team_name: str
-    uptimes: dict[str, float]  # {service_name: uptime_percentage}
-
-
-@dataclass
 class Inject:
     """Inject from Quotient."""
 
@@ -280,94 +263,6 @@ class QuotientClient:
             return None
         except (KeyError, ValueError) as e:
             logger.exception(f"Failed to parse scores response: {e}")
-            return None
-
-    def get_service_status(self, force_refresh: bool = False) -> list[ServiceStatus] | None:
-        """
-        Fetch current service status for all teams from Quotient API.
-
-        Returns:
-            List of ServiceStatus objects or None if unavailable
-        """
-        cache_key = "quotient_service_status"
-
-        if not force_refresh:
-            cached: list[ServiceStatus] | None = cache.get(cache_key)
-            if cached:
-                return cached
-
-        try:
-            session = self._get_session()
-            response = session.get(f"{self._get_active_url()}/api/graphs/services", timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-            statuses = []
-            for team_data in data.get("series", []):
-                team_name = team_data["Name"]
-                team_id = team_data.get("ID", 0)
-                services = {item["X"]: item["Y"] for item in team_data.get("Data", [])}
-
-                statuses.append(
-                    ServiceStatus(
-                        team_name=team_name,
-                        team_id=team_id,
-                        services=services,
-                    )
-                )
-
-            cache.set(cache_key, statuses, 60)  # 1 minute cache
-            logger.info(f"Fetched service status for {len(statuses)} teams")
-            return statuses
-
-        except requests.RequestException as e:
-            logger.exception(f"Failed to fetch service status from Quotient: {e}")
-            return None
-        except (KeyError, ValueError) as e:
-            logger.exception(f"Failed to parse service status response: {e}")
-            return None
-
-    def get_service_uptimes(self, force_refresh: bool = False) -> list[ServiceUptime] | None:
-        """
-        Fetch service uptimes for all teams from Quotient API.
-
-        Returns:
-            List of ServiceUptime objects or None if unavailable
-        """
-        cache_key = "quotient_uptimes"
-
-        if not force_refresh:
-            cached: list[ServiceUptime] | None = cache.get(cache_key)
-            if cached:
-                return cached
-
-        try:
-            session = self._get_session()
-            response = session.get(f"{self._get_active_url()}/api/graphs/uptimes", timeout=10)
-            response.raise_for_status()
-
-            data = response.json()
-            uptimes = []
-            for team_data in data.get("series", []):
-                team_name = team_data["Name"]
-                uptime_map = {item["Service"]: item["Uptime"] for item in team_data.get("Data", [])}
-
-                uptimes.append(
-                    ServiceUptime(
-                        team_name=team_name,
-                        uptimes=uptime_map,
-                    )
-                )
-
-            cache.set(cache_key, uptimes, 60)  # 1 minute cache
-            logger.info(f"Fetched uptimes for {len(uptimes)} teams")
-            return uptimes
-
-        except requests.RequestException as e:
-            logger.exception(f"Failed to fetch uptimes from Quotient: {e}")
-            return None
-        except (KeyError, ValueError) as e:
-            logger.exception(f"Failed to parse uptimes response: {e}")
             return None
 
     def get_injects(self, force_refresh: bool = False) -> list[Inject] | None:
