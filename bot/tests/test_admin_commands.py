@@ -465,7 +465,6 @@ class TestAdminCommands:
         # Add related data
         await TicketComment.objects.acreate(
             ticket=ticket1,
-            author_name="test_user",
             comment_text="Test comment",
         )
 
@@ -480,7 +479,7 @@ class TestAdminCommands:
         await TicketHistory.objects.acreate(
             ticket=ticket1,
             action="created",
-            actor_username="test_user",
+            details={"created_by": "test_user"},
         )
 
         # Verify initial state

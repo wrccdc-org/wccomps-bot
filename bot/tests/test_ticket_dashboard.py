@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import TestCase
 
 from bot.ticket_dashboard import (
@@ -44,6 +45,13 @@ class TicketDashboardTest(TestCase):
         self.assertIsNotNone(open_embed)
         self.assertIn("Test Open", str(open_embed.title))
 
+        # Create Person for assignment testing
+        volunteer_user = User.objects.create(username="volunteer1")
+        volunteer_person = volunteer_user.person
+        volunteer_person.discord_id = 123456789
+        volunteer_person.discord_username = "volunteer1"
+        volunteer_person.save()
+
         # Test claimed ticket with assignment
         claimed_ticket = Ticket.objects.create(
             ticket_number="T001-002",
@@ -52,12 +60,18 @@ class TicketDashboardTest(TestCase):
             title="Test Claimed",
             description="Claimed description",
             status="claimed",
-            assigned_to_discord_id=123456789,
-            assigned_to_discord_username="volunteer1",
+            assigned_to=volunteer_person,
         )
         claimed_embed = format_ticket_embed(claimed_ticket)
         field_names = [field.name for field in claimed_embed.fields]
         self.assertIn("Assigned To", field_names)
+
+        # Create Person for resolver
+        admin_user = User.objects.create(username="admin1")
+        admin_person = admin_user.person
+        admin_person.discord_id = 987654321
+        admin_person.discord_username = "admin1"
+        admin_person.save()
 
         # Test resolved ticket with resolution info
         resolved_ticket = Ticket.objects.create(
@@ -68,8 +82,7 @@ class TicketDashboardTest(TestCase):
             description="Resolved description",
             status="resolved",
             resolved_at=tz.now(),
-            resolved_by_discord_id=987654321,
-            resolved_by_discord_username="admin1",
+            resolved_by=admin_person,
             resolution_notes="All fixed",
             points_charged=10,
         )
