@@ -43,15 +43,13 @@
         </div>
     </div>
 
-    <div class="mb-20">
-        <h3>Description</h3>
-        <div class="info-box">
+    <c-fieldset heading="Description">
+        <c-info_box>
             {{ incident.description|linebreaks }}
-        </div>
-    </div>
+        </c-info_box>
+    </c-fieldset>
 
-    <div class="mb-20">
-        <h3>Evidence Screenshots</h3>
+    <c-fieldset heading="Evidence Screenshots">
         {% if incident.screenshots.exists %}
             <c-image_grid>
                 {% for screenshot in incident.screenshots.all %}
@@ -61,9 +59,9 @@
                 {% endfor %}
             </c-image_grid>
         {% else %}
-            <p class="text-muted">No screenshots attached</p>
+            <c-empty_state title="No screenshots" description="No screenshots were attached to this report" />
         {% endif %}
-    </div>
+    </c-fieldset>
 
     {% if incident.gold_team_reviewed %}
     <c-alert variant="success">
@@ -87,12 +85,12 @@
     </c-alert>
     {% endif %}
 
-    <div class="d-flex gap-10 mt-15">
+    <c-button_row class="mt-15">
         <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit Another</c-link>
         {% if is_gold_team and not incident.gold_team_reviewed %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="success">Review Now</c-link>
         {% endif %}
-    </div>
+    </c-button_row>
 </c-module>
 </div>
 {% endblock %}

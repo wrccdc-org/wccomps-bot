@@ -76,14 +76,13 @@
 
             <!-- Add Comment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div class="pt-20-border">
-                <h3 class="mb-10">Add Comment</h3>
+            <c-action_box heading="Add Comment">
                 <form method="POST" action="{% url 'ticket_comment' ticket.id %}">
                     {% csrf_token %}
                     <textarea name="comment" rows="4" class="w-full p-8 border rounded" style="font-family: monospace;" placeholder="Type your comment here..."></textarea>
                     <c-button type="submit" variant="primary" class="mt-10">Post Comment</c-button>
                 </form>
-            </div>
+            </c-action_box>
             {% endif %}
         </c-fieldset>
 
@@ -120,26 +119,26 @@
 
             <!-- Upload Attachment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div class="pt-20-border">
-                <h3 class="mb-10">Upload Attachment</h3>
+            <c-action_box heading="Upload Attachment">
                 <form method="POST" action="{% url 'ticket_attachment_upload' ticket.id %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" name="attachment" required class="mb-10">
-                    <div class="help-text mb-10">Max file size: 10MB</div>
+                    <c-form_field label="File" id="attachment" help_text="Max file size: 10MB">
+                        <input type="file" name="attachment" required>
+                    </c-form_field>
                     <c-button type="submit" variant="primary">Upload File</c-button>
                 </form>
-            </div>
+            </c-action_box>
             {% endif %}
         </c-fieldset>
 
         <!-- Cancel ticket option -->
         {% if ticket.status == 'open' %}
-        <div class="pt-20-border">
+        <c-action_box heading="Cancel Ticket" variant="warning">
             <form method="POST" action="{% url 'ticket_cancel' ticket.id %}" onsubmit="return confirm('Are you sure you want to cancel this ticket?');">
                 {% csrf_token %}
                 <c-button type="submit" variant="danger">Cancel Ticket</c-button>
             </form>
-        </div>
+        </c-action_box>
         {% endif %}
     </c-module>
 </div>

@@ -19,10 +19,10 @@
             Created: {{ import_results.created }} school info record(s)
         </c-alert>
 
-        <div class="submit-row">
+        <c-button_row>
             <c-link href="{% url 'ops_school_info' %}" class="button">View School Information</c-link>
             <c-link href="{% url 'ops_school_info_import' %}" class="button">Import Another File</c-link>
-        </div>
+        </c-button_row>
 
         {% elif preview_data %}
         {# Step 2: Show preview and confirmation #}
@@ -82,15 +82,15 @@
 
         <form method="POST">
             {% csrf_token %}
-            <div class="submit-row mt-20">
+            <c-button_row class="mt-20">
                 <c-button type="submit" name="confirm" value="true" variant="primary">Confirm and Import</c-button>
                 <c-link href="{% url 'ops_school_info_import' %}" class="button cancel-link">Cancel</c-link>
-            </div>
+            </c-button_row>
         </form>
         {% else %}
-        <div class="submit-row">
+        <c-button_row>
             <c-link href="{% url 'ops_school_info_import' %}" class="button">Try Again</c-link>
-        </div>
+        </c-button_row>
         {% endif %}
 
         {% else %}
@@ -124,10 +124,10 @@ Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
                     </c-form_field>
                 </c-fieldset>
 
-                <div class="submit-row">
+                <c-button_row>
                     <c-button type="submit" name="upload" value="true" variant="primary">Upload and Preview</c-button>
                     <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
-                </div>
+                </c-button_row>
             </form>
         </div>
         {% endif %}

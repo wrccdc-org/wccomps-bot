@@ -14,9 +14,8 @@
             <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
 
-        <div class="toolbar mt-10">
-            <form method="GET" id="filter-form" role="search" aria-label="Filter tickets">
-                <label for="id_status">Status:</label>
+        <c-filter_toolbar form_id="filter-form">
+            <c-filter_field label="Status" id="id_status">
                 <select name="status" id="id_status" aria-label="Filter by status">
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
                     <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
@@ -24,28 +23,18 @@
                     <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
                     <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
-                <c-link href="{% url 'team_tickets' %}" class="button ml-10">Clear</c-link>
-            </form>
-        </div>
+            </c-filter_field>
+        </c-filter_toolbar>
 
-        <div class="results">
-            <table id="result_list" role="grid" aria-label="Your tickets">
-                <thead>
-                    <tr role="row">
-                        <th scope="col" role="columnheader">
-                            <div class="text">Ticket</div>
-                        </th>
-                        <th scope="col" role="columnheader">
-                            <div class="text">Category</div>
-                        </th>
-                        <th scope="col" role="columnheader">
-                            <div class="text">Status</div>
-                        </th>
-                        <th scope="col" role="columnheader">
-                            <div class="text">Created</div>
-                        </th>
-                    </tr>
-                </thead>
+        <c-table id="result_list" aria_label="Your tickets">
+            <c-slot name="headers">
+                <tr role="row">
+                    <c-table_header sortable="false">Ticket</c-table_header>
+                    <c-table_header sortable="false">Category</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Created</c-table_header>
+                </tr>
+            </c-slot>
                 <tbody>
                     {% for item in tickets %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
@@ -74,8 +63,7 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
-        </div>
+        </c-table>
 
         {% if tickets %}
         <p class="paginator">
