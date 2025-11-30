@@ -2100,15 +2100,14 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    return render(
-        request,
-        "ops_group_role_mappings.html",
-        {
-            "team_status": team_status,
-            "show_ops_nav": True,
-            "nav_active": "mappings",
-        },
-    )
+    from django.contrib.admin.sites import site
+
+    context = {
+        **site.each_context(request),
+        "team_status": team_status,
+        "title": "Team Mappings",
+    }
+    return render(request, "ops_group_role_mappings.html", context)
 
 
 @login_required
