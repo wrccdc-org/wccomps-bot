@@ -10,15 +10,14 @@
 
     <h2 class="mt-20">Available Exports</h2>
 
-    <c-table>
-        <thead>
+    <c-table aria_label="Available exports">
+        <c-slot name="headers">
             <tr>
-                <th class="text-left">Data Type</th>
-                <th class="text-left">Description</th>
-                <th class="text-center">Export</th>
+                <c-table_header sortable="false" class="text-left">Data Type</c-table_header>
+                <c-table_header sortable="false" class="text-left">Description</c-table_header>
+                <c-table_header sortable="false" class="text-center">Export</c-table_header>
             </tr>
-        </thead>
-        <tbody>
+        </c-slot>
             <tr>
                 <td><strong>Red Team Findings</strong></td>
                 <td>All red team vulnerability findings with affected teams and points</td>
@@ -59,7 +58,6 @@
                     <c-button type="button" onclick="window.location='{% url 'scoring:export_final_scores' %}?format=json'">JSON</c-button>
                 </td>
             </tr>
-        </tbody>
     </c-table>
 
     <c-alert variant="info" class="mt-20">
