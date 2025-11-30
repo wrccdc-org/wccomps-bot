@@ -177,7 +177,7 @@ class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
 
     @admin.display(description="%")
     def percentage(self, obj: InjectGrade) -> str:
-        if obj.max_points > 0:
+        if obj.max_points and obj.max_points > 0:
             pct = (obj.points_awarded / obj.max_points) * 100
             color = "green" if pct >= 80 else "orange" if pct >= 60 else "red"
             return format_html(f'<span style="color: {color};">{pct:.1f}%</span>')

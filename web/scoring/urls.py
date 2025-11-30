@@ -29,7 +29,6 @@ urlpatterns = [
     path("orange-team/bulk-reject/", views.bulk_reject_orange_adjustments, name="bulk_reject_orange_adjustments"),
     # Inject Grading (White/Gold Team)
     path("injects/", views.inject_grading, name="inject_grading"),
-    path("injects/submit/", views.submit_inject_grades, name="submit_inject_grades"),
     path("injects/review/", views.inject_grades_review, name="inject_grades_review"),
     path("injects/bulk-approve/", views.inject_grades_bulk_approve, name="inject_grades_bulk_approve"),
     # Gold Team - Incident Review

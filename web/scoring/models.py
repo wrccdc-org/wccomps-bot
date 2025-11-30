@@ -336,7 +336,7 @@ class InjectGrade(models.Model):
     # Inject info (inject definitions come from Quotient)
     inject_id = models.CharField(max_length=100, help_text="Quotient inject ID")
     inject_name = models.CharField(max_length=200)
-    max_points = models.DecimalField(max_digits=10, decimal_places=2)
+    max_points = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     # Grading
     points_awarded = models.DecimalField(
@@ -383,7 +383,9 @@ class InjectGrade(models.Model):
         ordering = ["inject_name", "team__team_number"]
 
     def __str__(self) -> str:
-        return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}/{self.max_points}"
+        if self.max_points:
+            return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}/{self.max_points}"
+        return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}"
 
 
 class OrangeCheckType(models.Model):
