@@ -55,46 +55,14 @@
                 </colgroup>
                 <thead>
                     <tr role="row">
-                        <th scope="col">
-                            <div class="text"><span>Ticket</span></div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">
-                                    Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'category' %}-{% endif %}category&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">
-                                    Category {% if sort_by == 'category' %}▲{% elif sort_by == '-category' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Resolved By</span></div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'points_charged' %}-{% endif %}points_charged&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">
-                                    Points {% if sort_by == 'points_charged' %}▲{% elif sort_by == '-points_charged' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'resolved_at' %}-{% endif %}resolved_at&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">
-                                    Resolved {% if sort_by == 'resolved_at' %}▲{% elif sort_by == '-resolved_at' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Verification</span></div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Actions</span></div>
-                        </th>
+                        <c-table_header sortable="false">Ticket</c-table_header>
+                        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Team</c-table_header>
+                        <c-table_header sort_field="category" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Category</c-table_header>
+                        <c-table_header sortable="false">Resolved By</c-table_header>
+                        <c-table_header sort_field="points_charged" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Points</c-table_header>
+                        <c-table_header sort_field="resolved_at" current_sort=sort_by query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&page_size={{ page_size }}">Resolved</c-table_header>
+                        <c-table_header sortable="false">Verification</c-table_header>
+                        <c-table_header sortable="false">Actions</c-table_header>
                     </tr>
                 </thead>
                 <tbody>

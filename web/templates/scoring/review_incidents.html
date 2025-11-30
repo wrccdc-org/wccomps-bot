@@ -46,38 +46,14 @@
                 </colgroup>
                 <thead>
                     <tr role="row">
-                        <th scope="col">
-                            <div class="text"><span>ID</span></div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">
-                                    Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Box/Service</span></div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Attack Vector</span></div>
-                        </th>
-                        <th scope="col" class="sortable">
-                            <div class="text">
-                                <a href="?sort={% if sort_by == 'attack_detected_at' %}-{% endif %}attack_detected_at&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">
-                                    Detected {% if sort_by == 'attack_detected_at' %}▲{% elif sort_by == '-attack_detected_at' %}▼{% endif %}
-                                </a>
-                            </div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Evidence</span></div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Status</span></div>
-                        </th>
-                        <th scope="col">
-                            <div class="text"><span>Actions</span></div>
-                        </th>
+                        <c-table_header sortable="false">ID</c-table_header>
+                        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Team</c-table_header>
+                        <c-table_header sortable="false">Box/Service</c-table_header>
+                        <c-table_header sortable="false">Attack Vector</c-table_header>
+                        <c-table_header sort_field="attack_detected_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Detected</c-table_header>
+                        <c-table_header sortable="false">Evidence</c-table_header>
+                        <c-table_header sortable="false">Status</c-table_header>
+                        <c-table_header sortable="false">Actions</c-table_header>
                     </tr>
                 </thead>
                 <tbody>
