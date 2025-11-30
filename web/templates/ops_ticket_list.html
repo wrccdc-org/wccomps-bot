@@ -172,17 +172,17 @@
                         <td class="field-created">{{ item.ticket.created_at|timesince }} ago</td>
                         <td class="field-actions">
                             {% if item.ticket.status == "open" %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/claim/" class="d-inline">
+                                <form method="post" action="{% url 'ops_ticket_claim' item.ticket.ticket_number %}" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Claim</c-button>
                                 </form>
                             {% elif item.ticket.status == "claimed" %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/resolve/" class="d-inline">
+                                <form method="post" action="{% url 'ops_ticket_resolve' item.ticket.ticket_number %}" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Resolve</c-button>
                                 </form>
                                 {% if item.ticket.assigned_to.authentik_username == authentik_username or is_ticketing_admin %}
-                                <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/unclaim/" class="d-inline">
+                                <form method="post" action="{% url 'ops_ticket_unclaim' item.ticket.ticket_number %}" class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit">Unclaim</c-button>
                                 </form>

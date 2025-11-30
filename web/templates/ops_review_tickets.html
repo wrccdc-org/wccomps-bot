@@ -69,7 +69,7 @@
                     {% for item in page_obj %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
                         <th class="field-ticket_number">
-                            <c-link href="/ops/ticket/{{ item.ticket.ticket_number }}/">{{ item.ticket.ticket_number }}</c-link>
+                            <c-link href="{% url 'ops_ticket_detail' item.ticket.ticket_number %}">{{ item.ticket.ticket_number }}</c-link>
                         </th>
                         <td class="field-team">{{ item.ticket.team.team_name }}</td>
                         <td class="field-category">{{ item.category_name }}</td>
@@ -99,7 +99,7 @@
                         </td>
                         <td class="field-actions">
                             {% if not item.ticket.points_verified %}
-                            <form method="post" action="/ops/ticket/{{ item.ticket.ticket_number }}/verify/" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
+                            <form method="post" action="{% url 'ops_ticket_verify' item.ticket.ticket_number %}" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
                                 {% csrf_token %}
                                 <input type="hidden" name="points_adjustment" id="points_{{ item.ticket.ticket_number }}" value="{{ item.ticket.points_charged }}" />
                                 <input type="hidden" name="verification_notes" id="notes_{{ item.ticket.ticket_number }}" value="" />
