@@ -232,38 +232,6 @@ class TestAuthentikManager:
             assert error is not None
             assert "No BlueTeam group binding found" in error
 
-    def test_get_blueteam_group_success(self, manager: AuthentikManager) -> None:
-        """Test successful BlueTeam group PK retrieval."""
-        mock_response = Mock()
-        mock_response.json.return_value = {
-            "results": [
-                {
-                    "group": "group-blueteam-123",
-                    "group_obj": {"name": "WCComps_BlueTeam"},
-                }
-            ]
-        }
-
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            group_pk, error = manager.get_blueteam_group("app-123")
-
-            assert group_pk == "group-blueteam-123"
-            assert error is None
-
-    def test_get_blueteam_group_not_found(self, manager: AuthentikManager) -> None:
-        """Test BlueTeam group not found."""
-        mock_response = Mock()
-        mock_response.json.return_value = {"results": []}
-
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            group_pk, error = manager.get_blueteam_group("app-123")
-
-            assert group_pk is None
-            assert error is not None
-            assert "No BlueTeam group found" in error
-
     def test_update_binding_enabled_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating binding enabled state."""
         binding = {

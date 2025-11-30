@@ -16,7 +16,7 @@
 
     <div class="toolbar">
         <a href="{% url 'ops_upload_packet' %}" class="button">+ Upload New Team Packet</a>
-        <a href="/admin/packets/teampacket/" class="button">Django Admin</a>
+        <a href="{% url 'admin:packets_teampacket_changelist' %}" class="button">Django Admin</a>
     </div>
 
     <div class="module">
@@ -78,7 +78,7 @@
     </div>
 
     <br>
-    <p><a href="/">← Back to Home</a></p>
+    <p><a href="{% url 'home' %}">← Back to Home</a></p>
 </div>
 
 <style>

@@ -9,7 +9,7 @@
 
     <c-module>
         <c-slot name="toolbar">
-            <c-link href="/ops/school-info/" variant="history">Back to School Information</c-link>
+            <c-link href="{% url 'ops_school_info' %}" variant="history">Back to School Information</c-link>
         </c-slot>
 
         {% if import_results %}
@@ -20,8 +20,8 @@
         </c-alert>
 
         <div class="submit-row">
-            <c-link href="/ops/school-info/" class="button">View School Information</c-link>
-            <c-link href="/ops/school-info/import/" class="button">Import Another File</c-link>
+            <c-link href="{% url 'ops_school_info' %}" class="button">View School Information</c-link>
+            <c-link href="{% url 'ops_school_info_import' %}" class="button">Import Another File</c-link>
         </div>
 
         {% elif preview_data %}
@@ -84,12 +84,12 @@
             {% csrf_token %}
             <div class="submit-row mt-20">
                 <input type="submit" name="confirm" value="Confirm and Import" class="default">
-                <c-link href="/ops/school-info/import/" class="button cancel-link">Cancel</c-link>
+                <c-link href="{% url 'ops_school_info_import' %}" class="button cancel-link">Cancel</c-link>
             </div>
         </form>
         {% else %}
         <div class="submit-row">
-            <c-link href="/ops/school-info/import/" class="button">Try Again</c-link>
+            <c-link href="{% url 'ops_school_info_import' %}" class="button">Try Again</c-link>
         </div>
         {% endif %}
 
@@ -137,7 +137,7 @@ Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
 
                 <div class="submit-row">
                     <input type="submit" name="upload" value="Upload and Preview" class="default">
-                    <c-link href="/ops/school-info/" class="button cancel-link">Cancel</c-link>
+                    <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
                 </div>
             </form>
         </div>

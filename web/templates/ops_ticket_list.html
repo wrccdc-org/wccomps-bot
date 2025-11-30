@@ -62,12 +62,12 @@
                 <span>
                     <strong id="selected-count" aria-live="polite">0</strong> tickets selected
                 </span>
-                <form method="post" action="/ops/tickets/bulk-claim/" class="d-inline" id="bulk-claim-form">
+                <form method="post" action="{% url 'ops_tickets_bulk_claim' %}" class="d-inline" id="bulk-claim-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-claim-tickets" />
                     <c-button type="submit">Claim Selected</c-button>
                 </form>
-                <form method="post" action="/ops/tickets/bulk-resolve/" class="d-inline" id="bulk-resolve-form">
+                <form method="post" action="{% url 'ops_tickets_bulk_resolve' %}" class="d-inline" id="bulk-resolve-form">
                     {% csrf_token %}
                     <input type="hidden" name="ticket_numbers" id="bulk-resolve-tickets" />
                     <c-button type="submit">Resolve Selected</c-button>
@@ -194,7 +194,7 @@
                     <tr>
                         <td colspan="8">
                             {% if search_query or status_filter != 'all' or category_filter != 'all' or team_filter or assignee_filter %}
-                                No tickets match your filters. Try adjusting your filters or <a href="/ops/tickets/">clearing all filters</a>
+                                No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_ticket_list' %}">clearing all filters</a>
                             {% else %}
                                 No tickets found. Tickets will appear here when teams create them.
                             {% endif %}
