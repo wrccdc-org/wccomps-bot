@@ -76,14 +76,14 @@
             {% if packet.status == "draft" %}
             <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
-                <c-button type="submit" variant="primary" class="confirm-action" data-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
+                <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
             </form>
             {% endif %}
 
             {% if packet.status not in "cancelled" %}
             <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
-                <c-button type="submit" variant="danger" class="confirm-action" data-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
+                <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
             </form>
             {% endif %}
         </c-button_row>
@@ -127,13 +127,4 @@
     </c-module>
 </div>
 
-<script>
-document.querySelectorAll('.confirm-action').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        if (!confirm(this.dataset.confirm)) {
-            e.preventDefault();
-        }
-    });
-});
-</script>
 {% endblock %}

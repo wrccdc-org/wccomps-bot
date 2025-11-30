@@ -472,11 +472,15 @@
 {% block extrahead %}
 {{ block.super }}
 <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
 {% if auto_refresh %}
-<script>
-    setInterval(function() {
-        location.reload();
-    }, 30000);
-</script>
+<div hx-get="{{ request.path }}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+     hx-trigger="every 30s"
+     hx-select="#content-main"
+     hx-target="#content-main"
+     hx-swap="innerHTML"></div>
 {% endif %}
 {% endblock %}
