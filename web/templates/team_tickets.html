@@ -35,8 +35,7 @@
                     <c-table_header sortable="false">Created</c-table_header>
                 </tr>
             </c-slot>
-                <tbody>
-                    {% for item in tickets %}
+                {% for item in tickets %}
                     <tr class="{% cycle 'row1' 'row2' %}" role="row">
                         <th class="field-ticket_number" role="gridcell">
                             <c-link href="{% url 'ticket_detail' item.ticket.id %}">{{ item.ticket.ticket_number }}</c-link>
@@ -61,8 +60,7 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% endfor %}
-                </tbody>
+                {% endfor %}
         </c-table>
 
         {% if tickets %}
