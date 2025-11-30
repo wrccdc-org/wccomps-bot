@@ -58,32 +58,27 @@
         </c-fieldset>
 
         <!-- Actions -->
-        <div class="action-box">
-            <h3>🎯 Actions</h3>
+        <c-action_box heading="Actions">
             {% if ticket.status == 'open' %}
-            <div class="quick-actions">
+            <c-button_row>
                 <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
                     <c-button type="submit" variant="warning">Claim Ticket</c-button>
                 </form>
-            </div>
+            </c-button_row>
             {% elif ticket.status == 'claimed' %}
             {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div class="form-group">
-                    <label for="points_override">Points Override</label>
+                <c-form_field label="Points Override" id="points_override" help_text="Enter a value to override the default point penalty (e.g., 0 for ops errors)">
                     <input type="number" name="points_override" id="points_override" placeholder="Leave blank for default ({{ ticket.points_charged }}pt)">
-                    <div class="help-text">Enter a value to override the default point penalty (e.g., 0 for ops errors)</div>
-                </div>
-                <div class="form-group">
-                    <label for="resolution_notes">Resolution Notes</label>
+                </c-form_field>
+                <c-form_field label="Resolution Notes" required="true" id="resolution_notes" help_text="Explain how the issue was resolved">
                     <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." required></textarea>
-                    <div class="help-text">Explain how the issue was resolved</div>
-                </div>
-                <div class="quick-actions">
-                    <c-button type="submit" variant="success">✓ Resolve Ticket</c-button>
-                </div>
+                </c-form_field>
+                <c-button_row>
+                    <c-button type="submit" variant="success">Resolve Ticket</c-button>
+                </c-button_row>
             </form>
             <div class="divider">
                 <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" class="d-inline">
@@ -92,21 +87,19 @@
                 </form>
             </div>
             {% else %}
-            <div class="warning-box">
-                <strong>⚠️ Ticket Claimed by Another User</strong>
+            <c-alert variant="warning">
+                <strong>Ticket Claimed by Another User</strong>
                 <p class="mt-5 mb-0">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
-            </div>
+            </c-alert>
             {% endif %}
             {% if is_ticketing_support or is_ticketing_admin %}
             <div class="divider">
-                <h4 class="mb-10">🔄 Reassign Ticket</h4>
+                <h4 class="mb-10">Reassign Ticket</h4>
                 <form method="POST" action="{% url 'ops_ticket_reassign' ticket.ticket_number %}">
                     {% csrf_token %}
-                    <div class="form-group">
-                        <label for="new_assignee_username" class="text-sm">New Assignee (Authentik Username)</label>
+                    <c-form_field label="New Assignee (Authentik Username)" required="true" id="new_assignee_username" help_text="Enter the Authentik username of the person to assign this ticket to">
                         <input type="text" name="new_assignee_username" id="new_assignee_username" placeholder="Enter Authentik username" required style="width: 300px;">
-                        <div class="help-text text-xs">Enter the Authentik username of the person to assign this ticket to</div>
-                    </div>
+                    </c-form_field>
                     <c-button type="submit" variant="primary">Reassign</c-button>
                 </form>
             </div>
@@ -114,26 +107,22 @@
             {% elif ticket.status == 'resolved' and is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div class="form-group">
-                    <label for="reopen_reason">Reopen Reason (Optional)</label>
+                <c-form_field label="Reopen Reason (Optional)" id="reopen_reason" help_text="Describe why the ticket needs to be reopened (optional)">
                     <textarea name="reopen_reason" id="reopen_reason" rows="3" placeholder="Optionally explain why this ticket is being reopened..."></textarea>
-                    <div class="help-text">Describe why the ticket needs to be reopened (optional)</div>
-                </div>
-                <div class="quick-actions">
-                    <c-button type="submit" variant="warning">🔄 Reopen Ticket</c-button>
-                </div>
+                </c-form_field>
+                <c-button_row>
+                    <c-button type="submit" variant="warning">Reopen Ticket</c-button>
+                </c-button_row>
             </form>
             {% endif %}
-        </div>
+        </c-action_box>
 
         <!-- Change Category -->
         {% if ticket.status != 'resolved' and ticket.status != 'cancelled' and ticket.status == 'claimed' %}
-        <div class="action-box action-box-warning">
-            <h3>🔄 Change Category</h3>
+        <c-action_box heading="Change Category" variant="warning">
             <form method="POST" action="{% url 'ops_ticket_change_category' ticket.ticket_number %}">
                 {% csrf_token %}
-                <div class="form-group">
-                    <label for="new_category">New Category</label>
+                <c-form_field label="New Category" id="new_category" help_text="Current: {{ category_name }}">
                     <select name="new_category" id="new_category" required>
                         {% for cat_id, cat_info in categories.items %}
                         <option value="{{ cat_id }}" {% if cat_id == ticket.category %}selected{% endif %}>
@@ -141,13 +130,12 @@
                         </option>
                         {% endfor %}
                     </select>
-                    <div class="help-text">Current: {{ category_name }}</div>
-                </div>
-                <div class="quick-actions">
+                </c-form_field>
+                <c-button_row>
                     <c-button type="submit" variant="warning">Change Category</c-button>
-                </div>
+                </c-button_row>
             </form>
-        </div>
+        </c-action_box>
         {% endif %}
 
         <!-- Comments -->
@@ -177,14 +165,13 @@
 
             <!-- Add Comment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div class="action-box">
-                <h3>💬 Add Comment</h3>
+            <c-action_box heading="Add Comment">
                 <form method="POST" action="{% url 'ops_ticket_comment' ticket.ticket_number %}">
                     {% csrf_token %}
                     <textarea name="comment" rows="5" placeholder="Type your comment here..."></textarea>
                     <c-button type="submit" variant="primary" class="mt-15">Post Comment</c-button>
                 </form>
-            </div>
+            </c-action_box>
             {% endif %}
         </c-fieldset>
 
@@ -221,15 +208,15 @@
 
             <!-- Upload Attachment Form -->
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
-            <div class="pt-20-border">
-                <h3 class="mb-10">Upload Attachment</h3>
+            <c-action_box heading="Upload Attachment">
                 <form method="POST" action="{% url 'ops_ticket_attachment_upload' ticket.ticket_number %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <input type="file" name="attachment" required class="mb-10">
-                    <div class="help-text mb-10">Max file size: 10MB</div>
+                    <c-form_field label="File" id="attachment" help_text="Max file size: 10MB">
+                        <input type="file" name="attachment" required>
+                    </c-form_field>
                     <c-button type="submit" variant="primary">Upload File</c-button>
                 </form>
-            </div>
+            </c-action_box>
             {% endif %}
         </c-fieldset>
 

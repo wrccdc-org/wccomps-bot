@@ -28,10 +28,10 @@
             <strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.
         </c-alert>
 
-        <div class="flex gap-10 mt-15">
+        <c-button_row class="mt-15">
             <c-button type="submit" variant="warning">Submit Adjustment</c-button>
             <c-link href="{% url 'scoring:orange_team_portal' %}">Cancel</c-link>
-        </div>
+        </c-button_row>
     </form>
 </c-module>
 

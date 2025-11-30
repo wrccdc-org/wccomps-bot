@@ -72,7 +72,7 @@
             </c-detail_grid>
         </c-fieldset>
 
-        <div class="submit-row">
+        <c-button_row>
             {% if packet.status == "draft" %}
             <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
@@ -86,7 +86,7 @@
                 <c-button type="submit" variant="danger" class="confirm-action" data-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
             </form>
             {% endif %}
-        </div>
+        </c-button_row>
     </c-module>
 
     <c-module>

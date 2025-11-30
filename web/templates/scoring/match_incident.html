@@ -19,29 +19,25 @@
             <dd>{{ incident.attack_description }}</dd>
         </c-detail_grid>
 
-        <div class="mb-15">
-            <h3 class="text-md mt-0">Description</h3>
-            <div class="info-box">
+        <c-fieldset heading="Description">
+            <c-info_box>
                 <small>{{ incident.description|linebreaks }}</small>
-            </div>
-        </div>
+            </c-info_box>
+        </c-fieldset>
 
-        <div>
-            <h3 class="text-md mt-0">Evidence ({{ incident.screenshots.count }})</h3>
+        <c-fieldset heading="Evidence ({{ incident.screenshots.count }})">
             {% if incident.screenshots.exists %}
-                <div class="grid-2 gap-10">
+                <c-image_grid>
                     {% for screenshot in incident.screenshots.all %}
-                    <div>
-                        <a href="{{ screenshot.image.url }}" target="_blank">
-                            <img src="{{ screenshot.image.url }}" class="w-full border rounded" alt="Evidence">
-                        </a>
-                    </div>
+                    <a href="{{ screenshot.image.url }}" target="_blank">
+                        <img src="{{ screenshot.image.url }}" alt="Evidence">
+                    </a>
                     {% endfor %}
-                </div>
+                </c-image_grid>
             {% else %}
-                <p class="text-muted">No screenshots</p>
+                <c-empty_state title="No screenshots" description="No evidence screenshots attached" />
             {% endif %}
-        </div>
+        </c-fieldset>
     </c-module>
 
     <c-module>
@@ -113,10 +109,10 @@
                 </ul>
             </c-alert>
 
-            <div class="d-flex gap-10 mt-15">
+            <c-button_row class="mt-15">
                 <c-button type="submit" variant="success">Complete Review</c-button>
                 <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
-            </div>
+            </c-button_row>
         </form>
     </c-module>
 </div>

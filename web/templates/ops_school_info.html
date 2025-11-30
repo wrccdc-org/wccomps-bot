@@ -12,8 +12,8 @@
             <c-link href="{% url 'ops_school_info_import' %}" variant="addlink">Import from CSV</c-link>
         </c-slot>
 
-        <div class="results">
-            <table id="result_list" class="w-full" style="table-layout: fixed;" aria-label="School information for all teams">
+        <c-table id="result_list" class="w-full" fixed_layout="true" aria_label="School information for all teams">
+            <c-slot name="colgroup">
                 <colgroup>
                     <col style="width: 15%;">
                     <col style="width: 25%;">
@@ -22,71 +22,57 @@
                     <col style="width: 10%;">
                     <col style="width: 5%;">
                 </colgroup>
-                <thead>
-                    <tr>
-                        <th scope="col">
-                            <div class="text">Team</div>
-                        </th>
-                        <th scope="col">
-                            <div class="text">School Name</div>
-                        </th>
-                        <th scope="col">
-                            <div class="text">Contact Email</div>
-                        </th>
-                        <th scope="col">
-                            <div class="text">Secondary Email</div>
-                        </th>
-                        <th scope="col">
-                            <div class="text">Last Updated</div>
-                        </th>
-                        <th scope="col">
-                            <div class="text">Action</div>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in teams %}
-                    <tr class="{% cycle 'row1' 'row2' %}">
-                        <th class="field-team">
-                            Team {{ item.team.team_number }}
-                            <div>{{ item.team.team_name }}</div>
-                        </th>
-                        <td class="field-school_name">
-                            {% if item.school_info %}
-                                {{ item.school_info.school_name }}
-                            {% else %}
-                                Not set
-                            {% endif %}
-                        </td>
-                        <td class="field-contact_email">
-                            {% if item.school_info %}
-                                {{ item.school_info.contact_email }}
-                            {% else %}
-                                Not set
-                            {% endif %}
-                        </td>
-                        <td class="field-secondary_email">
-                            {% if item.school_info %}
-                                {{ item.school_info.secondary_contact_email|default:"—" }}
-                            {% else %}
-                                Not set
-                            {% endif %}
-                        </td>
-                        <td class="field-updated">
-                            {% if item.school_info %}
-                                {{ item.school_info.updated_at|timesince }} ago
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td class="field-action">
-                            <c-link href="{% url 'ops_school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            </c-slot>
+            <c-slot name="headers">
+                <tr>
+                    <th scope="col"><div class="text">Team</div></th>
+                    <th scope="col"><div class="text">School Name</div></th>
+                    <th scope="col"><div class="text">Contact Email</div></th>
+                    <th scope="col"><div class="text">Secondary Email</div></th>
+                    <th scope="col"><div class="text">Last Updated</div></th>
+                    <th scope="col"><div class="text">Action</div></th>
+                </tr>
+            </c-slot>
+            {% for item in teams %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <th class="field-team">
+                    Team {{ item.team.team_number }}
+                    <div>{{ item.team.team_name }}</div>
+                </th>
+                <td class="field-school_name">
+                    {% if item.school_info %}
+                        {{ item.school_info.school_name }}
+                    {% else %}
+                        Not set
+                    {% endif %}
+                </td>
+                <td class="field-contact_email">
+                    {% if item.school_info %}
+                        {{ item.school_info.contact_email }}
+                    {% else %}
+                        Not set
+                    {% endif %}
+                </td>
+                <td class="field-secondary_email">
+                    {% if item.school_info %}
+                        {{ item.school_info.secondary_contact_email|default:"—" }}
+                    {% else %}
+                        Not set
+                    {% endif %}
+                </td>
+                <td class="field-updated">
+                    {% if item.school_info %}
+                        {{ item.school_info.updated_at|timesince }} ago
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="field-action">
+                    <c-link href="{% url 'ops_school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
+                </td>
+            </tr>
+            {% endfor %}
+        </c-table>
 
         <p class="paginator">
             {{ teams|length }} team(s)
