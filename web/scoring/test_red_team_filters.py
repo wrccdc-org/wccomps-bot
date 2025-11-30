@@ -51,10 +51,10 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        # Filter by team1
-        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id})
+        # Filter by team1 (default status is "pending", use "all" to get all)
+        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id, "status": "all"})
         assert response.status_code == 200
-        findings = list(response.context["pending_findings"]) + list(response.context["reviewed_findings"])
+        findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
         assert finding1.id in finding_ids
         assert finding2.id not in finding_ids
@@ -85,9 +85,9 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user)
 
         # Filter by attack type (partial match)
-        response = client.get(reverse("scoring:red_team_portal"), {"attack_type": "SQL"})
+        response = client.get(reverse("scoring:red_team_portal"), {"attack_type": "SQL", "status": "all"})
         assert response.status_code == 200
-        findings = list(response.context["pending_findings"]) + list(response.context["reviewed_findings"])
+        findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
         assert finding1.id in finding_ids
         assert finding2.id not in finding_ids
@@ -118,9 +118,9 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user1)
 
         # Filter by submitter
-        response = client.get(reverse("scoring:red_team_portal"), {"submitter": red_user1.id})
+        response = client.get(reverse("scoring:red_team_portal"), {"submitter": red_user1.id, "status": "all"})
         assert response.status_code == 200
-        findings = list(response.context["pending_findings"]) + list(response.context["reviewed_findings"])
+        findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
         assert finding1.id in finding_ids
         assert finding2.id not in finding_ids
@@ -160,9 +160,9 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user1)
 
         # Filter by team AND submitter
-        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id, "submitter": red_user1.id})
+        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id, "submitter": red_user1.id, "status": "all"})
         assert response.status_code == 200
-        findings = list(response.context["pending_findings"]) + list(response.context["reviewed_findings"])
+        findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
         assert finding1.id in finding_ids
         assert finding2.id not in finding_ids
@@ -192,9 +192,9 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_portal"))
+        response = client.get(reverse("scoring:red_team_portal"), {"status": "all"})
         assert response.status_code == 200
-        findings = list(response.context["pending_findings"]) + list(response.context["reviewed_findings"])
+        findings = list(response.context["page_obj"])
         assert len(findings) == 2
 
     def test_filter_context_includes_teams_and_submitters(self, create_user_with_groups: Callable[..., User]) -> None:

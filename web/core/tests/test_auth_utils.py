@@ -1,0 +1,217 @@
+"""Tests for auth_utils.py permission functions."""
+
+import pytest
+from django.contrib.auth.models import AnonymousUser, User
+from django.http import HttpResponse
+from django.test import RequestFactory
+
+from core.auth_utils import (
+    get_authentik_groups,
+    get_permissions_context,
+    get_user_team_number,
+    has_permission,
+    require_permission,
+)
+
+pytestmark = pytest.mark.django_db
+
+
+class TestGetAuthentikGroups:
+    """Tests for get_authentik_groups function."""
+
+    def test_anonymous_user_returns_empty_list(self):
+        """Anonymous user should return empty groups list."""
+        anon = AnonymousUser()
+        groups = get_authentik_groups(anon)
+        assert groups == []
+
+    def test_user_without_social_account_returns_empty_list(self):
+        """User without SocialAccount should return empty groups."""
+        user = User.objects.create_user(username="no_social", password="test")
+        groups = get_authentik_groups(user)
+        assert groups == []
+
+    def test_user_with_social_account_returns_groups(self, blue_team_user):
+        """User with SocialAccount should return their groups."""
+        groups = get_authentik_groups(blue_team_user)
+        assert "WCComps_BlueTeam01" in groups
+
+    def test_groups_from_userinfo(self, admin_user):
+        """Groups should be extracted from userinfo.groups."""
+        groups = get_authentik_groups(admin_user)
+        assert "WCComps_Discord_Admin" in groups
+
+
+class TestHasPermission:
+    """Tests for has_permission function."""
+
+    def test_anonymous_user_has_no_permissions(self):
+        """Anonymous user should have no permissions."""
+        anon = AnonymousUser()
+        assert not has_permission(anon, "admin")
+        assert not has_permission(anon, "ticketing_support")
+        assert not has_permission(anon, "gold_team")
+
+    def test_admin_permission(self, admin_user):
+        """User with Discord_Admin group should have admin permission."""
+        assert has_permission(admin_user, "admin")
+
+    def test_ticketing_support_permission(self, ticketing_support_user):
+        """User with Ticketing_Support group should have ticketing_support permission."""
+        assert has_permission(ticketing_support_user, "ticketing_support")
+
+    def test_ticketing_admin_permission(self, ticketing_admin_user):
+        """User with Ticketing_Admin group should have ticketing_admin permission."""
+        assert has_permission(ticketing_admin_user, "ticketing_admin")
+
+    def test_gold_team_permission(self, gold_team_user):
+        """User with GoldTeam group should have gold_team permission."""
+        assert has_permission(gold_team_user, "gold_team")
+
+    def test_admin_implies_gold_team(self, admin_user):
+        """Admin users should also have gold_team permission."""
+        assert has_permission(admin_user, "gold_team")
+
+    def test_blue_team_permission(self, blue_team_user):
+        """User with BlueTeam group should have blue_team permission."""
+        assert has_permission(blue_team_user, "blue_team")
+
+    def test_white_team_permission(self, white_team_user):
+        """User with WhiteTeam group should have white_team permission."""
+        assert has_permission(white_team_user, "white_team")
+
+    def test_orange_team_permission(self, orange_team_user):
+        """User with OrangeTeam group should have orange_team permission."""
+        assert has_permission(orange_team_user, "orange_team")
+
+    def test_red_team_user_lacks_blue_team_permission(self, red_team_user):
+        """Red team user should not have blue_team permission."""
+        assert not has_permission(red_team_user, "blue_team")
+
+    def test_direct_group_check(self, admin_user):
+        """Can check for specific group name directly."""
+        assert has_permission(admin_user, "WCComps_Discord_Admin")
+
+    def test_nonexistent_permission(self, blue_team_user):
+        """Checking for non-existent permission returns False."""
+        assert not has_permission(blue_team_user, "nonexistent_permission")
+
+
+class TestGetPermissionsContext:
+    """Tests for get_permissions_context function."""
+
+    def test_admin_permissions_context(self, admin_user):
+        """Admin should have is_admin and is_gold_team in context."""
+        ctx = get_permissions_context(admin_user)
+        assert ctx["is_admin"] is True
+        assert ctx["is_gold_team"] is True
+
+    def test_blue_team_permissions_context(self, blue_team_user):
+        """Blue team should not have admin permissions in context."""
+        ctx = get_permissions_context(blue_team_user)
+        assert ctx["is_admin"] is False
+        assert ctx["is_ticketing_admin"] is False
+        assert ctx["is_gold_team"] is False
+
+    def test_ticketing_support_permissions_context(self, ticketing_support_user):
+        """Ticketing support should have is_ticketing_support in context."""
+        ctx = get_permissions_context(ticketing_support_user)
+        assert ctx["is_ticketing_support"] is True
+        assert ctx["is_ticketing_admin"] is False
+
+    def test_all_permission_flags_present(self, blue_team_user):
+        """Context should contain all standard permission flags."""
+        ctx = get_permissions_context(blue_team_user)
+        expected_keys = [
+            "is_admin",
+            "is_ticketing_admin",
+            "is_ticketing_support",
+            "is_gold_team",
+            "is_white_team",
+            "is_orange_team",
+        ]
+        for key in expected_keys:
+            assert key in ctx
+
+
+class TestGetUserTeamNumber:
+    """Tests for get_user_team_number function."""
+
+    def test_blue_team_01_returns_1(self, blue_team_user):
+        """Blue team 01 user should return team number 1."""
+        team_num = get_user_team_number(blue_team_user)
+        assert team_num == 1
+
+    def test_blue_team_02_returns_2(self, blue_team_02_user):
+        """Blue team 02 user should return team number 2."""
+        team_num = get_user_team_number(blue_team_02_user)
+        assert team_num == 2
+
+    def test_non_team_user_returns_none(self, ticketing_support_user):
+        """Non-team user should return None."""
+        team_num = get_user_team_number(ticketing_support_user)
+        assert team_num is None
+
+    def test_admin_without_team_returns_none(self, admin_user):
+        """Admin user without team group should return None."""
+        team_num = get_user_team_number(admin_user)
+        assert team_num is None
+
+
+class TestRequirePermissionDecorator:
+    """Tests for require_permission decorator."""
+
+    def test_decorator_allows_permitted_user(self, ticketing_admin_user):
+        """Decorator should allow user with required permission."""
+
+        @require_permission("ticketing_admin")
+        def protected_view(request):
+            return HttpResponse("success")
+
+        factory = RequestFactory()
+        request = factory.get("/test/")
+        request.user = ticketing_admin_user
+
+        response = protected_view(request)
+        assert response.status_code == 200
+        assert response.content == b"success"
+
+    def test_decorator_redirects_unpermitted_user(self, blue_team_user):
+        """Decorator should redirect user without required permission."""
+
+        @require_permission("ticketing_admin")
+        def protected_view(request):
+            return HttpResponse("success")
+
+        factory = RequestFactory()
+        request = factory.get("/test/")
+        request.user = blue_team_user
+        request.session = {}
+
+        # Mock the messages framework
+        from unittest.mock import MagicMock
+
+        request._messages = MagicMock()
+
+        response = protected_view(request)
+        assert response.status_code == 302
+        assert response.url == "/"
+
+    def test_decorator_redirects_anonymous_user(self):
+        """Decorator should redirect anonymous user."""
+
+        @require_permission("ticketing_admin")
+        def protected_view(request):
+            return HttpResponse("success")
+
+        factory = RequestFactory()
+        request = factory.get("/test/")
+        request.user = AnonymousUser()
+        request.session = {}
+
+        from unittest.mock import MagicMock
+
+        request._messages = MagicMock()
+
+        response = protected_view(request)
+        assert response.status_code == 302

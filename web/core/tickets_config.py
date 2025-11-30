@@ -3,13 +3,6 @@
 from typing import TypedDict
 
 
-class TicketTagConfig(TypedDict):
-    display_name: str
-    description: str
-    auto_action: str | None
-    color: str
-
-
 class TicketCategoryConfig(TypedDict, total=False):
     display_name: str
     points: int
@@ -18,27 +11,6 @@ class TicketCategoryConfig(TypedDict, total=False):
     warning: str
     variable_cost_note: str
 
-
-TICKET_TAGS: dict[str, TicketTagConfig] = {
-    "operations-issue": {
-        "display_name": "Operations Issue",
-        "description": "Issue was caused by operations mistake (credit points back)",
-        "auto_action": "credit_points",
-        "color": "#4299e1",
-    },
-    "no-deduction": {
-        "display_name": "No Deduction",
-        "description": "Special case where no points should be charged",
-        "auto_action": "waive_points",
-        "color": "#48bb78",
-    },
-    "escalated": {
-        "display_name": "Escalated",
-        "description": "Escalated to senior operations team",
-        "auto_action": None,
-        "color": "#f56565",
-    },
-}
 
 TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
     "service-scoring-validation": {

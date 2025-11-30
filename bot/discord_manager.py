@@ -319,34 +319,6 @@ class DiscordManager:
             logger.exception(f"Error assigning group roles to {member}: {e}")
             return False
 
-    async def remove_group_roles(self, member: discord.Member, authentik_groups: list[str]) -> bool:
-        """
-        Remove Discord roles based on Authentik groups.
-
-        Similar to remove_team_role but for non-team colored team roles.
-        """
-        roles_to_remove = []
-
-        for group_name, role_id in settings.GROUP_ROLE_MAPPING.items():
-            if group_name in authentik_groups:
-                role = self.guild.get_role(role_id)
-                if role and role in member.roles:
-                    roles_to_remove.append(role)
-
-        if not roles_to_remove:
-            return True
-
-        try:
-            await member.remove_roles(*roles_to_remove, reason="WCComps account unlinked")
-            logger.info(f"Removed {', '.join([r.name for r in roles_to_remove])} from {member}")
-            return True
-        except discord.errors.Forbidden:
-            logger.exception(f"No permission to remove roles from {member}")
-            return False
-        except Exception as e:
-            logger.exception(f"Error removing group roles from {member}: {e}")
-            return False
-
     async def remove_team_role(self, member: discord.Member, team_number: int) -> bool:
         """Remove team role and Blueteam role from a member."""
         team = await Team.objects.filter(team_number=team_number).afirst()

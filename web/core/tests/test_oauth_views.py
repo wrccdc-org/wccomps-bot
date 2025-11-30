@@ -1,0 +1,300 @@
+"""Tests for OAuth/Discord linking views."""
+
+from datetime import timedelta
+
+import pytest
+from django.test import Client
+from django.utils import timezone
+
+from team.models import DiscordLink, LinkAttempt, LinkToken, Team
+
+pytestmark = pytest.mark.django_db
+
+
+class TestLinkInitiate:
+    """Tests for link_initiate view (OAuth flow start)."""
+
+    def test_missing_token_returns_400(self):
+        """Request without token parameter should return 400."""
+        client = Client()
+        response = client.get("/auth/link")
+        assert response.status_code == 400
+        assert b"Missing token" in response.content
+
+    def test_invalid_token_shows_error_page(self):
+        """Invalid token should show error page."""
+        client = Client()
+        response = client.get("/auth/link?token=invalid_token_12345")
+        assert response.status_code == 200
+        assert b"Invalid or expired token" in response.content
+
+    def test_used_token_shows_error_page(self):
+        """Already used token should show error page."""
+        token = LinkToken.objects.create(
+            token="used_token_123",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=True,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        response = client.get(f"/auth/link?token={token.token}")
+        assert response.status_code == 200
+        assert b"Invalid or expired token" in response.content
+
+    def test_expired_token_shows_error_page(self):
+        """Expired token should show error page."""
+        token = LinkToken.objects.create(
+            token="expired_token_123",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        client = Client()
+        response = client.get(f"/auth/link?token={token.token}")
+        assert response.status_code == 200
+        assert b"Token expired" in response.content
+
+    def test_valid_token_redirects_to_oauth(self):
+        """Valid token should redirect to Authentik OAuth."""
+        token = LinkToken.objects.create(
+            token="valid_token_abc123",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        response = client.get(f"/auth/link?token={token.token}")
+        assert response.status_code == 302
+        assert "/accounts/oidc/authentik/login/" in response.url
+        assert f"token={token.token}" in response.url
+
+    def test_valid_token_stores_in_session(self):
+        """Valid token should be stored in session for CSRF protection."""
+        token = LinkToken.objects.create(
+            token="session_token_xyz",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        client.get(f"/auth/link?token={token.token}")
+        assert client.session.get("pending_link_token") == token.token
+        assert client.session.get("pending_link_discord_id") == token.discord_id
+
+
+class TestLinkCallback:
+    """Tests for link_callback view (OAuth callback handling)."""
+
+    def test_unauthenticated_redirects_to_login(self):
+        """Unauthenticated users should be redirected to login."""
+        client = Client()
+        response = client.get("/auth/callback")
+        assert response.status_code == 302
+        assert "/accounts/" in response.url or "login" in response.url
+
+    def test_missing_token_in_url_shows_error(self, blue_team_user):
+        """Callback without token in URL should show error."""
+        client = Client()
+        client.force_login(blue_team_user)
+        response = client.get("/auth/callback")
+        assert response.status_code == 200
+        assert b"Missing authentication state" in response.content
+
+    def test_csrf_mismatch_shows_error(self, blue_team_user):
+        """Token mismatch between session and URL should show error."""
+        token = LinkToken.objects.create(
+            token="csrf_test_token",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+        # Session has different token
+        session = client.session
+        session["pending_link_token"] = "different_token"
+        session.save()
+        response = client.get(f"/auth/callback?token={token.token}")
+        assert response.status_code == 200
+        assert b"Security verification failed" in response.content
+
+    def test_successful_team_link(self, blue_team_user):
+        """Successful team account linking creates DiscordLink and tasks."""
+        from unittest.mock import patch
+
+        team = Team.objects.create(
+            team_number=1,
+            team_name="Blue Team 01",
+            max_members=10,
+        )
+        token = LinkToken.objects.create(
+            token="success_token_123",
+            discord_id=987654321,
+            discord_username="discorduser",
+            used=False,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+        session = client.session
+        session["pending_link_token"] = token.token
+        session.save()
+
+        # Mock the Authentik API call to avoid real API errors
+        with patch("core.authentik.AuthentikManager"):
+            response = client.get(f"/auth/callback?token={token.token}")
+
+        assert response.status_code == 200
+        assert b"Successfully Linked" in response.content
+
+        # Verify link created
+        link = DiscordLink.objects.get(discord_id=987654321)
+        assert link.is_active
+        assert link.team == team
+
+        # Verify token marked used
+        token.refresh_from_db()
+        assert token.used
+
+        # Verify attempt logged
+        attempt = LinkAttempt.objects.get(discord_id=987654321)
+        assert attempt.success
+
+    def test_team_full_prevents_linking(self, blue_team_user):
+        """Cannot link when team is at max capacity."""
+        from unittest.mock import patch
+
+        team = Team.objects.create(
+            team_number=1,
+            team_name="Blue Team 01",
+            max_members=1,
+        )
+        # Fill the team
+        DiscordLink.objects.create(
+            discord_id=111111111,
+            discord_username="existinguser",
+            authentik_username="existing",
+            authentik_user_id="existing-id",
+            team=team,
+            is_active=True,
+        )
+        token = LinkToken.objects.create(
+            token="full_team_token",
+            discord_id=987654321,
+            discord_username="discorduser",
+            used=False,
+            expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+        session = client.session
+        session["pending_link_token"] = token.token
+        session.save()
+
+        # Mock the Authentik API call to avoid real API errors
+        with patch("core.authentik.AuthentikManager"):
+            response = client.get(f"/auth/callback?token={token.token}")
+
+        assert response.status_code == 200
+        assert b"Team full" in response.content
+
+        # Verify failed attempt logged
+        attempt = LinkAttempt.objects.get(discord_id=987654321)
+        assert not attempt.success
+        assert "full" in attempt.failure_reason.lower()
+
+
+class TestLinkTokenExpiry:
+    """Test token expiry edge cases."""
+
+    def test_token_just_expired(self):
+        """Token that expired 1 second ago should be rejected."""
+        token = LinkToken.objects.create(
+            token="just_expired_token",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        client = Client()
+        response = client.get(f"/auth/link?token={token.token}")
+        assert b"expired" in response.content.lower()
+
+    def test_token_about_to_expire(self):
+        """Token that expires in 1 second should still work."""
+        token = LinkToken.objects.create(
+            token="about_to_expire_token",
+            discord_id=123456789,
+            discord_username="testuser",
+            used=False,
+            expires_at=timezone.now() + timedelta(seconds=5),
+        )
+        client = Client()
+        response = client.get(f"/auth/link?token={token.token}")
+        assert response.status_code == 302  # Redirects to OAuth
+
+
+class TestDiscordLinkConstraints:
+    """Test DiscordLink uniqueness and constraints."""
+
+    def test_only_one_active_link_per_discord_user(self, blue_team_user):
+        """Creating new link deactivates previous active link."""
+        team = Team.objects.create(team_number=1, team_name="Blue Team 01", max_members=10)
+        discord_id = 123456789
+
+        # Create first link
+        link1 = DiscordLink.objects.create(
+            discord_id=discord_id,
+            discord_username="user1",
+            authentik_username="auth1",
+            authentik_user_id="auth-id-1",
+            team=team,
+            is_active=True,
+        )
+
+        # Create second link for same Discord user
+        link2 = DiscordLink.objects.create(
+            discord_id=discord_id,
+            discord_username="user1_updated",
+            authentik_username="auth2",
+            authentik_user_id="auth-id-2",
+            team=team,
+            is_active=True,
+        )
+
+        link1.refresh_from_db()
+        assert not link1.is_active
+        assert link1.unlinked_at is not None
+        assert link2.is_active
+
+    def test_multiple_discord_users_can_link_to_team_account(self):
+        """Multiple Discord users can link to same team Authentik account."""
+        team = Team.objects.create(team_number=1, team_name="Blue Team 01", max_members=10)
+
+        link1 = DiscordLink.objects.create(
+            discord_id=111111111,
+            discord_username="user1",
+            authentik_username="team01",
+            authentik_user_id="team01-id",
+            team=team,
+            is_active=True,
+        )
+        link2 = DiscordLink.objects.create(
+            discord_id=222222222,
+            discord_username="user2",
+            authentik_username="team01",
+            authentik_user_id="team01-id",
+            team=team,
+            is_active=True,
+        )
+
+        # Both should remain active
+        link1.refresh_from_db()
+        link2.refresh_from_db()
+        assert link1.is_active
+        assert link2.is_active

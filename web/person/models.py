@@ -109,10 +109,6 @@ class Person(models.Model):
     def __str__(self) -> str:
         return f"{self.authentik_username}"
 
-    def get_display_name(self) -> str:
-        """Return best available display name."""
-        return self.authentik_username or self.user.username
-
     def has_group(self, group_name: str) -> bool:
         """Check if user is in a specific Authentik group."""
         return group_name in self.authentik_groups
@@ -140,18 +136,6 @@ class Person(models.Model):
     def is_black_team(self) -> bool:
         """Check if user is in BlackTeam."""
         return self.has_group("WCComps_BlackTeam")
-
-    def is_staff_team(self) -> bool:
-        """Check if user is in any staff team (Gold/White/Red/Orange/Black)."""
-        return self.has_any_group(
-            [
-                "WCComps_GoldTeam",
-                "WCComps_WhiteTeam",
-                "WCComps_RedTeam",
-                "WCComps_OrangeTeam",
-                "WCComps_BlackTeam",
-            ]
-        )
 
     def get_team_number(self) -> int | None:
         """Extract team number from BlueTeam groups (BlueTeam_01 to BlueTeam_50)."""

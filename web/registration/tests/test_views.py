@@ -55,36 +55,6 @@ class RegistrationViewTestCase(TestCase):
         self.assertFormError(response.context["form"], "school_name", "This field is required.")
 
 
-class StatusCheckViewTestCase(TestCase):
-    """Test status check view."""
-
-    def setUp(self):
-        """Set up test data."""
-        self.client = Client()
-        self.registration = TeamRegistration.objects.create(
-            school_name="Test School", contact_email="test@example.com", phone="555-1234"
-        )
-
-    def test_status_page_loads(self):
-        """Test status check page loads."""
-        response = self.client.get(reverse("registration_status"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "registration/status.html")
-
-    def test_check_status_with_valid_email(self):
-        """Test checking status with valid email."""
-        response = self.client.get(reverse("registration_status"), {"email": "test@example.com"})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Test School")
-        self.assertContains(response, "Pending Review")
-
-    def test_check_status_with_nonexistent_email(self):
-        """Test checking status with email that doesn't exist."""
-        response = self.client.get(reverse("registration_status"), {"email": "nonexistent@example.com"})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "No registration found")
-
-
 class AdminReviewListViewTestCase(TestCase):
     """Test admin review list view."""
 

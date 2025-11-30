@@ -81,8 +81,8 @@ class TestInjectGradesReviewAccess:
 class TestInjectGradesGrouping:
     """Test inject grades are grouped correctly by inject."""
 
-    def test_grades_grouped_by_inject_id(self, create_user_with_groups: Callable[..., User]) -> None:
-        """Grades should be grouped by inject_id in the view context."""
+    def test_grades_displayed_in_page(self, create_user_with_groups: Callable[..., User]) -> None:
+        """Grades should be displayed in page_obj context."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         grader = User.objects.create_user(username="grader", password="test123")
 
@@ -120,18 +120,13 @@ class TestInjectGradesGrouping:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
+        page_obj = response.context["page_obj"]
 
-        # Should have 2 inject groups
-        assert len(inject_groups) == 2
-
-        # Find the INJ-001 group
-        inj001_group = next(g for g in inject_groups if g["inject_id"] == "INJ-001")
-        assert inj001_group["inject_name"] == "Security Policy"
-        assert len(inj001_group["grades"]) == 2
+        # Should have 3 grades total
+        assert len(list(page_obj)) == 3
 
     def test_only_unapproved_grades_shown(self, create_user_with_groups: Callable[..., User]) -> None:
-        """Only unapproved grades should be shown in review view."""
+        """Only unapproved grades should be shown in review view (pending filter)."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         grader = User.objects.create_user(username="grader", password="test123")
         approver = User.objects.create_user(username="approver", password="test123")
@@ -153,7 +148,7 @@ class TestInjectGradesGrouping:
         )
 
         # Create unapproved grade
-        InjectGrade.objects.create(
+        unapproved_grade = InjectGrade.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -164,16 +159,16 @@ class TestInjectGradesGrouping:
 
         client = Client()
         client.force_login(user)
+        # Default status filter is "pending"
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
+        page_obj = response.context["page_obj"]
+        grades = list(page_obj)
 
-        # Should have 1 inject group (INJ-001 with only unapproved grade)
-        assert len(inject_groups) == 1
-        inj001_group = inject_groups[0]
-        assert len(inj001_group["grades"]) == 1
-        assert inj001_group["grades"][0].team == team2
+        # Should have only the unapproved grade
+        assert len(grades) == 1
+        assert grades[0].team == team2
 
     def test_empty_state_when_all_grades_approved(self, create_user_with_groups: Callable[..., User]) -> None:
         """View should handle case when all grades are already approved."""
@@ -198,11 +193,12 @@ class TestInjectGradesGrouping:
 
         client = Client()
         client.force_login(user)
+        # Default filter is "pending" which should show no grades
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
-        assert len(inject_groups) == 0
+        page_obj = response.context["page_obj"]
+        assert len(list(page_obj)) == 0
 
 
 @pytest.mark.django_db
@@ -234,11 +230,11 @@ class TestOutlierDetection:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
-        inj001_group = inject_groups[0]
+        page_obj = response.context["page_obj"]
+        grades = list(page_obj)
 
         # Find the grade with 100 points
-        grade_100 = next(g for g in inj001_group["grades"] if g.points_awarded == Decimal("100"))
+        grade_100 = next(g for g in grades if g.points_awarded == Decimal("100"))
 
         # Check outlier info is attached to the grade
         assert hasattr(grade_100, "is_outlier")
@@ -270,11 +266,11 @@ class TestOutlierDetection:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
-        inj002_group = inject_groups[0]
+        page_obj = response.context["page_obj"]
+        grades = list(page_obj)
 
         # Find the grade with 20 points
-        grade_20 = next(g for g in inj002_group["grades"] if g.points_awarded == Decimal("20"))
+        grade_20 = next(g for g in grades if g.points_awarded == Decimal("20"))
 
         assert hasattr(grade_20, "is_outlier")
         assert grade_20.is_outlier is True
@@ -303,11 +299,11 @@ class TestOutlierDetection:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
-        inj003_group = inject_groups[0]
+        page_obj = response.context["page_obj"]
+        grades = list(page_obj)
 
         # No grades should be flagged as outliers
-        for grade in inj003_group["grades"]:
+        for grade in grades:
             assert hasattr(grade, "is_outlier")
             assert grade.is_outlier is False
 
@@ -342,11 +338,11 @@ class TestOutlierDetection:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 200
-        inject_groups = response.context["inject_groups"]
-        inj004_group = inject_groups[0]
+        page_obj = response.context["page_obj"]
+        grades = list(page_obj)
 
         # Should not flag as outliers with insufficient data
-        for grade in inj004_group["grades"]:
+        for grade in grades:
             assert hasattr(grade, "is_outlier")
             assert grade.is_outlier is False
 
