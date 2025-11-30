@@ -30,7 +30,7 @@
         {% if preview_data.errors %}
         <c-alert variant="error">
             <strong>Validation Errors:</strong>
-            <ul style="margin: 10px 0 0 20px;">
+            <ul class="mt-10 ml-20">
                 {% for error in preview_data.errors %}
                 <li>{{ error }}</li>
                 {% endfor %}
@@ -41,7 +41,7 @@
         {% if preview_data.warnings %}
         <c-alert variant="warning">
             <strong>Warnings:</strong>
-            <ul style="margin: 10px 0 0 20px;">
+            <ul class="mt-10 ml-20">
                 {% for warning in preview_data.warnings %}
                 <li>{{ warning }}</li>
                 {% endfor %}
@@ -53,7 +53,7 @@
         <h2>Preview Changes</h2>
 
         {% if preview_data.teams_to_create %}
-        <h3 style="margin-top: 20px;">New School Information ({{ preview_data.teams_to_create|length }})</h3>
+        <h3 class="mt-20">New School Information ({{ preview_data.teams_to_create|length }})</h3>
         <div class="results">
             <table id="result_list" aria-label="New school information to import">
                 <thead>
@@ -82,7 +82,7 @@
 
         <form method="POST">
             {% csrf_token %}
-            <div class="submit-row" style="margin-top: 20px;">
+            <div class="submit-row mt-20">
                 <input type="submit" name="confirm" value="Confirm and Import" class="default">
                 <c-link href="/ops/school-info/import/" class="button cancel-link">Cancel</c-link>
             </div>
@@ -96,12 +96,12 @@
         {% else %}
         {# Step 1: Upload form #}
 
-        <div style="max-width: 800px;">
+        <div class="max-w-800">
             <p>Upload a CSV file to bulk import school information for teams. Team numbers are assigned randomly.</p>
 
-            <h3 style="margin-top: 20px;">CSV Format Requirements</h3>
+            <h3 class="mt-20">CSV Format Requirements</h3>
             <p>Your CSV file must include the following columns:</p>
-            <ul style="margin-left: 20px;">
+            <ul class="ml-20">
                 <li><strong>school_name</strong> (required) - Name of the school or organization</li>
                 <li><strong>contact_email</strong> (required) - Primary contact email address</li>
                 <li><strong>secondary_email</strong> (optional) - Secondary contact email address</li>
@@ -109,13 +109,13 @@
                 <li><strong>team_name</strong> (optional) - Set the team name</li>
             </ul>
 
-            <h3 style="margin-top: 20px;">Example CSV File</h3>
-            <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">school_name,contact_email,secondary_email,notes,team_name
+            <h3 class="mt-20">Example CSV File</h3>
+            <pre class="code-block">school_name,contact_email,secondary_email,notes,team_name
 University of Example,coach@example.edu,assistant@example.edu,Main campus team,Example Blue
 Community College,contact@college.edu,,Remote team,
 Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
 
-            <form method="POST" enctype="multipart/form-data" style="margin-top: 30px;">
+            <form method="POST" enctype="multipart/form-data" class="mt-20">
                 {% csrf_token %}
 
                 <c-fieldset aligned="true">

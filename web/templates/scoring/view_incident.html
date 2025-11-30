@@ -21,56 +21,56 @@
     <c-detail_grid gap="20px">
         <c-slot name="left">
             <h3>Report Details</h3>
-            <table style="width: 100%; font-size: 13px;" aria-label="Report details">
+            <table class="detail-table" aria-label="Report details">
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Team:</th>
-                    <td style="padding: 5px 0;">{{ incident.team.team_name }}</td>
+                    <th>Team:</th>
+                    <td>{{ incident.team.team_name }}</td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Submitted By:</th>
-                    <td style="padding: 5px 0;">{{ incident.submitted_by.username }}</td>
+                    <th>Submitted By:</th>
+                    <td>{{ incident.submitted_by.username }}</td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Submitted At:</th>
-                    <td style="padding: 5px 0;">{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
+                    <th>Submitted At:</th>
+                    <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Attack Detected:</th>
-                    <td style="padding: 5px 0;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+                    <th>Attack Detected:</th>
+                    <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
                 </tr>
             </table>
         </c-slot>
         <c-slot name="right">
             <h3>Attack Information</h3>
-            <table style="width: 100%; font-size: 13px;" aria-label="Attack information">
+            <table class="detail-table" aria-label="Attack information">
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Affected Box:</th>
-                    <td style="padding: 5px 0;">{{ incident.affected_box }}</td>
+                    <th>Affected Box:</th>
+                    <td>{{ incident.affected_box }}</td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Affected Service:</th>
-                    <td style="padding: 5px 0;">{{ incident.affected_service }}</td>
+                    <th>Affected Service:</th>
+                    <td>{{ incident.affected_service }}</td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Source IP:</th>
-                    <td style="padding: 5px 0;"><code>{{ incident.source_ip }}</code></td>
+                    <th>Source IP:</th>
+                    <td><code>{{ incident.source_ip }}</code></td>
                 </tr>
                 <tr>
-                    <th style="text-align: left; padding: 5px 0;">Attack Vector:</th>
-                    <td style="padding: 5px 0;">{{ incident.attack_vector }}</td>
+                    <th>Attack Vector:</th>
+                    <td>{{ incident.attack_vector }}</td>
                 </tr>
             </table>
         </c-slot>
     </c-detail_grid>
 
-    <div style="margin-bottom: 20px;">
+    <div class="mb-20">
         <h3>Description</h3>
-        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: #f8f8f8;">
+        <div class="info-box">
             {{ incident.description|linebreaks }}
         </div>
     </div>
 
-    <div style="margin-bottom: 20px;">
+    <div class="mb-20">
         <h3>Evidence Screenshots</h3>
         {% if incident.screenshots.exists %}
             <c-image_grid>
@@ -87,25 +87,25 @@
 
     {% if incident.gold_team_reviewed %}
     <c-alert variant="success">
-        <h3 style="margin-top: 0;">Review Status</h3>
-        <table style="width: 100%; font-size: 13px;" aria-label="Review status">
+        <h3 class="mt-0">Review Status</h3>
+        <table class="detail-table" aria-label="Review status">
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Reviewed By:</th>
-                <td style="padding: 5px 0;">{{ incident.reviewed_by.username }}</td>
+                <th>Reviewed By:</th>
+                <td>{{ incident.reviewed_by.username }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Reviewed At:</th>
-                <td style="padding: 5px 0;">{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</td>
+                <th>Reviewed At:</th>
+                <td>{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</td>
             </tr>
             {% if incident.matched_to_red_finding %}
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Matched To:</th>
-                <td style="padding: 5px 0;">Red Team Finding #{{ incident.matched_to_red_finding.id }}</td>
+                <th>Matched To:</th>
+                <td>Red Team Finding #{{ incident.matched_to_red_finding.id }}</td>
             </tr>
             {% endif %}
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Points Returned:</th>
-                <td style="padding: 5px 0;"><strong><c-score_value :value="incident.points_returned" format="signed" /></strong></td>
+                <th>Points Returned:</th>
+                <td><strong><c-score_value :value="incident.points_returned" format="signed" /></strong></td>
             </tr>
         </table>
     </c-alert>
@@ -115,7 +115,7 @@
     </c-alert>
     {% endif %}
 
-    <div style="display: flex; gap: 10px; margin-top: 15px;">
+    <div class="d-flex gap-10 mt-15">
         <c-link href="{% url 'scoring:submit_incident_report' %}" variant="primary">Submit Another</c-link>
         {% if is_gold_team and not incident.gold_team_reviewed %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="success">Review Now</c-link>

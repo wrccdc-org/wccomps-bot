@@ -1,27 +1,27 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
-<c-module style="margin-bottom: 20px;">
+<c-module class="mb-20">
     <h2>Gold Team - Incident Review</h2>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; padding: 15px 0;">
+    <div class="stats-grid">
         <div>
-            <h2 style="color: #417690; margin: 0;">{{ total_incidents }}</h2>
-            <p style="color: #666; margin: 5px 0 0 0;">Total Reports</p>
+            <h2 class="text-primary">{{ total_incidents }}</h2>
+            <p>Total Reports</p>
         </div>
         <div>
-            <h2 style="color: #28a745; margin: 0;">{{ reviewed_count }}</h2>
-            <p style="color: #666; margin: 5px 0 0 0;">Reviewed</p>
+            <h2 class="text-success">{{ reviewed_count }}</h2>
+            <p>Reviewed</p>
         </div>
         <div>
-            <h2 style="color: #ffc107; margin: 0;">{{ pending_count }}</h2>
-            <p style="color: #666; margin: 5px 0 0 0;">Pending</p>
+            <h2 class="text-warning">{{ pending_count }}</h2>
+            <p>Pending</p>
         </div>
     </div>
 </c-module>
 
 <c-module>
     <h2>Pending Incidents</h2>
-    <p style="color: #666; margin-top: 0;">Match incident reports to red team findings and award recovery points</p>
+    <p class="text-muted mt-0">Match incident reports to red team findings and award recovery points</p>
 
     {% if incidents %}
     <c-table id="pending_incidents" aria_label="Pending incident reports">
@@ -58,7 +58,7 @@
                 {% endif %}
             </td>
             <td>
-                <div style="display: flex; gap: 5px;">
+                <div class="d-flex gap-5">
                     <c-link href="{% url 'scoring:view_incident_report' incident.id %}">View</c-link>
                     <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
                 </div>
@@ -68,8 +68,8 @@
     </c-table>
     {% else %}
     <c-alert variant="success">
-        <h3 style="margin-top: 0;">All incidents reviewed!</h3>
-        <p style="margin-bottom: 0;">There are no pending incident reports to review.</p>
+        <h3 class="mt-0">All incidents reviewed!</h3>
+        <p class="mb-0">There are no pending incident reports to review.</p>
     </c-alert>
     {% endif %}
 </c-module>

@@ -8,18 +8,12 @@ Remaining tasks to bring codebase into conformance with specification documents.
 
 | Priority | Remaining | Description |
 |----------|-----------|-------------|
-| P2 | 1 | UI polish tasks |
+| P2 | 0 | UI polish tasks |
 | P3 | 2 | Documentation |
 
 ---
 
 ## Remaining Tasks
-
-### UI Polish (P2)
-
-**UI-10**: Extract remaining inline styles to utility classes.
-
----
 
 ### Documentation (P3)
 
@@ -65,6 +59,7 @@ Remaining tasks to bring codebase into conformance with specification documents.
 - ✅ UI-7: Convert `registration/register.html` to Cotton fieldset (removed crispy-forms dependency)
 - ✅ UI-8: Audit non-scoring templates for aria-labels (all tables already compliant)
 - ✅ UI-9: Migrate Sub-Navigation to `<c-nav>`
+- ✅ UI-10: Extract inline styles to utility classes (375 → 80, 79% reduction)
 - ✅ TEST-1: Permission Integration Tests (`scoring/tests/test_permissions.py`, `core/tests/test_permissions.py`)
 - ✅ TEST-2: Workflow Integration Tests (`scoring/tests/test_workflows.py`, `core/tests/test_ticket_workflow.py`)
 - ✅ TEST-3: Export Functionality Tests (`scoring/tests/test_export.py`)

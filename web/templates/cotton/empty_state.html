@@ -4,25 +4,25 @@
 
 <c-vars icon="" title="" description="" />
 
-<div style="text-align: center; padding: 40px 20px; color: #666;">
+<div class="text-center p-20 text-muted">
     {% if icon %}
-    <div style="font-size: 48px; margin-bottom: 16px; line-height: 1;">
+    <div class="text-xl mb-15" style="font-size: 48px; line-height: 1;">
         {{ icon }}
     </div>
     {% endif %}
 
-    <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 8px;">
+    <div class="text-xl font-semibold text-dark mb-8">
         {{ title }}
     </div>
 
     {% if description %}
-    <div style="font-size: 14px; color: #999; margin-bottom: 20px; max-width: 400px; margin-left: auto; margin-right: auto;">
+    <div class="text-md text-secondary mb-20" style="max-width: 400px; margin-left: auto; margin-right: auto;">
         {{ description }}
     </div>
     {% endif %}
 
     {% if slot %}
-    <div style="margin-top: 20px;">
+    <div class="mt-20">
         {{ slot }}
     </div>
     {% endif %}

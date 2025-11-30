@@ -1,51 +1,51 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
-<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+<div class="grid-2 gap-20">
     <c-module>
-        <h2 style="background: #417690; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Incident Report #{{ incident.id }}</h2>
-        <table style="width: 100%; font-size: 13px; margin-bottom: 15px;" aria-label="Incident report details">
+        <h2 class="module-header">Incident Report #{{ incident.id }}</h2>
+        <table class="detail-table mb-15" aria-label="Incident report details">
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Team:</th>
-                <td style="padding: 5px 0;">{{ incident.team.team_name }}</td>
+                <th>Team:</th>
+                <td>{{ incident.team.team_name }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Affected Box:</th>
-                <td style="padding: 5px 0;">{{ incident.affected_box }}</td>
+                <th>Affected Box:</th>
+                <td>{{ incident.affected_box }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Affected Service:</th>
-                <td style="padding: 5px 0;">{{ incident.affected_service }}</td>
+                <th>Affected Service:</th>
+                <td>{{ incident.affected_service }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Source IP:</th>
-                <td style="padding: 5px 0;"><code>{{ incident.source_ip }}</code></td>
+                <th>Source IP:</th>
+                <td><code>{{ incident.source_ip }}</code></td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Detected At:</th>
-                <td style="padding: 5px 0;">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+                <th>Detected At:</th>
+                <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 5px 0;">Attack Description:</th>
-                <td style="padding: 5px 0;">{{ incident.attack_description }}</td>
+                <th>Attack Description:</th>
+                <td>{{ incident.attack_description }}</td>
             </tr>
         </table>
 
-        <div style="margin-bottom: 15px;">
-            <h3 style="font-size: 14px;">Description</h3>
-            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; background: #f8f8f8;">
+        <div class="mb-15">
+            <h3 class="text-md mt-0">Description</h3>
+            <div class="info-box">
                 <small>{{ incident.description|linebreaks }}</small>
             </div>
         </div>
 
         <div>
-            <h3 style="font-size: 14px;">Evidence ({{ incident.screenshots.count }})</h3>
+            <h3 class="text-md mt-0">Evidence ({{ incident.screenshots.count }})</h3>
             {% if incident.screenshots.exists %}
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div class="grid-2 gap-10">
                     {% for screenshot in incident.screenshots.all %}
                     <div>
                         <a href="{{ screenshot.image.url }}" target="_blank">
-                            <img src="{{ screenshot.image.url }}" style="width: 100%; border: 1px solid #ddd; border-radius: 4px;" alt="Evidence">
+                            <img src="{{ screenshot.image.url }}" class="w-full border rounded" alt="Evidence">
                         </a>
                     </div>
                     {% endfor %}
@@ -57,36 +57,36 @@
     </c-module>
 
     <c-module>
-        <h2 style="background: #28a745; color: white; margin: -15px -15px 15px -15px; padding: 15px;">Review & Match</h2>
+        <h2 class="module-header module-header-success">Review & Match</h2>
         {% if suggested_findings %}
         <c-alert variant="info">
             <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
-            <p style="margin-bottom: 0;">
+            <p class="mb-0">
                 <small>Based on source IP, affected box, and service</small>
             </p>
         </c-alert>
 
-        <div style="margin-bottom: 15px;">
-            <h3 style="font-size: 14px;">Potential Red Team Findings:</h3>
+        <div class="mb-15">
+            <h3 class="text-md mt-0">Potential Red Team Findings:</h3>
             {% for finding in suggested_findings %}
-            <div style="border: {% if finding.source_ip == incident.source_ip %}2px solid #28a745{% elif forloop.first %}2px solid #ffc107{% else %}1px solid #ddd{% endif %}; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: white;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div class="rounded p-10 mb-10 {% if finding.source_ip == incident.source_ip %}border-success{% elif forloop.first %}border-warning{% else %}border{% endif %}">
+                <div class="d-flex justify-between items-start">
                     <div>
                         <strong>Finding #{{ finding.id }}</strong>
                         {% if finding.source_ip == incident.source_ip %}
-                        <c-badge variant="success" style="margin-left: 5px;">IP Match</c-badge>
+                        <c-badge variant="success" class="ml-5">IP Match</c-badge>
                         {% endif %}
                         <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
                         <br><small class="text-muted">
                             {{ finding.affected_box }} / {{ finding.affected_service }}
                         </small>
-                        <br><small style="{% if finding.source_ip == incident.source_ip %}color: #28a745; font-weight: bold;{% else %}color: #666;{% endif %}">
+                        <br><small class="{% if finding.source_ip == incident.source_ip %}text-success font-bold{% else %}text-muted{% endif %}">
                             Source IP: <code>{{ finding.source_ip }}</code>
                         </small>
                     </div>
                     <c-badge variant="danger">-{{ finding.points_per_team }} pts</c-badge>
                 </div>
-                <small style="color: #666; display: block; margin-top: 5px;">
+                <small class="text-muted d-block mt-5">
                     Submitted: {{ finding.created_at|date:"m/d H:i" }}
                 </small>
             </div>
@@ -95,7 +95,7 @@
         {% else %}
         <c-alert variant="warning">
             <strong>No Automatic Matches Found</strong>
-            <p style="margin-bottom: 0;">No red team findings match this incident's source IP, box, or service for this team.</p>
+            <p class="mb-0">No red team findings match this incident's source IP, box, or service for this team.</p>
         </c-alert>
         {% endif %}
 
@@ -140,9 +140,9 @@
                 </div>
             </c-fieldset>
 
-            <c-alert variant="info" style="font-size: 12px;">
+            <c-alert variant="info" class="text-sm">
                 <strong>Review Guidelines:</strong>
-                <ul style="margin-bottom: 0;">
+                <ul class="mb-0">
                     <li>Verify evidence shows IP addresses and timestamps</li>
                     <li>Match to corresponding red team finding if applicable</li>
                     <li>Award points based on detection quality and mitigation</li>
@@ -150,7 +150,7 @@
                 </ul>
             </c-alert>
 
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <div class="d-flex gap-10 mt-15">
                 <c-button type="submit" variant="success">Complete Review</c-button>
                 <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
             </div>
