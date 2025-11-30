@@ -1,22 +1,28 @@
 {% extends "scoring/base.html" %}
 
-{% block scoring_content %}
-<c-module style="margin-bottom: 20px;">
-    <h2>{% if is_gold_team %}Gold Team - {% endif %}Red Team Finding Review</h2>
-    <c-stats_card_grid>
-        <c-stats_card value="{{ total_findings }}" label="Total Findings" color="primary" />
-        <c-stats_card value="{{ reviewed_count }}" label="Reviewed" color="success" />
-        <c-stats_card value="{{ pending_count }}" label="Pending" color="warning" />
-    </c-stats_card_grid>
-</c-module>
+{% block title %}Review Red Team Findings - WCComps{% endblock %}
 
-<c-module style="margin-bottom: 20px;">
-    <h3>Filter Findings</h3>
-    <form method="get" action="{% url 'scoring:red_team_portal' %}">
-        <c-form_grid>
-            <div>
-                <label for="team">Target Team</label>
-                <select name="team" id="team">
+{% block scoring_title %}Review Red Team Findings{% endblock %}
+
+{% block scoring_content %}
+<div id="content-main">
+    <c-module filtered="true" id="changelist">
+        <c-filter_toolbar form_id="changelist-filter">
+            {% if is_gold_team and pending_findings %}
+            <c-slot name="actions">
+                <c-button type="button" id="bulk-approve-btn" onclick="submitBulkApprove()" variant="success">Approve Selected</c-button>
+            </c-slot>
+            {% endif %}
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+                    <option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </c-filter_field>
+
+            <c-filter_field label="Target Team" id="id_team">
+                <select name="team" id="id_team" aria-label="Filter by team">
                     <option value="">All Teams</option>
                     {% for team in available_teams %}
                         <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
@@ -24,17 +30,14 @@
                         </option>
                     {% endfor %}
                 </select>
-            </div>
+            </c-filter_field>
 
-            <div>
-                <label for="attack_type">Attack Type</label>
-                <input type="text" name="attack_type" id="attack_type" value="{{ selected_attack_type|default:'' }}"
-                       placeholder="e.g., SQL, XSS, RCE">
-            </div>
+            <c-filter_field label="Attack Type" id="id_attack_type" min_width="150px">
+                <input type="text" name="attack_type" id="id_attack_type" value="{{ selected_attack_type|default:'' }}" placeholder="SQL, XSS, RCE..." aria-label="Filter by attack type">
+            </c-filter_field>
 
-            <div>
-                <label for="submitter">Submitter</label>
-                <select name="submitter" id="submitter">
+            <c-filter_field label="Submitter" id="id_submitter">
+                <select name="submitter" id="id_submitter" aria-label="Filter by submitter">
                     <option value="">All Submitters</option>
                     {% for user in available_submitters %}
                         <option value="{{ user.id }}" {% if selected_submitter == user.id|stringformat:"s" %}selected{% endif %}>
@@ -42,100 +45,170 @@
                         </option>
                     {% endfor %}
                 </select>
+            </c-filter_field>
+        </c-filter_toolbar>
+
+        <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_red_findings' %}">
+            {% csrf_token %}
+            <div class="results">
+                <table id="result_list" role="grid" aria-label="Red team findings list" style="table-layout: fixed; width: 100%;">
+                    <colgroup>
+                        {% if is_gold_team %}<col style="width: 40px;">{% endif %}
+                        <col style="width: 6%;">
+                        <col style="width: 25%;">
+                        <col style="width: 10%;">
+                        <col style="width: 10%;">
+                        <col style="width: 15%;">
+                        <col style="width: 12%;">
+                        <col style="width: 8%;">
+                        {% if is_gold_team %}<col style="width: 8%;">{% endif %}
+                        <col style="width: 8%;">
+                    </colgroup>
+                    <thead>
+                        <tr role="row">
+                            {% if is_gold_team %}
+                            <th scope="col">
+                                <input type="checkbox" id="select-all" title="Select all">
+                            </th>
+                            {% endif %}
+                            <th scope="col">
+                                <div class="text"><span>ID</span></div>
+                            </th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'attack_vector' %}-{% endif %}attack_vector&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">
+                                        Attack Vector {% if sort_by == 'attack_vector' %}▲{% elif sort_by == '-attack_vector' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Box</span></div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Service</span></div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Teams</span></div>
+                            </th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'created_at' %}-{% endif %}created_at&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">
+                                        Submitted {% if sort_by == 'created_at' %}▲{% elif sort_by == '-created_at' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Evidence</span></div>
+                            </th>
+                            {% if is_gold_team %}
+                            <th scope="col">
+                                <div class="text"><span>Points</span></div>
+                            </th>
+                            {% endif %}
+                            <th scope="col">
+                                <div class="text"><span>Status</span></div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in findings %}
+                        <tr class="{% cycle 'row1' 'row2' %}" role="row">
+                            {% if is_gold_team %}
+                            <td>
+                                {% if not finding.is_approved %}
+                                <input type="checkbox" name="finding_ids" value="{{ finding.id }}" class="finding-checkbox">
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                            <th class="field-id">
+                                <a href="{% url 'admin:scoring_redteamfinding_change' finding.id %}">#{{ finding.id }}</a>
+                            </th>
+                            <td class="field-attack_vector">{{ finding.attack_vector|truncatechars:50 }}</td>
+                            <td class="field-box">{{ finding.affected_box }}</td>
+                            <td class="field-service">{{ finding.affected_service }}</td>
+                            <td class="field-teams">
+                                <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
+                                <div class="text-sm text-muted">
+                                    {% for team in finding.affected_teams.all|slice:":3" %}
+                                        {{ team.team_name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                    {% if finding.affected_teams.count > 3 %}...{% endif %}
+                                </div>
+                            </td>
+                            <td class="field-submitted">
+                                {{ finding.created_at|timesince }} ago
+                                <div class="text-sm text-muted">by {{ finding.submitted_by.username }}</div>
+                            </td>
+                            <td class="field-evidence">
+                                {% if finding.screenshots.exists %}
+                                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
+                                {% else %}
+                                    <span class="text-muted">None</span>
+                                {% endif %}
+                            </td>
+                            {% if is_gold_team %}
+                            <td class="field-points" style="color: #dc3545;">
+                                {% if finding.is_approved %}-{{ finding.points_per_team }}{% else %}—{% endif %}
+                            </td>
+                            {% endif %}
+                            <td class="field-status">
+                                {% if finding.is_approved %}
+                                    <span class="text-success font-semibold">✓ Reviewed</span>
+                                {% else %}
+                                    <span class="text-warning font-semibold">⏳ Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if is_gold_team %}10{% else %}8{% endif %}">
+                                {% if selected_team or selected_attack_type or selected_submitter or status_filter != 'pending' %}
+                                    No findings match your filters. Try adjusting your filters or <a href="{% url 'scoring:red_team_portal' %}">clearing all filters</a>
+                                {% else %}
+                                    No pending findings. All red team findings have been reviewed.
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+        </form>
 
-            <div style="display: flex; gap: 10px;">
-                <c-button type="submit">Apply Filters</c-button>
-                <c-link href="{% url 'scoring:red_team_portal' %}" variant="secondary">Clear</c-link>
-            </div>
-        </c-form_grid>
-    </form>
-</c-module>
+        <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}&sort={{ sort_by }}" />
+    </c-module>
+</div>
 
-<c-module>
-    <c-section_header title="Pending Red Team Findings" subtitle="Review red team findings and assign point deductions">
-        <c-slot name="actions">
-            {% if is_gold_team and pending_findings %}
-            <c-button type="button" id="bulk-approve-btn" onclick="submitBulkApprove()" variant="success">
-                Bulk Approve
-            </c-button>
-            {% endif %}
-        </c-slot>
-    </c-section_header>
-
-    {% if pending_findings %}
-    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_red_findings' %}">
-        {% csrf_token %}
-        <c-table id="pending_findings" aria_label="Pending red team findings">
-            <c-slot name="headers">
-                <tr>
-                    {% if is_gold_team %}
-                    <th style="width: 40px;">
-                        <input type="checkbox" id="select-all" onchange="toggleAllCheckboxes(this)">
-                    </th>
-                    {% endif %}
-                    <th>ID</th>
-                    <th>Attack Vector</th>
-                    <th>Box</th>
-                    <th>Service</th>
-                    <th>Teams</th>
-                    <th>Submitted</th>
-                    <th>Evidence</th>
-                    <th>Actions</th>
-                </tr>
-            </c-slot>
-
-            {% for finding in pending_findings %}
-            <tr>
-                {% if is_gold_team %}
-                <td>
-                    <input type="checkbox" name="finding_ids" value="{{ finding.id }}" class="finding-checkbox">
-                </td>
-                {% endif %}
-                <td><strong>#{{ finding.id }}</strong></td>
-            <td>{{ finding.attack_vector|truncatechars:40 }}</td>
-            <td>{{ finding.affected_box }}</td>
-            <td>{{ finding.affected_service }}</td>
-            <td>
-                <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
-                <small class="text-muted">
-                    {% for team in finding.affected_teams.all|slice:":3" %}
-                        {{ team.team_name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                    {% if finding.affected_teams.count > 3 %}...{% endif %}
-                </small>
-            </td>
-            <td>
-                <small>{{ finding.created_at|date:"m/d H:i" }}</small><br>
-                <small class="text-muted">by {{ finding.submitted_by.username }}</small>
-            </td>
-            <td>
-                {% if finding.screenshots.exists %}
-                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
-                {% else %}
-                    <c-badge variant="secondary">None</c-badge>
-                {% endif %}
-            </td>
-            <td>
-                <c-link href="{% url 'admin:scoring_redteamfinding_change' finding.id %}" variant="primary">Review</c-link>
-            </td>
-        </tr>
-        {% endfor %}
-        </c-table>
-    </form>
-    {% else %}
-    <c-empty_state icon="✓" title="All findings reviewed!" description="There are no pending red team findings to review." />
-    {% endif %}
-</c-module>
-
-{% if is_gold_team and pending_findings %}
 <script>
-function toggleAllCheckboxes(source) {
-    const checkboxes = document.querySelectorAll('.finding-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('changelist-filter');
+    const statusSelect = document.getElementById('id_status');
+    const teamSelect = document.getElementById('id_team');
+    const attackTypeInput = document.getElementById('id_attack_type');
+    const submitterSelect = document.getElementById('id_submitter');
+    const selectAllCheckbox = document.getElementById('select-all');
+
+    // Auto-submit on change for select filters
+    statusSelect.addEventListener('change', () => filterForm.submit());
+    teamSelect.addEventListener('change', () => filterForm.submit());
+    submitterSelect.addEventListener('change', () => filterForm.submit());
+
+    // Debounced search for attack type
+    let searchTimeout;
+    attackTypeInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => filterForm.submit(), 800);
     });
-}
+
+    // Select all functionality
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.finding-checkbox').forEach(cb => {
+                cb.checked = this.checked;
+            });
+        });
+    }
+});
 
 function submitBulkApprove() {
     const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
@@ -149,59 +222,4 @@ function submitBulkApprove() {
     }
 }
 </script>
-{% endif %}
-
-{% if reviewed_findings %}
-<c-module>
-    <h2>Reviewed Findings</h2>
-    <c-table id="reviewed_findings" aria_label="Reviewed red team findings">
-        <c-slot name="headers">
-            <tr>
-                <th>ID</th>
-                <th>Attack Vector</th>
-                <th>Box</th>
-                <th>Service</th>
-                <th>Teams</th>
-                {% if is_gold_team %}
-                <th style="text-align: right;">Points/Team</th>
-                {% endif %}
-                <th>Submitted</th>
-                <th>Evidence</th>
-            </tr>
-        </c-slot>
-
-        {% for finding in reviewed_findings %}
-        <tr>
-            <td><strong>#{{ finding.id }}</strong></td>
-            <td>{{ finding.attack_vector|truncatechars:40 }}</td>
-            <td>{{ finding.affected_box }}</td>
-            <td>{{ finding.affected_service }}</td>
-            <td>
-                <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
-                <small class="text-muted">
-                    {% for team in finding.affected_teams.all|slice:":3" %}
-                        {{ team.team_name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                    {% if finding.affected_teams.count > 3 %}...{% endif %}
-                </small>
-            </td>
-            {% if is_gold_team %}
-            <td style="text-align: right; color: #dc3545;">-{{ finding.points_per_team }}</td>
-            {% endif %}
-            <td>
-                <small>{{ finding.created_at|date:"m/d H:i" }}</small><br>
-                <small class="text-muted">by {{ finding.submitted_by.username }}</small>
-            </td>
-            <td>
-                {% if finding.screenshots.exists %}
-                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
-                {% else %}
-                    <c-badge variant="secondary">None</c-badge>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </c-table>
-</c-module>
-{% endif %}
 {% endblock %}

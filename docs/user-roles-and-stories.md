@@ -242,6 +242,22 @@ System administrators have full access to system configuration.
 | Export Data | | | | | | | | ✓ |
 | Django Admin | | | | | | | | ✓ |
 
+### View-Level Permissions (URL Access)
+
+| View                    | Blue | Red | Gold | White | Orange | Ticket Supp | Ticket Admin | Admin |
+|-------------------------|------|-----|------|-------|--------|-------------|--------------|-------|
+| Leaderboard             |      |     | ✓    | ✓     |        |             | ✓            | ✓     |
+| Red Team Portal         |      | ✓   | ✓    |       |        |             |              | ✓     |
+| Incident Submission     | *    |     |      |       |        |             |              | ✓     |
+| Orange Team Portal      |      |     | ✓    |       | ✓      |             |              | ✓     |
+| Inject Grading          |      |     | ✓    | ✓     |        |             |              | ✓     |
+| Ops Tickets             |      |     |      |       |        | ✓           | ✓            | ✓     |
+| Ops School Info         |      |     | ✓    |       |        |             |              | ✓     |
+| Ops Group Role Mappings |      |     | ✓    |       |        |             |              | ✓     |
+| Export Views            |      |     |      |       |        |             |              | ✓     |
+
+\* Blue Team can submit incidents only if they have a team assigned
+
 ---
 
 ## User Stories

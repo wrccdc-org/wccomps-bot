@@ -1,199 +1,218 @@
 {% extends "scoring/base.html" %}
 
+{% block title %}Review Inject Grades - WCComps{% endblock %}
+
+{% block scoring_title %}Review Inject Grades{% endblock %}
+
 {% block scoring_content %}
-<c-module>
-    <h2>Review Inject Grades</h2>
-    <p class="text-muted">Spot-check and approve inject grades. Outliers (grades > 1.5 std dev from mean) are highlighted.</p>
+<div id="content-main">
+    <c-module filtered="true" id="changelist">
+        <c-filter_toolbar form_id="changelist-filter">
+            {% if has_unapproved %}
+            <c-slot name="actions">
+                <c-button type="button" onclick="submitBulkApprove()" variant="success">Approve Selected</c-button>
+            </c-slot>
+            {% endif %}
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved Only</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </c-filter_field>
 
-    <div class="d-flex gap-20 my-20 p-15 bg-light rounded">
-        <div>
-            <strong>Total Grades:</strong> {{ total_grades }}
-        </div>
-        <div>
-            <strong>Approved:</strong> <span class="text-success">{{ approved_count }}</span>
-        </div>
-        <div>
-            <strong>Pending Approval:</strong> <span class="text-warning">{{ unapproved_count }}</span>
-        </div>
-    </div>
+            <c-filter_field label="Inject" id="id_inject">
+                <select name="inject" id="id_inject" aria-label="Filter by inject">
+                    <option value="">All Injects</option>
+                    {% for inject in available_injects %}
+                        <option value="{{ inject.inject_id }}" {% if selected_inject == inject.inject_id %}selected{% endif %}>
+                            {{ inject.inject_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
 
-    {% if not inject_groups %}
-    <c-alert variant="success">
-        <h3 class="mt-0">All Grades Approved</h3>
-        <p class="mb-0">All inject grades have been reviewed and approved. Great work!</p>
-    </c-alert>
-    {% else %}
+            <c-filter_field label="Team" id="id_team">
+                <select name="team" id="id_team" aria-label="Filter by team">
+                    <option value="">All Teams</option>
+                    {% for team in available_teams %}
+                        <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
+                            {{ team.team_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </c-filter_field>
 
-    <form method="post" action="{% url 'scoring:inject_grades_bulk_approve' %}" id="approvalForm">
-        {% csrf_token %}
+            <c-filter_field label="Outliers Only" id="id_outliers">
+                <select name="outliers" id="id_outliers" aria-label="Filter outliers">
+                    <option value="" {% if not show_outliers_only %}selected{% endif %}>All Grades</option>
+                    <option value="1" {% if show_outliers_only %}selected{% endif %}>Outliers Only</option>
+                </select>
+            </c-filter_field>
+        </c-filter_toolbar>
 
-        <div class="mb-20 d-flex gap-10 items-center">
-            <c-button type="submit" variant="primary">Approve Selected</c-button>
-            <c-button type="button" onclick="selectAll()">Select All</c-button>
-            <c-button type="button" onclick="deselectAll()">Deselect All</c-button>
-            <span id="selectionCount" class="ml-10 text-muted"></span>
-        </div>
-
-        {% for inject_group in inject_groups %}
-        <div class="panel mb-20">
-            <div class="panel-header">
-                <div class="d-flex justify-between items-center">
-                    <div>
-                        <h3 class="m-0">{{ inject_group.inject_name }}</h3>
-                        <small class="text-muted">Inject ID: {{ inject_group.inject_id }}</small>
-                    </div>
-                    <div class="text-right">
-                        <c-badge variant="primary">Max: {{ inject_group.max_points }} points</c-badge>
-                        <br><small class="text-muted">{{ inject_group.grades|length }} grades pending</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="panel-body">
-                <table class="data-table" aria-label="Inject grades for {{ inject_group.inject_name }}">
+        <form id="bulk-approve-form" method="post" action="{% url 'scoring:inject_grades_bulk_approve' %}">
+            {% csrf_token %}
+            <div class="results">
+                <table id="result_list" role="grid" aria-label="Inject grades list" style="table-layout: fixed; width: 100%;">
+                    <colgroup>
+                        <col style="width: 40px;">
+                        <col style="width: 22%;">
+                        <col style="width: 15%;">
+                        <col style="width: 10%;">
+                        <col style="width: 8%;">
+                        <col style="width: 15%;">
+                        <col style="width: 10%;">
+                        <col style="width: 12%;">
+                    </colgroup>
                     <thead>
-                        <tr>
-                            <th class="col-checkbox">
-                                <input type="checkbox" class="inject-select-all" data-inject="{{ inject_group.inject_id }}">
+                        <tr role="row">
+                            <th scope="col">
+                                <input type="checkbox" id="select-all" title="Select all">
                             </th>
-                            <th class="col-medium">Team</th>
-                            <th class="col-narrow text-right">Points</th>
-                            <th class="col-narrow text-right">% of Max</th>
-                            <th>Graded By</th>
-                            <th>Status</th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'inject_name' %}-{% endif %}inject_name&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
+                                        Inject {% if sort_by == 'inject_name' %}▲{% elif sort_by == '-inject_name' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'team__team_number' %}-{% endif %}team__team_number&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
+                                        Team {% if sort_by == 'team__team_number' %}▲{% elif sort_by == '-team__team_number' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'points_awarded' %}-{% endif %}points_awarded&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
+                                        Points {% if sort_by == 'points_awarded' %}▲{% elif sort_by == '-points_awarded' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Max</span></div>
+                            </th>
+                            <th scope="col" class="sortable">
+                                <div class="text">
+                                    <a href="?sort={% if sort_by == 'graded_at' %}-{% endif %}graded_at&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">
+                                        Graded {% if sort_by == 'graded_at' %}▲{% elif sort_by == '-graded_at' %}▼{% endif %}
+                                    </a>
+                                </div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Outlier</span></div>
+                            </th>
+                            <th scope="col">
+                                <div class="text"><span>Status</span></div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for grade in inject_group.grades %}
-                        <tr class="{% if grade.is_outlier %}bg-warning-light{% endif %}">
-                            <td class="col-checkbox">
-                                <input type="checkbox" name="grade_ids" value="{{ grade.id }}" class="grade-checkbox" data-inject="{{ inject_group.inject_id }}">
-                            </td>
+                        {% for grade in page_obj %}
+                        <tr class="{% cycle 'row1' 'row2' %}{% if grade.is_outlier %} bg-warning-light{% endif %}" role="row">
                             <td>
-                                <strong>Team {{ grade.team.team_number }}</strong>
-                                {% if grade.team.team_name != "Team " %}
-                                <br><small class="text-muted">{{ grade.team.team_name }}</small>
+                                {% if not grade.is_approved %}
+                                <input type="checkbox" name="grade_ids" value="{{ grade.id }}" class="grade-checkbox">
                                 {% endif %}
                             </td>
-                            <td class="text-right">
+                            <th class="field-inject">
+                                {{ grade.inject_name }}
+                                <div class="text-sm text-muted">{{ grade.inject_id }}</div>
+                            </th>
+                            <td class="field-team">
+                                Team {{ grade.team.team_number }}
+                                {% if grade.team.team_name and grade.team.team_name != "Team " %}
+                                <div class="text-sm text-muted">{{ grade.team.team_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="field-points">
                                 <strong>{{ grade.points_awarded }}</strong>
                             </td>
-                            <td class="text-right text-muted">
-                                {% widthratio grade.points_awarded inject_group.max_points 100 %}%
+                            <td class="field-max text-muted">{{ grade.max_points }}</td>
+                            <td class="field-graded">
+                                {{ grade.graded_at|timesince }} ago
+                                <div class="text-sm text-muted">by {{ grade.graded_by.username|default:"Auto" }}</div>
                             </td>
-                            <td>
-                                {{ grade.graded_by.username|default:"Auto" }}
-                                <br><small class="text-muted">{{ grade.graded_at|date:"m/d H:i" }}</small>
-                            </td>
-                            <td>
+                            <td class="field-outlier">
                                 {% if grade.is_outlier %}
-                                <c-badge variant="warning">Outlier</c-badge>
-                                <br><small class="text-muted">{{ grade.std_devs_from_mean|floatformat:2 }}σ from mean</small>
+                                    <span class="text-warning font-semibold">⚠️ {{ grade.std_devs_from_mean|floatformat:1 }}σ</span>
                                 {% else %}
-                                <c-badge variant="secondary">Normal</c-badge>
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="field-status">
+                                {% if grade.is_approved %}
+                                    <span class="text-success font-semibold">✓ Approved</span>
+                                {% else %}
+                                    <span class="text-warning font-semibold">⏳ Pending</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% if grade.notes %}
-                        <tr>
+                        <tr class="{% cycle 'row1' 'row2' %}">
                             <td></td>
-                            <td colspan="5" class="bg-light text-sm">
+                            <td colspan="7" class="bg-light text-sm">
                                 <strong>Notes:</strong> {{ grade.notes }}
                             </td>
                         </tr>
                         {% endif %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="8">
+                                {% if selected_inject or selected_team or show_outliers_only or status_filter != 'pending' %}
+                                    No grades match your filters. Try adjusting your filters or <a href="{% url 'scoring:inject_grades_review' %}">clearing all filters</a>
+                                {% else %}
+                                    No pending grades. All inject grades have been approved.
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-        {% endfor %}
+        </form>
 
-        <div class="d-flex gap-10 justify-between mt-20">
-            <c-link href="{% url 'scoring:inject_grading' %}">Back to Inject Grading</c-link>
-            <c-button type="submit" variant="primary">Approve Selected</c-button>
-        </div>
-    </form>
-
-    {% endif %}
-</c-module>
+        <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&sort={{ sort_by }}" />
+    </c-module>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Update selection count
-    function updateSelectionCount() {
-        const checked = document.querySelectorAll('.grade-checkbox:checked').length;
-        const countEl = document.getElementById('selectionCount');
-        if (checked > 0) {
-            countEl.textContent = `${checked} grade(s) selected`;
-            countEl.style.fontWeight = 'bold';
-        } else {
-            countEl.textContent = '';
-        }
-    }
+    const filterForm = document.getElementById('changelist-filter');
+    const statusSelect = document.getElementById('id_status');
+    const injectSelect = document.getElementById('id_inject');
+    const teamSelect = document.getElementById('id_team');
+    const outliersSelect = document.getElementById('id_outliers');
+    const selectAllCheckbox = document.getElementById('select-all');
 
-    // Individual checkbox change
-    document.querySelectorAll('.grade-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectionCount);
-    });
+    // Auto-submit on change for all select filters
+    statusSelect.addEventListener('change', () => filterForm.submit());
+    injectSelect.addEventListener('change', () => filterForm.submit());
+    teamSelect.addEventListener('change', () => filterForm.submit());
+    outliersSelect.addEventListener('change', () => filterForm.submit());
 
-    // Inject-level "select all" checkboxes
-    document.querySelectorAll('.inject-select-all').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const injectId = this.getAttribute('data-inject');
-            const checked = this.checked;
-            document.querySelectorAll(`.grade-checkbox[data-inject="${injectId}"]`).forEach(cb => {
-                cb.checked = checked;
+    // Select all functionality
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.grade-checkbox').forEach(cb => {
+                cb.checked = this.checked;
             });
-            updateSelectionCount();
         });
-    });
-
-    updateSelectionCount();
-});
-
-function selectAll() {
-    document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = true);
-    document.querySelectorAll('.inject-select-all').forEach(cb => cb.checked = true);
-    document.getElementById('selectionCount').textContent = document.querySelectorAll('.grade-checkbox').length + ' grade(s) selected';
-    document.getElementById('selectionCount').style.fontWeight = 'bold';
-}
-
-function deselectAll() {
-    document.querySelectorAll('.grade-checkbox').forEach(cb => cb.checked = false);
-    document.querySelectorAll('.inject-select-all').forEach(cb => cb.checked = false);
-    document.getElementById('selectionCount').textContent = '';
-}
-
-// Confirm before submitting
-document.getElementById('approvalForm').addEventListener('submit', function(e) {
-    const checked = document.querySelectorAll('.grade-checkbox:checked').length;
-    if (checked === 0) {
-        e.preventDefault();
-        alert('Please select at least one grade to approve.');
-        return false;
-    }
-
-    if (!confirm(`Are you sure you want to approve ${checked} grade(s)? This action cannot be undone.`)) {
-        e.preventDefault();
-        return false;
     }
 });
+
+function submitBulkApprove() {
+    const checkboxes = document.querySelectorAll('.grade-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('Please select at least one grade to approve');
+        return;
+    }
+
+    if (confirm(`Approve ${checkboxes.length} grade(s)? This action cannot be undone.`)) {
+        document.getElementById('bulk-approve-form').submit();
+    }
+}
 </script>
-
-<style>
-.grade-checkbox, .inject-select-all {
-    cursor: pointer;
-    width: 18px;
-    height: 18px;
-}
-
-tr:hover {
-    background-color: #f8f8f8 !important;
-}
-
-tbody tr[style*="background-color: #fff3cd"]:hover {
-    background-color: #ffe69c !important;
-}
-</style>
 {% endblock %}

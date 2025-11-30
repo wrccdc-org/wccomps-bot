@@ -131,13 +131,25 @@ def leaderboard(request: HttpRequest) -> HttpResponse:
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
     """Red team portal - list and review findings."""
-    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots")
+    from django.core.paginator import Paginator
 
-    # Apply filters from query parameters
-    team_filter = request.GET.get("team")
-    attack_type_filter = request.GET.get("attack_type")
-    submitter_filter = request.GET.get("submitter")
+    # Get filter parameters
+    status_filter = request.GET.get("status", "pending") or "pending"
+    team_filter = request.GET.get("team", "")
+    attack_type_filter = request.GET.get("attack_type", "")
+    submitter_filter = request.GET.get("submitter", "")
+    sort_by = request.GET.get("sort", "-created_at")
+    page = request.GET.get("page", "1")
 
+    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
+
+    # Apply status filter
+    if status_filter == "pending":
+        base_query = base_query.filter(is_approved=False)
+    elif status_filter == "reviewed":
+        base_query = base_query.filter(is_approved=True)
+
+    # Apply other filters
     if team_filter:
         base_query = base_query.filter(affected_teams__id=team_filter)
 
@@ -150,11 +162,23 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     # Apply distinct to avoid duplicates from M2M joins
     base_query = base_query.distinct()
 
-    pending_findings = base_query.filter(is_approved=False).order_by("-created_at")
-    reviewed_findings = base_query.filter(is_approved=True).order_by("-created_at")
+    # Validate and apply sort
+    valid_sort_fields = ["created_at", "-created_at", "attack_vector", "-attack_vector"]
+    if sort_by not in valid_sort_fields:
+        sort_by = "-created_at"
+    base_query = base_query.order_by(sort_by)
 
+    # Pagination
+    paginator = Paginator(base_query, 50)
+    try:
+        page_num = int(page)
+    except ValueError:
+        page_num = 1
+    page_obj = paginator.get_page(page_num)
+
+    # Stats (unfiltered counts)
     total_findings = RedTeamFinding.objects.count()
-    pending_count = pending_findings.count()
+    pending_count = RedTeamFinding.objects.filter(is_approved=False).count()
     reviewed_count = total_findings - pending_count
 
     # Get available teams and submitters for filter dropdowns
@@ -165,9 +189,13 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     is_gold_team = user.is_staff or (hasattr(user, "person") and user.person.is_gold_team())
 
+    # For bulk approve button visibility
+    pending_findings = pending_count > 0
+
     context = {
+        "findings": page_obj,
+        "page_obj": page_obj,
         "pending_findings": pending_findings,
-        "reviewed_findings": reviewed_findings,
         "total_findings": total_findings,
         "pending_count": pending_count,
         "reviewed_count": reviewed_count,
@@ -176,6 +204,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "selected_team": team_filter,
         "selected_attack_type": attack_type_filter,
         "selected_submitter": submitter_filter,
+        "status_filter": status_filter,
+        "sort_by": sort_by,
         "is_gold_team": is_gold_team,
     }
     return render(request, "scoring/red_team_portal.html", context)
@@ -616,25 +646,69 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
 @require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can review incident reports")
 def review_incidents(request: HttpRequest) -> HttpResponse:
     """Review and match incident reports (gold team)."""
+    from django.core.paginator import Paginator
 
-    # Get unreviewed incidents
-    incidents = (
-        IncidentReport.objects.filter(gold_team_reviewed=False)
-        .select_related("team")
-        .prefetch_related("screenshots")
-        .order_by("-created_at")
-    )
+    # Get filter parameters
+    status_filter = request.GET.get("status", "pending") or "pending"
+    team_filter = request.GET.get("team", "")
+    box_filter = request.GET.get("box", "")
+    sort_by = request.GET.get("sort", "-created_at")
+    page = request.GET.get("page", "1")
 
-    # Get stats
-    total_incidents = IncidentReport.objects.all().count()
+    base_query = IncidentReport.objects.select_related("team").prefetch_related("screenshots")
+
+    # Apply status filter
+    if status_filter == "pending":
+        base_query = base_query.filter(gold_team_reviewed=False)
+    elif status_filter == "reviewed":
+        base_query = base_query.filter(gold_team_reviewed=True)
+
+    # Apply other filters
+    if team_filter:
+        base_query = base_query.filter(team__id=team_filter)
+
+    if box_filter:
+        base_query = base_query.filter(affected_box__icontains=box_filter)
+
+    # Validate and apply sort
+    valid_sort_fields = [
+        "created_at",
+        "-created_at",
+        "team__team_number",
+        "-team__team_number",
+        "attack_detected_at",
+        "-attack_detected_at",
+    ]
+    if sort_by not in valid_sort_fields:
+        sort_by = "-created_at"
+    base_query = base_query.order_by(sort_by)
+
+    # Pagination
+    paginator = Paginator(base_query, 50)
+    try:
+        page_num = int(page)
+    except ValueError:
+        page_num = 1
+    page_obj = paginator.get_page(page_num)
+
+    # Stats (unfiltered counts)
+    total_incidents = IncidentReport.objects.count()
     reviewed_count = IncidentReport.objects.filter(gold_team_reviewed=True).count()
     pending_count = total_incidents - reviewed_count
 
+    # Get available teams for filter dropdown
+    available_teams = Team.objects.filter(incident_reports__isnull=False).distinct().order_by("team_number")
+
     context = {
-        "incidents": incidents,
+        "page_obj": page_obj,
         "total_incidents": total_incidents,
         "reviewed_count": reviewed_count,
         "pending_count": pending_count,
+        "available_teams": available_teams,
+        "selected_team": team_filter,
+        "selected_box": box_filter,
+        "status_filter": status_filter,
+        "sort_by": sort_by,
     }
     return render(request, "scoring/review_incidents.html", context)
 
@@ -822,69 +896,117 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     import statistics
     from collections import defaultdict
 
-    # Get all unapproved grades
-    unapproved_grades = (
-        InjectGrade.objects.filter(is_approved=False)
-        .select_related("team", "graded_by")
-        .order_by("inject_id", "team__team_number")
-    )
+    from django.core.paginator import Paginator
 
-    # Get stats
-    total_grades = InjectGrade.objects.count()
-    approved_count = InjectGrade.objects.filter(is_approved=True).count()
-    unapproved_count = total_grades - approved_count
+    # Get filter parameters
+    status_filter = request.GET.get("status", "pending") or "pending"
+    inject_filter = request.GET.get("inject", "")
+    team_filter = request.GET.get("team", "")
+    show_outliers_only = request.GET.get("outliers") == "1"
+    sort_by = request.GET.get("sort", "inject_name")
+    page = request.GET.get("page", "1")
 
-    # Group grades by inject_id
-    inject_groups_dict: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"inject_id": "", "inject_name": "", "max_points": Decimal("0"), "grades": []}
-    )
+    base_query = InjectGrade.objects.select_related("team", "graded_by")
 
-    for grade in unapproved_grades:
-        if grade.inject_id not in inject_groups_dict:
-            inject_groups_dict[grade.inject_id] = {
-                "inject_id": grade.inject_id,
-                "inject_name": grade.inject_name,
-                "max_points": grade.max_points,
-                "grades": [],
-            }
-        inject_groups_dict[grade.inject_id]["grades"].append(grade)
+    # Apply status filter
+    if status_filter == "pending":
+        base_query = base_query.filter(is_approved=False)
+    elif status_filter == "approved":
+        base_query = base_query.filter(is_approved=True)
 
-    # Calculate outliers for each inject group
-    for group in inject_groups_dict.values():
-        grades = group["grades"]
+    # Apply other filters
+    if inject_filter:
+        base_query = base_query.filter(inject_id=inject_filter)
 
-        # Need at least 3 grades for meaningful std dev
+    if team_filter:
+        base_query = base_query.filter(team__id=team_filter)
+
+    # Calculate outliers for each inject before filtering
+    all_grades_for_outlier_calc: list[Any] = list(base_query)
+    inject_grades_map: dict[str, list[Any]] = defaultdict(list)
+    for grade in all_grades_for_outlier_calc:
+        inject_grades_map[grade.inject_id].append(grade)
+
+    for grades in inject_grades_map.values():
         if len(grades) >= 3:
             points_list = [float(g.points_awarded) for g in grades]
             mean = statistics.mean(points_list)
             try:
                 std_dev = statistics.stdev(points_list)
-
-                # Flag outliers (> 1.5 std dev from mean)
                 for grade in grades:
                     points = float(grade.points_awarded)
                     z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
                     grade.is_outlier = z_score > 1.5
                     grade.std_devs_from_mean = z_score
             except statistics.StatisticsError:
-                # Handle case with zero variance
                 for grade in grades:
                     grade.is_outlier = False
                     grade.std_devs_from_mean = 0
         else:
-            # Not enough data for outlier detection
             for grade in grades:
                 grade.is_outlier = False
                 grade.std_devs_from_mean = 0
 
-    # Convert to list for template
-    inject_groups = list(inject_groups_dict.values())
+    # Filter outliers if requested
+    if show_outliers_only:
+        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]
+
+    # Validate and apply sort
+    valid_sort_fields = [
+        "inject_name",
+        "-inject_name",
+        "team__team_number",
+        "-team__team_number",
+        "points_awarded",
+        "-points_awarded",
+        "graded_at",
+        "-graded_at",
+    ]
+    if sort_by not in valid_sort_fields:
+        sort_by = "inject_name"
+
+    # Sort in Python since we already have the list
+    reverse = sort_by.startswith("-")
+    sort_key = sort_by.lstrip("-")
+    if sort_key == "team__team_number":
+        all_grades_for_outlier_calc.sort(key=lambda g: g.team.team_number, reverse=reverse)
+    elif sort_key == "inject_name":
+        all_grades_for_outlier_calc.sort(key=lambda g: g.inject_name, reverse=reverse)
+    elif sort_key == "points_awarded":
+        all_grades_for_outlier_calc.sort(key=lambda g: float(g.points_awarded), reverse=reverse)
+    elif sort_key == "graded_at":
+        all_grades_for_outlier_calc.sort(key=lambda g: g.graded_at, reverse=reverse)
+
+    # Pagination
+    paginator = Paginator(all_grades_for_outlier_calc, 50)
+    try:
+        page_num = int(page)
+    except ValueError:
+        page_num = 1
+    page_obj = paginator.get_page(page_num)
+
+    # Stats (unfiltered counts)
+    total_grades = InjectGrade.objects.count()
+    approved_count = InjectGrade.objects.filter(is_approved=True).count()
+    unapproved_count = total_grades - approved_count
+
+    # Get available injects and teams for filter dropdowns
+    available_injects = InjectGrade.objects.values("inject_id", "inject_name").distinct().order_by("inject_name")
+    available_teams = Team.objects.filter(inject_grades__isnull=False).distinct().order_by("team_number")
 
     context = {
-        "inject_groups": inject_groups,
+        "page_obj": page_obj,
         "unapproved_count": unapproved_count,
         "approved_count": approved_count,
         "total_grades": total_grades,
+        "has_unapproved": unapproved_count > 0,
+        "available_injects": available_injects,
+        "available_teams": available_teams,
+        "selected_inject": inject_filter,
+        "selected_team": team_filter,
+        "show_outliers_only": show_outliers_only,
+        "status_filter": status_filter,
+        "sort_by": sort_by,
     }
     return render(request, "scoring/review_inject_grades.html", context)
 

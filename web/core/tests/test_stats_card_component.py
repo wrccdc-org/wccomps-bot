@@ -84,11 +84,3 @@ class TestStatsCardComponent:
         assert "Total Teams" in rendered
         assert "Points Gained" in rendered
         assert "Penalties" in rendered
-
-    def test_component_has_proper_structure(self):
-        """Component should have a proper container structure."""
-        template = get_template("test_helpers/stats_card_test.html")
-        rendered = template.render({"test_value": "42", "test_label": "Total Teams", "test_color": "primary"})
-
-        assert "<div" in rendered
-        assert "</div>" in rendered

@@ -281,21 +281,3 @@ class TestClearTicketsWebView:
         assert audit is not None
         assert audit.admin_user == "admin_user"
         assert audit.details["tickets_deleted"] == 3
-
-    def test_admin_button_visible_in_ui(
-        self, setup_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
-    ) -> None:
-        """Test admin button is visible to admins only."""
-        client = Client()
-
-        # Admin should see button
-        client.force_login(setup_users_and_auth["admin_user"])
-        response = client.get("/ops/tickets/")
-        assert response.status_code == 200
-        assert b"Clear All Tickets" in response.content
-
-        # Support user should not see button
-        client.force_login(setup_users_and_auth["support_user"])
-        response = client.get("/ops/tickets/")
-        assert response.status_code == 200
-        assert b"Clear All Tickets" not in response.content

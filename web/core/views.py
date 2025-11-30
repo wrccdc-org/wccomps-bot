@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme
@@ -942,15 +942,12 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check permissions
-    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
-        return render(
-            request,
-            "tickets_error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to access the ticket list.",
-            },
-        )
+    if not (
+        has_permission(user, "admin")
+        or has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+    ):
+        return HttpResponseForbidden("You do not have permission to access the ticket list.")
 
     # Get filter parameters
     status_filter = request.GET.get("status", "all") or "all"
