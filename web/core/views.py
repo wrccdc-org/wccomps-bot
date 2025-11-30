@@ -60,29 +60,13 @@ def _save_attachment(ticket: Ticket, uploaded_file: Any, uploaded_by: str) -> Ht
 @login_required
 def home(request: HttpRequest) -> HttpResponse:
     """Home page - redirect to appropriate dashboard based on user role."""
-    import os
-
-    # Get Authentik data
     user = cast(User, request.user)
     _authentik_username, groups, _ = get_authentik_data(user)
-
-    # Get team information
     _team, _, is_team = get_team_from_groups(groups)
 
-    # Check if ticketing is enabled
-    ticketing_enabled = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
-
-    # Redirect team members to tickets page
-    if is_team and ticketing_enabled:
+    if is_team:
         return redirect("team_tickets")
-
-    # Everyone else goes to ops pages
-    if ticketing_enabled:
-        return redirect("ops_ticket_list")
-    # Ticketing disabled - redirect to school info or group role mappings
-    if has_permission(user, "gold_team"):
-        return redirect("ops_school_info")
-    return redirect("ops_group_role_mappings")
+    return redirect("ops_ticket_list")
 
 
 def link_initiate(request: HttpRequest) -> HttpResponse:

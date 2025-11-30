@@ -7,7 +7,6 @@ without crashing or exhausting resources (connection pool, memory, etc.).
 Run with: pytest -m load
 """
 
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -19,10 +18,8 @@ from person.models import Person
 from team.models import Team
 from ticketing.models import Ticket
 
-TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 pytestmark = [
     pytest.mark.load,
-    pytest.mark.skipif(not TICKETING_ENABLED, reason="Ticketing not enabled"),
 ]
 
 

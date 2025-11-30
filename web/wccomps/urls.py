@@ -15,15 +15,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-import os
-
 from django.contrib import admin
 from django.urls import include, path
 
 from core import views
-
-# Check if ticketing is enabled (default: False, using external system)
-TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -52,109 +47,105 @@ urlpatterns = [
     ),
     path("scoring/", include("scoring.urls")),
     path("register/", include("registration.urls")),
+    # Ticketing routes
+    path("tickets/", views.team_tickets, name="team_tickets"),
+    path("tickets/create/", views.create_ticket, name="create_ticket"),
+    path("tickets/<int:ticket_id>/", views.ticket_detail, name="ticket_detail"),
+    path(
+        "tickets/<int:ticket_id>/comment/",
+        views.ticket_comment,
+        name="ticket_comment",
+    ),
+    path("tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"),
+    path(
+        "tickets/<int:ticket_id>/attachment/upload/",
+        views.ticket_attachment_upload,
+        name="ticket_attachment_upload",
+    ),
+    path(
+        "tickets/<int:ticket_id>/attachment/<int:attachment_id>/",
+        views.ticket_attachment_download,
+        name="ticket_attachment_download",
+    ),
+    path("ops/tickets/", views.ops_ticket_list, name="ops_ticket_list"),
+    path(
+        "ops/tickets/bulk-claim/",
+        views.ops_tickets_bulk_claim,
+        name="ops_tickets_bulk_claim",
+    ),
+    path(
+        "ops/tickets/bulk-resolve/",
+        views.ops_tickets_bulk_resolve,
+        name="ops_tickets_bulk_resolve",
+    ),
+    path(
+        "ops/tickets/clear-all/",
+        views.ops_tickets_clear_all,
+        name="ops_tickets_clear_all",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/",
+        views.ops_ticket_detail,
+        name="ops_ticket_detail",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/comment/",
+        views.ops_ticket_comment,
+        name="ops_ticket_comment",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/claim/",
+        views.ops_ticket_claim,
+        name="ops_ticket_claim",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/unclaim/",
+        views.ops_ticket_unclaim,
+        name="ops_ticket_unclaim",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/reassign/",
+        views.ops_ticket_reassign,
+        name="ops_ticket_reassign",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/resolve/",
+        views.ops_ticket_resolve,
+        name="ops_ticket_resolve",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/reopen/",
+        views.ops_ticket_reopen,
+        name="ops_ticket_reopen",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/change-category/",
+        views.ops_ticket_change_category,
+        name="ops_ticket_change_category",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/attachment/upload/",
+        views.ticket_attachment_upload,
+        name="ops_ticket_attachment_upload",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
+        views.ticket_attachment_download,
+        name="ops_ticket_attachment_download",
+    ),
+    path(
+        "ops/review-tickets/",
+        views.ops_review_tickets,
+        name="ops_review_tickets",
+    ),
+    path(
+        "ops/ticket/<str:ticket_number>/verify/",
+        views.ops_verify_ticket,
+        name="ops_verify_ticket",
+    ),
+    path(
+        "ops/tickets/batch-verify-points/",
+        views.ops_batch_verify_tickets,
+        name="ops_batch_verify_tickets",
+    ),
 ]
-
-# Add ticket routes only if enabled
-if TICKETING_ENABLED:
-    urlpatterns += [
-        path("tickets/", views.team_tickets, name="team_tickets"),
-        path("tickets/create/", views.create_ticket, name="create_ticket"),
-        path("tickets/<int:ticket_id>/", views.ticket_detail, name="ticket_detail"),
-        path(
-            "tickets/<int:ticket_id>/comment/",
-            views.ticket_comment,
-            name="ticket_comment",
-        ),
-        path("tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"),
-        path(
-            "tickets/<int:ticket_id>/attachment/upload/",
-            views.ticket_attachment_upload,
-            name="ticket_attachment_upload",
-        ),
-        path(
-            "tickets/<int:ticket_id>/attachment/<int:attachment_id>/",
-            views.ticket_attachment_download,
-            name="ticket_attachment_download",
-        ),
-        path("ops/tickets/", views.ops_ticket_list, name="ops_ticket_list"),
-        path(
-            "ops/tickets/bulk-claim/",
-            views.ops_tickets_bulk_claim,
-            name="ops_tickets_bulk_claim",
-        ),
-        path(
-            "ops/tickets/bulk-resolve/",
-            views.ops_tickets_bulk_resolve,
-            name="ops_tickets_bulk_resolve",
-        ),
-        path(
-            "ops/tickets/clear-all/",
-            views.ops_tickets_clear_all,
-            name="ops_tickets_clear_all",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/",
-            views.ops_ticket_detail,
-            name="ops_ticket_detail",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/comment/",
-            views.ops_ticket_comment,
-            name="ops_ticket_comment",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/claim/",
-            views.ops_ticket_claim,
-            name="ops_ticket_claim",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/unclaim/",
-            views.ops_ticket_unclaim,
-            name="ops_ticket_unclaim",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/reassign/",
-            views.ops_ticket_reassign,
-            name="ops_ticket_reassign",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/resolve/",
-            views.ops_ticket_resolve,
-            name="ops_ticket_resolve",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/reopen/",
-            views.ops_ticket_reopen,
-            name="ops_ticket_reopen",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/change-category/",
-            views.ops_ticket_change_category,
-            name="ops_ticket_change_category",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/attachment/upload/",
-            views.ticket_attachment_upload,
-            name="ops_ticket_attachment_upload",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
-            views.ticket_attachment_download,
-            name="ops_ticket_attachment_download",
-        ),
-        path(
-            "ops/review-tickets/",
-            views.ops_review_tickets,
-            name="ops_review_tickets",
-        ),
-        path(
-            "ops/ticket/<str:ticket_number>/verify/",
-            views.ops_verify_ticket,
-            name="ops_verify_ticket",
-        ),
-        path(
-            "ops/tickets/batch-verify-points/",
-            views.ops_batch_verify_tickets,
-            name="ops_batch_verify_tickets",
-        ),
-    ]

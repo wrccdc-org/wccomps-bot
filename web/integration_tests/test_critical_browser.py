@@ -5,18 +5,12 @@ These tests verify the full UI workflow with real browser rendering,
 catching JavaScript errors, rendering bugs, and OAuth flow issues.
 """
 
-import os
-
 import pytest
 from playwright.sync_api import Page, expect
-
-# Skip all tests if ticketing is not enabled
-TICKETING_ENABLED = os.environ.get("TICKETING_ENABLED", "false").lower() == "true"
 
 pytestmark = [
     pytest.mark.browser,
     pytest.mark.integration,
-    pytest.mark.skipif(not TICKETING_ENABLED, reason="Ticketing not enabled"),
 ]
 
 

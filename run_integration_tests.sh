@@ -68,7 +68,6 @@ fi
 
 # Set environment variables for integration tests
 export USE_POSTGRES_FOR_TESTS=1
-export TICKETING_ENABLED=true
 export DJANGO_ALLOW_ASYNC_UNSAFE=1
 export PYTHONPATH="$(pwd)/web:$(pwd)"
 
