@@ -2186,21 +2186,23 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     paginator = Paginator(tickets_with_info, page_size)
     page_obj = paginator.get_page(page)
 
-    return render(
-        request,
-        "ops_review_tickets.html",
-        {
-            "page_obj": page_obj,
-            "verified_filter": verified_filter,
-            "team_filter": team_filter,
-            "search_query": search_query,
-            "sort_by": sort_by,
-            "page_size": page_size,
-            "categories": TICKET_CATEGORIES,
-            "show_ops_nav": True,
-            "nav_active": "review_tickets",
-        },
-    )
+    context = {
+        "page_obj": page_obj,
+        "verified_filter": verified_filter,
+        "team_filter": team_filter,
+        "search_query": search_query,
+        "sort_by": sort_by,
+        "page_size": page_size,
+        "categories": TICKET_CATEGORIES,
+        "show_ops_nav": True,
+        "nav_active": "review_tickets",
+    }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "partials/review_tickets_table.html", context)
+
+    return render(request, "ops_review_tickets.html", context)
 
 
 @login_required

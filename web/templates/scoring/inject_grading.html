@@ -11,7 +11,13 @@
     {% else %}
 
     <c-form_field label="Select Inject" id="inject-select">
-        <select id="inject-select" class="form-select" onchange="selectInject(this.value)">
+        <select id="inject-select" class="form-select"
+                hx-get="{% url 'scoring:inject_grading' %}"
+                hx-target="#inject-grading-content"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                hx-include="this"
+                name="inject">
             <option value="">-- Select an inject to grade --</option>
             {% for id, title in inject_choices %}
             <option value="{{ id }}" {% if id == selected_inject_id %}selected{% endif %}>{{ title }}</option>
@@ -19,84 +25,12 @@
         </select>
     </c-form_field>
 
-    {% if selected_inject %}
-    <c-fieldset heading="{{ selected_inject.title }}">
-        {% if selected_inject.description %}
-        <p class="text-muted mb-15">{{ selected_inject.description }}</p>
-        {% endif %}
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="inject_id" value="{{ selected_inject_id }}">
-
-            <c-table aria_label="Team grades">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Team</c-table_header>
-                        <c-table_header sortable="false" class="col-small">Points</c-table_header>
-                        <c-table_header sortable="false">Current Grade</c-table_header>
-                    </tr>
-                </c-slot>
-                {% for item in team_data %}
-                <tr>
-                    <td>
-                        <strong>Team {{ item.team.team_number }}</strong>
-                        {% if item.team.team_name %}
-                        <br><small class="text-muted">{{ item.team.team_name }}</small>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <input type="number"
-                               name="points_team_{{ item.team.team_number }}"
-                               class="form-control form-control-sm"
-                               value="{% if item.points is not None %}{{ item.points }}{% endif %}"
-                               min="0"
-                               step="0.01"
-                               placeholder=""
-                               style="max-width: 100px;">
-                    </td>
-                    <td>
-                        {% if item.grade %}
-                        <small class="text-muted">
-                            {{ item.grade.points_awarded }} pts by {{ item.grade.graded_by.username|default:"Auto" }}
-                            ({{ item.grade.graded_at|date:"m/d H:i" }})
-                        </small>
-                        {% else %}
-                        <small class="text-muted">Not graded</small>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </c-table>
-
-            <c-button_row class="mt-15">
-                <c-button type="submit" variant="primary">Save Grades</c-button>
-                <c-button type="button" onclick="clearForm()">Clear Form</c-button>
-            </c-button_row>
-        </form>
-    </c-fieldset>
-    {% elif inject_choices %}
-    <c-alert variant="info">
-        Select an inject above to grade teams.
-    </c-alert>
-    {% else %}
-    <c-alert variant="info">
-        <h3 class="mt-0">No Published Injects</h3>
-        <p class="mb-0">No injects are currently published in Quotient. Injects must be published before grading.</p>
-    </c-alert>
-    {% endif %}
+    <c-inject_grading_content :selected_inject="selected_inject" :selected_inject_id="selected_inject_id" :team_data="team_data" :inject_choices="inject_choices" />
 
     {% endif %}
 </c-module>
 
 <script>
-function selectInject(injectId) {
-    if (injectId) {
-        window.location.href = '?inject=' + injectId;
-    } else {
-        window.location.href = window.location.pathname;
-    }
-}
-
 function clearForm() {
     document.querySelectorAll('input[name^="points_team_"]').forEach(input => {
         input.value = '';
