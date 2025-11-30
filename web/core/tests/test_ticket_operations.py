@@ -429,3 +429,39 @@ class TestTicketHistoryCreation:
         history = TicketHistory.objects.filter(ticket=resolved_ticket, action="reopened")
         assert history.exists()
         assert "Testing history" in history.first().details.get("reason", "")
+
+
+class TestOpsReviewTicketsHtmx:
+    """Tests for ops_review_tickets htmx partial responses."""
+
+    def test_htmx_request_returns_partial(self, ticketing_admin_user, team_with_tickets):
+        """htmx request returns only the table partial, not full page."""
+        team, tickets = team_with_tickets
+        # Resolve a ticket so there's data to show
+        resolved_ticket = tickets[2]
+
+        client = Client()
+        client.force_login(ticketing_admin_user)
+        response = client.get(
+            reverse("ops_review_tickets") + "?verified=all",
+            HTTP_HX_REQUEST="true",
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Partial should contain the content wrapper
+        assert 'id="review-tickets-content"' in content
+        # Partial should contain ticket data
+        assert resolved_ticket.ticket_number in content
+        # Partial should NOT contain full page elements
+        assert "<title>" not in content
+        assert "c-filter_toolbar" not in content
+
+    def test_regular_request_returns_full_page(self, ticketing_admin_user, team_with_tickets):
+        """Regular request returns full page with filter toolbar."""
+        client = Client()
+        client.force_login(ticketing_admin_user)
+        response = client.get(reverse("ops_review_tickets"))
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Full page should contain filter form
+        assert "changelist-filter" in content

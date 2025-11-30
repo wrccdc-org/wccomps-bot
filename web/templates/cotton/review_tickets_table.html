@@ -60,7 +60,7 @@
                     </td>
                     <td class="field-actions">
                         {% if not item.ticket.points_verified %}
-                        <form method="post" action="{% url 'ops_ticket_verify' item.ticket.ticket_number %}" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
+                        <form method="post" action="{% url 'ops_verify_ticket' item.ticket.ticket_number %}" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
                             {% csrf_token %}
                             <input type="hidden" name="points_adjustment" id="points_{{ item.ticket.ticket_number }}" value="{{ item.ticket.points_charged }}" />
                             <input type="hidden" name="verification_notes" id="notes_{{ item.ticket.ticket_number }}" value="" />
