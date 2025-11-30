@@ -54,30 +54,26 @@
 
         {% if preview_data.teams_to_create %}
         <h3 class="mt-20">New School Information ({{ preview_data.teams_to_create|length }})</h3>
-        <div class="results">
-            <table id="result_list" aria-label="New school information to import">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>School Name</th>
-                        <th>Contact Email</th>
-                        <th>Secondary Email</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in preview_data.teams_to_create %}
-                    <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>Team {{ row.team_number }}{% if row.team_name %} - {{ row.team_name }}{% endif %}</td>
-                        <td>{{ row.school_name }}</td>
-                        <td>{{ row.contact_email }}</td>
-                        <td>{{ row.secondary_email|default:"—" }}</td>
-                        <td>{{ row.notes|default:"—" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <c-table id="result_list" aria_label="New school information to import">
+            <c-slot name="headers">
+                <tr>
+                    <th>Team</th>
+                    <th>School Name</th>
+                    <th>Contact Email</th>
+                    <th>Secondary Email</th>
+                    <th>Notes</th>
+                </tr>
+            </c-slot>
+            {% for row in preview_data.teams_to_create %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <td>Team {{ row.team_number }}{% if row.team_name %} - {{ row.team_name }}{% endif %}</td>
+                <td>{{ row.school_name }}</td>
+                <td>{{ row.contact_email }}</td>
+                <td>{{ row.secondary_email|default:"—" }}</td>
+                <td>{{ row.notes|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </c-table>
         {% endif %}
 
         <form method="POST">

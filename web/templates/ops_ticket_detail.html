@@ -141,24 +141,22 @@
         <!-- Comments -->
         <c-fieldset heading="Comments">
             {% if comments %}
-            <table aria-label="Ticket comments">
-                <thead>
+            <c-table aria_label="Ticket comments">
+                <c-slot name="headers">
                     <tr>
                         <th>Author</th>
                         <th>Comment</th>
                         <th>Posted</th>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for comment in comments %}
-                    <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
-                        <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
-                        <td>{{ comment.posted_at|timesince }} ago</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                </c-slot>
+                {% for comment in comments %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
+                    <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
+                    <td>{{ comment.posted_at|timesince }} ago</td>
+                </tr>
+                {% endfor %}
+            </c-table>
             {% else %}
             <c-empty_state title="No comments yet" description="Comments from the ticket thread will appear here" />
             {% endif %}
@@ -178,30 +176,28 @@
         <!-- Attachments -->
         <c-fieldset heading="Attachments">
             {% if attachments %}
-            <table aria-label="Ticket attachments">
-                <thead>
+            <c-table aria_label="Ticket attachments">
+                <c-slot name="headers">
                     <tr>
                         <th>Filename</th>
                         <th>Uploaded By</th>
                         <th>Uploaded</th>
                         <th>Action</th>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for attachment in attachments %}
-                    <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>{{ attachment.filename }}</td>
-                        <td>{{ attachment.uploaded_by }}</td>
-                        <td>{{ attachment.uploaded_at|timesince }} ago</td>
-                        <td>
-                            <c-link href="/ops/ticket/{{ ticket.ticket_number }}/attachment/{{ attachment.id }}/" variant="change">
-                                Download
-                            </c-link>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                </c-slot>
+                {% for attachment in attachments %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ attachment.filename }}</td>
+                    <td>{{ attachment.uploaded_by }}</td>
+                    <td>{{ attachment.uploaded_at|timesince }} ago</td>
+                    <td>
+                        <c-link href="{% url 'ops_ticket_attachment_download' ticket.ticket_number attachment.id %}" variant="change">
+                            Download
+                        </c-link>
+                    </td>
+                </tr>
+                {% endfor %}
+            </c-table>
             {% else %}
             <c-empty_state title="No attachments yet" description="Upload files to attach to this ticket" />
             {% endif %}
@@ -223,26 +219,24 @@
         <!-- History -->
         <c-fieldset heading="History">
             {% if history %}
-            <table aria-label="Ticket history">
-                <thead>
+            <c-table aria_label="Ticket history">
+                <c-slot name="headers">
                     <tr>
                         <th>Timestamp</th>
                         <th>Action</th>
                         <th>Actor</th>
                         <th>Details</th>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for event in history %}
-                    <tr class="{% cycle 'row1' 'row2' %}">
-                        <td>{{ event.timestamp|timesince }} ago</td>
-                        <td>{{ event.action }}</td>
-                        <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
-                        <td>{{ event.details }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                </c-slot>
+                {% for event in history %}
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>{{ event.timestamp|timesince }} ago</td>
+                    <td>{{ event.action }}</td>
+                    <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
+                    <td>{{ event.details }}</td>
+                </tr>
+                {% endfor %}
+            </c-table>
             {% else %}
             <c-empty_state title="No history available" description="Ticket state changes and actions will be recorded here" />
             {% endif %}
