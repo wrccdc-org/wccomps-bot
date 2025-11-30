@@ -22,11 +22,13 @@
     {% if is_red_team or is_admin %}
     <a href="/scoring/red-team/submit/">Red Team Findings</a>
     {% endif %}
+    {% if is_orange_team or is_admin %}
+    <a href="/scoring/orange-team/">Orange Team</a>
+    {% endif %}
     {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
     <a href="/scoring/">Scoring</a>
     {% endif %}
     {% if is_gold_team or is_admin %}
-    <a href="/ops/group-role-mappings/">Team Mappings</a>
     <a href="/ops/school-info/">School Info</a>
     {% endif %}
     {% if user.is_staff %}
