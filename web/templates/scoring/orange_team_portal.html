@@ -47,23 +47,23 @@
                 <td>{{ bonus.team.team_name }}</td>
                 <td>
                     {% if bonus.check_type %}
-                        <c-badge variant="warning">{{ bonus.check_type.name }}</c-badge>
+                        <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
                     {% else %}
-                        <c-badge variant="secondary">Uncategorized</c-badge>
+                        <c-badge status="cancelled">Uncategorized</c-badge>
                     {% endif %}
                 </td>
                 <td>{{ bonus.description|truncatechars:60 }}</td>
-                <td style="text-align: right; color: {% if bonus.points_awarded >= 0 %}#28a745{% else %}#dc3545{% endif %};">
-                    {% if bonus.points_awarded >= 0 %}+{% endif %}{{ bonus.points_awarded }}
+                <td style="text-align: right;">
+                    <c-score_value :value="bonus.points_awarded" format="signed" />
                 </td>
                 <td>
                     {% if bonus.is_approved %}
-                        <c-badge variant="success">Approved</c-badge>
+                        <c-badge status="resolved">Approved</c-badge>
                         {% if bonus.approved_by %}
                         <br><small class="text-muted">by {{ bonus.approved_by.username }}</small>
                         {% endif %}
                     {% else %}
-                        <c-badge variant="warning">Pending</c-badge>
+                        <c-badge status="claimed">Pending</c-badge>
                     {% endif %}
                 </td>
                 <td>
@@ -87,9 +87,7 @@
         </c-table>
     </form>
     {% else %}
-    <c-alert variant="info">
-        No orange team adjustments submitted yet.
-    </c-alert>
+    <c-empty_state title="No adjustments submitted yet" description="Submit an orange team adjustment to track customer service bonuses/penalties" />
     {% endif %}
 </c-module>
 

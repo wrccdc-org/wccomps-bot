@@ -7,81 +7,38 @@
                     {% csrf_token %}
 
                     <!-- Attack Details Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Attack Details</h5>
-
+                    <c-fieldset legend="Attack Details">
                         <div class="grid-2">
-                            <div class="mb-3">
-                                <label for="{{ form.attack_vector.id_for_label }}" class="form-label required">
-                                    {{ form.attack_vector.label }}
-                                </label>
+                            <c-form_field label="{{ form.attack_vector.label }}" required="true" :id="form.attack_vector.id_for_label" help_text="{{ form.attack_vector.help_text }}" error="{{ form.attack_vector.errors|join:', ' }}">
                                 {{ form.attack_vector }}
                                 <datalist id="attackSuggestions"></datalist>
-                                {% if form.attack_vector.help_text %}
-                                    <div class="form-text">{{ form.attack_vector.help_text }}</div>
-                                {% endif %}
-                                {% if form.attack_vector.errors %}
-                                    <div class="text-danger">{{ form.attack_vector.errors }}</div>
-                                {% endif %}
-                            </div>
+                            </c-form_field>
 
-                            <div class="mb-3">
-                                <label for="{{ form.source_ip.id_for_label }}" class="form-label required">
-                                    {{ form.source_ip.label }}
-                                </label>
+                            <c-form_field label="{{ form.source_ip.label }}" required="true" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
                                 {{ form.source_ip }}
-                                {% if form.source_ip.help_text %}
-                                    <div class="form-text">{{ form.source_ip.help_text }}</div>
-                                {% endif %}
-                                {% if form.source_ip.errors %}
-                                    <div class="text-danger">{{ form.source_ip.errors }}</div>
-                                {% endif %}
-                            </div>
+                            </c-form_field>
                         </div>
-                    </div>
+                    </c-fieldset>
 
                     <!-- Target Information Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Target Information</h5>
-
+                    <c-fieldset legend="Target Information">
                         <div class="grid-2">
-                            <div class="mb-3">
-                                <label for="{{ form.affected_box.id_for_label }}" class="form-label">
-                                    {{ form.affected_box.label }}
-                                </label>
+                            <c-form_field label="{{ form.affected_box.label }}" :id="form.affected_box.id_for_label" error="{{ form.affected_box.errors|join:', ' }}">
                                 {{ form.affected_box }}
-                                {% if form.affected_box.errors %}
-                                    <div class="text-danger">{{ form.affected_box.errors }}</div>
-                                {% endif %}
-                            </div>
+                            </c-form_field>
 
-                            <div class="mb-3">
-                                <label for="{{ form.affected_service.id_for_label }}" class="form-label">
-                                    {{ form.affected_service.label }}
-                                </label>
+                            <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
                                 {{ form.affected_service }}
-                                {% if form.affected_service.errors %}
-                                    <div class="text-danger">{{ form.affected_service.errors }}</div>
-                                {% endif %}
-                            </div>
+                            </c-form_field>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="{{ form.destination_ip_template.id_for_label }}" class="form-label">
-                                {{ form.destination_ip_template.label }}
-                            </label>
+                        <c-form_field label="{{ form.destination_ip_template.label }}" :id="form.destination_ip_template.id_for_label" help_text="This field auto-populates based on the selected box" error="{{ form.destination_ip_template.errors|join:', ' }}">
                             {{ form.destination_ip_template }}
-                            <div class="form-text">This field auto-populates based on the selected box</div>
-                            {% if form.destination_ip_template.errors %}
-                                <div class="text-danger">{{ form.destination_ip_template.errors }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
+                        </c-form_field>
+                    </c-fieldset>
 
                     <!-- Attack Characteristics Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Attack Characteristics</h5>
-
+                    <c-fieldset legend="Attack Characteristics">
                         <div class="form-check mb-2">
                             {{ form.universally_attempted }}
                             <label class="form-check-label" for="{{ form.universally_attempted.id_for_label }}">
@@ -101,11 +58,10 @@
                                 <div class="form-text">{{ form.persistence_established.help_text }}</div>
                             {% endif %}
                         </div>
-                    </div>
+                    </c-fieldset>
 
                     <!-- Affected Teams Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Affected Teams</h5>
+                    <c-fieldset legend="Affected Teams">
                         <div class="d-flex justify-between items-center mb-10">
                             <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
                             <div class="d-flex gap-5">
@@ -148,14 +104,11 @@
                         {% if form.affected_teams.errors %}
                             <div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>
                         {% endif %}
-                    </div>
+                    </c-fieldset>
 
                     <!-- Screenshot Evidence Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Screenshot Evidence</h5>
-
-                        <div class="mb-3">
-                            <label for="screenshots" class="form-label">Upload Screenshots</label>
+                    <c-fieldset legend="Screenshot Evidence">
+                        <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload 3-4 screenshots showing IP addresses, attack evidence, and impact. Maximum 20 files, 50MB per file.">
                             <input type="file"
                                    class="form-control"
                                    id="screenshots"
@@ -163,32 +116,17 @@
                                    accept="image/*"
                                    multiple
                                    onchange="previewScreenshots(this)">
-                            <div class="form-text">
-                                Upload 3-4 screenshots showing IP addresses, attack evidence, and impact.
-                                Maximum 20 files, 50MB per file.
-                            </div>
-                        </div>
+                        </c-form_field>
 
                         <div id="screenshotPreview" class="grid-4 mb-15"></div>
-                    </div>
+                    </c-fieldset>
 
                     <!-- Additional Notes Section -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3">Additional Information</h5>
-
-                        <div class="mb-3">
-                            <label for="{{ form.notes.id_for_label }}" class="form-label">
-                                {{ form.notes.label }}
-                            </label>
+                    <c-fieldset legend="Additional Information">
+                        <c-form_field label="{{ form.notes.label }}" :id="form.notes.id_for_label" help_text="{{ form.notes.help_text }}" error="{{ form.notes.errors|join:', ' }}">
                             {{ form.notes }}
-                            {% if form.notes.help_text %}
-                                <div class="form-text">{{ form.notes.help_text }}</div>
-                            {% endif %}
-                            {% if form.notes.errors %}
-                                <div class="text-danger">{{ form.notes.errors }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
+                        </c-form_field>
+                    </c-fieldset>
 
                     <c-alert variant="info" class="mb-20">
                         <h3 class="mt-0 text-lg">Submission Guidelines</h3>
