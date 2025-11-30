@@ -105,6 +105,25 @@ class TestTeamTicketList:
         assert "T001-001" in content  # open
         # Resolved ticket may or may not appear depending on filter implementation
 
+    def test_htmx_request_returns_partial(self, blue_team_user, team_with_tickets):
+        """htmx request returns only the table partial, not full page."""
+        team, tickets = team_with_tickets
+        client = Client()
+        client.force_login(blue_team_user)
+        response = client.get(
+            reverse("team_tickets") + "?status=open",
+            HTTP_HX_REQUEST="true",
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Partial should contain the table content wrapper
+        assert 'id="ticket-list-content"' in content
+        # Partial should contain ticket data
+        assert "T001-001" in content
+        # Partial should NOT contain full page elements
+        assert "<title>" not in content
+        assert "c-page_header" not in content
+
     def test_non_team_user_gets_error(self, ticketing_support_user):
         """Non-team users without team association get error."""
         client = Client()

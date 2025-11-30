@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static cotton %}
 
 {% block title %}Tickets - {{ team.team_name }}{% endblock %}
 
@@ -14,70 +14,34 @@
             <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
 
-        <c-filter_toolbar form_id="filter-form">
-            <c-filter_field label="Status" id="id_status">
-                <select name="status" id="id_status" aria-label="Filter by status">
-                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                    <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
-                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                </select>
-            </c-filter_field>
-        </c-filter_toolbar>
+        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+            <form
+                id="filter-form"
+                method="GET"
+                hx-get="{% url 'team_tickets' %}"
+                hx-target="#ticket-list-content"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                role="search"
+                aria-label="Filter results"
+                style="flex: 1;">
+                <div id="filter-content">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                        <c-filter_field label="Status" id="id_status">
+                            <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                                <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </c-filter_field>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-        <c-table id="result_list" aria_label="Your tickets">
-            <c-slot name="headers">
-                <tr role="row">
-                    <c-table_header sortable="false">Ticket</c-table_header>
-                    <c-table_header sortable="false">Category</c-table_header>
-                    <c-table_header sortable="false">Status</c-table_header>
-                    <c-table_header sortable="false">Created</c-table_header>
-                </tr>
-            </c-slot>
-                {% for item in tickets %}
-                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
-                        <th class="field-ticket_number" role="gridcell">
-                            <c-link href="{% url 'ticket_detail' item.ticket.id %}">{{ item.ticket.ticket_number }}</c-link>
-                        </th>
-                        <td class="field-category" role="gridcell">{{ item.category_name }}</td>
-                        <td class="field-status" role="gridcell">
-                            <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
-                        </td>
-                        <td class="field-created" role="gridcell">{{ item.ticket.created_at|timesince }} ago</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4">
-                            {% if status_filter != 'all' %}
-                            <c-empty_state title="No tickets match your filter">
-                                Try <c-link href="{% url 'team_tickets' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
-                            </c-empty_state>
-                            {% else %}
-                            <c-empty_state title="No tickets yet">
-                                <c-link href="{% url 'create_ticket' %}" variant="add">Create your first ticket</c-link> to get started!
-                            </c-empty_state>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-        </c-table>
-
-        {% if tickets %}
-        <p class="paginator">
-            {{ tickets|length }} ticket(s)
-        </p>
-        {% endif %}
+        <c-ticket_list :tickets="tickets" :status_filter="status_filter" />
     </c-module>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.getElementById('filter-form');
-    const statusSelect = document.getElementById('id_status');
-
-    // Auto-submit on status change
-    statusSelect.addEventListener('change', () => filterForm.submit());
-});
-</script>
 {% endblock %}
