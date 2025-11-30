@@ -1,8 +1,34 @@
 {# Red team findings table - swappable content for htmx #}
 {# Usage: <c-red_findings_table :findings="findings" :page_obj="page_obj" ... /> #}
 
-<div id="red-findings-content">
-    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_red_findings' %}">
+<div id="red-findings-content"
+     x-data="{
+         selected: [],
+         selectableIds: [],
+         init() {
+             this.selectableIds = Array.from(this.$el.querySelectorAll('[data-finding-id]')).map(el => el.dataset.findingId);
+         },
+         get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 },
+         get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length },
+         toggleAll() {
+             if (this.allSelected) {
+                 this.selected = [];
+             } else {
+                 this.selected = [...this.selectableIds];
+             }
+         },
+         submitBulk() {
+             if (this.selected.length === 0) {
+                 alert('Please select at least one finding to approve');
+                 return;
+             }
+             if (confirm('Approve ' + this.selected.length + ' finding(s)?')) {
+                 this.$refs.bulkForm.submit();
+             }
+         }
+     }"
+     @bulk-approve.document="submitBulk()">
+    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_red_findings' %}" x-ref="bulkForm">
         {% csrf_token %}
         <div class="results">
             <table id="result_list" role="grid" aria-label="Red team findings list" style="table-layout: fixed; width: 100%;">
@@ -22,7 +48,11 @@
                     <tr role="row">
                         {% if is_gold_team %}
                         <th scope="col">
-                            <input type="checkbox" id="select-all" title="Select all">
+                            <input type="checkbox"
+                                   :checked="allSelected"
+                                   :indeterminate="someSelected"
+                                   @click="toggleAll()"
+                                   title="Select all">
                         </th>
                         {% endif %}
                         <c-table_header sortable="false">ID</c-table_header>
@@ -44,7 +74,11 @@
                         {% if is_gold_team %}
                         <td>
                             {% if not finding.is_approved %}
-                            <input type="checkbox" name="finding_ids" value="{{ finding.id }}" class="finding-checkbox">
+                            <input type="checkbox"
+                                   name="finding_ids"
+                                   value="{{ finding.id }}"
+                                   data-finding-id="{{ finding.id }}"
+                                   x-model="selected">
                             {% endif %}
                         </td>
                         {% endif %}

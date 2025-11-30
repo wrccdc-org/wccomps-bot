@@ -13,14 +13,21 @@
     </c-slot>
 
     {% if bonuses %}
-    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}">
+    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
+          x-data="{
+              selected: [],
+              selectableIds: [{% for bonus in bonuses %}'{{ bonus.id }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+              get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 },
+              get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length },
+              toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; }
+          }">
         {% csrf_token %}
         <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
             <c-slot name="headers">
                 <tr>
                     {% if can_approve %}
                     <th scope="col" style="width: 40px;">
-                        <input type="checkbox" id="select-all" aria-label="Select all adjustments">
+                        <input type="checkbox" :checked="allSelected" :indeterminate="someSelected" @click="toggleAll()" aria-label="Select all adjustments">
                     </th>
                     {% endif %}
                     <c-table_header sortable="false">ID</c-table_header>
@@ -40,7 +47,7 @@
             <tr>
                 {% if can_approve %}
                 <td>
-                    <input type="checkbox" name="adjustment_ids" value="{{ bonus.id }}" class="adjustment-checkbox" aria-label="Select adjustment {{ bonus.id }}">
+                    <input type="checkbox" name="adjustment_ids" value="{{ bonus.id }}" x-model="selected" aria-label="Select adjustment {{ bonus.id }}">
                 </td>
                 {% endif %}
                 <td><strong>#{{ bonus.id }}</strong></td>
@@ -90,14 +97,4 @@
     <c-empty_state title="No adjustments submitted yet" description="Submit an orange team adjustment to track customer service bonuses/penalties" />
     {% endif %}
 </c-module>
-
-{% if can_approve %}
-<script>
-    // Select all checkbox functionality
-    document.getElementById('select-all')?.addEventListener('change', function(e) {
-        const checkboxes = document.querySelectorAll('.adjustment-checkbox');
-        checkboxes.forEach(cb => cb.checked = e.target.checked);
-    });
-</script>
-{% endif %}
 {% endblock %}

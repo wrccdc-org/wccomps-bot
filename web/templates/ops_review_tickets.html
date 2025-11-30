@@ -8,53 +8,39 @@
 {% block scoring_content %}
 <div id="content-main">
     <c-module filtered="true" id="changelist">
-        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
-            <form
-                id="changelist-filter"
-                method="GET"
-                hx-get="{% url 'ops_review_tickets' %}"
-                hx-target="#review-tickets-content"
-                hx-swap="outerHTML"
-                hx-push-url="true"
-                role="search"
-                aria-label="Filter results"
-                style="flex: 1;">
-                <div id="filter-content">
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                        <c-filter_field label="Search" id="id_search" min_width="200px">
-                            <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/" hx-trigger="input changed delay:500ms">
-                        </c-filter_field>
-
-                        <c-filter_field label="Verification Status" id="id_verified">
-                            <select name="verified" id="id_verified" aria-label="Filter by verification status" hx-trigger="change">
-                                <option value="unverified" {% if verified_filter == 'unverified' %}selected{% endif %}>Unverified Only</option>
-                                <option value="verified" {% if verified_filter == 'verified' %}selected{% endif %}>Verified Only</option>
-                                <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>All</option>
-                            </select>
-                        </c-filter_field>
-
-                        <c-filter_field label="Team Number" id="id_team">
-                            <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number" hx-trigger="change, keyup[key=='Enter']">
-                        </c-filter_field>
-
-                        <c-filter_field label="Results Per Page" id="id_page_size">
-                            <select name="page_size" id="id_page_size" aria-label="Results per page" hx-trigger="change">
-                                <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
-                                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-                                <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-                            </select>
-                        </c-filter_field>
-                    </div>
-                </div>
-            </form>
-            <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
-                <form method="post" action="{% url 'ops_batch_verify_tickets' %}" class="d-inline" onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.');">
+        <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_review_tickets' %}" hx_target="#review-tickets-content" hx_swap="outerHTML" hx_push_url="true">
+            <c-slot name="actions">
+                <form method="post" action="{% url 'ops_batch_verify_tickets' %}" class="d-inline">
                     {% csrf_token %}
-                    <c-button type="submit" variant="success">Approve All Unverified</c-button>
+                    <c-button type="submit" variant="success" hx-confirm="Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.">Approve All Unverified</c-button>
                 </form>
-            </div>
-        </div>
+            </c-slot>
+
+            <c-filter_field label="Search" id="id_search" min_width="200px">
+                <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/" hx-trigger="input changed delay:500ms">
+            </c-filter_field>
+
+            <c-filter_field label="Verification Status" id="id_verified">
+                <select name="verified" id="id_verified" aria-label="Filter by verification status" hx-trigger="change">
+                    <option value="unverified" {% if verified_filter == 'unverified' %}selected{% endif %}>Unverified Only</option>
+                    <option value="verified" {% if verified_filter == 'verified' %}selected{% endif %}>Verified Only</option>
+                    <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </c-filter_field>
+
+            <c-filter_field label="Team Number" id="id_team">
+                <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number" hx-trigger="change, keyup[key=='Enter']">
+            </c-filter_field>
+
+            <c-filter_field label="Results Per Page" id="id_page_size">
+                <select name="page_size" id="id_page_size" aria-label="Results per page" hx-trigger="change">
+                    <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                    <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                    <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
+                </select>
+            </c-filter_field>
+        </c-filter_toolbar>
 
         <c-review_tickets_table :page_obj="page_obj" :verified_filter="verified_filter" :team_filter="team_filter" :search_query="search_query" :sort_by="sort_by" :page_size="page_size" />
     </c-module>

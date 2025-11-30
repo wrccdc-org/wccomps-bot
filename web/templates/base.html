@@ -472,6 +472,36 @@
 {% block extrahead %}
 {{ block.super }}
 <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+<script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+<style>
+    /* htmx loading indicator */
+    .htmx-request {
+        opacity: 0.5;
+        transition: opacity 200ms ease-in;
+    }
+    .htmx-request.htmx-indicator {
+        opacity: 1;
+    }
+    /* Loading spinner for htmx requests */
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator {
+        display: inline-block;
+    }
+</style>
+<script>
+    // htmx error handling
+    document.body.addEventListener('htmx:responseError', function(evt) {
+        console.error('htmx error:', evt.detail);
+        alert('Request failed. Please try again.');
+    });
+    document.body.addEventListener('htmx:sendError', function(evt) {
+        console.error('htmx send error:', evt.detail);
+        alert('Network error. Please check your connection.');
+    });
+</script>
 {% endblock %}
 
 {% block footer %}

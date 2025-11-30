@@ -59,7 +59,7 @@
             </form>
             {% if is_gold_team and pending_findings %}
             <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
-                <c-button type="button" id="bulk-approve-btn" onclick="submitBulkApprove()" variant="success">Approve Selected</c-button>
+                <c-button type="button" id="bulk-approve-btn" onclick="document.dispatchEvent(new CustomEvent('bulk-approve'))" variant="success">Approve Selected</c-button>
             </div>
             {% endif %}
         </div>
@@ -67,37 +67,4 @@
         <c-red_findings_table :findings="findings" :page_obj="page_obj" :status_filter="status_filter" :selected_team="selected_team" :selected_attack_type="selected_attack_type" :selected_submitter="selected_submitter" :sort_by="sort_by" :is_gold_team="is_gold_team" />
     </c-module>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    initSelectAll();
-});
-
-document.body.addEventListener('htmx:afterSwap', function() {
-    initSelectAll();
-});
-
-function initSelectAll() {
-    const selectAllCheckbox = document.getElementById('select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            document.querySelectorAll('.finding-checkbox').forEach(cb => {
-                cb.checked = this.checked;
-            });
-        });
-    }
-}
-
-function submitBulkApprove() {
-    const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
-    if (checkboxes.length === 0) {
-        alert('Please select at least one finding to approve');
-        return;
-    }
-
-    if (confirm(`Approve ${checkboxes.length} finding(s)?`)) {
-        document.getElementById('bulk-approve-form').submit();
-    }
-}
-</script>
 {% endblock %}

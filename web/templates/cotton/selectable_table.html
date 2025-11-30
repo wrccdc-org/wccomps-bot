@@ -1,29 +1,40 @@
-{# Selectable table component with select-all checkbox functionality #}
+{# Selectable table component with select-all checkbox functionality using Alpine.js #}
 {# Usage: #}
-{#   <c-selectable_table id="my_table" checkbox_class="item-checkbox" checkbox_name="item_ids" form_id="bulk-form"> #}
+{#   <c-selectable_table id="my_table" checkbox_name="item_ids"> #}
 {#       <c-slot name="extra_headers">...additional header cells...</c-slot> #}
-{#       ...table rows with checkboxes... #}
+{#       ...table rows with checkboxes using x-model="selected"... #}
 {#   </c-selectable_table> #}
 {# #}
 {# Props: #}
 {#   id: Table ID (required) #}
-{#   checkbox_class: CSS class for row checkboxes (required) #}
 {#   checkbox_name: Name attribute for row checkboxes (for form submission) #}
-{#   form_id: ID of form to submit for bulk actions #}
 {#   aria_label: Accessibility label for the table #}
-{#   confirm_message: Message for bulk action confirmation (use {count} placeholder) #}
+{#   total_items: Total number of selectable items (for select-all logic) #}
 
-<c-vars id="" checkbox_class="" checkbox_name="selected_ids" form_id="" aria_label="Selectable data table" confirm_message="Process {count} item(s)?" />
+<c-vars id="" checkbox_name="selected_ids" aria_label="Selectable data table" total_items="0" />
 
-<div class="results">
+<div class="results"
+     x-data="{
+         selected: [],
+         get allSelected() { return this.selected.length === {{ total_items }} && {{ total_items }} > 0 },
+         get someSelected() { return this.selected.length > 0 && this.selected.length < {{ total_items }} },
+         toggleAll() {
+             if (this.allSelected) {
+                 this.selected = [];
+             } else {
+                 this.selected = Array.from(document.querySelectorAll('[data-selectable-id]')).map(el => el.dataset.selectableId);
+             }
+         }
+     }">
     <table id="{{ id }}" role="grid" aria-label="{{ aria_label }}">
         <thead>
             <tr>
                 <th style="width: 40px;">
                     <input type="checkbox"
-                           id="{{ id }}-select-all"
-                           aria-label="Select all items"
-                           data-checkbox-class="{{ checkbox_class }}">
+                           :checked="allSelected"
+                           :indeterminate="someSelected"
+                           @click="toggleAll()"
+                           aria-label="Select all items">
                 </th>
                 {{ extra_headers }}
             </tr>
@@ -33,27 +44,3 @@
         </tbody>
     </table>
 </div>
-
-<script>
-(function() {
-    const selectAll = document.getElementById('{{ id }}-select-all');
-    if (!selectAll) return;
-
-    const checkboxClass = selectAll.dataset.checkboxClass;
-
-    selectAll.addEventListener('change', function() {
-        const checkboxes = document.querySelectorAll('.' + checkboxClass);
-        checkboxes.forEach(cb => cb.checked = this.checked);
-    });
-
-    // Update select-all state when individual checkboxes change
-    document.querySelectorAll('.' + checkboxClass).forEach(cb => {
-        cb.addEventListener('change', function() {
-            const allCheckboxes = document.querySelectorAll('.' + checkboxClass);
-            const checkedCount = document.querySelectorAll('.' + checkboxClass + ':checked').length;
-            selectAll.checked = checkedCount === allCheckboxes.length;
-            selectAll.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
-        });
-    });
-})();
-</script>

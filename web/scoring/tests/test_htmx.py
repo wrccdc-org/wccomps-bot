@@ -92,3 +92,57 @@ class TestRedTeamPortalHtmx:
         content = response.content.decode()
         # Full page should contain filter toolbar
         assert "changelist-filter" in content
+
+
+class TestReviewIncidentsHtmx:
+    """Tests for review_incidents htmx partial responses."""
+
+    def test_htmx_request_returns_partial(self, gold_team_user):
+        """htmx request returns only the incidents table partial."""
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(
+            reverse("scoring:review_incidents") + "?status=pending",
+            HTTP_HX_REQUEST="true",
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'id="review-incidents-content"' in content
+        assert "<title>" not in content
+
+    def test_regular_request_returns_full_page(self, gold_team_user):
+        """Regular request returns full page."""
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:review_incidents"))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "<title>" in content
+        assert "Review Incidents" in content
+
+
+class TestInjectGradesReviewHtmx:
+    """Tests for inject_grades_review htmx partial responses."""
+
+    def test_htmx_request_returns_partial(self, gold_team_user):
+        """htmx request returns only the grades table partial."""
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(
+            reverse("scoring:inject_grades_review") + "?status=pending",
+            HTTP_HX_REQUEST="true",
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'id="inject-grades-content"' in content
+        assert "<title>" not in content
+
+    def test_regular_request_returns_full_page(self, gold_team_user):
+        """Regular request returns full page."""
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:inject_grades_review"))
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "<title>" in content
+        assert "Review Inject Grades" in content
