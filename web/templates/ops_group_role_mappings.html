@@ -4,6 +4,41 @@
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static "admin/css/changelists.css" %}">
+<style>
+.expand-toggle {
+    cursor: pointer;
+    user-select: none;
+    color: var(--link-fg);
+}
+.expand-toggle:hover {
+    text-decoration: underline;
+}
+.expand-toggle::before {
+    content: "▶ ";
+    display: inline-block;
+    transition: transform 0.15s;
+    font-size: 0.7em;
+    vertical-align: middle;
+}
+.expand-toggle.expanded::before {
+    transform: rotate(90deg);
+}
+.member-details {
+    display: none;
+    padding-top: 0.5em;
+}
+.member-details.visible {
+    display: block;
+}
+.member-list {
+    margin: 0;
+    padding-left: 1.2em;
+    list-style: disc;
+}
+.member-list li {
+    padding: 0.15em 0;
+}
+</style>
 {% endblock %}
 
 {% block bodyclass %}{{ block.super }} app-operations model-teammappings change-list{% endblock %}
@@ -67,11 +102,16 @@
                             </td>
                             <td class="field-members">
                                 {% if item.members %}
-                                    {% for member in item.members %}
-                                        {{ member.discord_username }} <span class="mini quiet">({{ member.authentik_username }})</span>{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
+                                    <span class="expand-toggle">{{ item.members|length }} member{{ item.members|length|pluralize }}</span>
+                                    <div class="member-details">
+                                        <ul class="member-list">
+                                        {% for member in item.members %}
+                                            <li>{{ member.discord_username }} <span class="mini quiet">({{ member.authentik_username }})</span></li>
+                                        {% endfor %}
+                                        </ul>
+                                    </div>
                                 {% else %}
-                                    <span class="quiet">No members linked</span>
+                                    <span class="quiet">—</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -105,6 +145,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 row.style.display = 'none';
             }
+        });
+    });
+
+    document.querySelectorAll('.expand-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            this.classList.toggle('expanded');
+            this.nextElementSibling.classList.toggle('visible');
         });
     });
 });
