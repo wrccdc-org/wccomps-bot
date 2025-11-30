@@ -55,9 +55,9 @@
             <c-table aria_label="Ticket comments">
                 <c-slot name="headers">
                     <tr>
-                        <th>Author</th>
-                        <th>Comment</th>
-                        <th>Posted</th>
+                        <c-table_header sortable="false">Author</c-table_header>
+                        <c-table_header sortable="false">Comment</c-table_header>
+                        <c-table_header sortable="false">Posted</c-table_header>
                     </tr>
                 </c-slot>
                 {% for comment in comments %}
@@ -90,10 +90,10 @@
             <c-table aria_label="Ticket attachments">
                 <c-slot name="headers">
                     <tr>
-                        <th>Filename</th>
-                        <th>Uploaded By</th>
-                        <th>Uploaded</th>
-                        <th>Action</th>
+                        <c-table_header sortable="false">Filename</c-table_header>
+                        <c-table_header sortable="false">Uploaded By</c-table_header>
+                        <c-table_header sortable="false">Uploaded</c-table_header>
+                        <c-table_header sortable="false">Action</c-table_header>
                     </tr>
                 </c-slot>
                 {% for attachment in attachments %}

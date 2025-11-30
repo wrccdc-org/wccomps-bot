@@ -57,11 +57,11 @@
         <c-table id="result_list" aria_label="New school information to import">
             <c-slot name="headers">
                 <tr>
-                    <th>Team</th>
-                    <th>School Name</th>
-                    <th>Contact Email</th>
-                    <th>Secondary Email</th>
-                    <th>Notes</th>
+                    <c-table_header sortable="false">Team</c-table_header>
+                    <c-table_header sortable="false">School Name</c-table_header>
+                    <c-table_header sortable="false">Contact Email</c-table_header>
+                    <c-table_header sortable="false">Secondary Email</c-table_header>
+                    <c-table_header sortable="false">Notes</c-table_header>
                 </tr>
             </c-slot>
             {% for row in preview_data.teams_to_create %}

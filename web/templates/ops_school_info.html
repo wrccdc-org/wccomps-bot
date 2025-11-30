@@ -25,12 +25,12 @@
             </c-slot>
             <c-slot name="headers">
                 <tr>
-                    <th scope="col"><div class="text">Team</div></th>
-                    <th scope="col"><div class="text">School Name</div></th>
-                    <th scope="col"><div class="text">Contact Email</div></th>
-                    <th scope="col"><div class="text">Secondary Email</div></th>
-                    <th scope="col"><div class="text">Last Updated</div></th>
-                    <th scope="col"><div class="text">Action</div></th>
+                    <c-table_header sortable="false">Team</c-table_header>
+                    <c-table_header sortable="false">School Name</c-table_header>
+                    <c-table_header sortable="false">Contact Email</c-table_header>
+                    <c-table_header sortable="false">Secondary Email</c-table_header>
+                    <c-table_header sortable="false">Last Updated</c-table_header>
+                    <c-table_header sortable="false">Action</c-table_header>
                 </tr>
             </c-slot>
             {% for item in teams %}
