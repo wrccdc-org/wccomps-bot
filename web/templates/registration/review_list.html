@@ -31,12 +31,12 @@
         <c-table id="result_list" aria_label="Team registration requests">
             <c-slot name="headers">
                 <tr>
-                    <th scope="col"><div class="text">School Name</div></th>
-                    <th scope="col"><div class="text">Contact Email</div></th>
-                    <th scope="col"><div class="text">Phone</div></th>
-                    <th scope="col"><div class="text">Status</div></th>
-                    <th scope="col"><div class="text">Submitted</div></th>
-                    <th scope="col"><div class="text">Actions</div></th>
+                    <c-table_header sortable="false">School Name</c-table_header>
+                    <c-table_header sortable="false">Contact Email</c-table_header>
+                    <c-table_header sortable="false">Phone</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Submitted</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
                 </tr>
             </c-slot>
             {% for registration in registrations %}
