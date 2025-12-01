@@ -1,0 +1,164 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+
+{% block title %}Helper Management - WCComps{% endblock %}
+
+{% block admin_content %}
+<div x-data="helpersAdmin()">
+    <c-page_header title="Helper Management" />
+
+    <c-module>
+        <c-slot name="title">Add Helper</c-slot>
+        <form @submit.prevent="addHelper()" class="flex gap-4 items-end flex-wrap">
+            <c-filter_field label="Discord ID" id="discord_id">
+                <input type="text" name="discord_id" x-model="newDiscordId" class="vTextField" placeholder="123456789012345678">
+            </c-filter_field>
+            <c-filter_field label="Role Name" id="role_name">
+                <input type="text" name="role_name" x-model="newRoleName" class="vTextField" placeholder="Student Helper">
+            </c-filter_field>
+            <c-button type="submit" variant="success" :disabled="loading">Add Helper</c-button>
+        </form>
+        <p class="mt-2 text-sm text-gray-600">User must be linked and have WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik.</p>
+    </c-module>
+
+    <c-module class="mt-6">
+        <c-slot name="title">Current Helpers ({{ helpers|length }})</c-slot>
+        {% if helpers %}
+        <c-table id="helpers_list" class="w-full" fixed_layout="true" aria_label="Helpers list">
+            <c-slot name="colgroup">
+                <colgroup>
+                    <col style="width: 25%;">
+                    <col style="width: 20%;">
+                    <col style="width: 20%;">
+                    <col style="width: 20%;">
+                    <col style="width: 15%;">
+                </colgroup>
+            </c-slot>
+            <c-slot name="headers">
+                <tr>
+                    <c-table_header sortable="false">Discord Username</c-table_header>
+                    <c-table_header sortable="false">Discord ID</c-table_header>
+                    <c-table_header sortable="false">Role</c-table_header>
+                    <c-table_header sortable="false">Added</c-table_header>
+                    <c-table_header sortable="false">Action</c-table_header>
+                </tr>
+            </c-slot>
+            {% for helper in helpers %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <td class="field-discord_username">{{ helper.discord_username|default:"Unknown" }}</td>
+                <td class="field-discord_id">{{ helper.discord_id|default:"—" }}</td>
+                <td class="field-role">{{ helper.helper_role_name }}</td>
+                <td class="field-added">{{ helper.helper_activated_at|timesince }} ago</td>
+                <td class="field-action">
+                    <button type="button" class="deletelink" @click="removeHelper('{{ helper.pk }}', '{{ helper.discord_username|default:"this user" }}')" :disabled="loading">Remove</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </c-table>
+        {% else %}
+        <p class="text-gray-500">No helpers configured.</p>
+        {% endif %}
+    </c-module>
+
+    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <span x-text="message"></span>
+    </div>
+</div>
+
+<script>
+function helpersAdmin() {
+    return {
+        loading: false,
+        message: '',
+        messageType: 'success',
+        newDiscordId: '',
+        newRoleName: 'Student Helper',
+
+        async addHelper() {
+            if (!this.newDiscordId || !this.newRoleName) {
+                this.message = 'Discord ID and role name are required';
+                this.messageType = 'error';
+                setTimeout(() => this.message = '', 3000);
+                return;
+            }
+
+            this.loading = true;
+            this.message = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'add');
+                formData.append('discord_id', this.newDiscordId);
+                formData.append('role_name', this.newRoleName);
+
+                const response = await fetch('{% url "admin_helper_action" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    this.newDiscordId = '';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    this.message = result.error || 'Failed to add helper';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        },
+
+        async removeHelper(personId, username) {
+            const reason = prompt(`Remove ${username} as helper? Enter reason (optional):`, '');
+            if (reason === null) return;
+
+            this.loading = true;
+            this.message = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'remove');
+                formData.append('person_id', personId);
+                formData.append('reason', reason || 'Removed via web interface');
+
+                const response = await fetch('{% url "admin_helper_action" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    this.message = result.error || 'Failed to remove helper';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+
+{% block title %}Competition Management - WCComps{% endblock %}
+
+{% block admin_content %}
+<div x-data="competitionAdmin()">
+    <c-page_header title="Competition Management" />
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <c-module>
+            <c-slot name="title">Competition Status</c-slot>
+            <c-detail_grid>
+                <c-detail_row label="Active Teams">{{ active_teams }}/{{ total_teams }}</c-detail_row>
+                <c-detail_row label="Linked Users">{{ linked_users }}</c-detail_row>
+                <c-detail_row label="Max Team Members">{{ config.max_team_members }}</c-detail_row>
+                <c-detail_row label="Applications Enabled">
+                    {% if config.applications_enabled %}
+                        <span class="text-green-600">Yes</span>
+                    {% else %}
+                        <span class="text-red-600">No</span>
+                    {% endif %}
+                </c-detail_row>
+                <c-detail_row label="Controlled Apps">{{ config.controlled_applications|join:", "|default:"Not set" }}</c-detail_row>
+                <c-detail_row label="Start Time">{{ config.competition_start_time|default:"Not set" }}</c-detail_row>
+                <c-detail_row label="End Time">{{ config.competition_end_time|default:"Not set" }}</c-detail_row>
+            </c-detail_grid>
+        </c-module>
+
+        <c-module>
+            <c-slot name="title">Quick Actions</c-slot>
+            <div class="space-y-3">
+                <c-button variant="success" class="w-full" @click="startCompetition()" :disabled="loading">
+                    Start Competition
+                </c-button>
+                <c-button variant="danger" class="w-full" @click="endCompetition()" :disabled="loading">
+                    End Competition
+                </c-button>
+                <div class="flex gap-2">
+                    <c-button variant="default" class="flex-1" @click="toggleBlueteams(true)" :disabled="loading">
+                        Enable Accounts
+                    </c-button>
+                    <c-button variant="default" class="flex-1" @click="toggleBlueteams(false)" :disabled="loading">
+                        Disable Accounts
+                    </c-button>
+                </div>
+            </div>
+        </c-module>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <c-module>
+            <c-slot name="title">Configuration</c-slot>
+            <form @submit.prevent="setMaxMembers()" class="space-y-4">
+                <c-filter_field label="Max Team Members" id="max_members">
+                    <input type="number" name="max_members" x-model="maxMembers" min="1" max="20" class="vTextField" value="{{ config.max_team_members }}">
+                </c-filter_field>
+                <c-button type="submit" variant="default" :disabled="loading">Update Max Members</c-button>
+            </form>
+
+            <hr class="my-4">
+
+            <form @submit.prevent="setApps()" class="space-y-4">
+                <c-filter_field label="Controlled Apps (comma-separated)" id="app_slugs">
+                    <input type="text" name="app_slugs" x-model="appSlugs" class="vTextField" placeholder="netbird,scoring" value="{{ config.controlled_applications|join:',' }}">
+                </c-filter_field>
+                <c-button type="submit" variant="default" :disabled="loading">Update Apps</c-button>
+            </form>
+        </c-module>
+
+        <c-module>
+            <c-slot name="title">Schedule Competition</c-slot>
+            <form @submit.prevent="setStartTime()" class="space-y-4">
+                <c-filter_field label="Start Time" id="start_datetime">
+                    <input type="datetime-local" name="start_datetime" x-model="startDatetime" class="vTextField">
+                </c-filter_field>
+                <c-filter_field label="Timezone" id="start_timezone">
+                    <select name="start_timezone" x-model="startTimezone" class="vTextField">
+                        {% for value, label in timezone_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </c-filter_field>
+                <c-button type="submit" variant="default" :disabled="loading">Set Start Time</c-button>
+            </form>
+
+            <hr class="my-4">
+
+            <form @submit.prevent="setEndTime()" class="space-y-4">
+                <c-filter_field label="End Time" id="end_datetime">
+                    <input type="datetime-local" name="end_datetime" x-model="endDatetime" class="vTextField">
+                </c-filter_field>
+                <c-filter_field label="Timezone" id="end_timezone">
+                    <select name="end_timezone" x-model="endTimezone" class="vTextField">
+                        {% for value, label in timezone_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </c-filter_field>
+                <c-button type="submit" variant="default" :disabled="loading">Set End Time</c-button>
+            </form>
+        </c-module>
+    </div>
+
+    <c-module class="mt-6">
+        <c-slot name="title">Password Management</c-slot>
+        <form @submit.prevent="resetPasswords()" class="space-y-4">
+            <c-filter_field label="Team Numbers (leave empty for all)" id="team_numbers">
+                <input type="text" name="team_numbers" x-model="teamNumbers" class="vTextField" placeholder="1,3,5-10,15 or leave empty for all">
+            </c-filter_field>
+            <c-button type="submit" variant="danger" :disabled="loading">Reset Passwords</c-button>
+        </form>
+
+        <template x-if="csvContent">
+            <div class="mt-4 p-4 bg-gray-100 rounded">
+                <p class="font-bold mb-2">Password CSV Generated:</p>
+                <textarea readonly class="w-full h-32 font-mono text-sm" x-text="csvContent"></textarea>
+                <c-button type="button" variant="default" class="mt-2" @click="downloadCsv()">Download CSV</c-button>
+            </div>
+        </template>
+    </c-module>
+
+    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <span x-text="message"></span>
+    </div>
+</div>
+
+<script>
+function competitionAdmin() {
+    return {
+        loading: false,
+        message: '',
+        messageType: 'success',
+        maxMembers: {{ config.max_team_members }},
+        appSlugs: '{{ config.controlled_applications|join:"," }}',
+        startDatetime: '',
+        startTimezone: 'America/Los_Angeles',
+        endDatetime: '',
+        endTimezone: 'America/Los_Angeles',
+        teamNumbers: '',
+        csvContent: '',
+
+        async doAction(action, data = {}) {
+            this.loading = true;
+            this.message = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', action);
+                for (const [key, value] of Object.entries(data)) {
+                    formData.append(key, value);
+                }
+
+                const response = await fetch('{% url "admin_competition_action" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    if (result.csv) {
+                        this.csvContent = result.csv;
+                    }
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    this.message = result.error || 'Action failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        },
+
+        startCompetition() {
+            if (confirm('Start the competition? This will enable all controlled applications and team accounts.')) {
+                this.doAction('start_competition');
+            }
+        },
+
+        endCompetition() {
+            if (confirm('End the competition? This will deactivate all links, disable accounts, and clear scheduled times. Discord channels must be deleted separately via the bot.')) {
+                this.doAction('end_competition');
+            }
+        },
+
+        toggleBlueteams(enable) {
+            const action = enable ? 'enable' : 'disable';
+            if (confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} all 50 team accounts?`)) {
+                this.doAction('toggle_blueteams', { enable: enable.toString() });
+            }
+        },
+
+        setMaxMembers() {
+            this.doAction('set_max_members', { max_members: this.maxMembers });
+        },
+
+        setApps() {
+            this.doAction('set_apps', { app_slugs: this.appSlugs });
+        },
+
+        setStartTime() {
+            if (!this.startDatetime) {
+                this.message = 'Please select a start time';
+                this.messageType = 'error';
+                return;
+            }
+            this.doAction('set_start_time', { datetime: this.startDatetime, timezone: this.startTimezone });
+        },
+
+        setEndTime() {
+            if (!this.endDatetime) {
+                this.message = 'Please select an end time';
+                this.messageType = 'error';
+                return;
+            }
+            this.doAction('set_end_time', { datetime: this.endDatetime, timezone: this.endTimezone });
+        },
+
+        resetPasswords() {
+            const teamDesc = this.teamNumbers ? `teams ${this.teamNumbers}` : 'all 50 teams';
+            if (confirm(`Reset passwords for ${teamDesc}? This will generate new passwords and revoke existing sessions.`)) {
+                this.doAction('reset_passwords', { team_numbers: this.teamNumbers });
+            }
+        },
+
+        downloadCsv() {
+            const blob = new Blob([this.csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'blueteam_passwords.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -18,7 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from core import views
+from core import admin_views, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -148,4 +148,17 @@ urlpatterns = [
         views.ops_batch_verify_tickets,
         name="ops_batch_verify_tickets",
     ),
+    # Admin management routes
+    path("ops/admin/competition/", admin_views.admin_competition, name="admin_competition"),
+    path("ops/admin/competition/action/", admin_views.admin_competition_action, name="admin_competition_action"),
+    path("ops/admin/teams/", admin_views.admin_teams, name="admin_teams"),
+    path("ops/admin/teams/bulk/", admin_views.admin_teams_bulk_action, name="admin_teams_bulk_action"),
+    path("ops/admin/teams/<int:team_number>/", admin_views.admin_team_detail, name="admin_team_detail"),
+    path("ops/admin/teams/<int:team_number>/action/", admin_views.admin_team_action, name="admin_team_action"),
+    path("ops/admin/helpers/", admin_views.admin_helpers, name="admin_helpers"),
+    path("ops/admin/helpers/action/", admin_views.admin_helper_action, name="admin_helper_action"),
+    path("ops/admin/broadcast/", admin_views.admin_broadcast, name="admin_broadcast"),
+    path("ops/admin/broadcast/action/", admin_views.admin_broadcast_action, name="admin_broadcast_action"),
+    path("ops/admin/sync-roles/", admin_views.admin_sync_roles, name="admin_sync_roles"),
+    path("ops/admin/sync-roles/action/", admin_views.admin_sync_roles_action, name="admin_sync_roles_action"),
 ]
