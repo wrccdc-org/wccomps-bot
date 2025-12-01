@@ -1,0 +1,148 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+
+{% block title %}Team Management - WCComps{% endblock %}
+
+{% block admin_content %}
+<div x-data="teamsAdmin()">
+    <c-page_header title="Team Management" />
+
+    <c-module>
+        <c-slot name="title">Bulk Actions</c-slot>
+        <form @submit.prevent="bulkAction()" class="flex gap-4 items-end flex-wrap">
+            <c-filter_field label="Team Numbers" id="bulk_team_numbers">
+                <input type="text" name="team_numbers" x-model="bulkTeamNumbers" class="vTextField" placeholder="1,3,5-10,15">
+            </c-filter_field>
+            <c-filter_field label="Action" id="bulk_action">
+                <select name="action" x-model="bulkActionType" class="vTextField">
+                    <option value="activate">Activate</option>
+                    <option value="deactivate">Deactivate</option>
+                    <option value="recreate">Recreate Channels</option>
+                </select>
+            </c-filter_field>
+            <c-button type="submit" variant="default" :disabled="loading">Execute</c-button>
+        </form>
+    </c-module>
+
+    <c-module class="mt-6">
+        <c-table id="teams_list" class="w-full" fixed_layout="true" aria_label="Team management list">
+            <c-slot name="colgroup">
+                <colgroup>
+                    <col style="width: 10%;">
+                    <col style="width: 25%;">
+                    <col style="width: 15%;">
+                    <col style="width: 15%;">
+                    <col style="width: 15%;">
+                    <col style="width: 20%;">
+                </colgroup>
+            </c-slot>
+            <c-slot name="headers">
+                <tr>
+                    <c-table_header sortable="false">Team #</c-table_header>
+                    <c-table_header sortable="false">Name</c-table_header>
+                    <c-table_header sortable="false">Members</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Discord</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
+                </tr>
+            </c-slot>
+            {% for item in teams %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <th class="field-team_number">
+                    <a href="{% url 'admin_team_detail' item.team.team_number %}">{{ item.team.team_number }}</a>
+                </th>
+                <td class="field-name">{{ item.team.team_name }}</td>
+                <td class="field-members">{{ item.member_count }}/{{ item.team.max_members }}</td>
+                <td class="field-status">
+                    {% if item.team.is_active %}
+                        <span class="text-green-600">Active</span>
+                    {% else %}
+                        <span class="text-red-600">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="field-discord">
+                    {% if item.team.discord_role_id %}
+                        <span class="text-green-600">Configured</span>
+                    {% else %}
+                        <span class="text-gray-400">Not set</span>
+                    {% endif %}
+                </td>
+                <td class="field-actions">
+                    <a href="{% url 'admin_team_detail' item.team.team_number %}" class="changelink">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </c-table>
+
+        <p class="paginator">{{ teams|length }} team(s)</p>
+    </c-module>
+
+    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <span x-text="message"></span>
+    </div>
+</div>
+
+<script>
+function teamsAdmin() {
+    return {
+        loading: false,
+        message: '',
+        messageType: 'success',
+        bulkTeamNumbers: '',
+        bulkActionType: 'activate',
+
+        async bulkAction() {
+            if (!this.bulkTeamNumbers) {
+                this.message = 'Please enter team numbers';
+                this.messageType = 'error';
+                setTimeout(() => this.message = '', 3000);
+                return;
+            }
+
+            const actionDesc = {
+                'activate': 'activate',
+                'deactivate': 'deactivate',
+                'recreate': 'recreate channels for'
+            }[this.bulkActionType];
+
+            if (!confirm(`${actionDesc.charAt(0).toUpperCase() + actionDesc.slice(1)} teams ${this.bulkTeamNumbers}?`)) {
+                return;
+            }
+
+            this.loading = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('action', this.bulkActionType);
+                formData.append('team_numbers', this.bulkTeamNumbers);
+
+                const response = await fetch('{% url "admin_teams_bulk_action" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    this.message = result.error || 'Action failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        }
+    };
+}
+</script>
+{% endblock %}

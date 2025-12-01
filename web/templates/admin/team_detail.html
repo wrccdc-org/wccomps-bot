@@ -1,0 +1,247 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+
+{% block title %}Team {{ team.team_number }} - WCComps{% endblock %}
+
+{% block admin_content %}
+<div x-data="teamDetail()">
+    <c-page_header title="Team {{ team.team_number }}: {{ team.team_name }}">
+        <c-slot name="actions">
+            <a href="{% url 'admin_teams' %}" class="button">&larr; Back to Teams</a>
+        </c-slot>
+    </c-page_header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <c-module>
+            <c-slot name="title">Team Information</c-slot>
+            <c-detail_grid>
+                <c-detail_row label="Team Number">{{ team.team_number }}</c-detail_row>
+                <c-detail_row label="Team Name">{{ team.team_name }}</c-detail_row>
+                <c-detail_row label="Status">
+                    {% if team.is_active %}
+                        <span class="text-green-600">Active</span>
+                    {% else %}
+                        <span class="text-red-600">Inactive</span>
+                    {% endif %}
+                </c-detail_row>
+                <c-detail_row label="Max Members">{{ team.max_members }}</c-detail_row>
+                <c-detail_row label="Current Members">{{ members|length }}/{{ team.max_members }}</c-detail_row>
+                <c-detail_row label="Discord Category">{{ team.discord_category_id|default:"Not set" }}</c-detail_row>
+                <c-detail_row label="Discord Role">{{ team.discord_role_id|default:"Not set" }}</c-detail_row>
+                <c-detail_row label="Authentik Group">WCComps_BlueTeam{{ team.team_number|stringformat:"02d" }}</c-detail_row>
+            </c-detail_grid>
+        </c-module>
+
+        <c-module>
+            <c-slot name="title">Actions</c-slot>
+            <div class="space-y-3">
+                {% if team.is_active %}
+                <c-button variant="default" class="w-full" @click="teamAction('deactivate')" :disabled="loading">
+                    Deactivate Team
+                </c-button>
+                {% else %}
+                <c-button variant="success" class="w-full" @click="teamAction('activate')" :disabled="loading">
+                    Activate Team
+                </c-button>
+                {% endif %}
+                <c-button variant="danger" class="w-full" @click="resetTeam()" :disabled="loading">
+                    Reset Team (Unlink All + New Password)
+                </c-button>
+                <c-button variant="default" class="w-full" @click="teamAction('recreate_channels')" :disabled="loading">
+                    Recreate Discord Channels
+                </c-button>
+            </div>
+
+            <template x-if="newPassword">
+                <div class="mt-4 p-4 bg-yellow-100 rounded">
+                    <p class="font-bold mb-2">New Password:</p>
+                    <code class="text-lg" x-text="newPassword"></code>
+                </div>
+            </template>
+        </c-module>
+    </div>
+
+    <c-module class="mt-6">
+        <c-slot name="title">Linked Members ({{ members|length }})</c-slot>
+        {% if members %}
+        <c-table id="members_list" class="w-full" fixed_layout="true" aria_label="Team members">
+            <c-slot name="colgroup">
+                <colgroup>
+                    <col style="width: 25%;">
+                    <col style="width: 25%;">
+                    <col style="width: 20%;">
+                    <col style="width: 20%;">
+                    <col style="width: 10%;">
+                </colgroup>
+            </c-slot>
+            <c-slot name="headers">
+                <tr>
+                    <c-table_header sortable="false">Discord Username</c-table_header>
+                    <c-table_header sortable="false">Authentik Username</c-table_header>
+                    <c-table_header sortable="false">Discord ID</c-table_header>
+                    <c-table_header sortable="false">Linked At</c-table_header>
+                    <c-table_header sortable="false">Action</c-table_header>
+                </tr>
+            </c-slot>
+            {% for member in members %}
+            <tr class="{% cycle 'row1' 'row2' %}">
+                <td class="field-discord_username">{{ member.discord_username }}</td>
+                <td class="field-authentik_username">{{ member.authentik_username }}</td>
+                <td class="field-discord_id">{{ member.discord_id }}</td>
+                <td class="field-linked_at">{{ member.linked_at|timesince }} ago</td>
+                <td class="field-action">
+                    <button type="button" class="deletelink" @click="unlinkUser('{{ member.discord_id }}', '{{ member.discord_username }}')" :disabled="loading">Unlink</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </c-table>
+        {% else %}
+        <p class="text-gray-500">No members linked to this team.</p>
+        {% endif %}
+    </c-module>
+
+    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <span x-text="message"></span>
+    </div>
+</div>
+
+<script>
+function teamDetail() {
+    return {
+        loading: false,
+        message: '',
+        messageType: 'success',
+        newPassword: '',
+
+        async teamAction(action) {
+            const actionDesc = {
+                'activate': 'activate this team',
+                'deactivate': 'deactivate this team',
+                'recreate_channels': 'recreate Discord channels for this team'
+            }[action];
+
+            if (!confirm(`Are you sure you want to ${actionDesc}?`)) {
+                return;
+            }
+
+            this.loading = true;
+            this.message = '';
+            this.newPassword = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', action);
+
+                const response = await fetch('{% url "admin_team_action" team.team_number %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    this.message = result.error || result.message || 'Action failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        },
+
+        async resetTeam() {
+            if (!confirm('Reset this team? This will:\n- Unlink all members\n- Generate a new Authentik password\n- Revoke all active sessions\n\nThis cannot be undone.')) {
+                return;
+            }
+
+            this.loading = true;
+            this.message = '';
+            this.newPassword = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'reset');
+
+                const response = await fetch('{% url "admin_team_action" team.team_number %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    if (result.password) {
+                        this.newPassword = result.password;
+                    }
+                    setTimeout(() => location.reload(), 3000);
+                } else {
+                    this.message = result.error || result.message || 'Reset failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 10000);
+        },
+
+        async unlinkUser(discordId, username) {
+            if (!confirm(`Unlink ${username} from this team?`)) {
+                return;
+            }
+
+            this.loading = true;
+            this.message = '';
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'unlink_user');
+                formData.append('discord_id', discordId);
+
+                const response = await fetch('{% url "admin_team_action" team.team_number %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message = result.message;
+                    this.messageType = 'success';
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    this.message = result.error || 'Unlink failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message = '', 5000);
+        }
+    };
+}
+</script>
+{% endblock %}

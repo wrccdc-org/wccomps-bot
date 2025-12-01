@@ -1,0 +1,144 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+
+{% block title %}Broadcast Message - WCComps{% endblock %}
+
+{% block admin_content %}
+<div x-data="broadcastAdmin()">
+    <c-page_header title="Broadcast Message" />
+
+    <c-module>
+        <c-slot name="title">Send Broadcast</c-slot>
+        <form @submit.prevent="sendBroadcast()" class="space-y-4">
+            <c-filter_field label="Target" id="target">
+                <select name="target" x-model="target" class="vTextField">
+                    <option value="announcements">Announcements Channel</option>
+                    <option value="all-teams">All Team Channels</option>
+                    <option value="custom">Specific Teams</option>
+                </select>
+            </c-filter_field>
+
+            <template x-if="target === 'custom'">
+                <c-filter_field label="Team Numbers" id="team_numbers">
+                    <input type="text" name="team_numbers" x-model="teamNumbers" class="vTextField" placeholder="1,3,5-10,15">
+                </c-filter_field>
+            </template>
+
+            <c-filter_field label="Message" id="message">
+                <textarea name="message" x-model="message" class="vTextField" rows="6" placeholder="Enter your message here..."></textarea>
+            </c-filter_field>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="mention_team" x-model="mentionTeam">
+                <label for="mention_team">Mention @Blueteam role</label>
+            </div>
+
+            <c-button type="submit" variant="success" :disabled="loading || !message.trim()">Send Broadcast</c-button>
+        </form>
+
+        <div class="mt-4 p-4 bg-gray-100 rounded">
+            <p class="font-bold mb-2">Preview:</p>
+            <div class="whitespace-pre-wrap" x-text="message || '(No message entered)'"></div>
+        </div>
+    </c-module>
+
+    <c-module class="mt-6">
+        <c-slot name="title">Active Teams ({{ teams|length }})</c-slot>
+        <div class="max-h-48 overflow-y-auto">
+            <ul class="list-disc list-inside columns-2 md:columns-3 lg:columns-4">
+                {% for team in teams %}
+                <li>Team {{ team.team_number }} - {{ team.team_name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </c-module>
+
+    <div x-show="message_alert" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+        <span x-text="message_alert"></span>
+    </div>
+</div>
+
+<script>
+function broadcastAdmin() {
+    return {
+        loading: false,
+        message_alert: '',
+        messageType: 'success',
+        target: 'announcements',
+        teamNumbers: '',
+        message: '',
+        mentionTeam: false,
+
+        async sendBroadcast() {
+            if (!this.message.trim()) {
+                this.message_alert = 'Please enter a message';
+                this.messageType = 'error';
+                setTimeout(() => this.message_alert = '', 3000);
+                return;
+            }
+
+            let targetDesc = this.target;
+            if (this.target === 'all-teams') {
+                targetDesc = 'all team channels';
+            } else if (this.target === 'custom') {
+                if (!this.teamNumbers.trim()) {
+                    this.message_alert = 'Please enter team numbers';
+                    this.messageType = 'error';
+                    setTimeout(() => this.message_alert = '', 3000);
+                    return;
+                }
+                targetDesc = `teams ${this.teamNumbers}`;
+            }
+
+            if (!confirm(`Send this message to ${targetDesc}?`)) {
+                return;
+            }
+
+            this.loading = true;
+            this.message_alert = '';
+
+            let finalTarget = this.target;
+            if (this.target === 'custom') {
+                finalTarget = this.teamNumbers;
+            }
+
+            let finalMessage = this.message;
+            if (this.mentionTeam && this.target !== 'announcements') {
+                finalMessage = '@Blueteam ' + finalMessage;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('target', finalTarget);
+                formData.append('message', finalMessage);
+
+                const response = await fetch('{% url "admin_broadcast_action" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.message_alert = result.message;
+                    this.messageType = 'success';
+                    this.message = '';
+                } else {
+                    this.message_alert = result.error || 'Broadcast failed';
+                    this.messageType = 'error';
+                }
+            } catch (e) {
+                this.message_alert = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            setTimeout(() => this.message_alert = '', 5000);
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -151,11 +151,12 @@ class Person(models.Model):
         """Check if user is in a BlueTeam."""
         return self.get_team_number() is not None
 
-    def set_helper(self, role_name: str, role_id: int) -> None:
+    def set_helper(self, role_name: str, role_id: int | None = None) -> None:
         """Grant student helper access."""
         self.is_student_helper = True
         self.helper_role_name = role_name
-        self.helper_role_id = role_id
+        if role_id is not None:
+            self.helper_role_id = role_id
         self.helper_activated_at = timezone.now()
         self.helper_deactivated_at = None
         self.helper_removal_reason = ""

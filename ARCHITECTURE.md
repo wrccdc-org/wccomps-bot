@@ -412,6 +412,50 @@ If ticket's Discord thread failed to create, shows prominent warning that team c
 - Shows manual point adjustments by admins
 - Running total
 
+## Discord vs Web Feature Decisions
+
+The system intentionally separates features between Discord (quick operations) and Web (complex workflows).
+
+### Discord Bot Features
+
+**Quick submission commands for field teams:**
+- `/orange submit` - Orange Team submits scoring adjustments
+- `/orange list` - View pending/approved adjustments
+- `/orange list-types`, `/orange add-type`, `/orange remove-type` - Manage check types
+- `/inject list` - List available injects from Quotient
+- `/inject grade` - Grade an inject for a team
+- `/inject list-grades` - View grades by inject/status
+- `/incident-report` - Blue Team submits incident reports
+- `/leaderboard` - Quick leaderboard check
+
+### Web-Only Features (by design)
+
+**Approval workflows (require review context):**
+- Orange adjustment approval/rejection - Gold Team reviews with full context
+- Inject grade approval - Gold Team bulk approves with outlier detection
+- Incident report matching - Gold Team matches to red findings
+- Red finding approval - Gold Team assigns points and approves findings
+
+**Complex data operations:**
+- Team packet distribution - Upload, distribute, track delivery
+- Red Team finding submission - Requires screenshot evidence uploads
+- Scoring exports (CSV/JSON) - Orange adjustments, inject grades, incidents
+- Scoring configuration - Point values, category settings
+- Bulk operations - Multi-select approve/reject
+
+**Rationale:** Approval workflows need the full context that web UI provides (history, related data, statistical analysis). Quick submissions work well in Discord where field teams operate.
+
+### Explicitly Excluded from Discord
+
+The following were considered but excluded to keep Discord focused on quick operations:
+
+1. **Orange adjustment approval/rejection** - Requires reviewing context, better suited for web
+2. **Inject grade approval** - Bulk approval with outlier detection needs web UI
+3. **Inject grading statistics** - Complex stats display better on web
+4. **Team packet management** - File uploads and distribution tracking need web
+5. **Red Team finding submission** - Requires screenshot evidence; web handles multi-file uploads better
+6. **Red finding approval/point assignment** - Gold Team reviews with full context on web
+
 ## Troubleshooting Details
 
 ### Bot Not Responding to Commands

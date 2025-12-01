@@ -86,6 +86,18 @@ Everyone runs `/link` in Discord to connect their account to Authentik. Team ass
 **Admin (`/admin`):**
 - `/admin sync-roles` - Sync roles from volunteer guild to competition guild
 
+**Orange Team (`/orange`):**
+- `/orange submit <team> <points> <check_type> <description>` - Submit scoring adjustment
+- `/orange list [status]` - List pending/approved adjustments
+- `/orange list-types` - List available check types
+- `/orange add-type <name> <default_points>` - Add a new check type
+- `/orange remove-type <name>` - Remove a check type
+
+**Inject Grading (`/inject`):**
+- `/inject list` - List available injects from Quotient
+- `/inject grade <inject_id> <team> <points> [notes]` - Grade an inject for a team
+- `/inject list-grades [inject_id] [status]` - List grades for an inject
+
 ## Web Interface
 
 Access levels based on Authentik groups:
