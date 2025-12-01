@@ -58,7 +58,7 @@ Returns current leaderboard scores for all teams.
 
 **Example:**
 ```bash
-curl -X GET https://wccomps.org/scoring/api/scores/ \
+curl -X GET https://bot.wccomps.org/scoring/api/scores/ \
   -H "Cookie: sessionid=YOUR_SESSION_ID"
 ```
 
@@ -95,7 +95,7 @@ Returns detailed scoring breakdown for a specific team.
 
 **Example:**
 ```bash
-curl -X GET https://wccomps.org/scoring/api/team/1/ \
+curl -X GET https://bot.wccomps.org/scoring/api/team/1/ \
   -H "Cookie: sessionid=YOUR_SESSION_ID"
 ```
 
@@ -131,7 +131,46 @@ Returns list of attack type suggestions based on previously submitted Red Team f
 
 **Example:**
 ```bash
-curl -X GET https://wccomps.org/scoring/api/attack-types/ \
+curl -X GET https://bot.wccomps.org/scoring/api/attack-types/ \
+  -H "Cookie: sessionid=YOUR_SESSION_ID"
+```
+
+---
+
+#### GET /scoring/api/orange-check-types/
+
+Returns list of Orange Team check types with their default point values.
+
+**Authentication:** Required (any authenticated user)
+
+**Response Format:** JSON
+
+**Response Structure:**
+```json
+{
+  "check_types": [
+    {
+      "id": 1,
+      "name": "Customer service call",
+      "default_points": 10.0
+    },
+    {
+      "id": 2,
+      "name": "Rule violation",
+      "default_points": -25.0
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `id`: Check type database ID
+- `name`: Check type name
+- `default_points`: Default point value (negative for penalties)
+
+**Example:**
+```bash
+curl -X GET https://bot.wccomps.org/scoring/api/orange-check-types/ \
   -H "Cookie: sessionid=YOUR_SESSION_ID"
 ```
 
@@ -215,12 +254,12 @@ Export all Red Team findings.
 **Example:**
 ```bash
 # Export as CSV
-curl -X GET https://wccomps.org/scoring/export/red-findings/?format=csv \
+curl -X GET https://bot.wccomps.org/scoring/export/red-findings/?format=csv \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O red_findings.csv
 
 # Export as JSON
-curl -X GET https://wccomps.org/scoring/export/red-findings/?format=json \
+curl -X GET https://bot.wccomps.org/scoring/export/red-findings/?format=json \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O red_findings.json
 ```
@@ -288,12 +327,12 @@ Export all Blue Team incident reports.
 **Example:**
 ```bash
 # Export as CSV
-curl -X GET https://wccomps.org/scoring/export/incidents/?format=csv \
+curl -X GET https://bot.wccomps.org/scoring/export/incidents/?format=csv \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O incidents.csv
 
 # Export as JSON
-curl -X GET https://wccomps.org/scoring/export/incidents/?format=json \
+curl -X GET https://bot.wccomps.org/scoring/export/incidents/?format=json \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O incidents.json
 ```
@@ -349,12 +388,12 @@ Export all Orange Team bonus point adjustments.
 **Example:**
 ```bash
 # Export as CSV
-curl -X GET https://wccomps.org/scoring/export/orange-adjustments/?format=csv \
+curl -X GET https://bot.wccomps.org/scoring/export/orange-adjustments/?format=csv \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O orange_adjustments.csv
 
 # Export as JSON
-curl -X GET https://wccomps.org/scoring/export/orange-adjustments/?format=json \
+curl -X GET https://bot.wccomps.org/scoring/export/orange-adjustments/?format=json \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O orange_adjustments.json
 ```
@@ -411,12 +450,12 @@ Export all inject grading data.
 **Example:**
 ```bash
 # Export as CSV
-curl -X GET https://wccomps.org/scoring/export/inject-grades/?format=csv \
+curl -X GET https://bot.wccomps.org/scoring/export/inject-grades/?format=csv \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O inject_grades.csv
 
 # Export as JSON
-curl -X GET https://wccomps.org/scoring/export/inject-grades/?format=json \
+curl -X GET https://bot.wccomps.org/scoring/export/inject-grades/?format=json \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O inject_grades.json
 ```
@@ -475,12 +514,12 @@ Export final calculated scores with complete breakdown for all teams.
 **Example:**
 ```bash
 # Export as CSV
-curl -X GET https://wccomps.org/scoring/export/final-scores/?format=csv \
+curl -X GET https://bot.wccomps.org/scoring/export/final-scores/?format=csv \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O final_scores.csv
 
 # Export as JSON
-curl -X GET https://wccomps.org/scoring/export/final-scores/?format=json \
+curl -X GET https://bot.wccomps.org/scoring/export/final-scores/?format=json \
   -H "Cookie: sessionid=YOUR_SESSION_ID" \
   -O final_scores.json
 ```

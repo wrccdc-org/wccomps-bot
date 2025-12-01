@@ -2,14 +2,10 @@
 
 ## Specification Documents
 
-### Current
 - [User Roles and Stories](user-roles-and-stories.md) - Defines user roles, permissions, and user stories
 - [UI Design System](ui-design-system.md) - Consistent patterns for navigation, layouts, components
-- [Implementation Tasks](tasks.md) - Comprehensive task list with verification criteria
-
-### Planned
-- API Documentation - REST API endpoints and contracts
-- Data Models - Database schema and relationships
+- [API Documentation](api.md) - REST API endpoints and contracts
+- [Architecture](ARCHITECTURE.md) - System architecture, workflows, and implementation details
 
 ## Quick Reference
 
@@ -28,10 +24,12 @@
 ### Key URLs
 | Path | Purpose |
 |------|---------|
-| `/scoring/` | Leaderboard and scoring features |
-| `/scoring/incident/submit/` | Blue team incident reports |
+| `/scoring/` | Leaderboard (Gold/White/Ticketing Admin/Admin) |
+| `/scoring/incident/submit/` | Blue team incident submission |
 | `/scoring/red-team/submit/` | Red team finding submission |
-| `/ops/tickets/` | Ticket management |
-| `/ops/group-role-mappings/` | Team member mappings |
-| `/ops/school-info/` | School contact information |
-| `/admin/` | Django admin |
+| `/scoring/orange-team/` | Orange team portal |
+| `/tickets/` | Team ticket list (Blue Team) |
+| `/ops/tickets/` | Ticket management (Support/Admin) |
+| `/ops/group-role-mappings/` | Team member mappings (Gold/Admin) |
+| `/ops/school-info/` | School contact information (Gold/Admin) |
+| `/admin/` | Django admin (Staff) |

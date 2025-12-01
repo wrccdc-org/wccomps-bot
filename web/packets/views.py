@@ -4,6 +4,7 @@ import mimetypes
 from typing import Any, cast
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.http import Http404, HttpRequest, HttpResponse
@@ -50,6 +51,7 @@ def team_packets_list(request: HttpRequest) -> HttpResponse:
     return render(request, "packets/team_packets_list.html", context)
 
 
+@login_required
 @require_GET
 def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Download a packet file."""

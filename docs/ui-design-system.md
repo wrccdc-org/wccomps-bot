@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines consistent UI patterns for WCComps. The system builds on Django Admin CSS with Cotton components for reusable UI elements.
+This document defines UI patterns for WCComps. The system builds on Django Admin CSS with Cotton components for reusable UI elements.
 
 ---
 
@@ -62,10 +62,7 @@ This document defines consistent UI patterns for WCComps. The system builds on D
 
 ### Font Stack
 
-```css
-font-family: "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
-font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace; /* code */
-```
+Django Admin default fonts are used. No custom font stack is defined in the codebase.
 
 ---
 
@@ -139,7 +136,7 @@ Page title with optional subtitle.
 Content container with optional toolbar and filtering.
 
 ```django
-<c-module id="changelist" filtered="true">
+<c-module class="custom-class" filtered="true">
   <c-slot name="toolbar">
     <c-link href="/back" variant="history">Back</c-link>
   </c-slot>
@@ -149,8 +146,8 @@ Content container with optional toolbar and filtering.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `id` | string | - | DOM id for styling hooks |
-| `filtered` | boolean | false | Adds filter styling class |
+| `class` | string | "" | Additional CSS classes |
+| `filtered` | string | "false" | Adds filter styling class (use "true"/"false" strings) |
 
 | Slot | Purpose |
 |------|---------|
@@ -173,8 +170,9 @@ Groups form fields with optional heading.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `heading` | string | - | Section title (h2) |
-| `aligned` | boolean | false | Enables aligned form layout |
+| `heading` | string | "" | Section title (h2) |
+| `class` | string | "" | Additional CSS classes |
+| `aligned` | string | "true" | Enables aligned form layout (default is true, not false) |
 
 ---
 
@@ -183,17 +181,18 @@ Groups form fields with optional heading.
 Single form field with label, help text, and error display.
 
 ```django
-<c-form_field label="Title" required="true" help_text="Brief description">
+<c-form_field label="Title" required="true" help_text="Brief description" id="id_title">
   <input type="text" name="title" id="id_title" />
 </c-form_field>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `label` | string | required | Field label |
-| `required` | boolean | false | Shows required indicator |
-| `help_text` | string | - | Help text below field |
-| `errors` | list | - | Error messages to display |
+| `label` | string | "" | Field label |
+| `required` | string | "false" | Shows required indicator (use "true"/"false" strings) |
+| `help_text` | string | "" | Help text below field |
+| `error` | string | "" | Error message to display (singular, not list) |
+| `id` | string | "" | For attribute on label |
 
 ---
 
@@ -204,22 +203,26 @@ Styled action button.
 ```django
 <c-button type="submit" variant="primary">Save</c-button>
 <c-button type="button" variant="danger">Delete</c-button>
-<c-button type="button" variant="cancel" href="/cancel">Cancel</c-button>
+<c-button type="button" variant="cancel">Cancel</c-button>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `type` | string | "button" | Button type (submit, button, reset) |
 | `variant` | string | "default" | Style variant |
-| `href` | string | - | If provided, renders as link |
-| `disabled` | boolean | false | Disables button |
+| `class` | string | "" | Additional CSS classes |
+| `id` | string | "" | DOM id |
+| `name` | string | "" | Form name attribute |
+| `value` | string | "" | Form value attribute |
+
+Note: Does not support `href` or `disabled` props. Use `<c-link>` for link-styled buttons.
 
 | Variant | Appearance | Usage |
 |---------|------------|-------|
 | `default` | Standard button | Secondary actions |
-| `primary` | Blue background | Primary actions |
-| `danger` | Red text/border | Destructive actions |
-| `cancel` | Gray, subtle | Cancel/back actions |
+| `primary` | Blue background (uses Django admin `.default` class) | Primary actions |
+| `danger` | Red background (#ba2121) | Destructive actions |
+| `cancel` | Cancel link style | Cancel/back actions |
 
 ---
 
@@ -228,23 +231,26 @@ Styled action button.
 Styled link with icon variants.
 
 ```django
-<c-link href="/add" variant="addlink">Add New</c-link>
+<c-link href="/add" variant="add">Add New</c-link>
 <c-link href="/back" variant="history">Back to List</c-link>
 <c-link href="/edit" variant="change">Edit</c-link>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `href` | string | required | Link URL |
+| `href` | string | "#" | Link URL |
 | `variant` | string | "default" | Style variant |
+| `class` | string | "" | Additional CSS classes |
+| `id` | string | "" | DOM id |
 
-| Variant | Icon | Usage |
-|---------|------|-------|
-| `default` | None | Standard link |
-| `addlink` | Plus (+) | Add/create actions |
-| `change` | Pencil | Edit actions |
-| `history` | Arrow (←) | Back/history links |
-| `delete` | X | Delete actions |
+| Variant | CSS Class | Usage |
+|---------|-----------|-------|
+| `default` | (none) | Standard link |
+| `add` | `addlink` | Add/create actions |
+| `change` | `changelink` | Edit actions |
+| `history` | `historylink` | Back/history links |
+
+Note: Uses Django admin icon classes. No `delete` variant exists.
 
 ---
 
@@ -263,13 +269,15 @@ Message display for feedback.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `variant` | string | "info" | Alert type |
+| `class` | string | "" | Additional CSS classes |
 
-| Variant | Colors | Usage |
-|---------|--------|-------|
-| `info` | Blue | Informational messages |
-| `success` | Green | Success confirmations |
-| `warning` | Yellow/orange | Warnings, cautions |
-| `error` | Red | Errors, validation failures |
+| Variant | Background | Border | Text Color |
+|---------|------------|--------|------------|
+| `info` | #e8f4f8 | #417690 | #417690 |
+| `success` | #e8f5e9 | #388e3c | #388e3c |
+| `warning` | #fff3cd | #ffc107 | #856404 |
+| `error` | #ffebee | #ba2121 | #ba2121 |
+| (other) | #f5f5f5 | #999 | #333 |
 
 ---
 
@@ -284,16 +292,19 @@ Status indicator badge.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `status` | string | required | Badge type |
+| `status` | string | "default" | Badge type |
+| `aria_label` | string | "" | Accessibility label (defaults to status title-cased) |
 
-| Status | Colors | Usage |
-|--------|--------|-------|
-| `open` | Blue | Open/new items |
-| `claimed` | Orange | In-progress items |
-| `resolved` | Green | Completed items |
-| `cancelled` | Gray | Cancelled/closed items |
+| Status Values | Background | Text Color | Border |
+|---------------|------------|------------|--------|
+| `open`, `info` | #e3f2fd | #1976d2 | #90caf9 |
+| `claimed`, `warning`, `draft`, `distributing` | #fff3e0 | #f57c00 | #ffb74d |
+| `resolved`, `success`, `completed`, `sent` | #e8f5e9 | #388e3c | #81c784 |
+| `cancelled`, `pending` | #f5f5f5 | #757575 | #bdbdbd |
+| `danger`, `failed` | #ffebee | #c62828 | #ef9a9a |
+| (other) | #f5f5f5 | #333 | #ddd |
 
-**Note**: Use badges only for status indicators, not for counts or labels.
+Note: In practice, badges are used for counts and labels in the codebase (e.g., "42 teams", "3 files").
 
 ---
 
@@ -303,6 +314,10 @@ Data table with accessibility features.
 
 ```django
 <c-table id="result_list" aria_label="Team list" fixed_layout="true">
+  <c-slot name="colgroup">
+    <col style="width: 50%;">
+    <col style="width: 50%;">
+  </c-slot>
   <c-slot name="headers">
     <tr>
       <th scope="col"><div class="text">Team</div></th>
@@ -320,14 +335,16 @@ Data table with accessibility features.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `id` | string | - | Table ID |
-| `aria_label` | string | - | Accessibility label |
-| `fixed_layout` | boolean | false | Use fixed column widths |
+| `id` | string | "result_list" | Table ID |
+| `class` | string | "" | Additional CSS classes |
+| `aria_label` | string | "Data table" | Accessibility label |
+| `fixed_layout` | string | "false" | Use fixed column widths (use "true"/"false" strings) |
 
 | Slot | Purpose |
 |------|---------|
-| `headers` | Table header row(s) |
-| default | Table body rows |
+| `colgroup` | Column width definitions |
+| `headers` | Table header row(s) in `<thead>` |
+| default | Table body rows in `<tbody>` |
 
 ---
 
@@ -336,49 +353,71 @@ Data table with accessibility features.
 Sortable column header.
 
 ```django
-<c-table_header sort_field="created_at" current_sort="-created_at" min_width="100px">
+<c-table_header sort_field="created_at" current_sort="-created_at" query_params="&status=open">
   Created
 </c-table_header>
+<c-table_header sortable="false">Non-sortable Column</c-table_header>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `sort_field` | string | required | Field name for sorting |
-| `current_sort` | string | - | Current sort field (prefix `-` for desc) |
-| `min_width` | string | - | Minimum column width |
+| `sort_field` | string | "" | Field name for sorting |
+| `current_sort` | string | "" | Current sort field (prefix `-` for desc) |
+| `query_params` | string | "" | Additional URL params to preserve on sort |
+| `sortable` | string | "true" | Whether column is sortable (use "true"/"false" strings) |
+
+Note: No `min_width` prop exists. Displays ▲/▼ indicators for sort direction.
 
 ---
 
 #### `<c-pagination>`
 
-Page navigation for lists.
+Page navigation for lists. Takes Django's paginator page object directly.
 
 ```django
-<c-pagination
-  page="{{ page_obj.number }}"
-  total_pages="{{ page_obj.paginator.num_pages }}"
-  has_previous="{{ page_obj.has_previous }}"
-  has_next="{{ page_obj.has_next }}"
-  previous_page="{{ page_obj.previous_page_number }}"
-  next_page="{{ page_obj.next_page_number }}" />
+<c-pagination :page_obj="page_obj" query_params="&status=open" />
 ```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `page_obj` | object | "" | Django Paginator page object |
+| `query_params` | string | "" | URL params to preserve on page links |
+
+Displays "Showing X-Y of Z results" with First/Previous/Next/Last links.
 
 ---
 
 #### `<c-filter_toolbar>`
 
-Container for filter/search controls.
+Container for filter/search controls with htmx support.
 
 ```django
-<c-filter_toolbar>
-  <c-filter_field label="Search">
+<c-filter_toolbar form_id="filter-form" hx_get="/list" hx_target="#results" hx_push_url="true">
+  <c-filter_field label="Search" id="id_search">
     <input type="text" name="q" value="{{ request.GET.q }}" />
   </c-filter_field>
-  <c-filter_field label="Status">
-    <select name="status">...</select>
-  </c-filter_field>
+  <c-slot name="actions">
+    <c-button type="submit">Filter</c-button>
+  </c-slot>
 </c-filter_toolbar>
 ```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `form_id` | string | "changelist-filter" | Form ID |
+| `method` | string | "GET" | Form method |
+| `action` | string | "" | Form action URL |
+| `class` | string | "" | Additional CSS classes |
+| `aria_label` | string | "Filter results" | Accessibility label |
+| `hx_get` | string | "" | htmx GET endpoint |
+| `hx_target` | string | "" | htmx target selector |
+| `hx_swap` | string | "" | htmx swap mode |
+| `hx_push_url` | string | "" | htmx push URL |
+
+| Slot | Purpose |
+|------|---------|
+| default | Filter field components |
+| `actions` | Buttons on the right side |
 
 ---
 
@@ -387,96 +426,256 @@ Container for filter/search controls.
 Individual filter input in toolbar.
 
 ```django
-<c-filter_field label="Team">
-  <select name="team">...</select>
+<c-filter_field label="Team" id="id_team" min_width="200px">
+  <select name="team" id="id_team">...</select>
 </c-filter_field>
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `label` | string | - | Field label |
+| `label` | string | "" | Field label |
+| `id` | string | "" | For attribute on label |
+| `min_width` | string | "140px" | Minimum field width |
 
 ---
 
-### Proposed New Components
+### Additional Components
 
-#### `<c-stats_card>` (to create)
+#### `<c-stats_card>`
 
 Dashboard metric display.
 
 ```django
-<c-stats_card value="42" label="Pending Reviews" color="primary" />
+<c-stats_card value="42" label="Pending Reviews" color="warning" />
 ```
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `value` | string | required | Large number/value |
-| `label` | string | required | Description text |
+| `value` | string | "" | Large number/value |
+| `label` | string | "" | Description text |
 | `color` | string | "primary" | Value color (primary, success, warning, danger) |
-
-Replaces inline grid styling in dashboard pages.
 
 ---
 
-#### `<c-detail_grid>` (to create)
+#### `<c-stats_card_grid>`
 
-Two-column detail layout.
+Grid container for stats cards.
 
 ```django
-<c-detail_grid>
-  <c-slot name="left">
-    <h3>Attack Details</h3>
-    ...
-  </c-slot>
-  <c-slot name="right">
-    <h3>Target Information</h3>
-    ...
-  </c-slot>
+<c-stats_card_grid cols="3" gap="20px">
+  <c-stats_card value="42" label="Pending" color="warning" />
+  <c-stats_card value="18" label="Approved" color="success" />
+</c-stats_card_grid>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `cols` | string | "3" | Number of columns |
+| `gap` | string | "20px" | Spacing between cards |
+
+---
+
+#### `<c-detail_grid>`
+
+Two-column detail layout with responsive breakpoint.
+
+```django
+<c-detail_grid gap="20px">
+  <c-slot name="left">Left content</c-slot>
+  <c-slot name="right">Right content</c-slot>
 </c-detail_grid>
 ```
 
-Replaces inline grid CSS in detail pages.
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `gap` | string | "20px" | Spacing between columns |
+
+Collapses to single column below 768px.
 
 ---
 
-#### `<c-empty_state>` (to create)
+#### `<c-empty_state>`
 
 Empty list/no results display.
 
 ```django
-<c-empty_state
-  icon="inbox"
-  title="No incidents found"
-  description="Incidents will appear here when submitted." />
+<c-empty_state icon="📋" title="No incidents found" description="Incidents will appear here.">
+  <c-link href="/create" variant="add">Create One</c-link>
+</c-empty_state>
 ```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | string | "" | Emoji or character |
+| `title` | string | "" | Heading text |
+| `description` | string | "" | Secondary text |
+
+Default slot for optional action button.
 
 ---
 
-#### `<c-nav>` (to create)
+#### `<c-nav>` and `<c-nav_item>`
 
-Sub-navigation tabs.
+Sub-navigation.
 
 ```django
 <c-nav current="leaderboard">
   <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
-  <c-nav_item name="red_team" href="{% url 'scoring:red_team' %}" condition="{{ user.is_gold_team }}">
-    Review Red Team
-  </c-nav_item>
+  {% if user.is_gold_team %}
+  <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>
+  {% endif %}
 </c-nav>
 ```
 
-Replaces pipe-separated breadcrumb navigation.
+| `<c-nav>` Prop | Type | Default | Description |
+|----------------|------|---------|-------------|
+| `current` | string | "" | Name of current page for highlighting |
+
+| `<c-nav_item>` Prop | Type | Default | Description |
+|---------------------|------|---------|-------------|
+| `name` | string | "" | Identifier to match against `current` |
+| `href` | string | "#" | Link URL |
+
+Note: `current` is not inherited from parent; must be passed to each nav_item or accessed via context.
 
 ---
 
-#### `<c-score_value>` (to create)
+#### `<c-score_value>`
 
-Formatted score display with color.
+Auto-colored score display.
 
 ```django
-<c-score_value value="{{ points }}" />  {# Auto-colors based on +/- #}
-<c-score_value value="{{ points }}" format="signed" />  {# Shows +/- prefix #}
+<c-score_value value="150" />
+<c-score_value :value="points" format="signed" />
 ```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | string | "0" | Numeric value |
+| `format` | string | "default" | Use "signed" to show +/- prefix |
+
+Colors: positive (#28a745), negative (#dc3545), zero (#6c757d).
+
+---
+
+#### `<c-section_header>`
+
+Flex header with title and actions.
+
+```django
+<c-section_header title="Recent Items" subtitle="Last 24 hours">
+  <c-slot name="actions">
+    <c-button variant="primary">Refresh</c-button>
+  </c-slot>
+</c-section_header>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | string | "" | Heading text |
+| `subtitle` | string | "" | Secondary text |
+| `align` | string | "space-between" | Justify content value |
+
+---
+
+#### `<c-button_row>`
+
+Container for form action buttons.
+
+```django
+<c-button_row class="justify-end mt-15">
+  <c-button type="submit" variant="primary">Save</c-button>
+  <c-link href="/cancel">Cancel</c-link>
+</c-button_row>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `class` | string | "" | Additional classes (e.g., justify-end, mt-15) |
+
+---
+
+#### `<c-form_grid>`
+
+Responsive grid for form fields.
+
+```django
+<c-form_grid min_width="200px" gap="15px">
+  <div><label>Name</label><input type="text" /></div>
+  <div><label>Email</label><input type="email" /></div>
+</c-form_grid>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `min_width` | string | "200px" | Minimum column width |
+| `gap` | string | "15px" | Grid gap |
+
+---
+
+#### `<c-image_grid>`
+
+Responsive grid for images.
+
+```django
+<c-image_grid cols="3" gap="15px">
+  <img src="/img1.png" />
+  <img src="/img2.png" />
+</c-image_grid>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `cols` | string | "3" | Number of columns |
+| `gap` | string | "15px" | Grid gap |
+
+Collapses to single column below 768px.
+
+---
+
+#### `<c-info_box>` and `<c-action_box>`
+
+Content containers.
+
+```django
+<c-info_box variant="primary">Highlighted info</c-info_box>
+<c-action_box heading="Actions" variant="warning">Form content</c-action_box>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | string | "default" | Style variant (default, primary, warning) |
+| `class` | string | "" | Additional classes |
+| `heading` | string | "" | (action_box only) Section heading |
+
+---
+
+#### `<c-selectable_table>`
+
+Table with select-all checkbox functionality using Alpine.js.
+
+```django
+<c-selectable_table id="my_table" checkbox_name="item_ids" total_items="{{ items|length }}">
+  <c-slot name="extra_headers">
+    <th>Name</th>
+    <th>Status</th>
+  </c-slot>
+  {% for item in items %}
+  <tr data-selectable-id="{{ item.id }}">
+    <td><input type="checkbox" x-model="selected" value="{{ item.id }}" /></td>
+    <td>{{ item.name }}</td>
+    <td>{{ item.status }}</td>
+  </tr>
+  {% endfor %}
+</c-selectable_table>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `id` | string | "" | Table ID |
+| `checkbox_name` | string | "selected_ids" | Name for row checkboxes |
+| `aria_label` | string | "Selectable data table" | Accessibility label |
+| `total_items` | string | "0" | Total selectable items count |
 
 ---
 
@@ -578,7 +777,7 @@ Formatted score display with color.
     <form method="POST">
       {% csrf_token %}
       <c-fieldset heading="Ticket Information" aligned="true">
-        <c-form_field label="Title" required="true" errors="{{ form.title.errors }}">
+        <c-form_field label="Title" required="true" error="{{ form.title.errors.0 }}">
           {{ form.title }}
         </c-form_field>
         <c-form_field label="Category" required="true">
@@ -589,10 +788,10 @@ Formatted score display with color.
         </c-form_field>
       </c-fieldset>
 
-      <div class="submit-row">
+      <c-button_row>
         <c-button type="submit" variant="primary">Create Ticket</c-button>
-        <c-link href="/tickets" variant="cancel">Cancel</c-link>
-      </div>
+        <c-link href="/tickets">Cancel</c-link>
+      </c-button_row>
     </form>
   </c-module>
 </div>
@@ -611,18 +810,18 @@ Formatted score display with color.
   <c-page_header title="Review Dashboard" />
 
   <c-module>
-    <div class="stats-grid">
+    <c-stats_card_grid cols="3">
       <c-stats_card value="{{ pending_count }}" label="Pending Review" color="warning" />
       <c-stats_card value="{{ approved_count }}" label="Approved" color="success" />
       <c-stats_card value="{{ rejected_count }}" label="Rejected" color="danger" />
-    </div>
+    </c-stats_card_grid>
   </c-module>
 
   <c-module>
     <c-slot name="toolbar">
       <h2>Recent Items</h2>
     </c-slot>
-    <c-table>...</c-table>
+    <c-table aria_label="Recent items">...</c-table>
   </c-module>
 </div>
 {% endblock %}
@@ -650,9 +849,9 @@ Use Cotton components (`<c-fieldset>`, `<c-form_field>`) for all forms:
 </form>
 ```
 
-### When to Use Crispy Forms
+### Crispy Forms
 
-Only for complex dynamic forms where field order/visibility changes based on model.
+No crispy forms usage found in templates. All forms use Cotton components.
 
 ### Form Layout Rules
 
@@ -720,24 +919,27 @@ Only for complex dynamic forms where field order/visibility changes based on mod
 
 Rendered in header based on user roles. Links only shown if user has permission.
 
-### Sub-Navigation (Scoring)
+### Sub-Navigation
 
-Use `<c-nav>` component (when created) instead of pipe separators:
+Uses `<c-nav>` and `<c-nav_item>` components. Used in:
+- `scoring/base.html` - scoring section navigation
+- `admin/base.html` - admin section navigation
 
 ```django
-<c-nav current="{{ current_page }}">
-  <c-nav_item name="leaderboard" href="...">Leaderboard</c-nav_item>
+<c-nav current="leaderboard">
+  <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
   {% if user.is_gold_team %}
-  <c-nav_item name="red_team" href="...">Review Red Team</c-nav_item>
+  <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>
   {% endif %}
 </c-nav>
 ```
 
 ### Current Page Indicator
 
-- Bold text
-- Brighter color (`#fff` instead of `#c4dce8`)
-- No underline on hover
+Via inline styles in `nav_item.html`:
+- Bold text (`font-weight: bold`)
+- White color (`#fff`)
+- Non-current links use `#447e9b`
 
 ---
 
@@ -753,29 +955,20 @@ Use `<c-nav>` component (when created) instead of pipe separators:
 
 ---
 
-## Known Issues to Address
+## Known Issues
 
-### High Priority
+### Inline Styles
 
-- [ ] Extract inline styles to component CSS
-- [ ] Create `<c-nav>` component for sub-navigation
-- [ ] Create `<c-stats_card>` component
-- [ ] Standardize all forms to use Cotton (remove mixed crispy usage)
-- [ ] Fix `<c-badge>` misuse (status only, not counts)
+Many Cotton components use inline styles rather than external CSS. 65 occurrences of `style=` across 18 component files. Components with notable inline styling:
+- `badge.html` - all color variants
+- `alert.html` - all color variants
+- `nav_item.html` - current state styling
+- `filter_toolbar.html` - layout styles
+- `filter_field.html` - layout styles
 
-### Medium Priority
+### CSS Custom Properties
 
-- [ ] Create `<c-detail_grid>` component
-- [ ] Create `<c-empty_state>` component
-- [ ] Create `<c-score_value>` component
-- [ ] Consolidate color definitions into CSS custom properties
-- [ ] Add missing `aria-label` to tables
-
-### Low Priority
-
-- [ ] Create CSS utility classes for common spacing
-- [ ] Document icon usage patterns
-- [ ] Create component storybook/examples page
+Only one usage of CSS custom properties found (`var(--link-fg)` in `ops_group_role_mappings.html`). Color values are hardcoded throughout.
 
 ---
 
@@ -786,6 +979,6 @@ When updating existing templates:
 1. Replace `<div class="module">` with `<c-module>`
 2. Replace inline alert divs with `<c-alert variant="...">`
 3. Replace raw `<table>` with `<c-table>` (add `aria-label`)
-4. Replace pipe-separated nav with `<c-nav>` when available
-5. Replace inline grid styling with layout components when available
-6. Move inline styles to component-level CSS blocks
+4. Replace pipe-separated nav with `<c-nav>` and `<c-nav_item>`
+5. Use `<c-stats_card_grid>` with `<c-stats_card>` for dashboards
+6. Use `<c-button_row>` for form action buttons instead of `<div class="submit-row">`
