@@ -99,7 +99,7 @@ Red Team members simulate adversaries attacking Blue Team infrastructure.
 
 ### Gold Team (Competition Organizers/Judges)
 
-**Identity**: Members of `WCComps_GoldTeam` Authentik group
+**Identity**: Members of `WCComps_GoldTeam` Authentik group (or `WCComps_Discord_Admin` which inherits Gold Team permissions)
 
 Gold Team members verify incidents, review findings, and ensure fair competition.
 
@@ -109,7 +109,6 @@ Gold Team members verify incidents, review findings, and ensure fair competition
 - Spot-check and bulk approve red team findings
 - Spot-check and bulk approve orange team adjustments
 - Spot-check and bulk approve inject grades
-- View team mappings
 - Manage school information
 
 **Restrictions**:
@@ -145,13 +144,14 @@ Orange Team awards bonus points or penalties for behavior, task completion, or r
 - Submit point adjustments with dynamic check types
 - View their own submitted adjustments
 
-**Check Types** (dynamic, user-defined):
+**Check Types**: Managed via `OrangeCheckType` model with configurable default point values. Examples:
 - Customer service call answered
 - Network diagram completed
 - Password reset assistance
-- Rule violation (negative)
+- Rule violation (negative points)
 - Professional behavior bonus
-- *(New types created on first use, available for future entries)*
+
+Check types are created via Django Admin, not dynamically on first use.
 
 **Restrictions**:
 - Cannot approve their own adjustments (Gold Team reviews)
@@ -248,12 +248,13 @@ System administrators have full access to system configuration.
 |-------------------------|------|-----|------|-------|--------|-------------|--------------|-------|
 | Leaderboard             |      |     | ✓    | ✓     |        |             | ✓            | ✓     |
 | Red Team Portal         |      | ✓   | ✓    |       |        |             |              | ✓     |
-| Incident Submission     | *    |     |      |       |        |             |              | ✓     |
+| Incident Submission     | ✓*   |     |      |       |        |             |              | ✓     |
 | Orange Team Portal      |      |     | ✓    |       | ✓      |             |              | ✓     |
 | Inject Grading          |      |     | ✓    | ✓     |        |             |              | ✓     |
+| Review Inject Grades    |      |     | ✓    |       |        |             |              | ✓     |
+| Review Tickets          |      |     |      |       |        |             | ✓            | ✓     |
 | Ops Tickets             |      |     |      |       |        | ✓           | ✓            | ✓     |
 | Ops School Info         |      |     | ✓    |       |        |             |              | ✓     |
-| Ops Group Role Mappings |      |     | ✓    |       |        |             |              | ✓     |
 | Export Views            |      |     |      |       |        |             |              | ✓     |
 
 \* Blue Team can submit incidents only if they have a team assigned
@@ -288,7 +289,7 @@ System administrators have full access to system configuration.
 > As a **registrant**, I want to **check my registration status** so that I can **know if I'm approved and what's next**.
 
 **Acceptance Criteria**:
-- Status page showing: Pending → Approved → Paid → Credentials Sent
+- Status workflow: `pending` → `approved` → `paid` → `credentials_sent` (or `rejected`)
 - Contact information if questions
 
 ---
@@ -622,27 +623,32 @@ System administrators have full access to system configuration.
 
 ### Primary Navigation (Header)
 
+Defined in `templates/admin/base_site.html`:
+
 | Link | Condition | Destination |
 |------|-----------|-------------|
 | Tickets | `is_ticketing_support` or `is_ticketing_admin` | `/ops/tickets/` |
 | Incidents | `is_blue_team` or `is_admin` | `/scoring/incident/submit/` |
 | Red Team Findings | `is_red_team` or `is_admin` | `/scoring/red-team/submit/` |
+| Orange Team | `is_orange_team` or `is_admin` | `/scoring/orange-team/` |
 | Scoring | `is_gold_team` or `is_white_team` or `is_ticketing_admin` or `is_admin` | `/scoring/` |
-| Team Mappings | `is_gold_team` or `is_admin` | `/ops/group-role-mappings/` |
 | School Info | `is_gold_team` or `is_admin` | `/ops/school-info/` |
 | Admin | `is_staff` | `/admin/` |
 
 ### Scoring Sub-Navigation
+
+Defined in `templates/scoring/base.html`:
 
 | Link | Condition |
 |------|-----------|
 | Leaderboard | Always (if can access scoring) |
 | Review Red Team | `is_gold_team` or `is_admin` |
 | Review Incidents | `is_gold_team` or `is_admin` |
-| Orange Team | `is_gold_team` or `is_orange_team` or `is_admin` |
-| Inject Grading | `is_white_team` or `is_admin` |
+| Review Inject Grades | `is_gold_team` or `is_admin` |
 | Review Tickets | `is_ticketing_admin` or `is_admin` |
-| Configuration | `is_staff` |
+| Inject Grading | `is_white_team` or `is_admin` |
+| Configuration | `is_admin` |
+| Export Data | `is_admin` |
 
 ---
 
@@ -650,50 +656,44 @@ System administrators have full access to system configuration.
 
 | Group Name | Role |
 |------------|------|
-| `WCComps_BlueTeam{N}` | Blue Team (N = 01-99) |
+| `WCComps_BlueTeam{N}` | Blue Team (N = 01-50) |
 | `WCComps_RedTeam` | Red Team |
 | `WCComps_GoldTeam` | Gold Team |
 | `WCComps_WhiteTeam` | White Team |
 | `WCComps_OrangeTeam` | Orange Team |
+| `WCComps_BlackTeam` | Black Team (operations/support staff) |
 | `WCComps_Ticketing_Support` | Ticketing Support |
 | `WCComps_Ticketing_Admin` | Ticketing Admin |
-| `WCComps_Discord_Admin` | System Admin (+ is_staff) |
+| `WCComps_Discord_Admin` | System Admin (+ is_staff, inherits Gold Team) |
 
 ---
 
 ## Data Export Requirements
 
-All primary data inputs must be exportable as CSV and JSON:
+Exports available at `/scoring/export/` (Admin only). All exports support CSV and JSON formats via `?format=csv` or `?format=json`.
 
-| Data Type | Fields | Access |
-|-----------|--------|--------|
-| Red Findings | team, box, source_ip, attack_type, description, submitter, timestamp, approved | Admin |
-| Blue Incidents | team, box, source_ip, attack_type, description, submitter, timestamp, matched_finding | Admin |
-| Orange Adjustments | team, check_type, points, reason, submitter, timestamp, approved | Admin |
-| Inject Grades | team, inject, score, max_points (optional), grader, timestamp, approved | Admin |
-| Ticket Resolutions | ticket_id, team, category, points, resolver, timestamp | Admin |
-| Final Scores | team, quotient_base, red_penalty, incident_recovery, orange_adj, inject_points, ticket_points, total | Admin |
+| Endpoint | Data Type |
+|----------|-----------|
+| `/export/red-findings/` | Red Team Findings |
+| `/export/incidents/` | Blue Team Incidents |
+| `/export/orange-adjustments/` | Orange Team Adjustments |
+| `/export/inject-grades/` | Inject Grades |
+| `/export/final-scores/` | Final Aggregated Scores |
+
+Note: Ticket resolutions export not implemented as a separate endpoint.
 
 ---
 
-## Known Issues to Fix
+## Implementation Status
 
-### Permission Issues
-- [ ] Leaderboard visible to Blue/Red Team (should be restricted)
-- [ ] Nav shows links users can't access
-- [ ] Pages accessible by URL to unauthorized users
-
-### UI Inconsistencies
-- [ ] Navigation varies across pages
-- [ ] Form layouts inconsistent
-- [ ] Review queues need similar structure
-
-### Missing Features
-- [ ] Team registration flow
-- [ ] Orange Team check type management (dynamic)
-- [ ] White Team inject grading UI
-- [ ] Data export functionality
-- [ ] Batch approval workflows
+### Implemented Features
+- Leaderboard restricted to Gold/White Team, Ticketing Admin, and System Admin
+- Navigation shows only accessible links based on user permissions
+- Team registration flow exists (`registration` app with status workflow)
+- Data export functionality (CSV/JSON for red findings, incidents, orange adjustments, inject grades, final scores)
+- Orange Team check types managed via `OrangeCheckType` model
+- White Team inject grading UI at `/scoring/inject-grading/`
+- Batch approval workflows for inject grades and red findings
 
 ---
 
@@ -715,9 +715,9 @@ All primary data inputs must be exportable as CSV and JSON:
 
 | Category | Points | Notes |
 |----------|--------|-------|
-| Service Scoring Validation | 0 | Free verification |
-| Box Reset/Scrub | 60 | Fixed |
+| Service Scoring Validation | 0 | Free initially, tracked for abuse (5pt penalty if misused) |
+| Box Reset / Scrub | 60 | Fixed |
 | Scoring Service Check | 10 | Fixed |
 | Black Team Phone Consultation | 100 | Fixed |
-| Black Team Hands-on Consultation | 200 | Up to 300 for consultations >45 min |
-| Other/General Issue | 0 | Points manually adjusted if needed |
+| Black Team Hands-on Consultation | 200 | 300 if consultation exceeded 45 minutes |
+| Other / General Issue | 0 | Ticket lead manually adjusts points if needed |

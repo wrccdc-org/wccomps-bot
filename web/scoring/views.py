@@ -841,6 +841,7 @@ def recalculate_scores(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:leaderboard")
 
 
+@login_required
 def api_scores(request: HttpRequest) -> JsonResponse:
     """API endpoint for scores."""
     scores = get_leaderboard()
@@ -862,6 +863,7 @@ def api_scores(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"scores": data})
 
 
+@login_required
 def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
     """API endpoint for team detail."""
     team = get_object_or_404(Team, team_number=team_number)
@@ -897,6 +899,7 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"suggestions": sorted(suggestions)})
 
 
+@login_required
 def api_orange_check_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for orange check types with default points."""
     check_types = OrangeCheckType.objects.all().order_by("name")
