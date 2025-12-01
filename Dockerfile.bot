@@ -19,20 +19,10 @@ COPY uv.lock* .
 # Install dependencies using uv
 RUN uv sync --frozen --no-dev
 
-# Copy bot application code
+# Copy application code
 COPY main.py ./main.py
 COPY bot/ ./bot/
-COPY web/core/ ./web/core/
-COPY web/team/ ./web/team/
-COPY web/ticketing/ ./web/ticketing/
-COPY web/person/ ./web/person/
-COPY web/competition/ ./web/competition/
-COPY web/quotient/ ./web/quotient/
-COPY web/scoring/ ./web/scoring/
-COPY web/packets/ ./web/packets/
-COPY web/registration/ ./web/registration/
-COPY web/wccomps/ ./web/wccomps/
-COPY web/manage.py ./web/manage.py
+COPY web/ ./web/
 
 # Create logs directory
 RUN mkdir -p /app/logs
