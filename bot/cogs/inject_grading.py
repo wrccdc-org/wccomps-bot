@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
 
-from person.models import Person
+from bot.permissions import check_white_team
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +25,14 @@ class InjectGradingCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    def _can_grade(self, person: Person) -> bool:
-        """Check if person can grade injects (White or Gold Team)."""
-        return person.is_white_team() or person.is_gold_team()
-
     @inject_group.command(
         name="list",
         description="[WHITE/GOLD TEAM] List available injects from Quotient",
     )
+    @app_commands.check(check_white_team)
     async def inject_list(self, interaction: discord.Interaction) -> None:
         """List available injects."""
         from quotient.client import QuotientClient
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._can_grade(person):
-            await interaction.response.send_message(
-                "This command is for White/Gold Team members only.",
-                ephemeral=True,
-            )
-            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -85,6 +73,7 @@ class InjectGradingCog(commands.Cog):
         points="Points to award",
         notes="Optional grading notes",
     )
+    @app_commands.check(check_white_team)
     async def inject_grade(
         self,
         interaction: discord.Interaction,
@@ -98,15 +87,6 @@ class InjectGradingCog(commands.Cog):
         from scoring.models import InjectGrade
 
         from team.models import Team
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._can_grade(person):
-            await interaction.response.send_message(
-                "This command is for White/Gold Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Validate team
         if team_number < 1 or team_number > 50:
@@ -194,6 +174,7 @@ class InjectGradingCog(commands.Cog):
             app_commands.Choice(name="All", value="all"),
         ]
     )
+    @app_commands.check(check_white_team)
     async def inject_list_grades(
         self,
         interaction: discord.Interaction,
@@ -202,15 +183,6 @@ class InjectGradingCog(commands.Cog):
     ) -> None:
         """List inject grades."""
         from scoring.models import InjectGrade
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._can_grade(person):
-            await interaction.response.send_message(
-                "This command is for White/Gold Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Build query
         queryset = InjectGrade.objects.select_related("team").order_by("inject_name", "team__team_number")

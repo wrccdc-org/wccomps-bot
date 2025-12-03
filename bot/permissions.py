@@ -232,3 +232,88 @@ async def check_gold_team(interaction: discord.Interaction) -> bool:
             ephemeral=True,
         )
     return has_permission
+
+
+async def is_white_team_async(interaction: discord.Interaction) -> bool:
+    """Check if user is member of WhiteTeam via Authentik groups."""
+    if await is_admin_async(interaction):
+        return True
+    if await is_gold_team_async(interaction):
+        return True
+
+    try:
+        authentik_groups = await get_authentik_groups_async(interaction.user.id)
+        return "WCComps_WhiteTeam" in authentik_groups
+    except Exception as e:
+        logger.exception(f"Failed to check Authentik groups for WhiteTeam permission: {e}")
+        return False
+
+
+async def check_white_team(interaction: discord.Interaction) -> bool:
+    """Check if user is member of WhiteTeam (inject graders)."""
+    has_permission = await is_white_team_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ White Team permissions required.\n\n"
+            "You need the `WCComps_WhiteTeam` or `WCComps_GoldTeam` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission
+
+
+async def is_orange_team_async(interaction: discord.Interaction) -> bool:
+    """Check if user is member of OrangeTeam via Authentik groups."""
+    if await is_admin_async(interaction):
+        return True
+    if await is_gold_team_async(interaction):
+        return True
+
+    try:
+        authentik_groups = await get_authentik_groups_async(interaction.user.id)
+        return "WCComps_OrangeTeam" in authentik_groups
+    except Exception as e:
+        logger.exception(f"Failed to check Authentik groups for OrangeTeam permission: {e}")
+        return False
+
+
+async def check_orange_team(interaction: discord.Interaction) -> bool:
+    """Check if user is member of OrangeTeam (scoring adjustments)."""
+    has_permission = await is_orange_team_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ Orange Team permissions required.\n\n"
+            "You need the `WCComps_OrangeTeam` or `WCComps_GoldTeam` Authentik group.\n"
+            "If you have this group, link your account with `/link`.",
+            ephemeral=True,
+        )
+    return has_permission
+
+
+async def is_blue_team_async(interaction: discord.Interaction) -> bool:
+    """Check if user is linked to a Blue Team."""
+    try:
+        from asgiref.sync import sync_to_async
+
+        discord_link = await sync_to_async(
+            lambda: DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True, team__isnull=False)
+            .select_related("team")
+            .first()
+        )()
+        return discord_link is not None and discord_link.team is not None
+    except Exception as e:
+        logger.exception(f"Failed to check Blue Team membership: {e}")
+        return False
+
+
+async def check_blue_team(interaction: discord.Interaction) -> bool:
+    """Check if user is linked to a Blue Team."""
+    has_permission = await is_blue_team_async(interaction)
+    if not has_permission:
+        await interaction.response.send_message(
+            "❌ Blue Team membership required.\n\n"
+            "You must be linked to a competition team to use this command.\n"
+            "Use `/link` to connect your Discord account to your team.",
+            ephemeral=True,
+        )
+    return has_permission

@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from discord import app_commands
 from discord.ext import commands
 
-from person.models import Person
+from bot.permissions import check_orange_team
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,6 @@ class OrangeTeamCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    def _is_orange_team(self, person: Person) -> bool:
-        """Check if person is on Orange Team."""
-        return person.is_orange_team() or person.is_gold_team()
-
     @orange_group.command(
         name="submit",
         description="[ORANGE TEAM] Submit a scoring adjustment for a team",
@@ -38,6 +34,7 @@ class OrangeTeamCog(commands.Cog):
         check_type="Type of check performed",
         description="Description of why points are adjusted",
     )
+    @app_commands.check(check_orange_team)
     async def orange_submit(
         self,
         interaction: discord.Interaction,
@@ -50,15 +47,6 @@ class OrangeTeamCog(commands.Cog):
         from scoring.models import OrangeCheckType, OrangeTeamBonus
 
         from team.models import Team
-
-        # Check if user is Orange Team
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._is_orange_team(person):
-            await interaction.response.send_message(
-                "This command is for Orange Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Validate team number
         if team_number < 1 or team_number > 50:
@@ -139,6 +127,7 @@ class OrangeTeamCog(commands.Cog):
             app_commands.Choice(name="All", value="all"),
         ]
     )
+    @app_commands.check(check_orange_team)
     async def orange_list(
         self,
         interaction: discord.Interaction,
@@ -146,15 +135,6 @@ class OrangeTeamCog(commands.Cog):
     ) -> None:
         """List orange team adjustments."""
         from scoring.models import OrangeTeamBonus
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._is_orange_team(person):
-            await interaction.response.send_message(
-                "This command is for Orange Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Build query
         queryset = OrangeTeamBonus.objects.select_related("team", "check_type").order_by("-created_at")
@@ -199,18 +179,10 @@ class OrangeTeamCog(commands.Cog):
         name="list-types",
         description="[ORANGE TEAM] List available check types",
     )
+    @app_commands.check(check_orange_team)
     async def orange_list_types(self, interaction: discord.Interaction) -> None:
         """List available orange check types."""
         from scoring.models import OrangeCheckType
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._is_orange_team(person):
-            await interaction.response.send_message(
-                "This command is for Orange Team members only.",
-                ephemeral=True,
-            )
-            return
 
         check_types: list[OrangeCheckType] = await sync_to_async(
             lambda: list(OrangeCheckType.objects.all().order_by("name"))
@@ -246,6 +218,7 @@ class OrangeTeamCog(commands.Cog):
         name="Name for the check type",
         default_points="Default points for this check type",
     )
+    @app_commands.check(check_orange_team)
     async def orange_add_type(
         self,
         interaction: discord.Interaction,
@@ -254,15 +227,6 @@ class OrangeTeamCog(commands.Cog):
     ) -> None:
         """Add a new orange check type."""
         from scoring.models import OrangeCheckType
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._is_orange_team(person):
-            await interaction.response.send_message(
-                "This command is for Orange Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Validate points
         try:
@@ -303,6 +267,7 @@ class OrangeTeamCog(commands.Cog):
     @app_commands.describe(
         name="Name of the check type to remove",
     )
+    @app_commands.check(check_orange_team)
     async def orange_remove_type(
         self,
         interaction: discord.Interaction,
@@ -310,15 +275,6 @@ class OrangeTeamCog(commands.Cog):
     ) -> None:
         """Remove an orange check type."""
         from scoring.models import OrangeCheckType
-
-        # Check permission
-        person = await Person.objects.filter(discord_id=interaction.user.id).afirst()
-        if not person or not self._is_orange_team(person):
-            await interaction.response.send_message(
-                "This command is for Orange Team members only.",
-                ephemeral=True,
-            )
-            return
 
         # Find check type
         check_type = await OrangeCheckType.objects.filter(name__iexact=name).afirst()
