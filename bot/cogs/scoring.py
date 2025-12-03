@@ -125,53 +125,6 @@ class ScoringCog(commands.Cog):
                 ephemeral=True,
             )
 
-    @app_commands.command(name="leaderboard", description="View the current leaderboard")
-    async def leaderboard(self, interaction: discord.Interaction) -> None:
-        """Display the current leaderboard."""
-        # Import scoring calculator
-        from asgiref.sync import sync_to_async
-        from scoring.calculator import get_leaderboard
-
-        # Get leaderboard (sync function, need to wrap)
-        scores = await sync_to_async(get_leaderboard)()
-
-        if not scores:
-            await interaction.response.send_message(
-                "No scores calculated yet. Scores will appear once scoring begins.",
-                ephemeral=True,
-            )
-            return
-
-        # Format leaderboard embed
-        embed = discord.Embed(
-            title="Leaderboard",
-            description=f"Top {min(10, len(scores))} teams",
-            color=discord.Color.gold(),
-        )
-
-        # Add top 10 teams
-        for score in scores[:10]:
-            team_info = (
-                f"**Services:** {score.service_points:.2f} | "
-                f"**Injects:** {score.inject_points:.2f}\n"
-                f"**Orange:** +{score.orange_points:.2f} | "
-                f"**Red:** {score.red_deductions:.2f} | "
-                f"**Incidents:** +{score.incident_recovery_points:.2f}"
-            )
-
-            rank = score.rank or 0
-            rank_display = f"#{rank}"
-
-            embed.add_field(
-                name=f"{rank_display} {score.team.team_name} - {score.total_score:.2f} pts",
-                value=team_info,
-                inline=False,
-            )
-
-        embed.set_footer(text=f"Last updated: {scores[0].calculated_at.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        await interaction.response.send_message(embed=embed, ephemeral=False)
-
 
 async def setup(bot: commands.Bot) -> None:
     """Setup function to add cog to bot."""

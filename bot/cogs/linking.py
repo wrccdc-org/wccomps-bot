@@ -1,4 +1,4 @@
-"""Team linking commands (/link, /team-info)."""
+"""Team linking commands (/link)."""
 
 import logging
 import secrets
@@ -94,59 +94,6 @@ class LinkingCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
         logger.info(f"Generated link token for {interaction.user} ({interaction.user.id})")
-
-    @app_commands.command(name="team-info", description="View your team information")
-    async def team_info_command(self, interaction: discord.Interaction) -> None:
-        """Display user's team information."""
-
-        link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
-        )
-
-        if not link or not link.team:
-            await interaction.response.send_message(
-                "You are not currently linked to a team. Use `/link` to get started!",
-                ephemeral=True,
-            )
-            return
-
-        team = link.team
-
-        # Get member count and list
-        member_count = await team.members.filter(is_active=True).acount()
-
-        # Fetch all members
-        members = [m async for m in team.members.filter(is_active=True).order_by("linked_at")]
-
-        embed = discord.Embed(title=f"Team: {team.team_name}", color=discord.Color.green())
-        embed.add_field(name="Team Number", value=f"#{team.team_number}", inline=True)
-        embed.add_field(name="Members", value=f"{member_count}/{team.max_members}", inline=True)
-        embed.add_field(name="Authentik Account", value=link.authentik_username, inline=False)
-
-        if members:
-            # Build member list, respecting Discord's 1024 char field limit
-            member_lines = [f"• {m.discord_username}" for m in members]
-
-            member_list = ""
-            shown_count = 0
-            for line in member_lines:
-                test_list = member_list + line + "\n"
-                # Leave room for "... and N more" message
-                if len(test_list) > 950:
-                    break
-                member_list = test_list
-                shown_count += 1
-
-            # Add overflow message if needed
-            if shown_count < len(members):
-                remaining = len(members) - shown_count
-                member_list += f"... and {remaining} more"
-
-            embed.add_field(name="Team Members", value=member_list.strip(), inline=False)
-
-        embed.set_footer(text=f"Linked {discord.utils.format_dt(link.linked_at, style='R')}")
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
