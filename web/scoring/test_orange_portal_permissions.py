@@ -166,7 +166,7 @@ class OrangeTeamPortalFilteringTests(TestCase):
         """Non-Orange Team user without Gold/Admin access should be denied."""
         blue_user = User.objects.create_user(username="blue1", password="test123")
         blue_person = Person.objects.get(user=blue_user)
-        blue_person.authentik_groups = ["WCComps_BlueTeam_01"]
+        blue_person.authentik_groups = ["WCComps_BlueTeam01"]
         blue_person.save()
 
         self.client.login(username="blue1", password="test123")

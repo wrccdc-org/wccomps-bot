@@ -1,5 +1,6 @@
 """Person app models - User profiles with Authentik integration."""
 
+import re
 from typing import Any
 
 from django.contrib.auth.models import User
@@ -138,13 +139,11 @@ class Person(models.Model):
         return self.has_group("WCComps_BlackTeam")
 
     def get_team_number(self) -> int | None:
-        """Extract team number from BlueTeam groups (BlueTeam_01 to BlueTeam_50)."""
+        """Extract team number from BlueTeam groups (BlueTeam01 to BlueTeam50)."""
         for group in self.authentik_groups:
-            if group.startswith("WCComps_BlueTeam_"):
-                try:
-                    return int(group.split("_")[-1])
-                except (ValueError, IndexError):
-                    continue
+            match = re.match(r"^WCComps_BlueTeam(\d+)$", group)
+            if match:
+                return int(match.group(1))
         return None
 
     def is_blue_team(self) -> bool:

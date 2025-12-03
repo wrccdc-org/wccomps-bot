@@ -211,7 +211,7 @@ class TestLeaderboardAccess:
 
     def test_blue_team_denied_access(self, create_user_with_groups) -> None:
         """Blue Team members should be denied access to the leaderboard."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         client = Client()
         client.force_login(user)
 
@@ -251,7 +251,7 @@ class TestLeaderboardAccess:
 
     def test_user_with_multiple_allowed_groups_can_access(self, create_user_with_groups) -> None:
         """Users with multiple groups including an allowed one should be able to access."""
-        user = create_user_with_groups("multi_group_user", ["WCComps_GoldTeam", "WCComps_BlueTeam_01"])
+        user = create_user_with_groups("multi_group_user", ["WCComps_GoldTeam", "WCComps_BlueTeam01"])
         client = Client()
         client.force_login(user)
 
@@ -626,7 +626,7 @@ class TestIncidentFindingMatching:
 
     def test_reviewer_tracking_fields_nullable(self, create_user_with_groups) -> None:
         """Reviewer tracking fields can be null for unreviewed incidents."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         incident = IncidentReport.objects.create(
@@ -657,7 +657,7 @@ class TestIncidentListView:
 
     def test_blue_team_can_access_incident_list(self, create_user_with_groups) -> None:
         """Blue team members can access their incident list."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         Team.objects.create(team_number=1, team_name="Team 01")
         client = Client()
         client.force_login(user)
@@ -698,8 +698,8 @@ class TestIncidentListView:
 
     def test_blue_team_sees_only_their_incidents(self, create_user_with_groups) -> None:
         """Blue team members see only their team's incidents."""
-        user1 = create_user_with_groups("blue_user1", ["WCComps_BlueTeam_01"])
-        user2 = create_user_with_groups("blue_user2", ["WCComps_BlueTeam_02"])
+        user1 = create_user_with_groups("blue_user1", ["WCComps_BlueTeam01"])
+        user2 = create_user_with_groups("blue_user2", ["WCComps_BlueTeam02"])
         team1 = Team.objects.create(team_number=1, team_name="Team 01")
         team2 = Team.objects.create(team_number=2, team_name="Team 02")
 
@@ -729,7 +729,7 @@ class TestIncidentListView:
 
     def test_incident_list_shows_correct_fields(self, create_user_with_groups) -> None:
         """Incident list shows timestamp, box, and attack type."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
         IncidentReport.objects.create(
@@ -752,7 +752,7 @@ class TestIncidentListView:
 
     def test_incident_list_does_not_show_match_status(self, create_user_with_groups) -> None:
         """Incident list does NOT show match status to blue team."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
@@ -786,7 +786,7 @@ class TestIncidentListView:
 
     def test_incident_list_shows_multiple_incidents_in_order(self, create_user_with_groups) -> None:
         """Incident list shows multiple incidents ordered by submission time."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
         incident1 = IncidentReport.objects.create(
@@ -824,7 +824,7 @@ class TestIncidentListView:
 
     def test_incident_list_empty_when_no_incidents(self, create_user_with_groups) -> None:
         """Incident list shows empty state when team has no incidents."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         Team.objects.create(team_number=1, team_name="Team 01")
         client = Client()
         client.force_login(user)
@@ -836,7 +836,7 @@ class TestIncidentListView:
 
     def test_incident_list_links_to_detail_view(self, create_user_with_groups) -> None:
         """Incident list contains links to detail view."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
         incident = IncidentReport.objects.create(

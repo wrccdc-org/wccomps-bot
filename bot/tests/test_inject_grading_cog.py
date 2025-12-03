@@ -101,7 +101,7 @@ async def blue_team_user(db) -> User:
         uid=f"test-blue-uid-{unique_id}",
         extra_data={
             "id_token": {
-                "groups": ["WCComps_BlueTeam_01"],
+                "groups": ["WCComps_BlueTeam01"],
                 "preferred_username": username,
             }
         },
@@ -109,7 +109,7 @@ async def blue_team_user(db) -> User:
 
     person = await Person.objects.aget(user=user)
     person.discord_id = discord_id
-    person.authentik_groups = ["WCComps_BlueTeam_01"]
+    person.authentik_groups = ["WCComps_BlueTeam01"]
     await person.asave()
 
     user._discord_id = discord_id
