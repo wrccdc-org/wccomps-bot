@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
 
+from bot.permissions import check_blue_team
 from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class ScoringCog(commands.Cog):
         attack_vector="Type of attack (e.g., SQL Injection, Brute Force)",
         description="Detailed description of what you detected and how you mitigated it",
     )
+    @app_commands.check(check_blue_team)
     async def incident_report(
         self,
         interaction: discord.Interaction,
@@ -38,20 +40,11 @@ class ScoringCog(commands.Cog):
         description: str,
     ) -> None:
         """Submit an incident report for red team activity."""
-        # Check if user is linked to a team
         link = await (
             DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
-
         if not link or not link.team:
-            await interaction.response.send_message(
-                "**This command is for Blue Team competitors only.**\n\n"
-                "You must be linked to a competition team to submit incident reports.\n"
-                "Use `/link` to connect your Discord account to your team.",
-                ephemeral=True,
-            )
             return
-
         team = link.team
 
         # Import models here to avoid circular imports

@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from django.utils import timezone
 
+from bot.permissions import check_blue_team
 from bot.ticket_dashboard import post_ticket_to_dashboard
 from core.tickets_config import TICKET_CATEGORIES
 from team.models import DiscordLink
@@ -93,34 +94,17 @@ class TicketingCog(commands.Cog):
             if cat.get("user_creatable", True)
         ]
     )
+    @app_commands.check(check_blue_team)
     async def create_ticket(self, interaction: discord.Interaction, category: str, description: str) -> None:
         """Create a support ticket."""
         if not interaction.guild:
             await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
             return
 
-        # Check if user is linked to a team
         link = await (
             DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
         )
-
-        if not link:
-            await interaction.response.send_message(
-                "**This command is for Blue Team competitors only.**\n\n"
-                "You must be linked to a competition team to create tickets.\n"
-                "If you are a Blue Team member, use `/link` to connect your Discord account to your team.",
-                ephemeral=True,
-            )
-            return
-
-        # Check if user is actually on a team (not ops/admin)
-        if not link.team:
-            await interaction.response.send_message(
-                "**This command is for Blue Team competitors only.**\n\n"
-                "Your account is linked as an administrator or support member, not as a team competitor.\n"
-                "If you need to create a ticket for a team, use `/tickets create` instead.",
-                ephemeral=True,
-            )
+        if not link or not link.team:
             return
 
         # Get category info
