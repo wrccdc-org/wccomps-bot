@@ -68,7 +68,7 @@ class TestInjectGradesReviewAccess:
 
     def test_blue_team_denied_access(self, create_user_with_groups: Callable[..., User]) -> None:
         """Blue Team members should be denied access."""
-        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam_01"])
+        user = create_user_with_groups("blue_user", ["WCComps_BlueTeam01"])
         client = Client()
         client.force_login(user)
 

@@ -39,7 +39,7 @@ class IndividualOrangeApprovalTests(TestCase):
 
         self.blue_person = self.blue_user.person
         self.blue_person.discord_id = 333333
-        self.blue_person.authentik_groups = ["WCComps_BlueTeam_01"]
+        self.blue_person.authentik_groups = ["WCComps_BlueTeam01"]
         self.blue_person.save()
 
         # Create team
