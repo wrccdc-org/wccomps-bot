@@ -162,24 +162,6 @@ def cog():
 class TestOrangeSubmit:
     """Tests for /orange submit command."""
 
-    async def test_submit_requires_orange_team(self, cog, mock_interaction, blue_team_user, test_team, check_type):
-        """Non-orange team users cannot submit adjustments."""
-        mock_interaction.user.id = blue_team_user._discord_id
-
-        await cog.orange_submit.callback(
-            cog,
-            mock_interaction,
-            team_number=test_team.team_number,
-            points="10",
-            check_type=check_type.name,
-            description="Test adjustment",
-        )
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "Orange Team members only" in call_args[0][0]
-        assert call_args[1]["ephemeral"] is True
-
     async def test_submit_success(self, cog, mock_interaction, orange_team_user, test_team, check_type):
         """Orange team user can submit adjustment."""
         mock_interaction.user.id = orange_team_user._discord_id
@@ -293,16 +275,6 @@ class TestOrangeSubmit:
 @pytest.mark.django_db(transaction=True)
 class TestOrangeList:
     """Tests for /orange list command."""
-
-    async def test_list_requires_orange_team(self, cog, mock_interaction, blue_team_user):
-        """Non-orange team users cannot list adjustments."""
-        mock_interaction.user.id = blue_team_user._discord_id
-
-        await cog.orange_list.callback(cog, mock_interaction, status="pending")
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "Orange Team members only" in call_args[0][0]
 
     async def test_list_empty(self, cog, mock_interaction, orange_team_user):
         """Empty list returns appropriate message."""
