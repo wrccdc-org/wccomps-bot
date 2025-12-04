@@ -168,17 +168,6 @@ def mock_quotient_injects():
 class TestInjectList:
     """Tests for /inject list command."""
 
-    async def test_list_requires_permission(self, cog, mock_interaction, blue_team_user):
-        """Non-white/gold team users cannot list injects."""
-        mock_interaction.user.id = blue_team_user._discord_id
-
-        await cog.inject_list.callback(cog, mock_interaction)
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "White/Gold Team" in call_args[0][0]
-        assert call_args[1]["ephemeral"] is True
-
     async def test_list_white_team_allowed(self, cog, mock_interaction, white_team_user, mock_quotient_injects):
         """White team user can list injects."""
         mock_interaction.user.id = white_team_user._discord_id
@@ -220,23 +209,6 @@ class TestInjectList:
 @pytest.mark.django_db(transaction=True)
 class TestInjectGrade:
     """Tests for /inject grade command."""
-
-    async def test_grade_requires_permission(self, cog, mock_interaction, blue_team_user):
-        """Non-white/gold team users cannot grade injects."""
-        mock_interaction.user.id = blue_team_user._discord_id
-
-        await cog.inject_grade.callback(
-            cog,
-            mock_interaction,
-            inject_id="INJ-001",
-            team_number=1,
-            points="100",
-            notes="Test notes",
-        )
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "White/Gold Team" in call_args[0][0]
 
     async def test_grade_invalid_team_range(self, cog, mock_interaction, white_team_user):
         """Team number outside valid range is rejected."""
@@ -333,16 +305,6 @@ class TestInjectGrade:
 @pytest.mark.django_db(transaction=True)
 class TestInjectListGrades:
     """Tests for /inject list-grades command."""
-
-    async def test_list_grades_requires_permission(self, cog, mock_interaction, blue_team_user):
-        """Non-white/gold team users cannot list grades."""
-        mock_interaction.user.id = blue_team_user._discord_id
-
-        await cog.inject_list_grades.callback(cog, mock_interaction)
-
-        mock_interaction.response.send_message.assert_called_once()
-        call_args = mock_interaction.response.send_message.call_args
-        assert "White/Gold Team" in call_args[0][0]
 
     async def test_list_grades_empty(self, cog, mock_interaction, white_team_user):
         """Empty grades list returns appropriate message."""

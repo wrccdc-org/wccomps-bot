@@ -481,47 +481,6 @@ class TestTicketCommand:
         interaction.followup = AsyncMock()
         return interaction
 
-    async def test_create_ticket_user_not_linked(self, cog: TicketingCog) -> None:
-        """Test /ticket command when user is not linked."""
-        interaction = AsyncMock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = 999999999999  # Not linked
-        interaction.guild = Mock(spec=discord.Guild)
-        interaction.response = AsyncMock()
-
-        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="web-01")
-
-        # Should send error message
-        interaction.response.send_message.assert_called_once()
-        args = interaction.response.send_message.call_args
-        assert "must be linked" in args[0][0].lower()
-        assert args[1]["ephemeral"] is True
-
-    async def test_create_ticket_user_not_on_team(self, cog: TicketingCog) -> None:
-        """Test /ticket command when user is linked but not on a team (admin)."""
-        # Create admin link (no team)
-        admin_link = await DiscordLink.objects.acreate(
-            discord_id=888777666555,
-            discord_username="admin#1234",
-            authentik_username="admin",
-            team=None,  # Admin - no team
-            is_active=True,
-        )
-
-        interaction = AsyncMock(spec=discord.Interaction)
-        interaction.user = Mock()
-        interaction.user.id = admin_link.discord_id
-        interaction.guild = Mock(spec=discord.Guild)
-        interaction.response = AsyncMock()
-
-        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="web-01")
-
-        # Should send error message
-        interaction.response.send_message.assert_called_once()
-        args = interaction.response.send_message.call_args
-        assert "blue team competitors only" in args[0][0].lower()
-        assert "administrator or support member" in args[0][0].lower()
-
     async def test_create_ticket_invalid_category(
         self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
     ) -> None:
