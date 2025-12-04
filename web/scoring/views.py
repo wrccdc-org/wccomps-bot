@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -619,7 +620,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
 
         if grades_saved:
             messages.success(request, f"Saved {grades_saved} grades for {selected_inject.title}")
-        return redirect(f"{request.path}?inject={selected_inject_id}")
+        return redirect(f"{reverse('scoring:inject_grading')}?inject={selected_inject_id}")
 
     # Get existing grades for selected inject and merge with teams
     team_data = []
