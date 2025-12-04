@@ -3,6 +3,7 @@
 import logging
 import secrets
 from typing import Any
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -57,7 +58,7 @@ def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
 
     try:
         response = requests.get(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={username}",
+            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={quote(username, safe='')}",
             headers=headers,
             timeout=10,
         )
@@ -84,7 +85,7 @@ def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
         return (True, "")
     except Exception as e:
         logger.exception(f"Failed to toggle {username}: {e}")
-        return (False, str(e))
+        return (False, "Account toggle failed - check server logs")
 
 
 async def toggle_all_blueteam_accounts(is_active: bool) -> tuple[int, int]:
@@ -174,7 +175,7 @@ def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]
     try:
         # Get user by username
         response = requests.get(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={username}",
+            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={quote(username, safe='')}",
             headers=headers,
             timeout=10,
         )
@@ -214,7 +215,7 @@ def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]
 
     except Exception as e:
         logger.exception(f"Failed to reset password for {username}: {e}")
-        return (False, str(e))
+        return (False, "Password reset failed - check server logs")
 
 
 def parse_team_range(range_str: str) -> list[int]:
