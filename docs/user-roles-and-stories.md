@@ -222,10 +222,10 @@ System administrators have full access to system configuration.
 |---------|------|-----|------|-------|--------|-------------|--------------|-------|
 | View Leaderboard | | | ✓ | ✓ | | | ✓ | ✓ |
 | Submit Incident | ✓ | | | | | | | ✓ |
-| View Own Incidents | ✓ | | ✓ | | | | | ✓ |
+| View Own Incident Reports | ✓ | | ✓ | | | | | ✓ |
 | Submit Red Finding | | ✓ | | | | | | ✓ |
 | View All Red Findings | | ✓ | ✓ | | | | | ✓ |
-| Review/Match Incidents | | | ✓ | | | | | ✓ |
+| Review/Match Incident Reports | | | ✓ | | | | | ✓ |
 | Approve Red Findings | | | ✓ | | | | | ✓ |
 | Submit Inject Grade | | | | ✓ | | | | ✓ |
 | Approve Inject Grades | | | ✓ | | | | | ✓ |
@@ -305,7 +305,7 @@ System administrators have full access to system configuration.
 - Can only submit for my team's infrastructure
 - Confirmation shown after submission
 
-#### BT-2: View My Incidents
+#### BT-2: View My Incident Reports
 > As a **Blue Team member**, I want to **view my team's incident reports** so that I can **see what we've submitted and avoid duplicates**.
 
 **Acceptance Criteria**:
@@ -365,7 +365,7 @@ System administrators have full access to system configuration.
 - Shows current aggregated score
 - Shows score breakdown by category
 
-#### GT-2: Review and Match Incidents
+#### GT-2: Review and Match Incident Reports
 > As a **Gold Team member**, I want to **review ALL incident reports and match them to red findings** so that I can **verify defensive detections**.
 
 **Acceptance Criteria**:
@@ -628,7 +628,7 @@ Defined in `templates/admin/base_site.html`:
 | Link | Condition | Destination |
 |------|-----------|-------------|
 | Tickets | `is_ticketing_support` or `is_ticketing_admin` | `/ops/tickets/` |
-| Incidents | `is_blue_team` or `is_admin` | `/scoring/incident/submit/` |
+| Incident Report | `is_blue_team` or `is_admin` | `/scoring/incident/submit/` |
 | Red Team Findings | `is_red_team` or `is_admin` | `/scoring/red-team/submit/` |
 | Orange Team | `is_orange_team` or `is_admin` | `/scoring/orange-team/` |
 | Scoring | `is_gold_team` or `is_white_team` or `is_ticketing_admin` or `is_admin` | `/scoring/` |
@@ -643,7 +643,7 @@ Defined in `templates/scoring/base.html`:
 |------|-----------|
 | Leaderboard | Always (if can access scoring) |
 | Review Red Team | `is_gold_team` or `is_admin` |
-| Review Incidents | `is_gold_team` or `is_admin` |
+| Review Incident Reports | `is_gold_team` or `is_admin` |
 | Review Inject Grades | `is_gold_team` or `is_admin` |
 | Review Tickets | `is_ticketing_admin` or `is_admin` |
 | Inject Grading | `is_white_team` or `is_admin` |
@@ -675,7 +675,7 @@ Exports available at `/scoring/export/` (Admin only). All exports support CSV an
 | Endpoint | Data Type |
 |----------|-----------|
 | `/export/red-findings/` | Red Team Findings |
-| `/export/incidents/` | Blue Team Incidents |
+| `/export/incidents/` | Blue Team Incident Reports |
 | `/export/orange-adjustments/` | Orange Team Adjustments |
 | `/export/inject-grades/` | Inject Grades |
 | `/export/final-scores/` | Final Aggregated Scores |
