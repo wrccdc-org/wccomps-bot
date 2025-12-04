@@ -121,7 +121,7 @@ Django Admin default fonts are used. No custom font stack is defined in the code
 Page title with optional subtitle.
 
 ```django
-<c-page_header title="Review Incidents" subtitle="Match incidents to red findings" />
+<c-page_header title="Review Incident Reports" subtitle="Match incident reports to red findings" />
 ```
 
 | Prop | Type | Default | Description |
@@ -499,7 +499,7 @@ Collapses to single column below 768px.
 Empty list/no results display.
 
 ```django
-<c-empty_state icon="📋" title="No incidents found" description="Incidents will appear here.">
+<c-empty_state icon="📋" title="No incident reports found" description="Incident reports will appear here.">
   <c-link href="/create" variant="add">Create One</c-link>
 </c-empty_state>
 ```

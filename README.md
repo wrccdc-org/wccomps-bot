@@ -248,15 +248,15 @@ Student helpers are temporary support staff for invitationals who are assigned D
 3. Access the web interface at the competition URL
 
 **Submit Incident Reports:**
-1. Navigate to "Incidents" in the header
+1. Navigate to "Incident Report" in the header
 2. Click "Submit Incident Report"
 3. Select target box (destination IP auto-fills)
 4. Choose source IP and attack type
 5. Describe what you detected
 6. Submit (goes to Gold Team for review)
 
-**View Your Incidents:**
-- Navigate to "Incidents" to see all your team's submissions
+**View Your Incident Reports:**
+- Navigate to "Incident Report" to see all your team's submissions
 - Review past reports to avoid duplicates
 
 **Create Support Tickets:**
@@ -306,8 +306,8 @@ Student helpers are temporary support staff for invitationals who are assigned D
 1. Run `/link` in Discord to connect your account
 2. Access the Scoring section at `/scoring/`
 
-**Review Incidents (Must Review All):**
-1. Navigate to Scoring > Review Incidents
+**Review Incident Reports (Must Review All):**
+1. Navigate to Scoring > Review Incident Reports
 2. View each incident report in the queue
 3. Check for matching Red Team findings (auto-suggested by IP/time)
 4. Match incident to finding or reject if invalid

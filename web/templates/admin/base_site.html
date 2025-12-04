@@ -17,7 +17,7 @@
     <a href="{% url 'ops_ticket_list' %}">Tickets</a>
     {% endif %}
     {% if is_blue_team or is_admin %}
-    <a href="{% url 'scoring:submit_incident_report' %}">Incidents</a>
+    <a href="{% url 'scoring:submit_incident_report' %}">Incident Report</a>
     {% endif %}
     {% if is_red_team or is_admin %}
     <a href="{% url 'scoring:submit_red_finding' %}">Red Team Findings</a>

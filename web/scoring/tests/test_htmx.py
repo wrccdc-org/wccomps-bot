@@ -118,7 +118,7 @@ class TestReviewIncidentsHtmx:
         assert response.status_code == 200
         content = response.content.decode()
         assert "<title>" in content
-        assert "Review Incidents" in content
+        assert "Review Incident Reports" in content
 
 
 class TestInjectGradesReviewHtmx:
