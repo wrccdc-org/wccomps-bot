@@ -1,6 +1,7 @@
 {% extends "scoring/base.html" %}
 
 {% block scoring_content %}
+<c-page_header title="Review Incident #{{ incident.id }}" />
 <div class="grid-2 gap-20">
     <c-module>
         <h2 class="module-header">Incident Report #{{ incident.id }}</h2>

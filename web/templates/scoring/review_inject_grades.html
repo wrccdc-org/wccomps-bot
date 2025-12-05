@@ -7,6 +7,7 @@
 
 {% block scoring_content %}
 <div id="content-main">
+<c-page_header title="Review Inject Grades" />
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:inject_grades_review' %}" hx_target="#inject-grades-content" hx_swap="outerHTML" hx_push_url="true">
             {% if has_unapproved %}

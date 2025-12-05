@@ -3,6 +3,7 @@
 {% block scoring_title %}Leaderboard{% endblock %}
 
 {% block scoring_content %}
+<c-page_header title="Leaderboard" />
 <c-module>
     <c-slot name="toolbar">
         <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>

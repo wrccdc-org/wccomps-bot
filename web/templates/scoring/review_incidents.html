@@ -7,6 +7,7 @@
 
 {% block scoring_content %}
 <div id="content-main">
+<c-page_header title="Review Incident Reports" />
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:review_incidents' %}" hx_target="#review-incidents-content" hx_swap="outerHTML" hx_push_url="true">
             <c-filter_field label="Status" id="id_status">
