@@ -7,6 +7,7 @@
 
 {% block scoring_content %}
 <div id="content-main">
+<c-page_header title="Review Tickets" />
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_review_tickets' %}" hx_target="#review-tickets-content" hx_swap="outerHTML" hx_push_url="true">
             <c-slot name="actions">
