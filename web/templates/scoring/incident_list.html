@@ -38,7 +38,13 @@
                     {% endif %}
                 </td>
                 <td>
-                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View Details</c-link>
+                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View</c-link>
+                    {% if incident.submitted_by == current_user and not incident.gold_team_reviewed %}
+                        <form method="post" action="{% url 'scoring:delete_incident_report' incident.id %}" style="display: inline;" onsubmit="return confirm('Delete this incident report?');">
+                            {% csrf_token %}
+                            <button type="submit" class="deletelink" title="Delete">Delete</button>
+                        </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

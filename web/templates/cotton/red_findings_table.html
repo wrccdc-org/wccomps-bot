@@ -35,14 +35,15 @@
                 <colgroup>
                     {% if is_gold_team %}<col style="width: 40px;">{% endif %}
                     <col style="width: 6%;">
-                    <col style="width: 25%;">
-                    <col style="width: 10%;">
-                    <col style="width: 10%;">
-                    <col style="width: 15%;">
-                    <col style="width: 12%;">
-                    <col style="width: 8%;">
-                    {% if is_gold_team %}<col style="width: 8%;">{% endif %}
-                    <col style="width: 8%;">
+                    <col style="width: 23%;">
+                    <col style="width: 9%;">
+                    <col style="width: 9%;">
+                    <col style="width: 14%;">
+                    <col style="width: 11%;">
+                    <col style="width: 7%;">
+                    {% if is_gold_team %}<col style="width: 7%;">{% endif %}
+                    <col style="width: 7%;">
+                    <col style="width: 7%;">
                 </colgroup>
                 <thead>
                     <tr role="row">
@@ -66,6 +67,7 @@
                         <c-table_header sortable="false">Points</c-table_header>
                         {% endif %}
                         <c-table_header sortable="false">Status</c-table_header>
+                        <c-table_header sortable="false">Actions</c-table_header>
                     </tr>
                 </thead>
                 <tbody>
@@ -120,10 +122,20 @@
                                 <c-badge status="claimed">⏳ Pending</c-badge>
                             {% endif %}
                         </td>
+                        <td class="field-actions">
+                            {% if finding.submitted_by == current_user and not finding.is_approved %}
+                                <form method="post" action="{% url 'scoring:delete_red_finding' finding.id %}" style="display: inline;" onsubmit="return confirm('Delete this finding?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="deletelink" title="Delete">Delete</button>
+                                </form>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if is_gold_team %}10{% else %}8{% endif %}">
+                        <td colspan="{% if is_gold_team %}11{% else %}9{% endif %}">
                             {% if selected_team or selected_attack_type or selected_submitter or status_filter != 'pending' %}
                                 No findings match your filters. Try adjusting your filters or <a href="{% url 'scoring:red_team_portal' %}">clearing all filters</a>
                             {% else %}
