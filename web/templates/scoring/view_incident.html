@@ -90,6 +90,12 @@
         {% if is_gold_team and not incident.gold_team_reviewed %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="success">Review Now</c-link>
         {% endif %}
+        {% if can_delete %}
+            <form method="post" action="{% url 'scoring:delete_incident_report' incident.id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this incident report? This cannot be undone.');">
+                {% csrf_token %}
+                <c-button type="submit" variant="danger">Delete Report</c-button>
+            </form>
+        {% endif %}
     </c-button_row>
 </c-module>
 </div>

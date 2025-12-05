@@ -208,6 +208,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "status_filter": status_filter,
         "sort_by": sort_by,
         "is_gold_team": is_gold_team,
+        "current_user": user,
     }
 
     # Return partial for htmx requests
@@ -332,6 +333,31 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_team_role(lambda p: p.is_red_team(), "Only Red Team members can delete findings")
+@transaction.atomic
+@require_http_methods(["POST"])
+def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+    """Delete a red team finding (owner only, before approval)."""
+    finding = get_object_or_404(RedTeamFinding, id=finding_id)
+    user = cast(User, request.user)
+
+    # Only the submitter can delete their own finding
+    if finding.submitted_by != user:
+        messages.error(request, "You can only delete your own findings")
+        return redirect("scoring:red_team_portal")
+
+    # Cannot delete if already approved
+    if finding.is_approved:
+        messages.error(request, "Cannot delete a finding that has already been approved")
+        return redirect("scoring:red_team_portal")
+
+    finding_num = finding.id
+    finding.delete()
+    messages.success(request, f"Red team finding #{finding_num} deleted")
+    return redirect("scoring:red_team_portal")
+
+
+@login_required
 @transaction.atomic
 def submit_incident_report(request: HttpRequest) -> HttpResponse:
     """Submit incident report (blue team or admin)."""
@@ -437,6 +463,7 @@ def incident_list(request: HttpRequest) -> HttpResponse:
 
     context = {
         "incidents": incidents,
+        "current_user": user,
     }
     return render(request, "scoring/incident_list.html", context)
 
@@ -453,10 +480,38 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
             messages.error(request, "You do not have permission to view this incident report")
             return redirect("scoring:leaderboard")
 
+    # Check if user can delete this incident
+    can_delete = incident.submitted_by == user and not incident.gold_team_reviewed
+
     context = {
         "incident": incident,
+        "can_delete": can_delete,
     }
     return render(request, "scoring/view_incident.html", context)
+
+
+@login_required
+@transaction.atomic
+@require_http_methods(["POST"])
+def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse:
+    """Delete an incident report (owner only, before review)."""
+    incident = get_object_or_404(IncidentReport, id=incident_id)
+    user = cast(User, request.user)
+
+    # Only the submitter can delete their own report
+    if incident.submitted_by != user:
+        messages.error(request, "You can only delete your own incident reports")
+        return redirect("scoring:view_incident_report", incident_id=incident_id)
+
+    # Cannot delete if already reviewed
+    if incident.gold_team_reviewed:
+        messages.error(request, "Cannot delete an incident report that has already been reviewed")
+        return redirect("scoring:view_incident_report", incident_id=incident_id)
+
+    incident_num = incident.id
+    incident.delete()
+    messages.success(request, f"Incident report #{incident_num} deleted")
+    return redirect("scoring:incident_list")
 
 
 @login_required
