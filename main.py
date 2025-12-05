@@ -58,6 +58,7 @@ class WCCompsBot(commands.Bot):
         await self.load_extension("bot.cogs.admin_tickets")
         await self.load_extension("bot.cogs.admin_competition")
         await self.load_extension("bot.cogs.admin_helpers")
+        await self.load_extension("bot.cogs.quotient_sync")
 
         logger.info("Cogs loaded")
 

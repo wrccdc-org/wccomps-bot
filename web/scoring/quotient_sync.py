@@ -11,22 +11,32 @@ from team.models import Team
 from .models import QuotientMetadataCache, ServiceScore
 
 
+def clear_quotient_metadata() -> None:
+    """Clear cached Quotient metadata from database."""
+    QuotientMetadataCache.objects.all().delete()
+
+
 def sync_quotient_metadata(user: User | None = None) -> QuotientMetadataCache:
     """
     Sync infrastructure metadata from Quotient.
 
     This populates dropdowns for boxes, services, and IP addresses.
+    If sync fails, clears cached metadata to prevent stale data.
 
     Args:
         user: User performing the sync (optional)
 
     Returns:
         QuotientMetadataCache instance
+
+    Raises:
+        ValueError: If Quotient is unreachable (also clears cached metadata)
     """
     client = QuotientClient()
     infrastructure = client.get_infrastructure()
 
     if not infrastructure:
+        clear_quotient_metadata()
         raise ValueError("Failed to retrieve infrastructure from Quotient")
 
     # Convert infrastructure to JSON-serializable format
