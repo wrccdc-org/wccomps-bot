@@ -506,6 +506,21 @@
     .max-w-800 { max-width: 800px; }
     .max-w-1200 { max-width: 1200px; margin: 0 auto; }
 
+    /* Detail list - definition list styling */
+    .detail-list {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 8px 16px;
+        margin: 0;
+    }
+    .detail-list dt {
+        font-weight: 600;
+        color: var(--body-quiet-color, #666);
+    }
+    .detail-list dd {
+        margin: 0;
+    }
+
     /* ============================================
        BUTTON VARIANTS
        ============================================ */

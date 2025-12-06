@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static cotton %}
 
 {% block title %}Ticket {{ ticket.ticket_number }} - WCComps{% endblock %}
 
@@ -24,7 +24,7 @@
             </c-alert>
             {% endif %}
 
-            <c-detail_grid>
+            <dl class="detail-list">
                 <dt>Team</dt>
                 <dd>{{ ticket.team.team_name }} (Team #{{ ticket.team.team_number }})</dd>
 
@@ -54,7 +54,7 @@
                 <dt>Resolution Notes</dt>
                 <dd>{{ ticket.resolution_notes }}</dd>
                 {% endif %}
-            </c-detail_grid>
+            </dl>
         </c-fieldset>
 
         <!-- Actions -->

@@ -158,7 +158,12 @@ class DiscordManager:
 
             # Team role: full access
             overwrites[role] = discord.PermissionOverwrite(
-                read_messages=True, send_messages=True, connect=True, speak=True
+                read_messages=True,
+                send_messages=True,
+                connect=True,
+                speak=True,
+                embed_links=True,
+                attach_files=True,
             )
 
             # White Team: read and connect only

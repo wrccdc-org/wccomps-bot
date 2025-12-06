@@ -64,6 +64,9 @@ def require_team_role(
                 messages.error(request, error_message)
                 return redirect("scoring:leaderboard")
 
+            # Refresh groups from Authentik to ensure fresh data
+            user.person.refresh_from_authentik()
+
             if not role_check(user.person):
                 messages.error(request, error_message)
                 return redirect("scoring:leaderboard")
@@ -80,6 +83,8 @@ def _get_user_team(user: User) -> Team | None:
     if not hasattr(user, "person"):
         return None
 
+    # Refresh groups from Authentik to ensure fresh data
+    user.person.refresh_from_authentik()
     team_number = user.person.get_team_number()
     if not team_number:
         return None
@@ -104,6 +109,8 @@ def require_leaderboard_access(view_func: Callable[..., HttpResponse]) -> Callab
         if not hasattr(user, "person"):
             return HttpResponseForbidden("You do not have permission to access this page")
 
+        # Refresh groups from Authentik to ensure fresh data
+        user.person.refresh_from_authentik()
         person = user.person
         if person.is_gold_team() or person.is_white_team() or person.has_group("WCComps_Ticketing_Admin"):
             return view_func(request, *args, **kwargs)
@@ -370,6 +377,8 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
     # Get user's team if not admin
     if not is_admin:
         if hasattr(user, "person"):
+            # Refresh groups from Authentik to ensure fresh data
+            user.person.refresh_from_authentik()
             team_number = user.person.get_team_number()
             if team_number:
                 team = Team.objects.filter(team_number=team_number).first()

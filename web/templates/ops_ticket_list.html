@@ -14,11 +14,11 @@
                 <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-resolve'))" variant="default">Resolve Selected</c-button>
             </c-slot>
             <c-filter_field label="Search" id="id_search" min_width="200px">
-                <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/" hx-trigger="input changed delay:500ms">
+                <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Ticket #, title, description..." aria-label="Search tickets" accesskey="/">
             </c-filter_field>
 
             <c-filter_field label="Status" id="id_status">
-                <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
+                <select name="status" id="id_status" aria-label="Filter by status">
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
                     <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
                     <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
@@ -28,11 +28,11 @@
             </c-filter_field>
 
             <c-filter_field label="Team Number" id="id_team">
-                <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number" hx-trigger="change, keyup[key=='Enter']">
+                <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
             </c-filter_field>
 
             <c-filter_field label="Category" id="id_category">
-                <select name="category" id="id_category" aria-label="Filter by category" hx-trigger="change">
+                <select name="category" id="id_category" aria-label="Filter by category">
                     <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
                     {% for cat_id, cat_info in categories.items %}
                     <option value="{{ cat_id }}" {% if category_filter == cat_id %}selected{% endif %}>{{ cat_info.display_name }}</option>
@@ -41,7 +41,7 @@
             </c-filter_field>
 
             <c-filter_field label="Assigned To" id="id_assignee">
-                <select name="assignee" id="id_assignee" aria-label="Filter by assignee" hx-trigger="change">
+                <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
                     <option value="">All Assignees</option>
                     <option value="unassigned" {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
                     {% for person in assignees %}
@@ -51,7 +51,7 @@
             </c-filter_field>
 
             <c-filter_field label="Results Per Page" id="id_page_size">
-                <select name="page_size" id="id_page_size" aria-label="Results per page" hx-trigger="change">
+                <select name="page_size" id="id_page_size" aria-label="Results per page">
                     <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
                     <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
                     <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
