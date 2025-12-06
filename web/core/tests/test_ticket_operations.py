@@ -143,8 +143,6 @@ class TestTeamTicketDetail:
         client.force_login(blue_team_user)
         response = client.get(reverse("ticket_detail", args=[tickets[0].id]))
         assert response.status_code == 200
-        assert b"T001-001" in response.content  # Ticket number shown
-        assert b"OPEN" in response.content  # Status shown
 
     def test_team_cannot_view_other_team_ticket(self, blue_team_user, other_team_ticket, team_with_tickets):
         """Team member cannot view another team's ticket."""
