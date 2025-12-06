@@ -112,7 +112,7 @@
                         </td>
                         {% if is_gold_team %}
                         <td class="field-points">
-                            {% if finding.is_approved %}<span style="color: #dc3545;">-{{ finding.points_per_team }}</span>{% else %}—{% endif %}
+                            {% if finding.is_approved %}<span class="score-negative">-{{ finding.points_per_team }}</span>{% else %}—{% endif %}
                         </td>
                         {% endif %}
                         <td class="field-status">

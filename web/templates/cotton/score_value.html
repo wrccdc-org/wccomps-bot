@@ -5,4 +5,4 @@
 
 <c-vars value="0" format="default" />
 
-{% with num_value=value|add:0 %}<span style="color: {% if num_value > 0 %}#28a745{% elif num_value < 0 %}#dc3545{% else %}#6c757d{% endif %};">{% if format == "signed" and num_value > 0 %}+{% endif %}{{ value }}</span>{% endwith %}
+{% with num_value=value|add:0 %}<span class="{% if num_value > 0 %}score-positive{% elif num_value < 0 %}score-negative{% else %}score-zero{% endif %}">{% if format == "signed" and num_value > 0 %}+{% endif %}{{ value }}</span>{% endwith %}

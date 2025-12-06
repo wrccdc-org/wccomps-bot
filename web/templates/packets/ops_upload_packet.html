@@ -44,9 +44,9 @@
                 </c-form_field>
             </c-fieldset>
 
-            <c-button_row>
+            <c-button_row class="justify-end">
+                <c-link href="{% url 'ops_packets_list' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Upload Team Packet</c-button>
-                <c-link href="{% url 'ops_packets_list' %}" class="button cancel-link">Cancel</c-link>
             </c-button_row>
         </c-module>
     </form>

@@ -54,12 +54,12 @@
 
     <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline mr-10">
         {% csrf_token %}
-        <c-button type="submit">Sync Metadata</c-button>
+        <c-button type="submit" variant="primary">Sync Metadata</c-button>
     </form>
 
     <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
         {% csrf_token %}
-        <c-button type="submit">Sync Service Scores</c-button>
+        <c-button type="submit" variant="primary">Sync Service Scores</c-button>
     </form>
 </c-module>
 
@@ -67,7 +67,7 @@
     <h2>Score Management</h2>
     <form method="post" action="{% url 'scoring:recalculate_scores' %}">
         {% csrf_token %}
-        <c-button type="submit">Recalculate All Scores</c-button>
+        <c-button type="submit" variant="primary">Recalculate All Scores</c-button>
     </form>
     <p class="help-text mt-10">
         Recalculates final scores for all teams based on current data and multipliers

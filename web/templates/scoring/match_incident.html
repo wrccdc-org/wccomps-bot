@@ -110,9 +110,9 @@
                 </ul>
             </c-alert>
 
-            <c-button_row class="mt-15">
-                <c-button type="submit" variant="success">Complete Review</c-button>
+            <c-button_row class="mt-15 justify-end">
                 <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
+                <c-button type="submit" variant="primary">Complete Review</c-button>
             </c-button_row>
         </form>
     </c-module>

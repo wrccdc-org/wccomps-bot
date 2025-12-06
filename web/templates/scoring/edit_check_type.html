@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "scoring/orange_base.html" %}
 {% block title %}Edit Check Type{% endblock %}
 
-{% block content %}
+{% block orange_content %}
 {% load cotton %}
+<c-page_header title="Edit Check Type" subtitle="{{ check_type.name }}" />
 <c-module>
-    <h3>Edit Check Type: {{ check_type.name }}</h3>
     <form method="post">
         {% csrf_token %}
         <c-fieldset aligned="true">
@@ -17,10 +17,10 @@
             </c-form_field>
         </c-fieldset>
 
-        <c-button_row class="mt-15">
-            <c-button type="submit" variant="warning">Save Changes</c-button>
+        <c-button_row class="mt-15 justify-end">
             <c-link href="{% url 'scoring:manage_check_types' %}">Cancel</c-link>
+            <c-button type="submit" variant="primary">Save Changes</c-button>
         </c-button_row>
     </form>
 </c-module>
-{% endblock %}
+{% endblock orange_content %}

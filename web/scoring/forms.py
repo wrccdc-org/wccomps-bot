@@ -72,7 +72,7 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "notes": "Full description of the attack and steps taken.",
         }
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, team_count: int | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
         # Populate dropdowns from Quotient metadata
@@ -102,9 +102,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             )
             self.fields["affected_service"].help_text = "Quotient metadata not synced - enter service name manually"
 
-        # Only show active teams
+        # Only show active teams, limited by Quotient team count if available
         affected_teams_field = cast("forms.ModelMultipleChoiceField[Team]", self.fields["affected_teams"])
-        affected_teams_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
+        queryset = Team.objects.filter(is_active=True).order_by("team_number")
+        if team_count is not None:
+            queryset = queryset.filter(team_number__lte=team_count)
+        affected_teams_field.queryset = queryset
 
 
 class IncidentReportForm(forms.ModelForm[IncidentReport]):

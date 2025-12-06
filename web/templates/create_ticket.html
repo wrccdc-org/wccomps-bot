@@ -13,16 +13,6 @@
     .dynamic-field.show {
         display: block;
     }
-    .category-warning {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 10px;
-        margin-top: 10px;
-        font-size: 13px;
-    }
-    .required {
-        color: #ba2121;
-    }
 </style>
 {% endblock %}
 
@@ -74,7 +64,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="category-warning" x-show="categoryWarning" x-text="categoryWarning"></div>
+                        <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
                     </div>
                 </div>
 
@@ -89,33 +79,35 @@
 
                 <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('hostname') }" id="field-hostname">
                     <div>
-                        <label for="hostname">Hostname: <span class="required" x-show="requiredFields.includes('hostname')">*</span></label>
-                        <select name="hostname" id="hostname" x-model="selectedHostname" @change="onHostnameChange()" :required="requiredFields.includes('hostname')">
-                            <option value="">Select a box...</option>
+                        <label for="hostname">Hostname: <span class="text-danger" x-show="requiredFields.includes('hostname')">*</span></label>
+                        <input type="text" name="hostname" id="hostname"
+                               x-model="selectedHostname"
+                               @input="onHostnameChange()"
+                               list="hostname-list"
+                               :required="requiredFields.includes('hostname')"
+                               placeholder="Select or enter hostname..."
+                               value="{{ form_data.hostname }}">
+                        <datalist id="hostname-list">
                             {% for box_name in box_names %}
-                            <option value="{{ box_name }}"
-                                    {% if form_data.hostname == box_name %}selected{% endif %}>
-                                {{ box_name }}
-                            </option>
+                            <option value="{{ box_name }}">
                             {% endfor %}
-                        </select>
+                        </datalist>
                     </div>
                 </div>
 
                 <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('ip_address') }" id="field-ip_address">
                     <div>
-                        <label for="ip_address">IP Address: <span class="required" x-show="requiredFields.includes('ip_address')">*</span></label>
+                        <label for="ip_address">IP Address: <span class="text-danger" x-show="requiredFields.includes('ip_address')">*</span></label>
                         <input type="text" name="ip_address" id="ip_address"
                                x-model="ipAddress"
-                               readonly
                                :required="requiredFields.includes('ip_address')"
-                               placeholder="(auto-filled from hostname)">
+                               placeholder="Enter IP address or select hostname above">
                     </div>
                 </div>
 
                 <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('service_name') }" id="field-service_name">
                     <div>
-                        <label for="service_name">Service: <span class="required" x-show="requiredFields.includes('service_name')">*</span></label>
+                        <label for="service_name">Service: <span class="text-danger" x-show="requiredFields.includes('service_name')">*</span></label>
                         <select name="service_name" id="service_name" x-model="selectedService" @change="onServiceChange()" :required="requiredFields.includes('service_name')">
                             <option value="">Select a service...</option>
                             <template x-for="svc in filteredServices" :key="svc.value">
@@ -127,7 +119,7 @@
 
                 <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('description') }" id="field-description">
                     <div>
-                        <label for="description">Description: <span class="required" x-show="requiredFields.includes('description')">*</span></label>
+                        <label for="description">Description: <span class="text-danger" x-show="requiredFields.includes('description')">*</span></label>
                         <textarea name="description" id="description" rows="5"
                                   :required="requiredFields.includes('description')"
                                   placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
@@ -135,9 +127,9 @@
                 </div>
             </c-fieldset>
 
-            <c-button_row>
+            <c-button_row class="justify-end">
+                <c-link href="{% url 'team_tickets' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Create Ticket</c-button>
-                <c-link href="{% url 'team_tickets' %}" class="button cancel-link">Cancel</c-link>
             </c-button_row>
         </c-module>
     </form>

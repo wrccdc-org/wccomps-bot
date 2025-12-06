@@ -1,16 +1,15 @@
-{% extends "base.html" %}
-{% block title %}Orange Team{% endblock %}
+{% extends "scoring/orange_base.html" %}
+{% block title %}Orange Team Adjustments{% endblock %}
 
-{% block content %}
+{% block orange_content %}
 {% load cotton %}
+<c-page_header title="Orange Team Adjustments" subtitle="Customer service bonuses and penalties" />
 <c-module>
+    {% if can_approve and bonuses %}
     <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="warning">Submit Adjustment</c-link>
-        <c-link href="{% url 'scoring:manage_check_types' %}">Manage Check Types</c-link>
-        {% if can_approve and bonuses %}
         <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
-        {% endif %}
     </c-slot>
+    {% endif %}
 
     {% if bonuses %}
     <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
@@ -97,4 +96,4 @@
     <c-empty_state title="No adjustments submitted yet" description="Submit an orange team adjustment to track customer service bonuses/penalties" />
     {% endif %}
 </c-module>
-{% endblock %}
+{% endblock orange_content %}

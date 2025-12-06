@@ -72,18 +72,18 @@
             </c-detail_grid>
         </c-fieldset>
 
-        <c-button_row>
-            {% if packet.status == "draft" %}
-            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
-                {% csrf_token %}
-                <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
-            </form>
-            {% endif %}
-
+        <c-button_row class="justify-end">
             {% if packet.status not in "cancelled" %}
             <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" class="d-inline">
                 {% csrf_token %}
                 <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
+            </form>
+            {% endif %}
+
+            {% if packet.status == "draft" %}
+            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
+                {% csrf_token %}
+                <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
             </form>
             {% endif %}
         </c-button_row>

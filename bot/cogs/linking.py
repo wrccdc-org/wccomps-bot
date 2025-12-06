@@ -81,19 +81,88 @@ class LinkingCog(commands.Cog):
         auth_url = f"{base_url}/auth/link?token={token}"
 
         embed = discord.Embed(
-            title="🔗 Link Your Discord Account to Team",
-            description=f"Click the link below to authenticate with your team credentials (team01-team50):\n\n"
-            f"[Click here to link your account]({auth_url})\n\n"
-            f"⏰ This link expires in 15 minutes\n"
-            f"🔒 You'll be redirected to Authentik to log in\n"
-            f"✅ After successful login, you'll automatically receive your team role\n\n"
-            f"Need help? Contact a volunteer.",
+            title="Link Your Discord Account",
+            description=(
+                f"Click the link below to authenticate with your team credentials (team01-team50):\n\n"
+                f"[Click here to link your account]({auth_url})\n\n"
+                f"This link expires in 15 minutes.\n"
+                f"You will be redirected to Authentik to log in.\n"
+                f"After successful login, you will receive your team role."
+            ),
             color=discord.Color.blue(),
         )
-        embed.set_footer(text="Link expires in 15 minutes")
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
         logger.info(f"Generated link token for {interaction.user} ({interaction.user.id})")
+
+    async def send_link_dm(self, user: discord.User | discord.Member) -> bool:
+        """Send link instructions via DM. Returns True if sent successfully."""
+        # Check rate limit
+        one_hour_ago = timezone.now() - timedelta(hours=1)
+        recent_attempts = await LinkRateLimit.objects.filter(
+            discord_id=user.id, attempted_at__gte=one_hour_ago
+        ).acount()
+
+        if recent_attempts >= 5:
+            logger.info(f"Rate limit exceeded for {user.id}, skipping DM")
+            return False
+
+        await LinkRateLimit.objects.acreate(discord_id=user.id)
+
+        # Check if already linked
+        existing_link = await (
+            DiscordLink.objects.filter(discord_id=user.id, is_active=True).select_related("team").afirst()
+        )
+
+        if existing_link and existing_link.team:
+            try:
+                await user.send(
+                    f"You are already linked to **{existing_link.team.team_name}**. "
+                    f"If you need to change teams, please contact an administrator."
+                )
+            except discord.Forbidden:
+                logger.warning(f"Cannot DM {user.id} - DMs disabled")
+            return False
+
+        # Deactivate orphaned link if exists
+        if existing_link and not existing_link.team:
+            existing_link.is_active = False
+            existing_link.unlinked_at = timezone.now()
+            await existing_link.asave()
+
+        # Generate token
+        token = secrets.token_urlsafe(32)
+        expires_at = timezone.now() + timedelta(minutes=15)
+
+        await LinkToken.objects.acreate(
+            token=token,
+            discord_id=user.id,
+            discord_username=str(user),
+            expires_at=expires_at,
+        )
+
+        base_url = settings.BASE_URL
+        auth_url = f"{base_url}/auth/link?token={token}"
+
+        embed = discord.Embed(
+            title="Link Your Discord Account",
+            description=(
+                f"Click the link below to authenticate with your team credentials (team01-team50):\n\n"
+                f"[Click here to link your account]({auth_url})\n\n"
+                f"This link expires in 15 minutes.\n"
+                f"You will be redirected to Authentik to log in.\n"
+                f"After successful login, you will receive your team role."
+            ),
+            color=discord.Color.blue(),
+        )
+
+        try:
+            await user.send(embed=embed)
+            logger.info(f"Sent link DM to {user} ({user.id})")
+            return True
+        except discord.Forbidden:
+            logger.warning(f"Cannot DM {user.id} - DMs disabled")
+            return False
 
 
 async def setup(bot: commands.Bot) -> None:

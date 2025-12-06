@@ -1,17 +1,13 @@
-{% extends "base.html" %}
+{% extends "scoring/orange_base.html" %}
 {% block title %}Manage Check Types{% endblock %}
 
-{% block content %}
+{% block orange_content %}
 {% load cotton %}
+<c-page_header title="Manage Check Types" subtitle="Configure point categories for adjustments" />
 <c-module>
-    <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:orange_team_portal' %}">Back to Portal</c-link>
-    </c-slot>
-
-    <h3>Add Check Type</h3>
-    <form method="post" class="mb-20">
-        {% csrf_token %}
-        <c-fieldset aligned="true">
+    <c-fieldset heading="Add Check Type" aligned="true">
+        <form method="post" class="max-w-400">
+            {% csrf_token %}
             <c-form_field label="Name" required="true" id="{{ form.name.id_for_label }}" error="{% for e in form.name.errors %}{{ e }}{% endfor %}">
                 {{ form.name }}
             </c-form_field>
@@ -19,41 +15,43 @@
             <c-form_field label="{{ form.default_points.label }}" required="true" id="{{ form.default_points.id_for_label }}" help_text="{{ form.default_points.help_text }}" error="{% for e in form.default_points.errors %}{{ e }}{% endfor %}">
                 {{ form.default_points }}
             </c-form_field>
-        </c-fieldset>
-        <c-button type="submit" variant="success" class="mt-10">Add Check Type</c-button>
-    </form>
 
-    <h3>Existing Check Types</h3>
-    {% if check_types %}
-    <c-table aria_label="Orange check types">
-        <c-slot name="headers">
+            <c-button_row>
+                <c-button type="submit" variant="primary">Add Check Type</c-button>
+            </c-button_row>
+        </form>
+    </c-fieldset>
+
+    <c-fieldset heading="Existing Check Types">
+        {% if check_types %}
+        <c-table aria_label="Orange check types">
+            <c-slot name="headers">
+                <tr>
+                    <c-table_header sortable="false">Name</c-table_header>
+                    <c-table_header sortable="false" class="text-right">Default Points</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
+                </tr>
+            </c-slot>
+
+            {% for ct in check_types %}
             <tr>
-                <c-table_header sortable="false">Name</c-table_header>
-                <c-table_header sortable="false" class="text-right">Default Points</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
+                <td>{{ ct.name }}</td>
+                <td class="text-right">
+                    <c-score_value :value="ct.default_points" format="signed" />
+                </td>
+                <td>
+                    <c-link href="{% url 'scoring:edit_check_type' ct.id %}">Edit</c-link>
+                    <form method="post" action="{% url 'scoring:delete_check_type' ct.id %}" class="d-inline" onsubmit="return confirm('Delete check type \'{{ ct.name }}\'?');">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="danger" size="sm">Delete</c-button>
+                    </form>
+                </td>
             </tr>
-        </c-slot>
-
-        {% for ct in check_types %}
-        <tr>
-            <td>{{ ct.name }}</td>
-            <td style="text-align: right; color: {% if ct.default_points >= 0 %}#28a745{% else %}#dc3545{% endif %};">
-                {% if ct.default_points >= 0 %}+{% endif %}{{ ct.default_points }}
-            </td>
-            <td>
-                <c-link href="{% url 'scoring:edit_check_type' ct.id %}" variant="warning" size="sm">Edit</c-link>
-                <form method="post" action="{% url 'scoring:delete_check_type' ct.id %}" class="d-inline">
-                    {% csrf_token %}
-                    <c-button type="submit" variant="danger" size="sm" hx-confirm="Delete check type '{{ ct.name }}'?">Delete</c-button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </c-table>
-    {% else %}
-    <c-alert variant="info">
-        No check types defined. Add some above to get started.
-    </c-alert>
-    {% endif %}
+            {% endfor %}
+        </c-table>
+        {% else %}
+        <c-empty_state title="No check types defined" description="Add one above to get started" />
+        {% endif %}
+    </c-fieldset>
 </c-module>
-{% endblock %}
+{% endblock orange_content %}
