@@ -17,33 +17,39 @@ This document defines UI patterns for WCComps. The system builds on Django Admin
 
 ## Color Palette
 
+Colors are defined as CSS variables in `base.html` with fallback values. Use variables for dark mode compatibility.
+
 ### Semantic Colors
 
-| Name | Hex | Usage |
-|------|-----|-------|
-| **Primary** | `#417690` | Links, headers, primary actions, info states |
-| **Success** | `#388e3c` | Success messages, positive scores, approved states |
-| **Warning** | `#f57c00` | Warnings, pending states, claimed tickets |
-| **Danger** | `#ba2121` | Errors, deletions, negative scores, rejected states |
-| **Info** | `#1976d2` | Open tickets, informational badges |
+| Name | Variable | Fallback | Usage |
+|------|----------|----------|-------|
+| **Primary** | `--primary` | `#417690` | Links, headers, primary actions, info states |
+| **Success** | `--success-fg` | `#28a745` | Success messages, positive scores, approved states |
+| **Warning** | (none) | `#f57c00` | Warnings, pending states, claimed tickets |
+| **Danger** | `--error-fg` | `#ba2121` | Errors, deletions, negative scores, rejected states |
+| **Info** | (none) | `#1976d2` | Open tickets, informational badges |
 
 ### Background Colors
 
-| State | Background | Border | Text |
-|-------|------------|--------|------|
-| **Success** | `#e8f5e9` | `#388e3c` | `#388e3c` |
-| **Warning** | `#fff3cd` | `#ffc107` | `#856404` |
-| **Danger** | `#ffebee` | `#ba2121` | `#ba2121` |
-| **Info** | `#e8f4f8` | `#417690` | `#417690` |
-| **Neutral** | `#f5f5f5` | `#ddd` | `#666` |
+Use utility classes from `base.html` for consistent backgrounds:
+
+| State | Class | Background | Border | Text |
+|-------|-------|------------|--------|------|
+| **Success** | `.bg-success-light` | `#e8f5e9` | `#388e3c` | `#388e3c` |
+| **Warning** | `.bg-warning-light` | `#fff3cd` | `#ffc107` | `#856404` |
+| **Danger** | `.bg-danger-light` | `#ffebee` | `#ba2121` | `#ba2121` |
+| **Info** | `.bg-info-light` | `#e8f4f8` | `#417690` | `#417690` |
+| **Neutral** | `.bg-light` | `var(--darkened-bg)` | `#ddd` | `#666` |
 
 ### Score Colors
 
-| Context | Color | Usage |
-|---------|-------|-------|
-| **Positive** | `#28a745` | Point gains, bonuses |
-| **Negative** | `#dc3545` | Point deductions, penalties |
-| **Neutral** | `#666` | Base scores, unchanged values |
+Use `.score-*` classes for automatic coloring:
+
+| Context | Class | Color | Usage |
+|---------|-------|-------|-------|
+| **Positive** | `.score-positive` | `var(--success-fg)` | Point gains, bonuses |
+| **Negative** | `.score-negative` | `var(--error-fg)` | Point deductions, penalties |
+| **Neutral** | `.score-zero` | `var(--body-quiet-color)` | Base scores, unchanged values |
 
 ---
 
@@ -53,16 +59,30 @@ This document defines UI patterns for WCComps. The system builds on Django Admin
 
 | Element | Size | Weight | Color | Usage |
 |---------|------|--------|-------|-------|
-| Page Title | 24px | 400 | `#333` | Via `<c-page_header>` |
-| Section Header | 18px | 600 | `#333` | `<h2>` in modules |
-| Subsection | 16px | 600 | `#333` | `<h3>` in fieldsets |
-| Body | 14px | 400 | `#333` | Default text |
-| Small/Help | 12px | 400 | `#666` | Help text, timestamps |
-| Monospace | 13px | 400 | `#333` | Code, IPs, technical data |
+| Page Title | 24px | 400 | `var(--body-fg)` | Via `<c-page_header>` |
+| Section Header | 18px | 600 | `var(--body-fg)` | `<h2>` in modules |
+| Subsection | 16px | 600 | `var(--body-fg)` | `<h3>` in fieldsets |
+| Body | 14px | 400 | `var(--body-fg)` | Default text |
+| Small/Help | 12px | 400 | `var(--body-quiet-color)` | Help text, timestamps |
+| Monospace | 13px | 400 | `var(--body-fg)` | Code, IPs, technical data |
+
+### Text Utility Classes
+
+| Class | Size | Color | Usage |
+|-------|------|-------|-------|
+| `.text-xs` | 11px | — | Extra small |
+| `.text-sm` | 12px | — | Small text |
+| `.text-md` | 14px | — | Medium (default) |
+| `.text-lg` | 16px | — | Large |
+| `.text-xl` | 18px | — | Extra large |
+| `.text-muted` | — | `var(--body-quiet-color)` | Secondary text |
+| `.text-primary` | — | `var(--primary)` | Primary color |
+| `.text-success` | — | `var(--success-fg)` | Success color |
+| `.text-danger` | — | `var(--error-fg)` | Danger color |
 
 ### Font Stack
 
-Django Admin default fonts are used. No custom font stack is defined in the codebase.
+Django Admin default fonts are used. No custom font stack is defined.
 
 ---
 
@@ -75,6 +95,20 @@ Django Admin default fonts are used. No custom font stack is defined in the code
 | `md` | 15px | Section gaps, card padding |
 | `lg` | 20px | Module padding, major sections |
 | `xl` | 30px | Page sections, large gaps |
+
+### Spacing Utility Classes
+
+Margin and padding utilities defined in `base.html`:
+
+| Margin | Padding | Value |
+|--------|---------|-------|
+| `.m-0` | `.p-0` | 0 |
+| `.mt-5`, `.mb-5` | `.p-5` | 5px |
+| `.mt-10`, `.mb-10`, `.ml-10` | `.p-10` | 10px |
+| `.mt-15`, `.mb-15` | `.p-15` | 15px |
+| `.mt-20`, `.mb-20`, `.my-20` | `.p-20` | 20px |
+
+Layout utilities: `.d-flex`, `.d-none`, `.d-block`, `.items-center`, `.justify-between`, `.gap-10`, `.gap-15`, `.gap-20`
 
 ---
 
@@ -955,20 +989,56 @@ Via inline styles in `nav_item.html`:
 
 ---
 
-## Known Issues
+## CSS Theming
 
-### Inline Styles
+### CSS Variables
 
-Many Cotton components use inline styles rather than external CSS. 65 occurrences of `style=` across 18 component files. Components with notable inline styling:
-- `badge.html` - all color variants
-- `alert.html` - all color variants
-- `nav_item.html` - current state styling
-- `filter_toolbar.html` - layout styles
-- `filter_field.html` - layout styles
+All colors use CSS custom properties with fallbacks for dark mode support. Variables are defined in `base.html` and follow Django admin's theming system.
 
-### CSS Custom Properties
+#### Available Variables
 
-Only one usage of CSS custom properties found (`var(--link-fg)` in `ops_group_role_mappings.html`). Color values are hardcoded throughout.
+| Variable | Fallback | Usage |
+|----------|----------|-------|
+| `--body-bg` | `#fff` | Page background |
+| `--body-fg` | `#333` | Main text color |
+| `--body-quiet-color` | `#666` | Muted/secondary text |
+| `--darkened-bg` | `#f8f8f8` | Card/panel backgrounds |
+| `--hairline-color` | `#ddd` | Borders |
+| `--link-fg` | `#447e9b` | Link color |
+| `--link-hover-color` | `#036` | Link hover |
+| `--primary` | `#417690` | Primary accent |
+| `--primary-dark` | `#2e5266` | Primary hover/darker |
+| `--error-fg` | `#ba2121` | Error/danger |
+| `--success-fg` | `#28a745` | Success |
+| `--header-link-color` | `#fff` | Navigation links |
+
+#### Usage Pattern
+
+```css
+background: var(--primary, #417690);
+color: var(--body-fg, #333);
+border: 1px solid var(--hairline-color, #ddd);
+```
+
+#### Dark Mode
+
+Dark mode is supported via `@media (prefers-color-scheme: dark)` rules. Components with dark mode overrides:
+- `.alert--*` variants
+- `.badge--*` variants
+- `.warning-box`
+
+### Component CSS Classes
+
+Cotton components use CSS classes defined in `base.html` instead of inline styles:
+
+| Component | CSS Classes |
+|-----------|-------------|
+| Alert | `.alert`, `.alert--info`, `.alert--success`, `.alert--warning`, `.alert--error`, `.alert--default` |
+| Badge | `.badge`, `.badge--info`, `.badge--success`, `.badge--warning`, `.badge--neutral`, `.badge--danger`, `.badge--default` |
+| Score | `.score-positive`, `.score-negative`, `.score-zero` |
+| Stats Card | `.stats-card`, `.stats-card-value`, `.stats-card-label` |
+| Navigation | `.nav-item`, `.nav-item--current` |
+| Team Button | `.team-btn`, `.team-btn--selected` |
 
 ---
 
