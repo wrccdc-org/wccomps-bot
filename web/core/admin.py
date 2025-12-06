@@ -155,8 +155,10 @@ class CompetitionConfigAdmin(admin.ModelAdmin[CompetitionConfig]):
             "Application Control",
             {
                 "fields": ("controlled_applications",),
-                "description": "List of Authentik application slugs to control (e.g., ['netbird', 'scoring']). "
-                "These applications will be enabled/disabled based on competition timing.",
+                "description": (
+                    "List of Authentik application slugs to control (e.g., ['netbird', 'scoring', 'competitions-public'"
+                    ", 'competitions']). These applications will be enabled/disabled based on competition timing."
+                ),
             },
         ),
         (

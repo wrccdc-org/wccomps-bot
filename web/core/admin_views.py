@@ -151,7 +151,7 @@ def admin_competition_action(request: HttpRequest) -> HttpResponse:
             start_time = local_time.astimezone(ZoneInfo("UTC"))
 
             if not config.controlled_applications:
-                config.controlled_applications = ["netbird", "scoring"]
+                config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
 
             config.competition_start_time = start_time
             config.applications_enabled = False
@@ -184,7 +184,7 @@ def admin_competition_action(request: HttpRequest) -> HttpResponse:
             end_time = local_time.astimezone(ZoneInfo("UTC"))
 
             if not config.controlled_applications:
-                config.controlled_applications = ["netbird", "scoring"]
+                config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
 
             config.competition_end_time = end_time
             config.save()
