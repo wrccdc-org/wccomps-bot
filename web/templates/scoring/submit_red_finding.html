@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 
+{% block title %}Submit Red Team Finding{% endblock %}
+
 {% block content %}
+{% load cotton %}
 <div class="max-w-1200">
+    <c-page_header title="Submit Red Team Finding" subtitle="Document successful attacks for scoring" />
     <c-module>
         <form method="post" enctype="multipart/form-data" id="findingForm">
                     {% csrf_token %}
@@ -140,7 +144,7 @@
 
                     <c-button_row class="justify-end">
                         <c-link href="{% url 'scoring:red_team_portal' %}">Cancel</c-link>
-                        <c-button type="submit" variant="danger">Submit Finding</c-button>
+                        <c-button type="submit" variant="primary">Submit Finding</c-button>
                     </c-button_row>
                 </form>
     </c-module>
@@ -167,8 +171,8 @@ function previewScreenshots(input) {
             reader.onload = function(e) {
                 const div = document.createElement('div');
                 div.innerHTML = `
-                    <img src="${e.target.result}" alt="Screenshot ${index + 1}" style="width: 100%; height: 150px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px;">
-                    <div style="padding: 5px; font-size: 11px; color: #666;">${file.name}</div>
+                    <img src="${e.target.result}" alt="Screenshot ${index + 1}" class="screenshot-preview-img">
+                    <div class="screenshot-preview-name">${file.name}</div>
                 `;
 
                 preview.appendChild(div);
@@ -216,8 +220,7 @@ function setupAttackAutocomplete() {
 
     // Create a dropdown container for custom suggestions
     const dropdown = document.createElement('div');
-    dropdown.className = 'autocomplete-dropdown';
-    dropdown.style.cssText = 'position: absolute; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+    dropdown.className = 'autocomplete-dropdown autocomplete-dropdown--hidden';
     input.parentNode.style.position = 'relative';
     input.parentNode.appendChild(dropdown);
 
@@ -234,14 +237,14 @@ function setupAttackAutocomplete() {
         const value = this.value.toLowerCase().trim();
 
         if (value.length < 2) {
-            dropdown.style.display = 'none';
+            dropdown.classList.add('autocomplete-dropdown--hidden');
             return;
         }
 
         const matches = suggestions.filter(s => s.toLowerCase().includes(value));
 
         if (matches.length === 0) {
-            dropdown.style.display = 'none';
+            dropdown.classList.add('autocomplete-dropdown--hidden');
             return;
         }
 
@@ -250,23 +253,16 @@ function setupAttackAutocomplete() {
         matches.slice(0, 10).forEach(match => {
             const item = document.createElement('div');
             item.className = 'autocomplete-item';
-            item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;';
             item.textContent = match;  // Safe: uses textContent, not innerHTML
-            item.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = '#f0f0f0';
-            });
-            item.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = 'white';
-            });
             item.addEventListener('click', function() {
                 input.value = this.textContent;
-                dropdown.style.display = 'none';
+                dropdown.classList.add('autocomplete-dropdown--hidden');
                 input.focus();
             });
             dropdown.appendChild(item);
         });
 
-        dropdown.style.display = 'block';
+        dropdown.classList.remove('autocomplete-dropdown--hidden');
         dropdown.style.width = input.offsetWidth + 'px';
         dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
         dropdown.style.left = input.offsetLeft + 'px';
@@ -275,7 +271,7 @@ function setupAttackAutocomplete() {
     // Hide dropdown when clicking outside
     document.addEventListener('click', function(e) {
         if (e.target !== input && !dropdown.contains(e.target)) {
-            dropdown.style.display = 'none';
+            dropdown.classList.add('autocomplete-dropdown--hidden');
         }
     });
 }
@@ -306,13 +302,9 @@ function toggleTeam(button, checkboxId) {
 
 function updateTeamButton(button, isSelected) {
     if (isSelected) {
-        button.style.backgroundColor = '#dc3545';
-        button.style.borderColor = '#dc3545';
-        button.style.color = 'white';
+        button.classList.add('team-btn--selected');
     } else {
-        button.style.backgroundColor = 'white';
-        button.style.borderColor = '#ddd';
-        button.style.color = '#333';
+        button.classList.remove('team-btn--selected');
     }
 }
 
@@ -374,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAttackSuggestions();
     setupAttackAutocomplete();
 
-    // Set team button labels (extract just the number from the full label)
+    // Set team button labels and sync with checkbox state
     const teamButtons = getTeamButtons();
     teamButtons.forEach(button => {
         const fullLabel = button.getAttribute('data-team-label');
@@ -387,6 +379,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 button.textContent = fullLabel;
             }
+        }
+
+        // Sync button appearance with checkbox state
+        const teamId = button.getAttribute('data-team-id');
+        const checkbox = document.querySelector(`input[name="affected_teams"][value="${teamId}"]`);
+        if (checkbox) {
+            updateTeamButton(button, checkbox.checked);
         }
     });
 

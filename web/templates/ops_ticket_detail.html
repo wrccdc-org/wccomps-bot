@@ -60,10 +60,10 @@
         <!-- Actions -->
         <c-action_box heading="Actions">
             {% if ticket.status == 'open' %}
-            <c-button_row>
+            <c-button_row class="justify-end">
                 <form method="POST" action="{% url 'ops_ticket_claim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
-                    <c-button type="submit" variant="warning">Claim Ticket</c-button>
+                    <c-button type="submit" variant="primary">Claim Ticket</c-button>
                 </form>
             </c-button_row>
             {% elif ticket.status == 'claimed' %}
@@ -76,14 +76,14 @@
                 <c-form_field label="Resolution Notes" required="true" id="resolution_notes" help_text="Explain how the issue was resolved">
                     <textarea name="resolution_notes" id="resolution_notes" rows="4" placeholder="Describe what was done to resolve this ticket..." required></textarea>
                 </c-form_field>
-                <c-button_row>
+                <c-button_row class="justify-end">
                     <c-button type="submit" variant="success">Resolve Ticket</c-button>
                 </c-button_row>
             </form>
             <div class="divider">
                 <form method="POST" action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
-                    <c-button type="submit">Unclaim</c-button>
+                    <c-button type="submit" variant="default">Unclaim</c-button>
                 </form>
             </div>
             {% else %}
@@ -110,7 +110,7 @@
                 <c-form_field label="Reopen Reason (Optional)" id="reopen_reason" help_text="Describe why the ticket needs to be reopened (optional)">
                     <textarea name="reopen_reason" id="reopen_reason" rows="3" placeholder="Optionally explain why this ticket is being reopened..."></textarea>
                 </c-form_field>
-                <c-button_row>
+                <c-button_row class="justify-end">
                     <c-button type="submit" variant="warning">Reopen Ticket</c-button>
                 </c-button_row>
             </form>
@@ -131,8 +131,8 @@
                         {% endfor %}
                     </select>
                 </c-form_field>
-                <c-button_row>
-                    <c-button type="submit" variant="warning">Change Category</c-button>
+                <c-button_row class="justify-end">
+                    <c-button type="submit" variant="primary">Change Category</c-button>
                 </c-button_row>
             </form>
         </c-action_box>

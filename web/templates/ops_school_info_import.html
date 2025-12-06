@@ -19,9 +19,9 @@
             Created: {{ import_results.created }} school info record(s)
         </c-alert>
 
-        <c-button_row>
-            <c-link href="{% url 'ops_school_info' %}" class="button">View School Information</c-link>
-            <c-link href="{% url 'ops_school_info_import' %}" class="button">Import Another File</c-link>
+        <c-button_row class="justify-end">
+            <c-link href="{% url 'ops_school_info_import' %}">Import Another File</c-link>
+            <c-link href="{% url 'ops_school_info' %}" variant="primary">View School Information</c-link>
         </c-button_row>
 
         {% elif preview_data %}
@@ -78,14 +78,14 @@
 
         <form method="POST">
             {% csrf_token %}
-            <c-button_row class="mt-20">
+            <c-button_row class="mt-20 justify-end">
+                <c-link href="{% url 'ops_school_info_import' %}">Cancel</c-link>
                 <c-button type="submit" name="confirm" value="true" variant="primary">Confirm and Import</c-button>
-                <c-link href="{% url 'ops_school_info_import' %}" class="button cancel-link">Cancel</c-link>
             </c-button_row>
         </form>
         {% else %}
-        <c-button_row>
-            <c-link href="{% url 'ops_school_info_import' %}" class="button">Try Again</c-link>
+        <c-button_row class="justify-end">
+            <c-link href="{% url 'ops_school_info_import' %}" variant="primary">Try Again</c-link>
         </c-button_row>
         {% endif %}
 
@@ -120,9 +120,9 @@ Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
                     </c-form_field>
                 </c-fieldset>
 
-                <c-button_row>
+                <c-button_row class="justify-end">
+                    <c-link href="{% url 'ops_school_info' %}">Cancel</c-link>
                     <c-button type="submit" name="upload" value="true" variant="primary">Upload and Preview</c-button>
-                    <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
                 </c-button_row>
             </form>
         </div>

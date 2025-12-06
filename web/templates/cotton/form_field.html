@@ -7,11 +7,11 @@
 <div class="form-row">
     <div>
         <label {% if id %}for="{{ id }}"{% endif %}{% if required == "true" %} class="required"{% endif %}>
-            {{ label }}:{% if required == "true" %} <span class="required">*</span>{% endif %}
+            {{ label }}:
         </label>
         {{ slot }}
         {% if help_text %}
-        <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">{{ help_text }}</p>
+        <p class="help-text">{{ help_text }}</p>
         {% endif %}
         {% if error %}
         <p class="errornote">{{ error }}</p>

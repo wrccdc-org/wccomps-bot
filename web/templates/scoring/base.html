@@ -6,7 +6,7 @@
 {% load cotton %}
 
 {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
-<c-nav current="{% if request.resolver_match.url_name == 'leaderboard' %}leaderboard{% elif 'red_team' in request.resolver_match.url_name %}red_team{% elif 'review_incident' in request.resolver_match.url_name or 'match_incident' in request.resolver_match.url_name %}review_incidents{% elif request.resolver_match.url_name == 'inject_grading' or 'submit_inject' in request.resolver_match.url_name %}inject_grading{% elif 'inject_grades_review' in request.resolver_match.url_name or 'inject_grades_bulk' in request.resolver_match.url_name %}inject_grades_review{% elif 'review_tickets' in request.resolver_match.url_name %}review_tickets{% elif 'config' in request.resolver_match.url_name or 'sync_' in request.resolver_match.url_name or 'recalculate' in request.resolver_match.url_name %}config{% elif 'export' in request.resolver_match.url_name %}export{% endif %}">
+<c-nav>
     <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
     {% if is_gold_team or is_admin %}
     <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>

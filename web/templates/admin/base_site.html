@@ -14,25 +14,25 @@
 {% block nav-global %}
 <nav class="primary-navigation">
     {% if is_ticketing_support or is_ticketing_admin %}
-    <a href="{% url 'ops_ticket_list' %}">Tickets</a>
+    <a href="{% url 'ops_ticket_list' %}" {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets</a>
     {% endif %}
     {% if is_blue_team or is_admin %}
-    <a href="{% url 'scoring:submit_incident_report' %}">Incident Report</a>
+    <a href="{% url 'scoring:submit_incident_report' %}" {% if nav_active == 'incident' %}class="current"{% endif %}>Incident Report</a>
     {% endif %}
     {% if is_red_team or is_admin %}
-    <a href="{% url 'scoring:submit_red_finding' %}">Red Team Findings</a>
+    <a href="{% url 'scoring:submit_red_finding' %}" {% if nav_active == 'red_findings' %}class="current"{% endif %}>Red Team Findings</a>
     {% endif %}
     {% if is_orange_team or is_admin %}
-    <a href="{% url 'scoring:orange_team_portal' %}">Orange Team</a>
+    <a href="{% url 'scoring:orange_team_portal' %}" {% if nav_active == 'orange' %}class="current"{% endif %}>Orange Team</a>
     {% endif %}
     {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
-    <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
+    <a href="{% url 'scoring:leaderboard' %}" {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring</a>
     {% endif %}
     {% if is_gold_team or is_admin %}
-    <a href="{% url 'ops_school_info' %}">School Info</a>
+    <a href="{% url 'ops_school_info' %}" {% if nav_active == 'school' %}class="current"{% endif %}>School Info</a>
     {% endif %}
     {% if user.is_staff %}
-    <a href="{% url 'admin:index' %}">Admin</a>
+    <a href="{% url 'admin:index' %}" {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
     {% endif %}
     <span class="nav-spacer"></span>
     <span class="nav-user">{{ authentik_username|default:user.username }}</span>
@@ -44,9 +44,9 @@
 {{ block.super }}
 <style>
     .primary-navigation {
-        background: #417690;
+        background: var(--primary, #417690);
         padding: 10px 20px;
-        border-bottom: 1px solid #2e5266;
+        border-bottom: 1px solid var(--primary-dark, #2e5266);
         display: flex;
         align-items: center;
     }
@@ -56,13 +56,13 @@
     }
 
     .nav-user {
-        color: #c4dde8;
+        color: var(--header-link-color, #c4dde8);
         font-size: 13px;
         margin-right: 10px;
     }
 
     .primary-navigation a {
-        color: #fff;
+        color: var(--header-link-color, #fff);
         text-decoration: none;
         padding: 8px 15px;
         margin-right: 5px;
@@ -74,11 +74,16 @@
     }
 
     .primary-navigation a:hover {
-        background-color: #2e5266;
+        background-color: var(--primary-dark, #2e5266);
+    }
+
+    .primary-navigation a.current {
+        background-color: var(--primary-dark, #2e5266);
+        font-weight: 600;
     }
 
     .primary-navigation a:focus {
-        outline: 2px solid #fff;
+        outline: 2px solid var(--header-link-color, #fff);
         outline-offset: 2px;
     }
 
@@ -90,7 +95,7 @@
     }
 
     #result_list tbody tr:hover {
-        background-color: #f5f5f5;
+        background-color: var(--darkened-bg, #f5f5f5);
     }
 
     /* Button improvements - larger click targets */

@@ -37,13 +37,13 @@
                 </c-form_field>
             </c-fieldset>
 
-            <c-button_row>
+            <c-button_row class="justify-end">
+                <c-link href="{% url 'ops_school_info' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Save School Information</c-button>
-                <c-link href="{% url 'ops_school_info' %}" class="button cancel-link">Cancel</c-link>
             </c-button_row>
 
             {% if school_info %}
-            <p style="margin-top: 20px; color: #999; font-size: 13px;">
+            <p class="mt-20 text-muted text-sm">
                 Last updated {{ school_info.updated_at|timesince }} ago
                 {% if school_info.updated_by %}by {{ school_info.updated_by }}{% endif %}
             </p>

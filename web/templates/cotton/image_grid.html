@@ -4,27 +4,6 @@
 
 <c-vars cols="3" gap="15px" />
 
-<style>
-    .image-grid {
-        display: grid;
-        grid-template-columns: repeat({{ cols }}, 1fr);
-        gap: {{ gap }};
-    }
-
-    .image-grid img {
-        width: 100%;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        display: block;
-    }
-
-    @media (max-width: 768px) {
-        .image-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
-<div class="image-grid">
+<div class="image-grid" style="display: grid; grid-template-columns: repeat({{ cols }}, 1fr); gap: {{ gap }};">
     {{ slot }}
 </div>

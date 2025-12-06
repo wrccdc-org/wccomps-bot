@@ -5,6 +5,7 @@
 
 {% block content %}
 <div id="content-main">
+    <c-page_header title="Support Tickets" />
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_ticket_list' %}" hx_target="#ops-ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
             <c-slot name="actions">

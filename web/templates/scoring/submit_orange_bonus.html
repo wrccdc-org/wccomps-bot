@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "scoring/orange_base.html" %}
 {% block title %}Submit Adjustment{% endblock %}
 
-{% block content %}
+{% block orange_content %}
 {% load cotton %}
+<c-page_header title="Submit Adjustment" subtitle="Award or deduct points for a team" />
 <c-module>
     <form method="post"
           x-data="{
@@ -51,10 +52,10 @@
             <strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.
         </c-alert>
 
-        <c-button_row class="mt-15">
-            <c-button type="submit" variant="warning">Submit Adjustment</c-button>
+        <c-button_row class="mt-15 justify-end">
             <c-link href="{% url 'scoring:orange_team_portal' %}">Cancel</c-link>
+            <c-button type="submit" variant="primary">Submit Adjustment</c-button>
         </c-button_row>
     </form>
 </c-module>
-{% endblock %}
+{% endblock orange_content %}

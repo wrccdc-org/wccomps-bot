@@ -141,9 +141,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const teamName = row.dataset.name;
 
             if (teamNumber.includes(query) || teamName.includes(query)) {
-                row.style.display = '';
+                row.classList.remove('d-none');
             } else {
-                row.style.display = 'none';
+                row.classList.add('d-none');
             }
         });
     });

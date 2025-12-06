@@ -274,9 +274,13 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding."""
+    from quotient.client import QuotientClient
+
+    client = QuotientClient()
+    team_count = client.get_team_count()
 
     if request.method == "POST":
-        form = RedTeamFindingForm(request.POST, request.FILES)
+        form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count)
 
         if form.is_valid():
             finding = form.save(commit=False)
@@ -310,13 +314,10 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
             messages.success(request, f"Red team finding #{finding.id} submitted successfully")
             return redirect("scoring:red_team_portal")
     else:
-        form = RedTeamFindingForm()
+        form = RedTeamFindingForm(team_count=team_count)
 
     # Get box metadata for auto-populating IP and services
-    from quotient.client import QuotientClient
-
     box_metadata = {}
-    client = QuotientClient()
     infra = client.get_infrastructure()
     if infra:
         for box in infra.boxes:
@@ -634,8 +635,12 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     client = QuotientClient()
     injects = client.get_injects()
 
-    if not injects:
-        context: dict[str, Any] = {"quotient_available": False}
+    if injects is None:
+        context: dict[str, Any] = {"quotient_available": False, "no_injects": False}
+        return render(request, "scoring/inject_grading.html", context)
+
+    if len(injects) == 0:
+        context = {"quotient_available": True, "no_injects": True}
         return render(request, "scoring/inject_grading.html", context)
 
     inject_choices = [(str(i.inject_id), i.title) for i in injects]

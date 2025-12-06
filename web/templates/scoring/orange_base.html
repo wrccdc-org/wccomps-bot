@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Orange Team{% endblock %}
+
+{% block content %}
+{% load cotton %}
+
+<c-nav>
+    <c-nav_item name="portal" href="{% url 'scoring:orange_team_portal' %}">Adjustments</c-nav_item>
+    <c-nav_item name="submit" href="{% url 'scoring:submit_orange_bonus' %}">Submit Adjustment</c-nav_item>
+    <c-nav_item name="check_types" href="{% url 'scoring:manage_check_types' %}">Check Types</c-nav_item>
+</c-nav>
+
+{% block orange_content %}{% endblock %}
+{% endblock %}

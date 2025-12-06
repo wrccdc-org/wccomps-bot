@@ -5,9 +5,14 @@
 <c-page_header title="Inject Grading" />
 <c-module>
     {% if not quotient_available %}
-    <c-alert variant="warning">
-        <h3 class="mt-0">Quotient Not Available</h3>
-        <p class="mb-0">Unable to fetch injects from Quotient. Check the connection or sync manually.</p>
+    <c-alert variant="error">
+        <strong>Connection Error</strong>
+        <p class="mb-0">Unable to connect to Quotient. Check the API URL and credentials.</p>
+    </c-alert>
+    {% elif no_injects %}
+    <c-alert variant="info">
+        <strong>No Injects</strong>
+        <p class="mb-0">No injects are configured in Quotient yet.</p>
     </c-alert>
     {% else %}
 

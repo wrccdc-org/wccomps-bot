@@ -64,7 +64,7 @@
                             {% csrf_token %}
                             <input type="hidden" name="points_adjustment" id="points_{{ item.ticket.ticket_number }}" value="{{ item.ticket.points_charged }}" />
                             <input type="hidden" name="verification_notes" id="notes_{{ item.ticket.ticket_number }}" value="" />
-                            <c-button type="submit">Verify</c-button>
+                            <c-button type="submit" variant="primary">Verify</c-button>
                         </form>
                         {% else %}
                             <span class="text-secondary">Verified</span>

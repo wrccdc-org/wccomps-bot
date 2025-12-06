@@ -389,7 +389,7 @@ class HelpPanelsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
-        """Delete messages posted to #link channel (except bot's panel)."""
+        """Delete messages posted to #link channel and trigger link flow."""
         # Ignore bot's own messages
         if message.author.bot:
             return
@@ -402,6 +402,14 @@ class HelpPanelsCog(commands.Cog):
                 logger.info(f"Deleted message from {message.author} in #link channel")
             except discord.HTTPException as e:
                 logger.exception(f"Failed to delete message in #link: {e}")
+                return
+
+            # Trigger link flow via DM
+            from bot.cogs.linking import LinkingCog
+
+            cog = self.bot.get_cog("LinkingCog")
+            if isinstance(cog, LinkingCog):
+                await cog.send_link_dm(message.author)
 
     async def _post_link_panel(self, channel_id: int) -> None:
         """Post the link account panel to a channel."""

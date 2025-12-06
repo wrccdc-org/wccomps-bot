@@ -3,9 +3,10 @@
 {% block title %}Submit Incident Report{% endblock %}
 
 {% block content %}
+{% load cotton %}
 <div class="max-w-1200">
+    <c-page_header title="Submit Incident Report" subtitle="Report detected attacks on your systems" />
     <c-module>
-        <h2>Submit Incident Report</h2>
         {% if team or is_admin %}
         <form method="post" enctype="multipart/form-data" id="incidentForm">
             {% csrf_token %}
@@ -163,8 +164,8 @@ function previewScreenshots(input) {
             reader.onload = function(e) {
                 const div = document.createElement('div');
                 div.innerHTML = `
-                    <img src="${e.target.result}" alt="Screenshot ${index + 1}" style="width: 100%; height: 150px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px;">
-                    <div style="padding: 5px; font-size: 11px; color: #666;">${file.name}</div>
+                    <img src="${e.target.result}" alt="Screenshot ${index + 1}" class="screenshot-preview-img">
+                    <div class="screenshot-preview-name">${file.name}</div>
                 `;
                 preview.appendChild(div);
             };

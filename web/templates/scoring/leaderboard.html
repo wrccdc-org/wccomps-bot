@@ -47,7 +47,7 @@
         {% if user.is_staff %}
         <form method="post" action="{% url 'scoring:recalculate_scores' %}" class="m-0">
             {% csrf_token %}
-            <c-button type="submit">Recalculate</c-button>
+            <c-button type="submit" variant="primary">Recalculate</c-button>
         </form>
         {% endif %}
     </div>
