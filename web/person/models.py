@@ -32,7 +32,7 @@ class Person(models.Model):
         help_text="Preferred username from Authentik",
     )
     authentik_user_id = models.CharField(
-        max_length=50,
+        max_length=64,
         unique=True,
         null=True,
         blank=True,
@@ -199,10 +199,12 @@ def create_or_update_person(sender: type[User], instance: User, created: bool, *
     """
     if created:
         # Create Person for new User
-        Person.objects.create(
+        person = Person.objects.create(
             user=instance,
             authentik_username=instance.username,
         )
+        # Populate Authentik groups from SocialAccount if available
+        person.refresh_from_authentik()
     # Update existing Person if it exists
     elif hasattr(instance, "person"):
         # Trigger update timestamp

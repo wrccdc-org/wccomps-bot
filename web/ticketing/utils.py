@@ -34,8 +34,8 @@ def get_or_create_person_for_ticket(
     if authentik_user_id:
         person = Person.objects.filter(authentik_user_id=authentik_user_id).first()
         if person:
-            # Update discord info if we have it and person doesn't
-            if discord_id and not person.discord_id:
+            # Update discord info if we have it, person doesn't, and it's not used elsewhere
+            if discord_id and not person.discord_id and not Person.objects.filter(discord_id=discord_id).exists():
                 person.discord_id = discord_id
                 person.discord_username = discord_username or ""
                 person.save(update_fields=["discord_id", "discord_username"])
@@ -45,8 +45,12 @@ def get_or_create_person_for_ticket(
     if discord_id:
         person = Person.objects.filter(discord_id=discord_id).first()
         if person:
-            # Update authentik info if we have it and person doesn't
-            if authentik_user_id and not person.authentik_user_id:
+            # Update authentik info if we have it, person doesn't, and it's not used elsewhere
+            if (
+                authentik_user_id
+                and not person.authentik_user_id
+                and not Person.objects.filter(authentik_user_id=authentik_user_id).exists()
+            ):
                 person.authentik_user_id = authentik_user_id
                 person.authentik_username = authentik_username or person.authentik_username
                 person.save(update_fields=["authentik_user_id", "authentik_username"])

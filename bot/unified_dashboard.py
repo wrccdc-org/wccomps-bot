@@ -201,7 +201,7 @@ class UnifiedDashboard:
                 else:
                     query = Ticket.objects.filter(status=self.filter_status)
 
-                tickets = query.select_related("team").order_by("created_at")
+                tickets = query.select_related("team", "assigned_to").order_by("created_at")
                 return list(tickets)
 
             @sync_to_async
