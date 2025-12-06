@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
                 ('competition_start_time', models.DateTimeField(blank=True, help_text='When applications should be enabled', null=True)),
                 ('competition_end_time', models.DateTimeField(blank=True, help_text='When applications should be disabled', null=True)),
                 ('applications_enabled', models.BooleanField(default=False, help_text='Whether applications are currently enabled')),
-                ('controlled_applications', models.JSONField(default=list, help_text="List of Authentik application slugs to enable/disable (e.g., ['netbird', 'scoring'])")),
+                ('controlled_applications', models.JSONField(default=list, help_text="List of Authentik application slugs to enable/disable (e.g., ['netbird', 'scoring', 'competitions-public', 'competitions'])")),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('last_check', models.DateTimeField(blank=True, help_text='Last time background task checked', null=True)),
