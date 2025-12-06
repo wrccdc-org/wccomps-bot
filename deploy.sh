@@ -38,6 +38,27 @@ fi
 
 echo "✓ Type checking passed"
 echo ""
+echo "Starting test database..."
+# Stop any existing test containers (ignore errors if none exist)
+docker compose -f docker-compose.test.yml down -v 2>/dev/null || true
+
+# Start fresh test database
+if ! docker compose -f docker-compose.test.yml up -d --wait; then
+    echo "✗ Failed to start test database"
+    docker compose -f docker-compose.test.yml logs
+    exit 1
+fi
+
+echo "✓ Test database ready"
+echo ""
+
+# Load .env.test for database connection
+if [ -f .env.test ]; then
+    set -a
+    source .env.test
+    set +a
+fi
+
 echo "Checking for unapplied model changes..."
 MAKEMIGRATIONS_OUTPUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py makemigrations --check --dry-run 2>&1)
 MAKEMIGRATIONS_EXIT=$?
@@ -47,37 +68,25 @@ if [ $MAKEMIGRATIONS_EXIT -ne 0 ]; then
     echo "$MAKEMIGRATIONS_OUTPUT"
     echo ""
     echo "Run 'cd web && python manage.py makemigrations' to create migrations"
+    docker compose -f docker-compose.test.yml down -v
     exit 1
 fi
 
 echo "✓ No unapplied model changes"
 echo ""
-echo "Starting test database..."
-# Always recreate database for clean state
-docker compose -f docker-compose.test.yml down -v 2>/dev/null || true
-docker compose -f docker-compose.test.yml up -d --wait
-
-if [ $? -ne 0 ]; then
-    echo "✗ Failed to start test database"
+echo "Collecting static files..."
+COLLECTSTATIC_OUTPUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput 2>&1)
+COLLECTSTATIC_EXIT=$?
+if [ $COLLECTSTATIC_EXIT -ne 0 ]; then
+    echo "✗ Failed to collect static files:"
+    echo "$COLLECTSTATIC_OUTPUT"
+    docker compose -f docker-compose.test.yml down -v
     exit 1
 fi
-
-echo "✓ Test database ready"
-echo ""
-echo "Collecting static files..."
-cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput > /dev/null 2>&1
-cd ..
 echo "✓ Static files collected"
 
 echo ""
 echo "Running tests..."
-# Load .env.test file
-if [ -f .env.test ]; then
-    set -a
-    source .env.test
-    set +a
-fi
-
 export USE_POSTGRES_FOR_TESTS=1
 export PYTHONPATH="$(pwd)/web:$(pwd)"
 
@@ -86,7 +95,7 @@ uv run pytest -m critical --tb=short -v
 TESTS_EXIT=$?
 
 echo "Stopping test database..."
-docker compose -f docker-compose.test.yml down
+docker compose -f docker-compose.test.yml down -v
 
 if [ $TESTS_EXIT -ne 0 ]; then
     echo "✗ Tests failed"
@@ -130,7 +139,10 @@ echo ""
 echo "Restarting services..."
 
 # Restart web and bot with new images
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot"
+if ! ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot"; then
+    echo "✗ Failed to start containers"
+    exit 1
+fi
 
 echo "Waiting for health checks..."
 RETRY_COUNT=0
