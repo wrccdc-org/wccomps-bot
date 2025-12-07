@@ -126,7 +126,10 @@ class CompetitionConfig(models.Model):
         """Check if applications should be enabled based on current time."""
         if not self.competition_start_time:
             return False
-        return timezone.now() >= self.competition_start_time and not self.applications_enabled
+        now = timezone.now()
+        after_start = now >= self.competition_start_time
+        before_end = self.competition_end_time is None or now < self.competition_end_time
+        return after_start and before_end and not self.applications_enabled
 
     def should_disable_applications(self) -> bool:
         """Check if applications should be disabled based on current time."""
