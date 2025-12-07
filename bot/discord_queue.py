@@ -462,7 +462,7 @@ class DiscordQueueProcessor:
         @sync_to_async
         def get_data() -> tuple[Ticket, TicketComment]:
             ticket = Ticket.objects.get(id=ticket_id)
-            comment = TicketComment.objects.get(id=comment_id)
+            comment = TicketComment.objects.select_related("author").get(id=comment_id)
             return ticket, comment
 
         ticket, comment = await get_data()

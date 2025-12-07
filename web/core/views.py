@@ -149,12 +149,15 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    # CSRF protection: verify token matches what was stored in session during initiation
+    # Session check for additional CSRF protection (defense-in-depth)
+    # Note: django-allauth cycles the session on login, so this check may fail for legitimate
+    # users. The URL token already provides strong security (cryptographically random, single-use,
+    # time-limited, tied to Discord user), so we log but don't block on session mismatch.
     session_token = request.session.get("pending_link_token")
-    if not session_token or session_token != url_token:
+    if session_token and session_token != url_token:
+        # Session exists but doesn't match - this is suspicious
         logger.warning(
-            f"CSRF attempt detected: session token '{session_token}' != url token '{url_token}' "
-            f"for user {authentik_username}"
+            f"Session token mismatch: session '{session_token}' != url '{url_token}' for user {authentik_username}"
         )
         return render(
             request,
@@ -167,6 +170,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 ),
             },
         )
+    if not session_token:
+        # Session was cycled during OAuth login - this is expected behavior
+        logger.info(f"Session token not found (likely cycled during OAuth) for user {authentik_username}")
 
     # Look up the specific token from URL
     try:

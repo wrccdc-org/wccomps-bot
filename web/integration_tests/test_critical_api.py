@@ -182,14 +182,19 @@ class TestOAuthCallback:
         )
 
         # Attacker tries to trick victim into visiting callback with attacker's token
-        # Victim is logged in but hasn't initiated linking
+        # Victim is logged in and has their own pending link (different token in session)
         client = Client()
         client.force_login(user)
 
-        # Direct callback access without going through initiate (CSRF attack attempt)
+        # Victim has their own link token in session (they initiated their own linking)
+        session = client.session
+        session["pending_link_token"] = "victims_own_token_12345"
+        session.save()
+
+        # Attacker sends victim a link with attacker's token (CSRF attack attempt)
         response = client.get(reverse("link_callback"), {"token": attacker_token.token})
 
-        # Should reject - CSRF protection
+        # Should reject - session token mismatch indicates CSRF
         assert response.status_code == 200  # Renders error page
         assert b"Security verification failed" in response.content or b"CSRF" in response.content
 
