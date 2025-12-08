@@ -86,7 +86,13 @@ class TicketingCog(commands.Cog):
         await self.bot.wait_until_ready()
 
     @app_commands.command(name="ticket", description="[BLUE TEAM] Create a support ticket for your team")
-    @app_commands.describe(category="Type of support needed", description="Describe the issue or request")
+    @app_commands.describe(
+        category="Type of support needed",
+        description="Describe the issue or request",
+        hostname="Hostname/box name (required for box-reset, hands-on consultation)",
+        service="Service name like 'web:http' (required for scoring validation, service check)",
+        ip_address="IP address (required for box-reset)",
+    )
     @app_commands.choices(
         category=[
             app_commands.Choice(name=f"{cat['display_name']} ({cat.get('points', 0)}pt)", value=cat_id)
@@ -95,7 +101,15 @@ class TicketingCog(commands.Cog):
         ]
     )
     @app_commands.check(check_blue_team)
-    async def create_ticket(self, interaction: discord.Interaction, category: str, description: str) -> None:
+    async def create_ticket(
+        self,
+        interaction: discord.Interaction,
+        category: str,
+        description: str,
+        hostname: str | None = None,
+        service: str | None = None,
+        ip_address: str | None = None,
+    ) -> None:
         """Create a support ticket."""
         if not interaction.guild:
             await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
@@ -113,16 +127,26 @@ class TicketingCog(commands.Cog):
             await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
-        # For box-reset, validate hostname is provided
-        if category == "box-reset" and not description.strip():
+        # Validate required fields based on category config
+        required_fields = cat_info.get("required_fields", [])
+        missing_fields = []
+
+        if "hostname" in required_fields and not hostname:
+            missing_fields.append("hostname")
+        if "service_name" in required_fields and not service:
+            missing_fields.append("service (e.g., 'web:http')")
+        if "ip_address" in required_fields and not ip_address:
+            missing_fields.append("ip_address")
+        if "description" in required_fields and not description.strip():
+            missing_fields.append("description")
+
+        if missing_fields:
             await interaction.response.send_message(
-                "Box reset requires a hostname.\nPlease specify which box to reset in the description field.",
+                f"**{cat_info['display_name']}** requires: {', '.join(missing_fields)}\n"
+                f"Please provide these fields when creating the ticket.",
                 ephemeral=True,
             )
             return
-
-        # For box-reset, use description as hostname
-        hostname = description if category == "box-reset" else ""
 
         # Create ticket atomically to prevent race conditions
         from ticketing.utils import acreate_ticket_atomic
@@ -132,7 +156,9 @@ class TicketingCog(commands.Cog):
             category=category,
             title=cat_info["display_name"],
             description=description,
-            hostname=hostname,
+            hostname=hostname or "",
+            ip_address=ip_address,
+            service_name=service or "",
             actor_username=f"discord:{interaction.user}",
         )
 
