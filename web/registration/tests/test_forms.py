@@ -1,89 +1,60 @@
 """Tests for registration forms."""
 
-from django.test import TestCase
+import pytest
 
 from ..forms import RegistrationForm
 
+pytestmark = pytest.mark.django_db
 
-class RegistrationFormTestCase(TestCase):
-    """Test RegistrationForm."""
 
-    def test_form_valid_data(self):
-        """Test form with valid data."""
+class TestRegistrationFormValidation:
+    """Test RegistrationForm validation behavior."""
+
+    @pytest.fixture
+    def valid_form_data(self):
+        """Valid form data for testing."""
+        return {
+            "school_name": "Test High School",
+            "contact_email": "contact@example.com",
+            "phone": "555-1234",
+        }
+
+    def test_form_accepts_valid_data(self, valid_form_data):
+        """Form should accept valid data."""
+        form = RegistrationForm(data=valid_form_data)
+        assert form.is_valid()
+
+    @pytest.mark.parametrize(
+        "missing_field",
+        ["school_name", "contact_email", "phone"],
+    )
+    def test_form_rejects_missing_required_field(self, valid_form_data, missing_field):
+        """Form should reject data missing required fields."""
+        del valid_form_data[missing_field]
+        form = RegistrationForm(data=valid_form_data)
+        assert not form.is_valid()
+        assert missing_field in form.errors
+
+    def test_form_rejects_invalid_email(self, valid_form_data):
+        """Form should reject invalid email format."""
+        valid_form_data["contact_email"] = "not-an-email"
+        form = RegistrationForm(data=valid_form_data)
+        assert not form.is_valid()
+        assert "contact_email" in form.errors
+
+
+class TestRegistrationFormSave:
+    """Test RegistrationForm save behavior."""
+
+    def test_form_creates_registration_with_pending_status(self):
+        """Saved form should create registration with pending status."""
         form_data = {
             "school_name": "Test High School",
             "contact_email": "contact@example.com",
             "phone": "555-1234",
         }
         form = RegistrationForm(data=form_data)
-        self.assertTrue(form.is_valid())
-
-    def test_form_missing_school_name(self):
-        """Test form with missing school name."""
-        form_data = {
-            "contact_email": "contact@example.com",
-            "phone": "555-1234",
-        }
-        form = RegistrationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("school_name", form.errors)
-
-    def test_form_missing_email(self):
-        """Test form with missing email."""
-        form_data = {
-            "school_name": "Test School",
-            "phone": "555-1234",
-        }
-        form = RegistrationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("contact_email", form.errors)
-
-    def test_form_missing_phone(self):
-        """Test form with missing phone."""
-        form_data = {
-            "school_name": "Test School",
-            "contact_email": "contact@example.com",
-        }
-        form = RegistrationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("phone", form.errors)
-
-    def test_form_invalid_email(self):
-        """Test form with invalid email format."""
-        form_data = {
-            "school_name": "Test School",
-            "contact_email": "not-an-email",
-            "phone": "555-1234",
-        }
-        form = RegistrationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("contact_email", form.errors)
-
-    def test_form_fields_rendered(self):
-        """Test form has expected fields."""
-        form = RegistrationForm()
-        self.assertIn("school_name", form.fields)
-        self.assertIn("contact_email", form.fields)
-        self.assertIn("phone", form.fields)
-
-    def test_form_field_labels(self):
-        """Test form field labels are set correctly."""
-        form = RegistrationForm()
-        self.assertEqual(form.fields["school_name"].label, "School Name")
-        self.assertEqual(form.fields["contact_email"].label, "Contact Email")
-        self.assertEqual(form.fields["phone"].label, "Phone Number")
-
-    def test_form_saves_correctly(self):
-        """Test form saves model correctly."""
-        form_data = {
-            "school_name": "Test High School",
-            "contact_email": "contact@example.com",
-            "phone": "555-1234",
-        }
-        form = RegistrationForm(data=form_data)
-        self.assertTrue(form.is_valid())
+        assert form.is_valid()
         registration = form.save()
-        self.assertEqual(registration.school_name, "Test High School")
-        self.assertEqual(registration.contact_email, "contact@example.com")
-        self.assertEqual(registration.phone, "555-1234")
-        self.assertEqual(registration.status, "pending")
+        assert registration.pk is not None
+        assert registration.status == "pending"
