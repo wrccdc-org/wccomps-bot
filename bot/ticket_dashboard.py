@@ -47,6 +47,14 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
     status_display = ticket.status.replace("_", " ").title()
     embed.add_field(name="Status", value=status_display, inline=True)
 
+    # Category-specific fields (hostname, service, IP)
+    if ticket.hostname:
+        embed.add_field(name="Hostname", value=ticket.hostname, inline=True)
+    if ticket.service_name:
+        embed.add_field(name="Service", value=ticket.service_name, inline=True)
+    if ticket.ip_address:
+        embed.add_field(name="IP Address", value=ticket.ip_address, inline=True)
+
     # Assigned to
     if ticket.assigned_to:
         if ticket.assigned_to.discord_id:
