@@ -19,6 +19,12 @@ env_test_path = Path(__file__).parent.parent.parent / ".env.test"
 if env_test_path.exists():
     load_dotenv(env_test_path)
 
+# Allow sync database operations in async context detection.
+# Required for pytest-asyncio + pytest-django + Playwright live_server compatibility.
+# See: https://github.com/microsoft/playwright-pytest/issues/29
+# This is safe in tests since we're not running concurrent database operations.
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+
 # Override Django settings to use PostgreSQL for integration tests
 # This MUST happen before django.setup() is called
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wccomps.settings")
@@ -43,19 +49,6 @@ django.setup()
 # ============================================================================
 # Database Fixtures
 # ============================================================================
-
-
-@pytest.fixture(scope="session")
-def django_db_setup(django_db_blocker):
-    """
-    Set up test database with migrations.
-    This runs once per test session.
-    """
-    from django.core.management import call_command
-
-    with django_db_blocker.unblock():
-        # Create database schema
-        call_command("migrate", "--noinput", verbosity=0)
 
 
 @pytest.fixture
@@ -165,9 +158,16 @@ def authentik_client(authentik_credentials):
 
 
 @pytest.fixture(scope="session")
-def live_server_url(live_server):
-    """Get live server URL for browser tests."""
-    return live_server.url
+def live_server_url():
+    """
+    Get base URL for browser tests.
+
+    For OAuth tests, use TEST_BASE_URL (a running server with OAuth callback registered).
+    This is required because Django's live_server uses dynamic ports that can't be
+    pre-registered with Authentik.
+    """
+    base_url = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    return base_url.rstrip("/")
 
 
 @pytest.fixture(scope="session")
@@ -251,6 +251,151 @@ def authenticated_page(page, authentik_credentials, live_server_url) -> Page:
     page.wait_for_url(f"{live_server_url}/**", timeout=10000)
 
     return page
+
+
+# ============================================================================
+# Multi-User Browser Fixtures
+# ============================================================================
+
+
+def _perform_authentik_login(page, username: str, password: str, live_server_url: str):
+    """Helper to perform Authentik OAuth login."""
+    page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
+
+    page.fill('input[name="uidField"]', username)
+    page.fill('input[type="password"]', password)
+    page.click('button[type="submit"]')
+
+    # Handle MFA if present
+    totp_secret = os.getenv("TEST_TOTP_SECRET")
+    if totp_secret:
+        try:
+            import pyotp
+
+            page.wait_for_timeout(2000)
+
+            if "Select an authentication method" in page.content():
+                page.click("text=TOTP Device")
+                page.wait_for_timeout(1000)
+
+            totp = pyotp.TOTP(totp_secret)
+            page.wait_for_selector('input[name="code"]', timeout=5000)
+            page.fill('input[name="code"]', totp.now())
+            page.click('button[type="submit"]')
+        except (ImportError, TimeoutError):
+            pass
+
+    page.wait_for_url(f"{live_server_url}/**", timeout=10000)
+    return page
+
+
+@pytest.fixture
+def ops_user_credentials():
+    """Ops/support user credentials from environment."""
+    return {
+        "username": os.getenv("TEST_OPS_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME")),
+        "password": os.getenv("TEST_OPS_PASSWORD", os.getenv("TEST_AUTHENTIK_PASSWORD")),
+    }
+
+
+@pytest.fixture
+def team_user_credentials():
+    """Team member credentials from environment."""
+    return {
+        "username": os.getenv("TEST_TEAM_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME")),
+        "password": os.getenv("TEST_TEAM_PASSWORD", os.getenv("TEST_AUTHENTIK_PASSWORD")),
+    }
+
+
+@pytest.fixture
+def admin_user_credentials():
+    """Admin user credentials from environment."""
+    return {
+        "username": os.getenv("TEST_ADMIN_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME")),
+        "password": os.getenv("TEST_ADMIN_PASSWORD", os.getenv("TEST_AUTHENTIK_PASSWORD")),
+    }
+
+
+@pytest.fixture
+def ops_page(browser, browser_context_args, ops_user_credentials, live_server_url) -> Page:
+    """Browser page authenticated as ops/support user."""
+    context = browser.new_context(**browser_context_args)
+    page = context.new_page()
+    _perform_authentik_login(page, ops_user_credentials["username"], ops_user_credentials["password"], live_server_url)
+    yield page
+    page.close()
+    context.close()
+
+
+def _ensure_team_membership(username: str, team_number: int) -> None:
+    """Ensure user has team membership in the shared database."""
+    from django.contrib.auth import get_user_model
+
+    from team.models import DiscordLink, Team
+
+    user_model = get_user_model()
+
+    user = user_model.objects.filter(username=username).first()
+    if not user:
+        return
+
+    team, _ = Team.objects.get_or_create(
+        team_number=team_number,
+        defaults={
+            "team_name": f"Test Team {team_number}",
+            "authentik_group": f"WCComps_BlueTeam{team_number}",
+            "is_active": True,
+        },
+    )
+
+    # Create or update DiscordLink
+    link, created = DiscordLink.objects.get_or_create(
+        user=user,
+        defaults={
+            "discord_id": 123456789012345678,  # Fake Discord ID for testing
+            "team": team,
+            "is_active": True,
+        },
+    )
+    if not created and link.team != team:
+        link.team = team
+        link.is_active = True
+        link.save()
+
+
+@pytest.fixture
+def team_page(browser, browser_context_args, team_user_credentials, live_server_url, transactional_db) -> Page:
+    """Browser page authenticated as team member with team membership."""
+    context = browser.new_context(**browser_context_args)
+    page = context.new_page()
+    _perform_authentik_login(
+        page, team_user_credentials["username"], team_user_credentials["password"], live_server_url
+    )
+
+    # After OAuth login, ensure user has team membership
+    # Uses transactional_db so changes are visible to the external server
+    team_number = int(os.getenv("TEST_TEAM_ID", "50"))
+    _ensure_team_membership(team_user_credentials["username"], team_number)
+
+    # Refresh the page to pick up the new permissions
+    page.reload()
+
+    yield page
+    page.close()
+    context.close()
+
+
+@pytest.fixture
+def admin_page(browser, browser_context_args, admin_user_credentials, live_server_url) -> Page:
+    """Browser page authenticated as admin user."""
+    context = browser.new_context(**browser_context_args)
+    page = context.new_page()
+    _perform_authentik_login(
+        page, admin_user_credentials["username"], admin_user_credentials["password"], live_server_url
+    )
+    yield page
+    page.close()
+    context.close()
 
 
 # ============================================================================

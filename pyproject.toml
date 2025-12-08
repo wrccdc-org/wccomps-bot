@@ -127,6 +127,8 @@ django_settings_module = "wccomps.settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "wccomps.settings"
 pythonpath = ["web"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
