@@ -17,7 +17,7 @@ def create_user_with_groups(db: Any) -> Callable[..., User]:
     _discord_id_counter = [1000000000]
 
     def _create(username: str, groups: list[str], is_staff: bool = False) -> User:
-        user = User.objects.create_user(username=username, password="testpass123", is_staff=is_staff)  # noqa: S106
+        user = User.objects.create_user(username=username, password="testpass123", is_staff=is_staff)
         UserGroups.objects.create(
             user=user,
             authentik_id=f"{username}-uid",

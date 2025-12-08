@@ -1,6 +1,6 @@
 """Forms for scoring system."""
 
-from typing import Any, cast
+from typing import cast
 
 from django import forms
 from django.db.models import QuerySet
@@ -72,8 +72,8 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "notes": "Full description of the attack and steps taken.",
         }
 
-    def __init__(self, *args: Any, team_count: int | None = None, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args: object, team_count: int | None = None, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
 
         # Populate dropdowns from Quotient metadata
         box_choices = get_box_choices()
@@ -154,8 +154,8 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             "destination_ip": forms.TextInput(attrs={"readonly": "readonly"}),
         }
 
-    def __init__(self, team: Team | None = None, is_admin: bool = False, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, team: Team | None = None, is_admin: bool = False, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
 
         # Show team selector for admins only
         if is_admin:
@@ -228,8 +228,8 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
             "points_awarded": "Points",
         }
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         # Only show active teams
         team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
         team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
@@ -269,8 +269,10 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
             "reviewer_notes": forms.Textarea(attrs={"rows": 3}),
         }
 
-    def __init__(self, suggested_findings: QuerySet[RedTeamFinding] | None = None, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self, suggested_findings: QuerySet[RedTeamFinding] | None = None, *args: object, **kwargs: object
+    ) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
 
         if suggested_findings:
             # Limit choices to suggested findings

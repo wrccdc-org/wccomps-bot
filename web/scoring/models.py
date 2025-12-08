@@ -1,17 +1,17 @@
 """Scoring system models for CCDC competitions."""
 
 from decimal import Decimal
-from typing import Any
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
-def validate_file_size(file: Any) -> Any:
+def validate_file_size(file: UploadedFile) -> UploadedFile:
     """Validate that uploaded file is not larger than 50MB."""
     max_size_mb = 50
-    if file.size > max_size_mb * 1024 * 1024:
+    if file.size and file.size > max_size_mb * 1024 * 1024:
         from django.core.exceptions import ValidationError
 
         raise ValidationError(f"File size cannot exceed {max_size_mb}MB")

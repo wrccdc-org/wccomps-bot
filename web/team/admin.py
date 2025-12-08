@@ -1,8 +1,7 @@
 """Admin configuration for team app."""
 
-from typing import Any
-
 from django.contrib import admin
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 
 from .models import (
@@ -107,7 +106,7 @@ class SchoolInfoAdmin(admin.ModelAdmin[SchoolInfo]):
     actions = ["export_as_csv", "import_from_csv"]
 
     @admin.action(description="Export as CSV")
-    def export_as_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
+    def export_as_csv(self, request: HttpRequest, queryset: QuerySet[SchoolInfo]) -> HttpResponse:
         """Export school information as CSV."""
         import csv
 
@@ -141,7 +140,7 @@ class SchoolInfoAdmin(admin.ModelAdmin[SchoolInfo]):
         return response
 
     @admin.action(description="Import from CSV")
-    def import_from_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
+    def import_from_csv(self, request: HttpRequest, queryset: QuerySet[SchoolInfo]) -> HttpResponse:
         """Redirect to CSV import page."""
         from django.shortcuts import redirect
 

@@ -1,7 +1,5 @@
 """Wipe all competition data (nuclear option)."""
 
-from typing import Any
-
 from django.core.management.base import BaseCommand, CommandParser
 
 from core.models import AuditLog, BotState, DashboardUpdate, DiscordTask
@@ -19,7 +17,7 @@ class Command(BaseCommand):
             help="Confirm that you want to delete all data",
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         if not options["confirm"]:
             self.stdout.write(
                 self.style.ERROR("This command will DELETE ALL competition data!\nRun with --confirm to proceed.")

@@ -45,7 +45,7 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_discord_link():  # type: ignore[no-untyped-def]
+            def get_discord_link() -> tuple[DiscordLink | None, str | None]:
                 try:
                     discord_link = DiscordLink.objects.select_related("user__usergroups").get(
                         discord_id=discord_user.id, is_active=True
@@ -72,7 +72,7 @@ class AdminHelpersCog(commands.Cog):
                 return discord_link, None
 
             discord_link, error = await get_discord_link()
-            if error:
+            if error or discord_link is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
@@ -91,7 +91,7 @@ class AdminHelpersCog(commands.Cog):
             await discord_user.add_roles(role, reason=f"Student helper added by {interaction.user}")
 
             @sync_to_async
-            def set_helper():  # type: ignore[no-untyped-def]
+            def set_helper() -> None:
                 discord_link.set_helper(role_name, role.id)
                 AuditLog.objects.create(
                     action="helper_added",
@@ -156,7 +156,7 @@ class AdminHelpersCog(commands.Cog):
                 try:
 
                     @sync_to_async
-                    def check_and_import(member_id: int):  # type: ignore[no-untyped-def]
+                    def check_and_import(member_id: int) -> tuple[str, str | None]:
                         try:
                             discord_link = DiscordLink.objects.select_related("user__usergroups").get(
                                 discord_id=member_id, is_active=True
@@ -253,7 +253,7 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_helpers():  # type: ignore[no-untyped-def]
+            def get_helpers() -> list[DiscordLink]:
                 query = DiscordLink.objects.filter(helper_role_name__isnull=False, is_active=True).exclude(
                     helper_role_name=""
                 )
@@ -323,7 +323,7 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def remove_helper_db():  # type: ignore[no-untyped-def]
+            def remove_helper_db() -> tuple[dict[str, str | int | None] | None, str | None]:
                 try:
                     discord_link = DiscordLink.objects.get(discord_id=discord_user.id, is_active=True)
                 except DiscordLink.DoesNotExist:
@@ -351,13 +351,14 @@ class AdminHelpersCog(commands.Cog):
                 return {"role_name": role_name, "role_id": role_id}, None
 
             result, error = await remove_helper_db()
-            if error:
+            if error or result is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
-            if result["role_id"] and interaction.guild:
+            role_id = result["role_id"]
+            if role_id and interaction.guild and isinstance(role_id, int):
                 try:
-                    role = interaction.guild.get_role(result["role_id"])
+                    role = interaction.guild.get_role(role_id)
                     if role and role in discord_user.roles:
                         await discord_user.remove_roles(role, reason=f"Helper removed: {reason}")
                         logger.info(f"Removed role {role.name} from {discord_user}")
@@ -394,7 +395,7 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_helper_status():  # type: ignore[no-untyped-def]
+            def get_helper_status() -> tuple[DiscordLink | None, str | None, bool, bool]:
                 try:
                     discord_link = DiscordLink.objects.select_related("user__usergroups").get(
                         discord_id=discord_user.id, is_active=True
@@ -415,7 +416,7 @@ class AdminHelpersCog(commands.Cog):
                 return discord_link, None, has_support_group, has_injects_group
 
             discord_link, error, has_support_group, has_injects_group = await get_helper_status()
-            if error:
+            if error or discord_link is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 

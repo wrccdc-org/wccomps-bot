@@ -1,7 +1,5 @@
 """Clear tickets at end of competition."""
 
-from typing import Any
-
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
@@ -20,7 +18,7 @@ class Command(BaseCommand):
             help="Confirm that you want to delete all tickets",
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         if not options["confirm"]:
             self.stdout.write(self.style.ERROR("This will DELETE ALL TICKETS!\nRun with --confirm to proceed."))
             return

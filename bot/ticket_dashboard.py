@@ -1,7 +1,9 @@
 """Ticket dashboard management for #ticket-queue channel."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, cast
+from typing import cast
 
 import discord
 from django.utils import timezone
@@ -91,7 +93,7 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
     return embed
 
 
-async def post_ticket_to_dashboard(bot: Any, ticket: Ticket) -> None:
+async def post_ticket_to_dashboard(bot: discord.Client, ticket: Ticket) -> None:
     """Trigger unified dashboard update for new ticket."""
     # Trigger unified dashboard update only (no individual messages)
     if hasattr(bot, "unified_dashboard") and bot.unified_dashboard:
@@ -99,7 +101,7 @@ async def post_ticket_to_dashboard(bot: Any, ticket: Ticket) -> None:
         logger.info(f"Triggered dashboard update for new ticket {ticket.ticket_number}")
 
 
-async def update_ticket_dashboard(bot: Any, ticket: Ticket) -> None:
+async def update_ticket_dashboard(bot: discord.Client, ticket: Ticket) -> None:
     """Trigger unified dashboard update for ticket changes."""
     # Trigger unified dashboard update only (no individual messages)
     if hasattr(bot, "unified_dashboard") and bot.unified_dashboard:
@@ -154,7 +156,7 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_claim_persistent",
         row=1,
     )
-    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
 
@@ -215,7 +217,9 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_resolve_persistent",
         row=1,
     )
-    async def resolve_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def resolve_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
+    ) -> None:
         """Show resolve modal with category dropdown and notes."""
         from bot.permissions import can_support_tickets_async
 
@@ -256,7 +260,9 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_cancel_persistent",
         row=2,
     )
-    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def cancel_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
+    ) -> None:
         """Cancel an unclaimed ticket."""
         from asgiref.sync import sync_to_async
 
@@ -353,7 +359,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         self.ticket = ticket
 
         # Create notes input
-        self.notes: discord.ui.TextInput[Any] = discord.ui.TextInput(
+        self.notes: discord.ui.TextInput[ResolveTicketModal] = discord.ui.TextInput(
             label="Resolution Notes",
             placeholder="Describe how the issue was resolved...",
             style=discord.TextStyle.paragraph,
@@ -363,7 +369,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
 
         # Check if variable points category
         cat_info = TICKET_CATEGORIES.get(ticket.category, {})
-        self.points: discord.ui.TextInput[Any]
+        self.points: discord.ui.TextInput[ResolveTicketModal]
         if cat_info.get("variable_points", False):
             min_pts = cat_info.get("min_points", 0)
             max_pts = cat_info.get("max_points", 0)

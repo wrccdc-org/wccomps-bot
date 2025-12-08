@@ -2,12 +2,14 @@
 
 import contextlib
 import logging
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
+from django.db.models import Manager
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -24,7 +26,8 @@ from .utils import get_authentik_data, get_team_from_groups
 
 
 class ModelWithObjects(Protocol):
-    objects: Any
+    # Generic Protocol for iterating any model, Manager[T] requires T: Model
+    objects: Manager  # type: ignore[type-arg]
     __name__: str
 
 
@@ -33,7 +36,7 @@ logger = logging.getLogger(__name__)
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def _save_attachment(ticket: Ticket, uploaded_file: Any, uploaded_by: str) -> HttpResponse | None:
+def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploaded_by: str) -> HttpResponse | None:
     """
     Validate and save an attachment. Returns HttpResponse on error, None on success.
     """
@@ -1862,7 +1865,7 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
     permissions = get_permissions_context(user)
 
     form = CSVUploadForm()
-    preview_data = None
+    preview_data: dict[str, object] | None = None
     import_results = None
 
     if request.method == "POST":
@@ -1870,7 +1873,7 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
             # Step 1: Upload and preview
             form = CSVUploadForm(request.POST, request.FILES)
             if form.is_valid():
-                csv_file = request.FILES["csv_file"]
+                csv_file = cast(UploadedFile, request.FILES["csv_file"])
 
                 # Parse CSV
                 parse_result = parse_csv_file(csv_file)
