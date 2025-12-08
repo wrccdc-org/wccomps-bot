@@ -3,12 +3,15 @@ Simplified Authentik-only authorization utilities.
 """
 
 from collections.abc import Callable
-from typing import Any
+from typing import Concatenate, ParamSpec, TypeAlias
 
 from django.contrib.auth.models import AnonymousUser, User
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 
 from .models import UserGroups
+
+P = ParamSpec("P")
+ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
 
 
 def get_authentik_groups(user: User | AnonymousUser) -> list[str]:
@@ -98,7 +101,7 @@ def get_user_team_number(user: User) -> int | None:
 
 def require_permission(
     permission_name: str,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[ViewFunc[P]], ViewFunc[P]]:
     """
     Decorator to require a specific permission for a view.
 
@@ -112,14 +115,14 @@ def require_permission(
     from django.contrib import messages
     from django.shortcuts import redirect
 
-    def decorator(view_func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
         @wraps(view_func)
-        def wrapped(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
             if not request.user.is_authenticated or not has_permission(request.user, permission_name):
                 messages.error(request, "You don't have permission to access this page.")
                 return redirect("/")
             return view_func(request, *args, **kwargs)
 
-        return wrapped
+        return wrapped  # type: ignore[return-value]
 
     return decorator

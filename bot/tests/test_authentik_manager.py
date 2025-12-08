@@ -272,7 +272,7 @@ class TestAuthentikManager:
         ):
             mock_get_app.return_value = {"pk": "app-123", "slug": "netbird"}
             mock_get_binding.return_value = (
-                {"pk": "binding-456", "enabled": True},
+                {"pk": "binding-456", "enabled": False},
                 None,
             )
             mock_update.return_value = True
@@ -281,11 +281,11 @@ class TestAuthentikManager:
 
             assert success is True
             assert error is None
-            # Check that update_binding_enabled was called with enabled=False
+            # Check that update_binding_enabled was called with enabled=True
             mock_update.assert_called_once()
             call_args = mock_update.call_args
-            assert call_args[0][0] == {"pk": "binding-456", "enabled": True}
-            assert call_args[1]["enabled"] is False
+            assert call_args[0][0] == {"pk": "binding-456", "enabled": False}
+            assert call_args[1]["enabled"] is True
 
     def test_enable_application_not_found(self, manager: AuthentikManager) -> None:
         """Test enabling non-existent application."""
@@ -322,7 +322,7 @@ class TestAuthentikManager:
         ):
             mock_get_app.return_value = {"pk": "app-123"}
             mock_get_binding.return_value = (
-                {"pk": "binding-456", "enabled": False},
+                {"pk": "binding-456", "enabled": True},
                 None,
             )
             mock_update.return_value = True
@@ -331,8 +331,8 @@ class TestAuthentikManager:
 
             assert success is True
             assert error is None
-            # Check that update_binding_enabled was called with enabled=True
+            # Check that update_binding_enabled was called with enabled=False
             mock_update.assert_called_once()
             call_args = mock_update.call_args
-            assert call_args[0][0] == {"pk": "binding-456", "enabled": False}
-            assert call_args[1]["enabled"] is True
+            assert call_args[0][0] == {"pk": "binding-456", "enabled": True}
+            assert call_args[1]["enabled"] is False

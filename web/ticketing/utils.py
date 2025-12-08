@@ -1,6 +1,6 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
@@ -12,13 +12,10 @@ from core.tickets_config import TICKET_CATEGORIES
 from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketHistory
 
-if TYPE_CHECKING:
-    from django.contrib.auth.models import User
-
 
 def get_discord_link_for_ticket(
     discord_id: int | None = None,
-    user: "User | None" = None,
+    user: User | None = None,
 ) -> DiscordLink | None:
     """
     Look up a DiscordLink for ticket assignment/resolution. NEVER creates users.
@@ -156,7 +153,7 @@ def claim_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    user: "User | None" = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Claim a ticket atomically with race condition protection.
@@ -244,7 +241,7 @@ def resolve_ticket_atomic(
     points_override: int | None = None,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    user: "User | None" = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Resolve a ticket atomically.
@@ -442,7 +439,7 @@ def reassign_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    user: "User | None" = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Reassign a claimed ticket to another support member atomically.

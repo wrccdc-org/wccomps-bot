@@ -5,6 +5,9 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
+from hypothesis import given
+from hypothesis import settings as hypothesis_settings
+from hypothesis import strategies as st
 
 from core.models import AuditLog, CompetitionConfig, DiscordTask
 from core.utils import (
@@ -221,3 +224,118 @@ class TestCompetitionConfigModel:
         """__str__ should indicate not scheduled when no start time."""
         config = CompetitionConfig.get_config()
         assert str(config) == "Competition not scheduled"
+
+
+@pytest.mark.django_db(transaction=True)
+class TestTeamModelProperties:
+    """Property-based tests for Team model using Django-Hypothesis."""
+
+    @given(
+        team_number=st.integers(min_value=1, max_value=50),
+        max_members=st.integers(min_value=1, max_value=100),
+    )
+    @hypothesis_settings(max_examples=20, deadline=None)
+    def test_team_creation_with_valid_numbers(self, team_number: int, max_members: int):
+        """Team can be created with valid team numbers and max_members."""
+        # Clean up any existing team with this number
+        Team.objects.filter(team_number=team_number).delete()
+
+        team = Team.objects.create(
+            team_number=team_number,
+            team_name=f"Test Team {team_number}",
+            max_members=max_members,
+        )
+
+        assert team.team_number == team_number
+        assert team.max_members == max_members
+        assert team.is_active is True
+        assert team.get_member_count() == 0
+        assert team.is_full() is False
+
+    @given(max_members=st.integers(min_value=1, max_value=20))
+    @hypothesis_settings(max_examples=10, deadline=None)
+    def test_team_is_full_with_varying_capacity(self, max_members: int):
+        """Team.is_full() returns correct result based on member count vs capacity."""
+        # Use a unique team number for each test
+        import uuid
+
+        team_num = hash(uuid.uuid4()) % 50 + 1
+        Team.objects.filter(team_number=team_num).delete()
+
+        team = Team.objects.create(
+            team_number=team_num,
+            team_name=f"Capacity Test {team_num}",
+            max_members=max_members,
+        )
+
+        # Empty team is never full
+        assert team.is_full() is False
+        assert team.get_member_count() == 0
+
+        # Clean up
+        team.delete()
+
+    @given(
+        team_number=st.integers(min_value=51, max_value=100),
+    )
+    @hypothesis_settings(max_examples=10, deadline=None)
+    def test_team_rejects_invalid_team_numbers(self, team_number: int):
+        """Team creation should fail for team numbers outside 1-50 range."""
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            Team.objects.create(
+                team_number=team_number,
+                team_name=f"Invalid Team {team_number}",
+            )
+
+        assert "team_number" in str(exc_info.value)
+
+
+class TestGetTeamFromGroupsProperties:
+    """Property-based tests for get_team_from_groups function."""
+
+    @given(team_number=st.integers(min_value=1, max_value=50))
+    @hypothesis_settings(max_examples=20, deadline=None)
+    def test_valid_team_group_patterns_parsed_correctly(self, team_number: int):
+        """Valid BlueTeam group patterns should be parsed correctly."""
+        # Create the team first
+        Team.objects.filter(team_number=team_number).delete()
+        Team.objects.create(
+            team_number=team_number,
+            team_name=f"Team {team_number}",
+        )
+
+        # Test with zero-padded format
+        group = f"WCComps_BlueTeam{team_number:02d}"
+        team, parsed_num, is_team = get_team_from_groups([group])
+
+        assert team is not None
+        assert parsed_num == team_number
+        assert is_team is True
+
+    @given(
+        prefix=st.text(min_size=1, max_size=20, alphabet=st.characters(whitelist_categories=("L", "N"))),
+        suffix=st.text(min_size=0, max_size=20, alphabet=st.characters(whitelist_categories=("L", "N"))),
+    )
+    @hypothesis_settings(max_examples=30, deadline=None)
+    def test_non_blueteam_groups_return_none(self, prefix: str, suffix: str):
+        """Groups not matching BlueTeam pattern should return None."""
+        # Skip if the generated text happens to match the pattern
+        group = f"{prefix}{suffix}"
+        if group.startswith("WCComps_BlueTeam"):
+            return
+
+        team, team_number, is_team = get_team_from_groups([group])
+
+        assert team is None
+        assert team_number is None
+        assert is_team is False
+
+    @given(groups=st.lists(st.text(min_size=1, max_size=50), min_size=0, max_size=10))
+    @hypothesis_settings(max_examples=30, deadline=None)
+    def test_no_exception_on_arbitrary_groups(self, groups: list[str]):
+        """Function should not raise exceptions on arbitrary group input."""
+        # Should not raise
+        result = get_team_from_groups(groups)
+        assert len(result) == 3  # Returns a 3-tuple

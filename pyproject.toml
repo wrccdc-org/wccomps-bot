@@ -61,13 +61,59 @@ dev = [
 [tool.mypy]
 python_version = "3.11"
 plugins = ["mypy_django_plugin.main"]
+mypy_path = "web"
+files = ["bot", "web/core", "web/team", "web/ticketing", "web/person", "web/competition", "web/quotient", "web/wccomps", "web/scoring", "web/packets", "web/registration"]
+exclude = "(/tests/|/test_|tests\\.py|integration_tests/|conftest\\.py)"
+
+# Strict type checking
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_no_return = true
+warn_return_any = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+disallow_any_explicit = true
+disallow_subclassing_any = true
+disallow_any_unimported = false
+no_implicit_optional = true
+no_implicit_reexport = true
+strict_optional = true
+strict_equality = true
+extra_checks = true
+
+# Output
+show_error_codes = true
+pretty = true
+color_output = true
+
+# Performance
+incremental = true
+cache_dir = ".mypy_cache"
+
+# Imports
+follow_imports = "normal"
+ignore_missing_imports = false
 
 [[tool.mypy.overrides]]
-module = "bot.tests.*"
-ignore_errors = true
+module = "xkcdpass.*"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "web.tests.*"
+module = "allauth.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "psycopg2.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
@@ -137,6 +183,7 @@ ignore = [
 "**/tests/**" = ["S101", "S105", "S106", "S110", "S311"]
 "**/test_*.py" = ["S101", "S105", "S106", "S110", "S311"]
 "**/tests.py" = ["S101", "S105", "S106", "S110", "S311"]
+"**/conftest.py" = ["S101", "S105", "S106", "S110", "S311"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bot", "web", "core", "team", "person", "ticketing", "competition"]

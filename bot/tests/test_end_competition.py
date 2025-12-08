@@ -1,7 +1,6 @@
 """Tests for end competition workflow."""
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -34,20 +33,16 @@ def teams_with_discord_roles(db):
 class TestEndCompetition:
     """Tests for end competition workflow."""
 
-    async def test_removes_team_roles_from_all_teams(
-        self, mock_discord_guild: Any, teams_with_discord_roles
-    ) -> None:
+    async def test_removes_team_roles_from_all_teams(self, mock_discord_guild: Any, teams_with_discord_roles) -> None:
         """Should remove roles from all teams with Discord role IDs."""
-        teams = await teams_with_discord_roles(2)
+        await teams_with_discord_roles(2)
 
         manager = DiscordManager(mock_discord_guild)
         removed_count = await manager.remove_all_team_roles()
 
         assert removed_count == 2
 
-    async def test_calls_remove_roles_for_each_member(
-        self, mock_discord_guild: Any, teams_with_discord_roles
-    ) -> None:
+    async def test_calls_remove_roles_for_each_member(self, mock_discord_guild: Any, teams_with_discord_roles) -> None:
         """Should call remove_roles on each team member."""
         await teams_with_discord_roles(2)
 
@@ -76,9 +71,7 @@ class TestEndCompetition:
         assert "Team 01" in role_names
         assert "Blueteam" in role_names
 
-    async def test_clears_discord_ids_after_removal(
-        self, mock_discord_guild: Any, teams_with_discord_roles
-    ) -> None:
+    async def test_clears_discord_ids_after_removal(self, mock_discord_guild: Any, teams_with_discord_roles) -> None:
         """Should clear discord_role_id and discord_category_id after removal."""
         teams = await teams_with_discord_roles(2)
 
@@ -98,9 +91,7 @@ class TestEndCompetition:
 
         assert removed_count == 0
 
-    async def test_handles_teams_without_discord_roles(
-        self, mock_discord_guild: Any, db
-    ) -> None:
+    async def test_handles_teams_without_discord_roles(self, mock_discord_guild: Any, db) -> None:
         """Should skip teams without discord_role_id."""
         await Team.objects.acreate(
             team_number=1,
@@ -115,9 +106,7 @@ class TestEndCompetition:
 
         assert removed_count == 0
 
-    async def test_handles_missing_role_in_discord(
-        self, mock_discord_guild: Any, db
-    ) -> None:
+    async def test_handles_missing_role_in_discord(self, mock_discord_guild: Any, db) -> None:
         """Should handle case where role doesn't exist in Discord."""
         await Team.objects.acreate(
             team_number=1,

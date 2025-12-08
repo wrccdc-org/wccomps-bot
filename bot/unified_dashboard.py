@@ -1,9 +1,10 @@
 """Unified dashboard for #ticket-queue channel showing all tickets."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any
 
 import discord
 from asgiref.sync import sync_to_async
@@ -369,7 +370,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="sort_created",
         row=0,
     )
-    async def sort_created(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def sort_created(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Sort by creation time."""
         self.dashboard.sort_by = "created"
         await self.dashboard._update_dashboard()
@@ -381,7 +384,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="sort_stale",
         row=0,
     )
-    async def sort_stale(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def sort_stale(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Sort by stale (oldest assigned first)."""
         self.dashboard.sort_by = "stale"
         await self.dashboard._update_dashboard()
@@ -393,7 +398,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="sort_team",
         row=0,
     )
-    async def sort_team(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def sort_team(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Sort by team name."""
         self.dashboard.sort_by = "team"
         await self.dashboard._update_dashboard()
@@ -405,7 +412,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="filter_all",
         row=1,
     )
-    async def filter_all(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def filter_all(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Show all active tickets."""
         self.dashboard.filter_status = "all"
         await self.dashboard._update_dashboard()
@@ -417,7 +426,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="filter_open",
         row=1,
     )
-    async def filter_open(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def filter_open(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Show only open tickets."""
         self.dashboard.filter_status = "open"
         await self.dashboard._update_dashboard()
@@ -429,7 +440,9 @@ class DashboardControlView(discord.ui.View):
         custom_id="filter_claimed",
         row=1,
     )
-    async def filter_claimed(self, interaction: discord.Interaction, button: discord.ui.Button[Any]) -> None:
+    async def filter_claimed(
+        self, interaction: discord.Interaction, button: discord.ui.Button[DashboardControlView]
+    ) -> None:
         """Show only claimed tickets."""
         self.dashboard.filter_status = "claimed"
         await self.dashboard._update_dashboard()

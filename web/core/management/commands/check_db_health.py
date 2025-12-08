@@ -1,22 +1,24 @@
 """Check database health - verify all models exist and are queryable."""
 
 import sys
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import connection
+from django.db.models import Manager
 
 
 class ModelWithObjects(Protocol):
-    objects: Any
+    # Generic Protocol for iterating any model, Manager[T] requires T: Model
+    objects: Manager  # type: ignore[type-arg]
     __name__: str
 
 
 class Command(BaseCommand):
     help = "Verify all Django models exist in database and are queryable"
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         """Run health checks."""
         self.stdout.write("=" * 80)
         self.stdout.write("DATABASE HEALTH CHECK")
@@ -131,8 +133,9 @@ class Command(BaseCommand):
             from django.template import loader
 
             # Discover all templates dynamically
-            templates_config = cast(list[dict[str, Any]], settings.TEMPLATES)
-            templates_dir = cast(str, templates_config[0]["DIRS"][0])
+            templates_config: list[dict[str, object]] = settings.TEMPLATES
+            dirs = templates_config[0].get("DIRS", [])
+            templates_dir = str(dirs[0]) if isinstance(dirs, list) and dirs else ""
             template_files = []
             for root, _dirs, files in os.walk(templates_dir):
                 for file in files:

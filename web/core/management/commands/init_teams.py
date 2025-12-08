@@ -1,7 +1,5 @@
 """Initialize 50 teams in the database."""
 
-from typing import Any
-
 from django.core.management.base import BaseCommand
 
 from core.models import CompetitionConfig
@@ -11,7 +9,7 @@ from team.models import Team
 class Command(BaseCommand):
     help = "Initialize 50 teams in the database"
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         created_count = 0
         updated_count = 0
 

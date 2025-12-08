@@ -1,8 +1,6 @@
 """Management command to sync scoring data from Quotient."""
 
-from typing import Any
-
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from scoring.quotient_sync import sync_quotient_metadata, sync_service_scores
 
@@ -10,7 +8,7 @@ from scoring.quotient_sync import sync_quotient_metadata, sync_service_scores
 class Command(BaseCommand):
     help = "Sync scoring data from Quotient"
 
-    def add_arguments(self, parser: Any) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--metadata-only",
             action="store_true",
@@ -22,7 +20,7 @@ class Command(BaseCommand):
             help="Only sync service scores",
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         metadata_only = options.get("metadata_only", False)
         scores_only = options.get("scores_only", False)
 

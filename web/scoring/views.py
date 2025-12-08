@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from decimal import Decimal
 from functools import wraps
-from typing import Any, cast
+from typing import Concatenate, ParamSpec, TypeAlias, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -46,15 +46,18 @@ from .models import (
 )
 from .quotient_sync import sync_quotient_metadata, sync_service_scores
 
+P = ParamSpec("P")
+ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
+
 
 def require_role(
     *permission_names: str, error_message: str = "You do not have permission to access this page"
-) -> Callable[[Callable[..., HttpResponse]], Callable[..., HttpResponse]]:
+) -> Callable[[ViewFunc[P]], ViewFunc[P]]:
     """Decorator to require specific permissions based on Authentik groups."""
 
-    def decorator(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+    def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
         @wraps(view_func)
-        def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
             user = cast(User, request.user)
             if user.is_staff:
                 return view_func(request, *args, **kwargs)
@@ -65,7 +68,7 @@ def require_role(
             messages.error(request, error_message)
             return redirect("scoring:leaderboard")
 
-        return wrapped_view
+        return wrapped_view  # type: ignore[return-value]
 
     return decorator
 
@@ -80,12 +83,14 @@ def _get_user_team(user: User) -> Team | None:
     return Team.objects.filter(team_number=team_number).first()
 
 
-def require_leaderboard_access(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+def require_leaderboard_access(
+    view_func: Callable[Concatenate[HttpRequest, P], HttpResponse],
+) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
     """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin."""
     from django.http import HttpResponseForbidden
 
     @wraps(view_func)
-    def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         user = cast(User, request.user)
 
         if user.is_staff:
@@ -100,7 +105,7 @@ def require_leaderboard_access(view_func: Callable[..., HttpResponse]) -> Callab
 
         return HttpResponseForbidden("You do not have permission to access this page")
 
-    return wrapped_view
+    return wrapped_view  # type: ignore[return-value]
 
 
 @login_required
@@ -619,12 +624,10 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     injects = client.get_injects()
 
     if injects is None:
-        context: dict[str, Any] = {"quotient_available": False, "no_injects": False}
-        return render(request, "scoring/inject_grading.html", context)
+        return render(request, "scoring/inject_grading.html", {"quotient_available": False, "no_injects": False})
 
     if len(injects) == 0:
-        context = {"quotient_available": True, "no_injects": True}
-        return render(request, "scoring/inject_grading.html", context)
+        return render(request, "scoring/inject_grading.html", {"quotient_available": True, "no_injects": True})
 
     inject_choices = [(str(i.inject_id), i.title) for i in injects]
     inject_lookup = {str(i.inject_id): i for i in injects}
@@ -984,8 +987,9 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         base_query = base_query.filter(team__id=team_filter)
 
     # Calculate outliers for each inject before filtering
-    all_grades_for_outlier_calc: list[Any] = list(base_query)
-    inject_grades_map: dict[str, list[Any]] = defaultdict(list)
+    # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
+    all_grades_for_outlier_calc = list(base_query)
+    inject_grades_map: dict[str, list[InjectGrade]] = defaultdict(list)
     for grade in all_grades_for_outlier_calc:
         inject_grades_map[grade.inject_id].append(grade)
 
@@ -998,20 +1002,20 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
                 for grade in grades:
                     points = float(grade.points_awarded)
                     z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
-                    grade.is_outlier = z_score > 1.5
-                    grade.std_devs_from_mean = z_score
+                    grade.is_outlier = z_score > 1.5  # type: ignore[attr-defined]
+                    grade.std_devs_from_mean = z_score  # type: ignore[attr-defined]
             except statistics.StatisticsError:
                 for grade in grades:
-                    grade.is_outlier = False
-                    grade.std_devs_from_mean = 0
+                    grade.is_outlier = False  # type: ignore[attr-defined]
+                    grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
         else:
             for grade in grades:
-                grade.is_outlier = False
-                grade.std_devs_from_mean = 0
+                grade.is_outlier = False  # type: ignore[attr-defined]
+                grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
 
     # Filter outliers if requested
     if show_outliers_only:
-        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]
+        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]  # type: ignore[attr-defined]
 
     # Validate and apply sort
     valid_sort_fields = [

@@ -1,10 +1,21 @@
 """Authentik API manager for application control."""
 
 import logging
-from typing import Any
+from typing import TypedDict
 
 import requests
 from django.conf import settings
+
+
+class AuthentikApplication(TypedDict):
+    pk: str
+    slug: str
+
+
+class AuthentikBinding(TypedDict):
+    pk: str
+    enabled: bool
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +59,10 @@ class AuthentikManager:
             "Content-Type": "application/json",
         }
 
-    def _log_request(self, method: str, url: str, **kwargs: Any) -> None:
+    def _log_request(self, method: str, url: str, **kwargs: object) -> None:
         """Log HTTP request details (without sensitive headers)."""
-        safe_headers = {k: v for k, v in kwargs.get("headers", {}).items() if k != "Authorization"}
+        headers = kwargs.get("headers")
+        safe_headers = {k: v for k, v in headers.items() if k != "Authorization"} if isinstance(headers, dict) else {}
         logger.debug(
             f"Authentik API Request: {method} {url} | Headers: {safe_headers} | "
             f"Params: {kwargs.get('params')} | Data: {kwargs.get('json')}"
@@ -85,7 +97,7 @@ class AuthentikManager:
             url=response.url,
         )
 
-    def get_application_by_slug(self, slug: str) -> dict[str, Any] | None:
+    def get_application_by_slug(self, slug: str) -> AuthentikApplication | None:
         """Get application details by slug."""
         url = f"{self.base_url}/api/v3/core/applications/"
         try:
@@ -97,12 +109,12 @@ class AuthentikManager:
                 timeout=10,
             )
             response.raise_for_status()
-            results = response.json().get("results", [])
+            results: list[AuthentikApplication] = response.json().get("results", [])
 
             if not results:
                 return None
 
-            app: dict[str, Any] = results[0]
+            app: AuthentikApplication = results[0]
             logger.info(f"Found application '{slug}' with pk={app.get('pk')}")
             return app
         except requests.exceptions.HTTPError as e:
@@ -116,7 +128,7 @@ class AuthentikManager:
             logger.error(f"Unexpected error getting application '{slug}': {e}", exc_info=True)
             return None
 
-    def get_blueteam_binding(self, app_pk: str) -> tuple[dict[str, Any] | None, str | None]:
+    def get_blueteam_binding(self, app_pk: str) -> tuple[AuthentikBinding | None, str | None]:
         """Get the BlueTeam group binding by querying application bindings.
 
         Args:
@@ -175,7 +187,7 @@ class AuthentikManager:
             logger.error(error_msg, exc_info=True)
             return None, error_msg
 
-    def update_binding_enabled(self, binding: dict[str, Any], enabled: bool) -> bool:
+    def update_binding_enabled(self, binding: AuthentikBinding, enabled: bool) -> bool:
         """Update the enabled state of a binding.
 
         Args:

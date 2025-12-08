@@ -1,12 +1,33 @@
 """Authentik API manager for web application."""
 
 import logging
-from typing import Any
 
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+class _AuthentikClient:
+    """Simple HTTP client wrapper for Authentik API."""
+
+    def __init__(self, api_url: str, headers: dict[str, str]) -> None:
+        self.api_url = api_url
+        self.headers = headers
+
+    def get(self, path: str, params: dict[str, str] | None = None) -> dict[str, object]:
+        url = f"{self.api_url}{path}"
+        response = requests.get(url, headers=self.headers, params=params, timeout=30)
+        response.raise_for_status()
+        result: dict[str, object] = response.json()
+        return result
+
+    def patch(self, path: str, data: dict[str, object]) -> dict[str, object]:
+        url = f"{self.api_url}{path}"
+        response = requests.patch(url, headers=self.headers, json=data, timeout=30)
+        response.raise_for_status()
+        result: dict[str, object] = response.json()
+        return result
 
 
 class AuthentikManager:
@@ -21,27 +42,9 @@ class AuthentikManager:
         }
 
     @property
-    def client(self) -> Any:
+    def client(self) -> _AuthentikClient:
         """Simple HTTP client wrapper."""
-
-        class Client:
-            def __init__(self, api_url: str, headers: dict[str, str]) -> None:
-                self.api_url = api_url
-                self.headers = headers
-
-            def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
-                url = f"{self.api_url}{path}"
-                response = requests.get(url, headers=self.headers, params=params, timeout=30)
-                response.raise_for_status()
-                return response.json()
-
-            def patch(self, path: str, data: dict[str, Any]) -> Any:
-                url = f"{self.api_url}{path}"
-                response = requests.patch(url, headers=self.headers, json=data, timeout=30)
-                response.raise_for_status()
-                return response.json()
-
-        return Client(self.api_url, self.headers)
+        return _AuthentikClient(self.api_url, self.headers)
 
     def update_user_discord_id(self, authentik_user_id: str, discord_id: int) -> None:
         """
@@ -56,7 +59,8 @@ class AuthentikManager:
             user = self.client.get(f"/api/v3/core/users/{authentik_user_id}/")
 
             # Update attributes (preserve existing, add discord_id)
-            attributes = user.get("attributes", {})
+            existing_attrs = user.get("attributes", {})
+            attributes: dict[str, object] = dict(existing_attrs) if isinstance(existing_attrs, dict) else {}
             attributes["discord_id"] = str(discord_id)
 
             # Update user with merged attributes

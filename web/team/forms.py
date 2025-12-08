@@ -3,13 +3,36 @@
 import csv
 import io
 import random
-from typing import Any
+from typing import TypedDict, cast
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import validate_email
 
 from team.models import SchoolInfo, Team
+
+
+class CSVRowData(TypedDict, total=False):
+    school_name: str
+    contact_email: str
+    secondary_email: str
+    notes: str
+    team_name: str
+    team_number: int
+    _team: Team
+
+
+class CSVParseResult(TypedDict):
+    rows: list[CSVRowData]
+    errors: list[str]
+    warnings: list[str]
+
+
+class CSVValidationResult(TypedDict):
+    teams_to_create: list[CSVRowData]
+    errors: list[str]
+    warnings: list[str]
 
 
 class CSVUploadForm(forms.Form):
@@ -24,22 +47,22 @@ class CSVUploadForm(forms.Form):
         ),
     )
 
-    def clean_csv_file(self) -> Any:
+    def clean_csv_file(self) -> UploadedFile:
         """Validate CSV file format and contents."""
-        csv_file = self.cleaned_data["csv_file"]
+        csv_file = cast(UploadedFile, self.cleaned_data["csv_file"])
 
         # Check file extension
-        if not csv_file.name.endswith(".csv"):
+        if not csv_file.name or not csv_file.name.endswith(".csv"):
             raise ValidationError("File must be a CSV file (.csv)")
 
         # Check file size (10MB max)
-        if csv_file.size > 10 * 1024 * 1024:
+        if csv_file.size and csv_file.size > 10 * 1024 * 1024:
             raise ValidationError("File size must be less than 10MB")
 
         return csv_file
 
 
-def parse_csv_file(csv_file: Any) -> dict[str, Any]:
+def parse_csv_file(csv_file: UploadedFile) -> CSVParseResult:
     """
     Parse CSV file and validate contents.
 
@@ -47,7 +70,7 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
         dict with 'rows' (list of valid data dicts), 'errors' (list of error messages),
         and 'warnings' (list of warning messages)
     """
-    rows: list[dict[str, Any]] = []
+    rows: list[CSVRowData] = []
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -84,7 +107,7 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
         # Process each row
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
             row_errors: list[str] = []
-            row_data: dict[str, Any] = {}
+            row_data: CSVRowData = {}
 
             # Validate school_name
             school_name = row.get("school_name", "").strip()
@@ -142,14 +165,14 @@ def parse_csv_file(csv_file: Any) -> dict[str, Any]:
     return {"rows": rows, "errors": errors, "warnings": warnings}
 
 
-def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def validate_csv_data(rows: list[CSVRowData]) -> CSVValidationResult:
     """
     Validate CSV data against database and assign random team numbers.
 
     Returns:
         dict with 'teams_to_create', 'errors', 'warnings'
     """
-    teams_to_create: list[dict[str, Any]] = []
+    teams_to_create: list[CSVRowData] = []
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -185,7 +208,7 @@ def validate_csv_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def apply_csv_import(
-    teams_to_create: list[dict[str, Any]],
+    teams_to_create: list[CSVRowData],
     updated_by: str,
 ) -> dict[str, int]:
     """

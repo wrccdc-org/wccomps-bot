@@ -1,11 +1,12 @@
 """Team management models."""
 
 import logging
-from typing import Any
+from collections.abc import Iterable
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.base import ModelBase
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -57,12 +58,24 @@ class Team(models.Model):
         if self.max_members is not None and self.max_members < 1:
             raise ValidationError({"max_members": f"Team must have at least 1 member, got {self.max_members}"})
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
         """Override save to run validation."""
         # Skip validation when using update_fields (e.g., with F() expressions)
-        if not kwargs.get("update_fields"):
+        if not update_fields:
             self.full_clean()
-        super().save(*args, **kwargs)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     def get_member_count(self) -> int:
         """Get count of active members."""
@@ -169,7 +182,14 @@ class DiscordLink(models.Model):
             self.helper_removal_reason = reason
             self.save()
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
         """Override save to deactivate previous active link when creating new one."""
         if self.is_active:
             # Deactivate any existing active link for this discord_id
@@ -180,7 +200,12 @@ class DiscordLink(models.Model):
 
             # Do NOT deactivate links based on authentik_user_id because blue teams
             # share a single Authentik account (multiple Discord users -> same authentik_user_id)
-        super().save(*args, **kwargs)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
 
 class LinkToken(models.Model):

@@ -1,10 +1,11 @@
 """Admin commands for competition and account management."""
 
+from __future__ import annotations
+
 import csv
 import io
 import logging
 import re
-from typing import Any
 
 import discord
 from discord import app_commands
@@ -246,7 +247,7 @@ class AdminCompetitionCog(commands.Cog):
                 async def confirm_button(
                     self,
                     button_interaction: discord.Interaction,
-                    button: discord.ui.Button[Any],
+                    button: discord.ui.Button[PasswordResetConfirmView],
                 ) -> None:
                     self.confirmed = True
                     self.stop()
@@ -256,7 +257,7 @@ class AdminCompetitionCog(commands.Cog):
                 async def cancel_button(
                     self,
                     button_interaction: discord.Interaction,
-                    button: discord.ui.Button[Any],
+                    button: discord.ui.Button[PasswordResetConfirmView],
                 ) -> None:
                     self.confirmed = False
                     self.stop()

@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import UserGroups
 
@@ -65,6 +66,8 @@ def oauth_login(request: HttpRequest) -> HttpResponse:
 
     # Store next URL for redirect after login
     next_url = request.GET.get("next", "/")
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = "/"
     request.session["oauth_next"] = next_url
 
     # Build authorization URL

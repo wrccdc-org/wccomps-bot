@@ -1,8 +1,6 @@
 """Management command to recalculate final scores."""
 
-from typing import Any
-
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from scoring.calculator import get_leaderboard, recalculate_all_scores
 
@@ -10,14 +8,14 @@ from scoring.calculator import get_leaderboard, recalculate_all_scores
 class Command(BaseCommand):
     help = "Recalculate final scores"
 
-    def add_arguments(self, parser: Any) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--show-leaderboard",
             action="store_true",
             help="Display leaderboard after recalculation",
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(self, *args: str, **options: object) -> None:
         show_leaderboard = options.get("show_leaderboard", False)
 
         self.stdout.write("Recalculating scores...")

@@ -4,8 +4,12 @@ import pytest
 from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpResponse
 from django.test import RequestFactory
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from core.auth_utils import (
+    PERMISSION_MAP,
+    check_groups_for_permission,
     get_authentik_groups,
     get_permissions_context,
     get_user_team_number,
@@ -215,3 +219,76 @@ class TestRequirePermissionDecorator:
 
         response = protected_view(request)
         assert response.status_code == 302
+
+
+class TestCheckGroupsForPermissionProperties:
+    """Property-based tests for check_groups_for_permission."""
+
+    @given(groups=st.lists(st.text(min_size=1, max_size=50), max_size=10))
+    @settings(max_examples=50, deadline=None)
+    def test_empty_permission_never_granted_by_random_groups(self, groups: list[str]):
+        """Empty permission name should not be granted by random groups."""
+        result = check_groups_for_permission(groups, "")
+        assert result is False
+
+    @given(permission=st.sampled_from(list(PERMISSION_MAP.keys())))
+    @settings(max_examples=20)
+    def test_empty_groups_denies_mapped_permissions(self, permission: str):
+        """Empty groups list should deny all mapped permissions."""
+        result = check_groups_for_permission([], permission)
+        assert result is False
+
+    @given(
+        permission=st.sampled_from(list(PERMISSION_MAP.keys())),
+        extra_groups=st.lists(st.text(min_size=1, max_size=30), max_size=5),
+    )
+    @settings(max_examples=30)
+    def test_permission_granted_when_required_group_present(self, permission: str, extra_groups: list[str]):
+        """Permission should be granted when any required group is present."""
+        required_groups = PERMISSION_MAP[permission]
+        # Add a required group to the list
+        groups = extra_groups + [required_groups[0]]
+        result = check_groups_for_permission(groups, permission)
+        assert result is True
+
+    @given(team_number=st.integers(min_value=1, max_value=50))
+    @settings(max_examples=20)
+    def test_blue_team_permission_with_valid_team_numbers(self, team_number: int):
+        """BlueTeam permission should be granted for valid team group patterns."""
+        group = f"WCComps_BlueTeam{team_number:02d}"
+        result = check_groups_for_permission([group], "blue_team")
+        assert result is True
+
+    @given(team_number=st.integers(min_value=51, max_value=99))
+    @settings(max_examples=10)
+    def test_blue_team_permission_with_high_team_numbers(self, team_number: int):
+        """BlueTeam permission should still match high team numbers (pattern-based)."""
+        group = f"WCComps_BlueTeam{team_number}"
+        result = check_groups_for_permission([group], "blue_team")
+        # The pattern just checks startswith, so this should still match
+        assert result is True
+
+    @given(groups=st.lists(st.text(min_size=1, max_size=50), max_size=10))
+    @settings(max_examples=30)
+    def test_direct_group_check_works(self, groups: list[str]):
+        """Direct group name check should work for any group."""
+        for group in groups:
+            result = check_groups_for_permission(groups, group)
+            assert result is True
+
+    @given(
+        groups=st.lists(
+            st.text(
+                alphabet=st.characters(blacklist_categories=("Cs",), min_codepoint=32, max_codepoint=126),
+                min_size=1,
+                max_size=30,
+            ),
+            max_size=5,
+        )
+    )
+    @settings(max_examples=30)
+    def test_no_exception_on_arbitrary_input(self, groups: list[str]):
+        """Function should not raise exceptions on arbitrary input."""
+        for perm in ["admin", "blue_team", "gold_team", "nonexistent", ""]:
+            # Should not raise
+            check_groups_for_permission(groups, perm)

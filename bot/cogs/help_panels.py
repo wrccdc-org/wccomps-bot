@@ -1,7 +1,8 @@
 """Help panels cog - persistent button panels for blue teams."""
 
 import logging
-from typing import Any, cast
+from collections.abc import Awaitable, Callable
+from typing import cast
 
 import discord
 from discord.ext import commands
@@ -343,7 +344,11 @@ class TeamHelpView(discord.ui.View):
             return
 
         # Call the link command logic
-        await cast(Any, cog.link_command.callback)(cog, interaction)
+        callback = cast(
+            Callable[[LinkingCog, discord.Interaction], Awaitable[None]],
+            cog.link_command.callback,
+        )
+        await callback(cog, interaction)
 
     async def create_ticket(self, interaction: discord.Interaction) -> None:
         """Handle create ticket button click - show category selection."""
