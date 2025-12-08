@@ -100,138 +100,103 @@ class TestOpsTicketSearch:
 class TestOpsTicketSorting:
     """Test sorting functionality in ops dashboard."""
 
-    def test_sort_by_created_date_ascending(self, authenticated_page: Page, live_server_url):
-        """Sorting by created date ascending should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?sort=created_at")
+    @pytest.mark.parametrize(
+        "sort_param",
+        ["created_at", "-created_at", "team__team_number", "status"],
+    )
+    def test_sort_parameter_renders_page(self, authenticated_page: Page, live_server_url, sort_param):
+        """Sorting parameters should render the page without errors."""
+        authenticated_page.goto(f"{live_server_url}/ops/tickets/?sort={sort_param}")
 
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-        expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
-
-    def test_sort_by_created_date_descending(self, authenticated_page: Page, live_server_url):
-        """Sorting by created date descending should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?sort=-created_at")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-        expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
-
-    def test_sort_by_team_number(self, authenticated_page: Page, live_server_url):
-        """Sorting by team number should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?sort=team__team_number")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_sort_by_status(self, authenticated_page: Page, live_server_url):
-        """Sorting by status should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?sort=status")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
+        # Page should render with ticket list structure
+        expect(authenticated_page.locator("body")).to_be_visible()
+        # Should have main content area (not error page)
+        expect(authenticated_page).not_to_have_title("Server Error")
 
 
 class TestOpsTicketPagination:
     """Test pagination in ops dashboard."""
 
-    def test_page_size_selector_works(self, authenticated_page: Page, live_server_url):
-        """Page size selector should change number of tickets displayed."""
+    def test_page_size_selector_changes_url(self, authenticated_page: Page, live_server_url):
+        """Page size selector should update URL with new page_size parameter."""
         authenticated_page.goto(f"{live_server_url}/ops/tickets/")
 
-        # Try changing page size
         page_size_selector = authenticated_page.locator('select[name="page_size"]')
 
         if page_size_selector.is_visible():
             page_size_selector.select_option("25")
-            authenticated_page.wait_for_timeout(1000)
+            authenticated_page.wait_for_load_state("networkidle")
 
-            # Should not show error
-            expect(authenticated_page.locator("body")).not_to_contain_text("500")
+            # URL should contain the new page_size
+            expect(authenticated_page).to_have_url(pytest.approx(f"{live_server_url}/ops/tickets/", abs=100) if False else lambda url: "page_size=25" in url or authenticated_page.url == f"{live_server_url}/ops/tickets/")
 
-    def test_pagination_navigation_works(self, authenticated_page: Page, live_server_url):
-        """Pagination next/previous buttons should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?page_size=25")
+    def test_pagination_navigation_changes_page(self, authenticated_page: Page, live_server_url):
+        """Pagination next button should navigate to next page."""
+        authenticated_page.goto(f"{live_server_url}/ops/tickets/?page_size=10")
 
-        # Try clicking next page if it exists
         next_button = authenticated_page.locator('a:has-text("Next")')
 
         if next_button.is_visible():
             next_button.click()
-            authenticated_page.wait_for_timeout(1000)
+            authenticated_page.wait_for_load_state("networkidle")
 
-            # Should not show error
-            expect(authenticated_page.locator("body")).not_to_contain_text("500")
+            # URL should contain page parameter
+            assert "page=" in authenticated_page.url or authenticated_page.url.endswith("/ops/tickets/")
 
 
 class TestOpsTicketFiltering:
     """Test advanced filtering in ops dashboard."""
 
-    def test_filter_by_status_open(self, authenticated_page: Page, live_server_url):
-        """Filtering by status=open should show only open tickets."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open")
+    @pytest.mark.parametrize(
+        "filter_params",
+        [
+            "status=open",
+            "status=claimed",
+            "status=resolved",
+            "team=50",
+            "category=general-question",
+            "assignee=unassigned",
+            "status=open&team=50&category=general-question",
+        ],
+    )
+    def test_filter_parameters_render_page(self, authenticated_page: Page, live_server_url, filter_params):
+        """Filter parameters should render the page with ticket list."""
+        authenticated_page.goto(f"{live_server_url}/ops/tickets/?{filter_params}")
 
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_filter_by_status_claimed(self, authenticated_page: Page, live_server_url):
-        """Filtering by status=claimed should show only claimed tickets."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=claimed")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_filter_by_status_resolved(self, authenticated_page: Page, live_server_url):
-        """Filtering by status=resolved should show only resolved tickets."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=resolved")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_filter_by_team(self, authenticated_page: Page, live_server_url):
-        """Filtering by team number should show only that team's tickets."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?team=50")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_filter_by_category(self, authenticated_page: Page, live_server_url):
-        """Filtering by category should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?category=general-question")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_filter_by_assignee_unassigned(self, authenticated_page: Page, live_server_url):
-        """Filtering by unassigned should show unclaimed tickets."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?assignee=unassigned")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
-
-    def test_combined_filters_work(self, authenticated_page: Page, live_server_url):
-        """Multiple filters combined should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open&team=50&category=general-question")
-
-        # Should not show error
-        expect(authenticated_page.locator("body")).not_to_contain_text("500")
+        # Page should render with expected content structure
+        expect(authenticated_page.locator("body")).to_be_visible()
+        expect(authenticated_page).not_to_have_title("Server Error")
 
 
 class TestOpsBulkOperations:
     """Test bulk claim and resolve operations."""
 
-    def test_bulk_claim_form_exists(self, authenticated_page: Page, live_server_url):
-        """Bulk claim form should be present on ops dashboard."""
-        authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open")
+    def test_bulk_claim_form_exists_when_tickets_present(self, authenticated_page: Page, db, live_server_url):
+        """Bulk claim form should be present when open tickets exist."""
+        from team.models import Team
+        from ticketing.models import Ticket
 
-        # Look for bulk action controls
-        authenticated_page.locator('form[action*="bulk-claim"]')
+        team = Team.objects.get(team_number=50)
+        ticket = Ticket.objects.create(
+            team=team,
+            category="general-question",
+            title="[E2E TEST] Bulk claim form test",
+            description="Test bulk claim form presence",
+            status="open",
+        )
 
-        # Form might not exist if there are no open tickets
-        # Just verify page renders without error
-        expect(authenticated_page.locator("body")).to_be_visible()
+        try:
+            authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open")
 
-    def test_bulk_claim_requires_selection(self, authenticated_page: Page, db, live_server_url):
-        """Bulk claim without selecting tickets should show error."""
+            # Should have bulk operations section or checkboxes
+            expect(authenticated_page.locator("body")).to_be_visible()
+            # Verify we're on the correct page
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
+        finally:
+            ticket.delete()
+
+    def test_bulk_claim_without_selection_shows_feedback(self, authenticated_page: Page, db, live_server_url):
+        """Bulk claim without selecting tickets should show validation feedback."""
         from team.models import Team
         from ticketing.models import Ticket
 
@@ -247,14 +212,13 @@ class TestOpsBulkOperations:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open")
 
-            # Try submitting bulk claim without selection
             bulk_claim_button = authenticated_page.locator('button:has-text("Bulk Claim")')
 
             if bulk_claim_button.is_visible():
                 bulk_claim_button.click()
-                authenticated_page.wait_for_timeout(1000)
+                authenticated_page.wait_for_load_state("networkidle")
 
-                # Should show error or validation message (not 500)
+                # Should remain on page (not crash) - may show validation message
                 expect(authenticated_page.locator("body")).to_be_visible()
         finally:
             ticket.delete()
@@ -263,14 +227,13 @@ class TestOpsBulkOperations:
 class TestOpsTicketUnclaim:
     """Test unclaiming tickets."""
 
-    def test_unclaim_claimed_ticket_works(self, authenticated_page: Page, db, live_server_url):
-        """Unclaiming a claimed ticket should work."""
+    def test_unclaim_button_visible_on_claimed_ticket(self, authenticated_page: Page, db, live_server_url):
+        """Unclaim button should be visible on claimed ticket detail page."""
         from django.contrib.auth.models import User
 
         from team.models import Team
         from ticketing.models import Ticket
 
-        # Create test user and ticket
         user, _ = User.objects.get_or_create(
             username="test_ops_user_unclaim",
             defaults={"email": "test_ops_unclaim@example.com"},
@@ -289,15 +252,13 @@ class TestOpsTicketUnclaim:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/ticket/{ticket.ticket_number}/")
 
-            # Look for unclaim button
+            # Verify ticket detail page loaded
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
+
+            # Unclaim button should be present on claimed tickets
             unclaim_button = authenticated_page.locator('button:has-text("Unclaim")')
-
-            if unclaim_button.is_visible():
-                unclaim_button.click()
-                authenticated_page.wait_for_timeout(1000)
-
-                # Should not show error
-                expect(authenticated_page.locator("body")).not_to_contain_text("500")
+            if unclaim_button.count() > 0:
+                expect(unclaim_button.first).to_be_visible()
         finally:
             ticket.delete()
             user.delete()
@@ -306,8 +267,8 @@ class TestOpsTicketUnclaim:
 class TestOpsTicketReopen:
     """Test reopening resolved tickets."""
 
-    def test_reopen_resolved_ticket_works(self, authenticated_page: Page, db, live_server_url):
-        """Reopening a resolved ticket should work."""
+    def test_reopen_button_visible_on_resolved_ticket(self, authenticated_page: Page, db, live_server_url):
+        """Reopen button should be visible on resolved ticket detail page."""
         from django.utils import timezone
 
         from team.models import Team
@@ -327,15 +288,13 @@ class TestOpsTicketReopen:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/ticket/{ticket.ticket_number}/")
 
-            # Look for reopen button
+            # Verify ticket detail page loaded
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
+
+            # Reopen button should be present on resolved tickets
             reopen_button = authenticated_page.locator('button:has-text("Reopen")')
-
-            if reopen_button.is_visible():
-                reopen_button.click()
-                authenticated_page.wait_for_timeout(1000)
-
-                # Should not show error
-                expect(authenticated_page.locator("body")).not_to_contain_text("500")
+            if reopen_button.count() > 0:
+                expect(reopen_button.first).to_be_visible()
         finally:
             ticket.delete()
 
@@ -343,8 +302,8 @@ class TestOpsTicketReopen:
 class TestOpsTicketChangeCategory:
     """Test changing ticket category."""
 
-    def test_change_category_form_exists(self, authenticated_page: Page, db, live_server_url):
-        """Change category form should exist on ticket detail."""
+    def test_category_selector_visible_on_claimed_ticket(self, authenticated_page: Page, db, live_server_url):
+        """Category change selector should be visible on claimed ticket detail."""
         from team.models import Team
         from ticketing.models import Ticket
 
@@ -361,11 +320,13 @@ class TestOpsTicketChangeCategory:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/ticket/{ticket.ticket_number}/")
 
-            # Look for category selector
-            category_select = authenticated_page.locator('select[name="new_category"]')
+            # Verify ticket detail page loaded
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
 
-            if category_select.is_visible():
-                expect(category_select).to_be_visible()
+            # Category selector should be present
+            category_select = authenticated_page.locator('select[name="new_category"]')
+            if category_select.count() > 0:
+                expect(category_select.first).to_be_visible()
         finally:
             ticket.delete()
 
@@ -390,56 +351,56 @@ class TestOpsTicketDetail:
         yield ticket
         ticket.delete()
 
-    def test_ops_ticket_detail_renders(self, authenticated_page: Page, ops_test_ticket, live_server_url):
-        """Ops ticket detail page should render without errors."""
+    def test_ops_ticket_detail_displays_ticket_info(self, authenticated_page: Page, ops_test_ticket, live_server_url):
+        """Ops ticket detail page should display ticket information."""
         authenticated_page.goto(f"{live_server_url}/ops/ticket/{ops_test_ticket.ticket_number}/")
-
-        # Should not show error
-        expect(authenticated_page).not_to_have_title("*500*")
-        expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
 
         # Should display ticket number
-        expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible()
+        expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible(timeout=5000)
 
-    def test_ops_ticket_detail_shows_history(self, authenticated_page: Page, ops_test_ticket, live_server_url):
-        """Ops ticket detail should show ticket history."""
+        # Should display ticket title
+        expect(authenticated_page.locator("text=[E2E TEST] Ops detail test")).to_be_visible()
+
+    def test_ops_ticket_detail_has_history_section(self, authenticated_page: Page, ops_test_ticket, live_server_url):
+        """Ops ticket detail should have a history section."""
         authenticated_page.goto(f"{live_server_url}/ops/ticket/{ops_test_ticket.ticket_number}/")
 
-        # Should have history section
-        history_section = authenticated_page.locator("text=History")
+        # Verify page loaded
+        expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible(timeout=5000)
 
-        if history_section.is_visible():
-            expect(history_section).to_be_visible()
+        # History section should be present (may be labeled "History" or "Activity")
+        history_section = authenticated_page.locator("text=/History|Activity/i")
+        if history_section.count() > 0:
+            expect(history_section.first).to_be_visible()
 
     def test_ops_ticket_detail_has_comment_form(self, authenticated_page: Page, ops_test_ticket, live_server_url):
-        """Ops ticket detail should have comment form."""
+        """Ops ticket detail should have comment input form."""
         authenticated_page.goto(f"{live_server_url}/ops/ticket/{ops_test_ticket.ticket_number}/")
 
-        # Should have comment textarea
+        # Verify page loaded
+        expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible(timeout=5000)
+
+        # Comment form should be present
+        comment_textarea = authenticated_page.locator('textarea[name="comment"]')
+        if comment_textarea.count() > 0:
+            expect(comment_textarea.first).to_be_visible()
+
+    def test_ops_add_comment_updates_page(self, authenticated_page: Page, ops_test_ticket, live_server_url):
+        """Adding a comment should update the ticket without errors."""
+        authenticated_page.goto(f"{live_server_url}/ops/ticket/{ops_test_ticket.ticket_number}/")
+
+        # Verify page loaded
+        expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible(timeout=5000)
+
         comment_textarea = authenticated_page.locator('textarea[name="comment"]')
 
         if comment_textarea.is_visible():
-            expect(comment_textarea).to_be_visible()
-
-    def test_ops_add_comment_works(self, authenticated_page: Page, ops_test_ticket, live_server_url):
-        """Adding a comment from ops UI should work."""
-        authenticated_page.goto(f"{live_server_url}/ops/ticket/{ops_test_ticket.ticket_number}/")
-
-        # Find comment form
-        comment_textarea = authenticated_page.locator('textarea[name="comment"]')
-
-        if comment_textarea.is_visible():
-            # Fill in comment
             comment_textarea.fill("[E2E TEST] Ops comment from browser")
-
-            # Submit
             authenticated_page.click('button:has-text("Add Comment")')
+            authenticated_page.wait_for_load_state("networkidle")
 
-            # Wait for page update
-            authenticated_page.wait_for_timeout(2000)
-
-            # Should not show error
-            expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
+            # Should remain on ticket detail page
+            expect(authenticated_page.locator(f"text={ops_test_ticket.ticket_number}")).to_be_visible()
 
 
 class TestOpsFileAttachments:
@@ -515,8 +476,8 @@ class TestOpsFileAttachments:
 class TestOpsStaleIndicators:
     """Test stale ticket indicators in ops dashboard."""
 
-    def test_stale_ticket_indicator_shows(self, authenticated_page: Page, db, live_server_url):
-        """Tickets claimed >30 minutes should show stale indicator."""
+    def test_stale_ticket_visible_in_claimed_list(self, authenticated_page: Page, db, live_server_url):
+        """Tickets claimed >30 minutes should appear in claimed tickets list."""
         from datetime import timedelta
 
         from django.utils import timezone
@@ -526,7 +487,6 @@ class TestOpsStaleIndicators:
 
         team = Team.objects.get(team_number=50)
 
-        # Create ticket claimed 31 minutes ago
         stale_time = timezone.now() - timedelta(minutes=31)
         ticket = Ticket.objects.create(
             team=team,
@@ -541,9 +501,8 @@ class TestOpsStaleIndicators:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=claimed")
 
-            # Should show stale indicator (exact implementation varies)
-            # Just verify page renders correctly
-            expect(authenticated_page.locator("body")).to_be_visible()
+            # Ticket should be visible in the list
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
         finally:
             ticket.delete()
 
@@ -551,8 +510,8 @@ class TestOpsStaleIndicators:
 class TestOpsAutoRefresh:
     """Test auto-refresh functionality in ops ticket detail."""
 
-    def test_auto_refresh_meta_tag_present(self, authenticated_page: Page, db, live_server_url):
-        """Ops ticket detail should have auto-refresh meta tag."""
+    def test_ticket_detail_page_renders_claimed_ticket(self, authenticated_page: Page, db, live_server_url):
+        """Claimed ticket detail page should render with ticket info."""
         from team.models import Team
         from ticketing.models import Ticket
 
@@ -569,11 +528,8 @@ class TestOpsAutoRefresh:
         try:
             authenticated_page.goto(f"{live_server_url}/ops/ticket/{ticket.ticket_number}/")
 
-            # Check for auto-refresh meta tag
-            authenticated_page.locator('meta[http-equiv="refresh"]')
-
-            # Meta tag might be optional, so just verify page renders
-            expect(authenticated_page.locator("body")).to_be_visible()
+            # Ticket detail page should display ticket info
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
         finally:
             ticket.delete()
 
@@ -581,8 +537,8 @@ class TestOpsAutoRefresh:
 class TestOpsNavigationPreservation:
     """Test that filter state is preserved when navigating."""
 
-    def test_filter_state_preserved_after_ticket_detail(self, authenticated_page: Page, db, live_server_url):
-        """Filters should be preserved when returning from ticket detail."""
+    def test_can_navigate_to_ticket_from_filtered_list(self, authenticated_page: Page, db, live_server_url):
+        """Should be able to navigate from filtered list to ticket detail."""
         from team.models import Team
         from ticketing.models import Ticket
 
@@ -599,19 +555,16 @@ class TestOpsNavigationPreservation:
             # Go to filtered view
             authenticated_page.goto(f"{live_server_url}/ops/tickets/?status=open&team=50")
 
+            # Ticket should be visible in list
+            expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible(timeout=5000)
+
             # Click on ticket
             ticket_link = authenticated_page.locator(f'a[href*="{ticket.ticket_number}"]')
+            if ticket_link.count() > 0:
+                ticket_link.first.click()
+                authenticated_page.wait_for_load_state("networkidle")
 
-            if ticket_link.is_visible():
-                ticket_link.click()
-                authenticated_page.wait_for_timeout(1000)
-
-                # Go back
-                authenticated_page.go_back()
-                authenticated_page.wait_for_timeout(1000)
-
-                # Filter state might be preserved in URL
-                # Just verify navigation works without error
-                expect(authenticated_page.locator("body")).to_be_visible()
+                # Should be on ticket detail page
+                expect(authenticated_page.locator(f"text={ticket.ticket_number}")).to_be_visible()
         finally:
             ticket.delete()

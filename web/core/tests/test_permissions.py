@@ -1,10 +1,19 @@
-"""Permission integration tests for core views (ops and ticketing)."""
+"""Permission integration tests for core views (ops and ticketing).
+
+Uses parametrization to reduce repetition and improve maintainability.
+"""
 
 import pytest
 from django.test import Client
 from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
+
+
+def _check_access_denied(response) -> bool:
+    """Check if response indicates access denied (soft 200 with error message)."""
+    content_lower = response.content.lower()
+    return b"access denied" in content_lower or b"you do not have permission" in content_lower
 
 
 class TestOpsSchoolInfoPermissions:
@@ -16,70 +25,35 @@ class TestOpsSchoolInfoPermissions:
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
-    def test_blue_team_denied(self, blue_team_user):
-        """Blue Team should not access school info."""
+    @pytest.mark.parametrize(
+        "user_fixture",
+        [
+            "blue_team_user",
+            "red_team_user",
+            "white_team_user",
+            "orange_team_user",
+            "ticketing_support_user",
+            "ticketing_admin_user",
+        ],
+    )
+    def test_unauthorized_roles_denied(self, user_fixture, request):
+        """Non-gold/admin users should be denied access to school info."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(blue_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_school_info"))
-        # View renders error template instead of 403
         assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
+        assert _check_access_denied(response), f"{user_fixture} should be denied access"
 
-    def test_red_team_denied(self, red_team_user):
-        """Red Team should not access school info."""
+    @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
+    def test_authorized_roles_allowed(self, user_fixture, request):
+        """Gold team and admin users should access school info."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(red_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_school_info"))
         assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_gold_team_allowed(self, gold_team_user):
-        """Gold Team should access school info."""
-        client = Client()
-        client.force_login(gold_team_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
-        # Should NOT contain access denied message
-        assert b"Access denied" not in response.content
-
-    def test_white_team_denied(self, white_team_user):
-        """White Team should not access school info."""
-        client = Client()
-        client.force_login(white_team_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_orange_team_denied(self, orange_team_user):
-        """Orange Team should not access school info."""
-        client = Client()
-        client.force_login(orange_team_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_ticketing_support_denied(self, ticketing_support_user):
-        """Ticketing Support should not access school info."""
-        client = Client()
-        client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_ticketing_admin_denied(self, ticketing_admin_user):
-        """Ticketing Admin should not access school info."""
-        client = Client()
-        client.force_login(ticketing_admin_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access school info."""
-        client = Client()
-        client.force_login(admin_user)
-        response = client.get(reverse("ops_school_info"))
-        assert response.status_code == 200
+        assert not _check_access_denied(response), f"{user_fixture} should have access"
 
 
 class TestGroupRoleMappingsPermissions:
@@ -91,53 +65,33 @@ class TestGroupRoleMappingsPermissions:
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
-    def test_blue_team_denied(self, blue_team_user):
-        """Blue Team should not access group role mappings."""
+    @pytest.mark.parametrize(
+        "user_fixture",
+        [
+            "blue_team_user",
+            "red_team_user",
+            "white_team_user",
+            "orange_team_user",
+        ],
+    )
+    def test_unauthorized_roles_denied(self, user_fixture, request):
+        """Non-gold/admin users should be denied access to group role mappings."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(blue_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_group_role_mappings"))
         assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
+        assert _check_access_denied(response), f"{user_fixture} should be denied access"
 
-    def test_red_team_denied(self, red_team_user):
-        """Red Team should not access group role mappings."""
+    @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
+    def test_authorized_roles_allowed(self, user_fixture, request):
+        """Gold team and admin users should access group role mappings."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(red_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_group_role_mappings"))
         assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_gold_team_allowed(self, gold_team_user):
-        """Gold Team should access group role mappings."""
-        client = Client()
-        client.force_login(gold_team_user)
-        response = client.get(reverse("ops_group_role_mappings"))
-        assert response.status_code == 200
-        # Should NOT contain access denied message
-        assert b"Access denied" not in response.content
-
-    def test_white_team_denied(self, white_team_user):
-        """White Team should not access group role mappings."""
-        client = Client()
-        client.force_login(white_team_user)
-        response = client.get(reverse("ops_group_role_mappings"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_orange_team_denied(self, orange_team_user):
-        """Orange Team should not access group role mappings."""
-        client = Client()
-        client.force_login(orange_team_user)
-        response = client.get(reverse("ops_group_role_mappings"))
-        assert response.status_code == 200
-        assert b"Access denied" in response.content or b"permission" in response.content
-
-    def test_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access group role mappings."""
-        client = Client()
-        client.force_login(admin_user)
-        response = client.get(reverse("ops_group_role_mappings"))
-        assert response.status_code == 200
+        assert not _check_access_denied(response), f"{user_fixture} should have access"
 
 
 class TestTicketViewsPermissions:
@@ -155,58 +109,32 @@ class TestTicketViewsPermissions:
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
-    def test_ops_tickets_blue_team_denied(self, blue_team_user):
-        """Blue Team should not access ops tickets."""
+    @pytest.mark.parametrize(
+        "user_fixture",
+        [
+            "blue_team_user",
+            "red_team_user",
+            "gold_team_user",
+            "white_team_user",
+            "orange_team_user",
+        ],
+    )
+    def test_ops_tickets_unauthorized_roles_denied(self, user_fixture, request):
+        """Non-ticketing users should get 403 on ops tickets."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(blue_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 403
+        assert response.status_code == 403, f"{user_fixture} should get 403"
 
-    def test_ops_tickets_red_team_denied(self, red_team_user):
-        """Red Team should not access ops tickets."""
+    @pytest.mark.parametrize(
+        "user_fixture",
+        ["ticketing_support_user", "ticketing_admin_user", "admin_user"],
+    )
+    def test_ops_tickets_authorized_roles_allowed(self, user_fixture, request):
+        """Ticketing staff and admin should access ops tickets."""
+        user = request.getfixturevalue(user_fixture)
         client = Client()
-        client.force_login(red_team_user)
+        client.force_login(user)
         response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 403
-
-    def test_ops_tickets_gold_team_denied(self, gold_team_user):
-        """Gold Team should not access ops tickets (ticketing specific roles)."""
-        client = Client()
-        client.force_login(gold_team_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 403
-
-    def test_ops_tickets_white_team_denied(self, white_team_user):
-        """White Team should not access ops tickets."""
-        client = Client()
-        client.force_login(white_team_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 403
-
-    def test_ops_tickets_orange_team_denied(self, orange_team_user):
-        """Orange Team should not access ops tickets."""
-        client = Client()
-        client.force_login(orange_team_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 403
-
-    def test_ops_tickets_ticketing_support_allowed(self, ticketing_support_user):
-        """Ticketing Support should access ops tickets."""
-        client = Client()
-        client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 200
-
-    def test_ops_tickets_ticketing_admin_allowed(self, ticketing_admin_user):
-        """Ticketing Admin should access ops tickets."""
-        client = Client()
-        client.force_login(ticketing_admin_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 200
-
-    def test_ops_tickets_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access ops tickets."""
-        client = Client()
-        client.force_login(admin_user)
-        response = client.get(reverse("ops_ticket_list"))
-        assert response.status_code == 200
+        assert response.status_code == 200, f"{user_fixture} should have access"
