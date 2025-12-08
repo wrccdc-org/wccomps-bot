@@ -105,6 +105,47 @@ class TicketDashboardTest(TestCase):
             embed = format_ticket_embed(ticket)
             self.assertIsNotNone(embed)
 
+    def test_format_ticket_embed_includes_category_fields(self) -> None:
+        """Embed should include hostname, service_name, and ip_address when present."""
+        ticket = Ticket.objects.create(
+            ticket_number="T001-099",
+            team=self.team,
+            category="box-reset",
+            title="Reset Request",
+            description="Please reset my box",
+            status="open",
+            hostname="webserver01",
+            service_name="web:http",
+            ip_address="10.0.0.42",
+        )
+        embed = format_ticket_embed(ticket)
+        field_names = [field.name for field in embed.fields]
+        field_values = [field.value for field in embed.fields]
+
+        self.assertIn("Hostname", field_names)
+        self.assertIn("Service", field_names)
+        self.assertIn("IP Address", field_names)
+        self.assertIn("webserver01", field_values)
+        self.assertIn("web:http", field_values)
+        self.assertIn("10.0.0.42", field_values)
+
+    def test_format_ticket_embed_omits_empty_category_fields(self) -> None:
+        """Embed should omit hostname/service/IP fields when not set."""
+        ticket = Ticket.objects.create(
+            ticket_number="T001-100",
+            team=self.team,
+            category="other",
+            title="General Question",
+            description="Just a question",
+            status="open",
+        )
+        embed = format_ticket_embed(ticket)
+        field_names = [field.name for field in embed.fields]
+
+        self.assertNotIn("Hostname", field_names)
+        self.assertNotIn("Service", field_names)
+        self.assertNotIn("IP Address", field_names)
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
