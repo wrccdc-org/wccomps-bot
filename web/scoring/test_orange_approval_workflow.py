@@ -11,6 +11,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import UserGroups
 from team.models import Team
 
 from .models import OrangeTeamBonus
@@ -21,26 +22,15 @@ class IndividualOrangeApprovalTests(TestCase):
 
     def setUp(self) -> None:
         """Set up test data."""
-        # Create users (Person objects are auto-created via post_save signal)
+        # Create users
         self.orange_user = User.objects.create_user(username="orange", password="test123")
         self.gold_user = User.objects.create_user(username="gold", password="test123")
         self.blue_user = User.objects.create_user(username="blue", password="test123")
 
-        # Update Person objects with roles
-        self.orange_person = self.orange_user.person
-        self.orange_person.discord_id = 111111
-        self.orange_person.authentik_groups = ["WCComps_OrangeTeam"]
-        self.orange_person.save()
-
-        self.gold_person = self.gold_user.person
-        self.gold_person.discord_id = 222222
-        self.gold_person.authentik_groups = ["WCComps_GoldTeam"]
-        self.gold_person.save()
-
-        self.blue_person = self.blue_user.person
-        self.blue_person.discord_id = 333333
-        self.blue_person.authentik_groups = ["WCComps_BlueTeam01"]
-        self.blue_person.save()
+        # Create UserGroups for permissions
+        UserGroups.objects.create(user=self.orange_user, authentik_id="orange-uid", groups=["WCComps_OrangeTeam"])
+        UserGroups.objects.create(user=self.gold_user, authentik_id="gold-uid", groups=["WCComps_GoldTeam"])
+        UserGroups.objects.create(user=self.blue_user, authentik_id="blue-uid", groups=["WCComps_BlueTeam01"])
 
         # Create team
         self.team = Team.objects.create(team_number=1, team_name="Team 1")
@@ -203,20 +193,13 @@ class BulkOrangeApprovalTests(TestCase):
 
     def setUp(self) -> None:
         """Set up test data."""
-        # Create users (Person objects are auto-created via post_save signal)
+        # Create users
         self.gold_user = User.objects.create_user(username="gold", password="test123")
         self.orange_user = User.objects.create_user(username="orange", password="test123")
 
-        # Update Person objects with roles
-        self.gold_person = self.gold_user.person
-        self.gold_person.discord_id = 222222
-        self.gold_person.authentik_groups = ["WCComps_GoldTeam"]
-        self.gold_person.save()
-
-        self.orange_person = self.orange_user.person
-        self.orange_person.discord_id = 111111
-        self.orange_person.authentik_groups = ["WCComps_OrangeTeam"]
-        self.orange_person.save()
+        # Create UserGroups for permissions
+        UserGroups.objects.create(user=self.gold_user, authentik_id="gold-uid", groups=["WCComps_GoldTeam"])
+        UserGroups.objects.create(user=self.orange_user, authentik_id="orange-uid", groups=["WCComps_OrangeTeam"])
 
         # Create teams
         self.team1 = Team.objects.create(team_number=1, team_name="Team 1")
@@ -358,21 +341,15 @@ class OrangePortalApprovalUITests(TestCase):
 
     def setUp(self) -> None:
         """Set up test data."""
-        # Create users (Person objects are auto-created via post_save signal)
+        # Create users
         self.gold_user = User.objects.create_user(username="gold", password="test123")
         self.orange_user = User.objects.create_user(username="orange", password="test123")
         self.admin_user = User.objects.create_user(username="admin", password="test123", is_staff=True)
 
-        # Update Person objects with roles
-        self.gold_person = self.gold_user.person
-        self.gold_person.discord_id = 222222
-        self.gold_person.authentik_groups = ["WCComps_GoldTeam"]
-        self.gold_person.save()
-
-        self.orange_person = self.orange_user.person
-        self.orange_person.discord_id = 111111
-        self.orange_person.authentik_groups = ["WCComps_OrangeTeam"]
-        self.orange_person.save()
+        # Create UserGroups for permissions
+        UserGroups.objects.create(user=self.gold_user, authentik_id="gold-uid", groups=["WCComps_GoldTeam"])
+        UserGroups.objects.create(user=self.orange_user, authentik_id="orange-uid", groups=["WCComps_OrangeTeam"])
+        UserGroups.objects.create(user=self.admin_user, authentik_id="admin-uid", groups=["WCComps_Discord_Admin"])
 
         # Create team and adjustments
         self.team = Team.objects.create(team_number=1, team_name="Team 1")

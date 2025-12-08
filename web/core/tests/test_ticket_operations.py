@@ -342,14 +342,11 @@ class TestOpsTicketResolve:
         # Different support tries to resolve
         from django.contrib.auth.models import User
 
-        other_support = User.objects.create_user(username="other_support", password="test")
-        from allauth.socialaccount.models import SocialAccount
+        from core.models import UserGroups
 
-        SocialAccount.objects.create(
-            user=other_support,
-            provider="authentik",
-            uid="other-support-uid",
-            extra_data={"userinfo": {"groups": ["WCComps_Ticketing_Support"], "preferred_username": "other_support"}},
+        other_support = User.objects.create_user(username="other_support", password="test")
+        UserGroups.objects.create(
+            user=other_support, authentik_id="other-support-uid", groups=["WCComps_Ticketing_Support"]
         )
 
         client.force_login(other_support)

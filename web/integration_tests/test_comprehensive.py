@@ -14,8 +14,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from playwright.sync_api import Page, expect
 
-from person.models import Person
-from team.models import Team
+from core.models import UserGroups
+from team.models import DiscordLink, Team
 from ticketing.models import Ticket
 
 pytestmark = [
@@ -28,18 +28,23 @@ class TestFullTicketWorkflow:
 
     @pytest.fixture
     def support_user(self, db):
-        """Create support user."""
+        """Create support user with proper Authentik permissions."""
         user = User.objects.create_user(
             username="comprehensive_support",
             email="comprehensive_support@example.com",
         )
-        person = Person.objects.create(
+        UserGroups.objects.create(
             user=user,
-            discord_id="444444444",
-            authentik_username="comprehensive_support",
+            authentik_id="comprehensive_support_uid",
+            groups=["WCComps_Ticketing_Support"],
         )
-        yield person
-        person.delete()
+        discord_link = DiscordLink.objects.create(
+            user=user,
+            discord_id=444444444,
+            discord_username="comprehensive_support",
+        )
+        yield discord_link
+        discord_link.delete()
         user.delete()
 
     def test_complete_ticket_lifecycle_api(self, db, test_team_id, support_user):
@@ -63,15 +68,15 @@ class TestFullTicketWorkflow:
         try:
             # Verify ticket is open
             assert ticket.status == "open"
-            assert ticket.claimed_by is None
+            assert ticket.assigned_to is None
 
             # Claim ticket
             response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
             assert response.status_code in [200, 302]
 
             ticket.refresh_from_db()
-            assert ticket.claimed_by == support_user
-            assert ticket.status == "open"  # Still open after claim
+            assert ticket.assigned_to == support_user
+            assert ticket.status == "claimed"
 
             # Add comment
             response = client.post(
@@ -80,11 +85,10 @@ class TestFullTicketWorkflow:
             )
             assert response.status_code in [200, 302]
 
-            # Resolve ticket
             response = client.post(
                 reverse("ops_ticket_resolve", kwargs={"ticket_number": ticket.ticket_number}),
                 data={
-                    "resolution": "Issue resolved successfully",
+                    "resolution_notes": "Issue resolved successfully",
                     "points": "10",
                 },
             )
@@ -92,7 +96,7 @@ class TestFullTicketWorkflow:
 
             ticket.refresh_from_db()
             assert ticket.status == "resolved"
-            assert ticket.resolution == "Issue resolved successfully"
+            assert ticket.resolution_notes == "Issue resolved successfully"
 
         finally:
             ticket.delete()
@@ -176,13 +180,13 @@ class TestAttachmentHandling:
             username="attachment_test_user",
             email="attachment_test@example.com",
         )
-        person = Person.objects.create(
+        discord_link = DiscordLink.objects.create(
             user=user,
-            discord_id="555555555",
-            authentik_username="attachment_test_user",
+            discord_id=555555555,
+            discord_username="attachment_test_user",
         )
-        yield person
-        person.delete()
+        yield discord_link
+        discord_link.delete()
         user.delete()
 
     @pytest.fixture
@@ -329,17 +333,17 @@ class TestEdgeCases:
         try:
             # Create two users
             user1 = User.objects.create_user(username="claimer1", email="claimer1@example.com")
-            person1 = Person.objects.create(
+            discord_link1 = DiscordLink.objects.create(
                 user=user1,
-                discord_id="666666666",
-                authentik_username="claimer1",
+                discord_id=666666666,
+                discord_username="claimer1",
             )
 
             user2 = User.objects.create_user(username="claimer2", email="claimer2@example.com")
-            person2 = Person.objects.create(
+            discord_link2 = DiscordLink.objects.create(
                 user=user2,
-                discord_id="777777777",
-                authentik_username="claimer2",
+                discord_id=777777777,
+                discord_username="claimer2",
             )
 
             # User 1 claims
@@ -356,14 +360,14 @@ class TestEdgeCases:
             # Should handle gracefully (not 500)
             assert response.status_code in [200, 302, 400, 409]
 
-            # Ticket should still be claimed by user 1
+            # Ticket should still be assigned to user 1
             ticket.refresh_from_db()
-            assert ticket.claimed_by == person1
+            assert ticket.assigned_to == discord_link1
 
             # Cleanup
-            person1.delete()
+            discord_link1.delete()
             user1.delete()
-            person2.delete()
+            discord_link2.delete()
             user2.delete()
 
         finally:
@@ -396,10 +400,10 @@ class TestDatabaseTransactions:
                 username="bulk_test_user",
                 email="bulk_test@example.com",
             )
-            person = Person.objects.create(
+            discord_link = DiscordLink.objects.create(
                 user=user,
-                discord_id="888888888",
-                authentik_username="bulk_test_user",
+                discord_id=888888888,
+                discord_username="bulk_test_user",
             )
 
             client = Client()
@@ -416,18 +420,18 @@ class TestDatabaseTransactions:
             # Should handle error gracefully
             assert response.status_code in [200, 302, 400, 404]
 
-            # Either all tickets claimed or none (transaction integrity)
+            # Either all tickets assigned or none (transaction integrity)
             tickets[0].refresh_from_db()
             tickets[1].refresh_from_db()
 
-            # Both should have same claim status (atomic)
-            if tickets[0].claimed_by is not None:
-                assert tickets[1].claimed_by is not None
+            # Both should have same assignment status (atomic)
+            if tickets[0].assigned_to is not None:
+                assert tickets[1].assigned_to is not None
             else:
-                assert tickets[1].claimed_by is None
+                assert tickets[1].assigned_to is None
 
             # Cleanup
-            person.delete()
+            discord_link.delete()
             user.delete()
 
         finally:

@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from person.models import Person
+from core.models import UserGroups
 from team.models import Team
 
 from .models import OrangeTeamBonus
@@ -27,23 +27,18 @@ class OrangeTeamPortalFilteringTests(TestCase):
 
         # Create Orange Team users
         self.orange_user1 = User.objects.create_user(username="orange1", password="test123")
-        self.orange_person1 = Person.objects.get(user=self.orange_user1)
-        self.orange_person1.authentik_groups = ["WCComps_OrangeTeam"]
-        self.orange_person1.save()
+        UserGroups.objects.create(user=self.orange_user1, authentik_id="orange1-uid", groups=["WCComps_OrangeTeam"])
 
         self.orange_user2 = User.objects.create_user(username="orange2", password="test123")
-        self.orange_person2 = Person.objects.get(user=self.orange_user2)
-        self.orange_person2.authentik_groups = ["WCComps_OrangeTeam"]
-        self.orange_person2.save()
+        UserGroups.objects.create(user=self.orange_user2, authentik_id="orange2-uid", groups=["WCComps_OrangeTeam"])
 
         # Create Gold Team user
         self.gold_user = User.objects.create_user(username="gold1", password="test123")
-        self.gold_person = Person.objects.get(user=self.gold_user)
-        self.gold_person.authentik_groups = ["WCComps_GoldTeam"]
-        self.gold_person.save()
+        UserGroups.objects.create(user=self.gold_user, authentik_id="gold1-uid", groups=["WCComps_GoldTeam"])
 
         # Create Admin user
         self.admin_user = User.objects.create_user(username="admin1", password="test123", is_staff=True)
+        UserGroups.objects.create(user=self.admin_user, authentik_id="admin1-uid", groups=["WCComps_Discord_Admin"])
 
         # Create bonuses submitted by different users
         self.bonus1 = OrangeTeamBonus.objects.create(
@@ -100,9 +95,7 @@ class OrangeTeamPortalFilteringTests(TestCase):
     def test_orange_team_member_sees_empty_list_when_no_submissions(self) -> None:
         """Orange Team member with no submissions should see empty list."""
         new_orange_user = User.objects.create_user(username="orange3", password="test123")
-        new_orange_person = Person.objects.get(user=new_orange_user)
-        new_orange_person.authentik_groups = ["WCComps_OrangeTeam"]
-        new_orange_person.save()
+        UserGroups.objects.create(user=new_orange_user, authentik_id="orange3-uid", groups=["WCComps_OrangeTeam"])
 
         self.client.login(username="orange3", password="test123")
         response = self.client.get(reverse("scoring:orange_team_portal"))
@@ -165,9 +158,7 @@ class OrangeTeamPortalFilteringTests(TestCase):
     def test_unauthorized_user_cannot_access_portal(self) -> None:
         """Non-Orange Team user without Gold/Admin access should be denied."""
         blue_user = User.objects.create_user(username="blue1", password="test123")
-        blue_person = Person.objects.get(user=blue_user)
-        blue_person.authentik_groups = ["WCComps_BlueTeam01"]
-        blue_person.save()
+        UserGroups.objects.create(user=blue_user, authentik_id="blue1-uid", groups=["WCComps_BlueTeam01"])
 
         self.client.login(username="blue1", password="test123")
         response = self.client.get(reverse("scoring:orange_team_portal"))

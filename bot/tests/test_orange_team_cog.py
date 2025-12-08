@@ -8,13 +8,12 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 import pytest_asyncio
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
 from scoring.models import OrangeCheckType, OrangeTeamBonus
 
 from bot.cogs.orange_team import OrangeTeamCog
-from person.models import Person
-from team.models import Team
+from core.models import UserGroups
+from team.models import DiscordLink, Team
 
 
 @pytest_asyncio.fixture
@@ -29,22 +28,18 @@ async def orange_team_user(db) -> User:
         email=f"orange_{unique_id}@test.com",
     )
 
-    await SocialAccount.objects.acreate(
+    await UserGroups.objects.acreate(
         user=user,
-        provider="authentik",
-        uid=f"test-orange-uid-{unique_id}",
-        extra_data={
-            "id_token": {
-                "groups": ["WCComps_OrangeTeam"],
-                "preferred_username": username,
-            }
-        },
+        authentik_id=f"test-orange-uid-{unique_id}",
+        groups=["WCComps_OrangeTeam"],
     )
 
-    person = await Person.objects.aget(user=user)
-    person.discord_id = discord_id
-    person.authentik_groups = ["WCComps_OrangeTeam"]
-    await person.asave()
+    await DiscordLink.objects.acreate(
+        user=user,
+        discord_id=discord_id,
+        discord_username=username,
+        is_active=True,
+    )
 
     user._discord_id = discord_id
     return user
@@ -62,22 +57,18 @@ async def gold_team_user(db) -> User:
         email=f"gold_{unique_id}@test.com",
     )
 
-    await SocialAccount.objects.acreate(
+    await UserGroups.objects.acreate(
         user=user,
-        provider="authentik",
-        uid=f"test-gold-uid-{unique_id}",
-        extra_data={
-            "id_token": {
-                "groups": ["WCComps_GoldTeam"],
-                "preferred_username": username,
-            }
-        },
+        authentik_id=f"test-gold-uid-{unique_id}",
+        groups=["WCComps_GoldTeam"],
     )
 
-    person = await Person.objects.aget(user=user)
-    person.discord_id = discord_id
-    person.authentik_groups = ["WCComps_GoldTeam"]
-    await person.asave()
+    await DiscordLink.objects.acreate(
+        user=user,
+        discord_id=discord_id,
+        discord_username=username,
+        is_active=True,
+    )
 
     user._discord_id = discord_id
     return user
@@ -95,22 +86,18 @@ async def blue_team_user(db) -> User:
         email=f"blue_{unique_id}@test.com",
     )
 
-    await SocialAccount.objects.acreate(
+    await UserGroups.objects.acreate(
         user=user,
-        provider="authentik",
-        uid=f"test-blue-uid-{unique_id}",
-        extra_data={
-            "id_token": {
-                "groups": ["WCComps_BlueTeam01"],
-                "preferred_username": username,
-            }
-        },
+        authentik_id=f"test-blue-uid-{unique_id}",
+        groups=["WCComps_BlueTeam01"],
     )
 
-    person = await Person.objects.aget(user=user)
-    person.discord_id = discord_id
-    person.authentik_groups = ["WCComps_BlueTeam01"]
-    await person.asave()
+    await DiscordLink.objects.acreate(
+        user=user,
+        discord_id=discord_id,
+        discord_username=username,
+        is_active=True,
+    )
 
     user._discord_id = discord_id
     return user

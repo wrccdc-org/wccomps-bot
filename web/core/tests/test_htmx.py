@@ -16,7 +16,7 @@ def team_with_link(blue_team_user):
     DiscordLink.objects.create(
         discord_id=123456789,
         discord_username="blueteam01",
-        authentik_username="blueteam01",
+        user=blue_team_user,
         team=team,
         is_active=True,
     )

@@ -4,6 +4,7 @@ import contextlib
 from io import StringIO
 
 import pytest
+from django.contrib.auth.models import User
 from django.core.management import call_command
 
 from core.models import AuditLog, CompetitionConfig, DiscordTask
@@ -98,11 +99,11 @@ class TestWipeCompetitionCommand:
             status="open",
         )
         TicketHistory.objects.create(ticket=ticket, action="created")
+        test_user = User.objects.create_user(username="auth_user")
         DiscordLink.objects.create(
             discord_id=123456789,
             discord_username="testuser",
-            authentik_username="auth_user",
-            authentik_user_id="auth-id",
+            user=test_user,
             team=team,
             is_active=True,
         )

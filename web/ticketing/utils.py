@@ -1,85 +1,42 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from asgiref.sync import sync_to_async
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
 from core.tickets_config import TICKET_CATEGORIES
-from person.models import Person
-from team.models import Team
+from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketHistory
 
-
-def get_or_create_person_for_ticket(
-    discord_id: int | None = None,
-    discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
-) -> Person | None:
-    """
-    Look up or create a Person for ticket assignment/resolution.
-
-    Tries to find by authentik_user_id first, then discord_id.
-    Creates a new Person if none exists and we have identifying info.
-
-    Returns None if no identifying info provided.
-    """
-    if not discord_id and not authentik_user_id:
-        return None
-
-    # Try to find by authentik_user_id first
-    if authentik_user_id:
-        person = Person.objects.filter(authentik_user_id=authentik_user_id).first()
-        if person:
-            # Update discord info if we have it, person doesn't, and it's not used elsewhere
-            if discord_id and not person.discord_id and not Person.objects.filter(discord_id=discord_id).exists():
-                person.discord_id = discord_id
-                person.discord_username = discord_username or ""
-                person.save(update_fields=["discord_id", "discord_username"])
-            return person
-
-    # Try to find by discord_id
-    if discord_id:
-        person = Person.objects.filter(discord_id=discord_id).first()
-        if person:
-            # Update authentik info if we have it, person doesn't, and it's not used elsewhere
-            if (
-                authentik_user_id
-                and not person.authentik_user_id
-                and not Person.objects.filter(authentik_user_id=authentik_user_id).exists()
-            ):
-                person.authentik_user_id = authentik_user_id
-                person.authentik_username = authentik_username or person.authentik_username
-                person.save(update_fields=["authentik_user_id", "authentik_username"])
-            return person
-
-    # No existing person found - create one
+if TYPE_CHECKING:
     from django.contrib.auth.models import User
 
-    username = authentik_username or discord_username or f"user_{discord_id or authentik_user_id}"
-    base_username = username[:140]
-    counter = 0
-    while User.objects.filter(username=username).exists():
-        counter += 1
-        username = f"{base_username}_{counter}"
 
-    user = User.objects.create(username=username)
-    # Person is auto-created by signal, update it with our data
-    person = user.person
-    if authentik_user_id:
-        person.authentik_user_id = authentik_user_id
-    if authentik_username:
-        person.authentik_username = authentik_username
+def get_discord_link_for_ticket(
+    discord_id: int | None = None,
+    user: "User | None" = None,
+) -> DiscordLink | None:
+    """
+    Look up a DiscordLink for ticket assignment/resolution. NEVER creates users.
+
+    Discord linking via OAuth is required before a user can be assigned to tickets.
+    """
+    # Prefer user FK if provided - find their active DiscordLink
+    if user:
+        discord_link = DiscordLink.objects.filter(user=user, is_active=True).first()
+        if discord_link:
+            return discord_link
+
     if discord_id:
-        person.discord_id = discord_id
-    if discord_username:
-        person.discord_username = discord_username
-    person.save()
+        discord_link = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).first()
+        if discord_link:
+            return discord_link
 
-    return person
+    return None
 
 
 def create_ticket_atomic(
@@ -199,8 +156,7 @@ def claim_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
+    user: "User | None" = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Claim a ticket atomically with race condition protection.
@@ -210,8 +166,7 @@ def claim_ticket_atomic(
         actor_username: Username for history (e.g., "discord:user" or "web:user")
         discord_id: Discord user ID (optional)
         discord_username: Discord username (optional)
-        authentik_username: Authentik username (optional)
-        authentik_user_id: Authentik user ID (optional)
+        user: Django User object (preferred)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -225,17 +180,14 @@ def claim_ticket_atomic(
         if ticket.status != "open":
             return None, f"This ticket is already {ticket.status}."
 
-        # Get or create Person for assignee
-        person = get_or_create_person_for_ticket(
+        discord_link = get_discord_link_for_ticket(
             discord_id=discord_id,
-            discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
+            user=user,
         )
 
         # Update ticket
         ticket.status = "claimed"
-        ticket.assigned_to = person
+        ticket.assigned_to = discord_link
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -243,11 +195,11 @@ def claim_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="claimed",
-            actor=person,
+            actor=discord_link,
             details={
                 "claimed_by": actor_username,
                 "discord_username": discord_username,
-                "authentik_username": authentik_username,
+                "authentik_username": user.username if user else None,
             },
         )
 
@@ -259,8 +211,6 @@ async def aclaim_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Async version of claim_ticket_atomic.
@@ -270,8 +220,6 @@ async def aclaim_ticket_atomic(
         actor_username: Username for history (e.g., "discord:user" or "web:user")
         discord_id: Discord user ID (optional)
         discord_username: Discord username (optional)
-        authentik_username: Authentik username (optional)
-        authentik_user_id: Authentik user ID (optional)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -284,8 +232,6 @@ async def aclaim_ticket_atomic(
             actor_username=actor_username,
             discord_id=discord_id,
             discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
         )
 
     return await claim_atomic()
@@ -298,8 +244,7 @@ def resolve_ticket_atomic(
     points_override: int | None = None,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
+    user: "User | None" = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Resolve a ticket atomically.
@@ -311,8 +256,7 @@ def resolve_ticket_atomic(
         points_override: Override points for variable-point categories
         discord_id: Discord user ID (optional)
         discord_username: Discord username (optional)
-        authentik_username: Authentik username (optional)
-        authentik_user_id: Authentik user ID (optional)
+        user: Django User object (preferred)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -351,24 +295,21 @@ def resolve_ticket_atomic(
             # Use default for fixed categories
             point_penalty = cat_info.get("points", 0)
 
-        # Get or create Person for resolver
-        person = get_or_create_person_for_ticket(
+        discord_link = get_discord_link_for_ticket(
             discord_id=discord_id,
-            discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
+            user=user,
         )
 
         # Update ticket
         ticket.status = "resolved"
         ticket.resolved_at = timezone.now()
-        ticket.resolved_by = person
+        ticket.resolved_by = discord_link
         ticket.resolution_notes = resolution_notes
         ticket.points_charged = point_penalty
 
         # If not already assigned, mark as assigned to resolver
-        if not ticket.assigned_to and person:
-            ticket.assigned_to = person
+        if not ticket.assigned_to and discord_link:
+            ticket.assigned_to = discord_link
 
         # Schedule thread archiving if Discord thread exists
         if ticket.discord_thread_id:
@@ -382,11 +323,11 @@ def resolve_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="resolved",
-            actor=person,
+            actor=discord_link,
             details={
                 "resolved_by": actor_username,
                 "discord_username": discord_username,
-                "authentik_username": authentik_username,
+                "authentik_username": user.username if user else None,
                 "notes": resolution_notes,
                 "point_penalty": point_penalty,
             },
@@ -402,8 +343,6 @@ async def aresolve_ticket_atomic(
     points_override: int | None = None,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Async version of resolve_ticket_atomic.
@@ -415,8 +354,6 @@ async def aresolve_ticket_atomic(
         points_override: Override points for variable-point categories
         discord_id: Discord user ID (optional)
         discord_username: Discord username (optional)
-        authentik_username: Authentik username (optional)
-        authentik_user_id: Authentik user ID (optional)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -431,8 +368,6 @@ async def aresolve_ticket_atomic(
             points_override=points_override,
             discord_id=discord_id,
             discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
         )
 
     return await resolve_atomic()
@@ -507,8 +442,7 @@ def reassign_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
+    user: "User | None" = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Reassign a claimed ticket to another support member atomically.
@@ -518,8 +452,7 @@ def reassign_ticket_atomic(
         actor_username: Username for history (e.g., "discord:user" or "web:user")
         discord_id: Discord user ID of new assignee (optional)
         discord_username: Discord username of new assignee (optional)
-        authentik_username: Authentik username of new assignee (optional)
-        authentik_user_id: Authentik user ID of new assignee (optional)
+        user: Django User object of new assignee (preferred)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -533,19 +466,15 @@ def reassign_ticket_atomic(
         if ticket.status != "claimed":
             return None, f"Can only reassign claimed tickets. This ticket is {ticket.status}."
 
-        # Store previous assignee for history
         previous_assignee = str(ticket.assigned_to) if ticket.assigned_to else None
 
-        # Get or create Person for new assignee
-        person = get_or_create_person_for_ticket(
+        discord_link = get_discord_link_for_ticket(
             discord_id=discord_id,
-            discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
+            user=user,
         )
 
         # Update ticket assignment
-        ticket.assigned_to = person
+        ticket.assigned_to = discord_link
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -553,11 +482,11 @@ def reassign_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="reassigned",
-            actor=person,
+            actor=discord_link,
             details={
                 "reassigned_by": actor_username,
                 "previous_assignee": previous_assignee,
-                "new_assignee": str(person) if person else None,
+                "new_assignee": str(discord_link) if discord_link else None,
             },
         )
 
@@ -569,8 +498,6 @@ async def areassign_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
-    authentik_username: str | None = None,
-    authentik_user_id: str | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Async version of reassign_ticket_atomic.
@@ -580,8 +507,6 @@ async def areassign_ticket_atomic(
         actor_username: Username for history (e.g., "discord:user" or "web:user")
         discord_id: Discord user ID of new assignee (optional)
         discord_username: Discord username of new assignee (optional)
-        authentik_username: Authentik username of new assignee (optional)
-        authentik_user_id: Authentik user ID of new assignee (optional)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -594,8 +519,6 @@ async def areassign_ticket_atomic(
             actor_username=actor_username,
             discord_id=discord_id,
             discord_username=discord_username,
-            authentik_username=authentik_username,
-            authentik_user_id=authentik_user_id,
         )
 
     return await reassign_atomic()

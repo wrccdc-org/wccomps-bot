@@ -78,25 +78,18 @@ def cleanup_test_data():
     # Clean up test data after test
     from django.contrib.auth import get_user_model
 
-    from person.models import Person
     from ticketing.models import Ticket
 
     user_model = get_user_model()
 
     try:
         # Delete in correct order (respecting foreign keys)
-        # 1. Delete tickets first (they reference teams/persons)
+        # 1. Delete tickets first (they reference teams/discordlinks)
         Ticket.objects.filter(title__startswith="[INTEGRATION TEST]").delete()
 
-        # 2. Get test persons and their user IDs
-        test_persons = Person.objects.filter(authentik_username__startswith="test_")
-        test_user_ids = list(test_persons.values_list("user_id", flat=True))
-
-        # 3. Delete persons (this won't cascade to users because User is parent)
-        test_persons.delete()
-
-        # 4. Delete users
-        user_model.objects.filter(id__in=test_user_ids).delete()
+        # 2. Get test users and delete them
+        test_users = user_model.objects.filter(username__startswith="test_")
+        test_users.delete()
 
     except Exception as e:
         # Log cleanup errors but don't fail tests
@@ -223,13 +216,36 @@ def authenticated_page(page, authentik_credentials, live_server_url) -> Page:
     Create an authenticated page by logging in via Authentik OAuth.
     This performs a real OAuth login flow.
     """
-    # Navigate to login URL
-    page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
+    # Navigate to login URL (redirects to Authentik)
+    page.goto(f"{live_server_url}/auth/login/")
 
-    # Fill in Authentik login form
-    page.fill('input[name="uid_field"]', authentik_credentials["username"])
-    page.fill('input[type="password"]', authentik_credentials["password"])
+    # Fill in Authentik login form (uidField is the actual field name)
+    page.fill('input[name="uidField"]', authentik_credentials["username"])
+    page.fill('input[name="password"]', authentik_credentials["password"])
     page.click('button[type="submit"]')
+
+    # Handle MFA if present (requires TEST_TOTP_SECRET in .env.test)
+    import os
+
+    totp_secret = os.getenv("TEST_TOTP_SECRET")
+    if totp_secret:
+        try:
+            import pyotp
+
+            page.wait_for_timeout(2000)
+
+            # Check if we're on MFA selection page
+            if "Select an authentication method" in page.content():
+                page.click("text=TOTP Device")
+                page.wait_for_timeout(1000)
+
+            # Enter TOTP code
+            totp = pyotp.TOTP(totp_secret)
+            page.wait_for_selector('input[name="code"]', timeout=5000)
+            page.fill('input[name="code"]', totp.now())
+            page.click('button[type="submit"]')
+        except (ImportError, TimeoutError):
+            pass  # pyotp not installed or no MFA prompt
 
     # Wait for redirect back to application
     page.wait_for_url(f"{live_server_url}/**", timeout=10000)

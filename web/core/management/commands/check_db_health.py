@@ -78,8 +78,7 @@ class Command(BaseCommand):
         # Check 4: Critical queries
         self.stdout.write("Testing critical queries...")
         try:
-            from allauth.socialaccount.models import SocialAccount
-
+            from core.models import UserGroups
             from team.models import DiscordLink, Team
             from ticketing.models import Ticket
 
@@ -87,7 +86,7 @@ class Command(BaseCommand):
             Team.objects.count()
             Ticket.objects.filter(status="open").count()
             DiscordLink.objects.filter(is_active=True).count()
-            SocialAccount.objects.filter(provider="authentik").count()
+            UserGroups.objects.count()
 
             self.stdout.write(self.style.SUCCESS("✓ Critical queries OK"))
         except Exception as e:

@@ -7,9 +7,9 @@ import discord
 import pytest
 import pytest_asyncio
 from _pytest.config import Config
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
 
+from core.models import UserGroups
 from team.models import DiscordLink, Team
 
 
@@ -50,24 +50,19 @@ async def mock_admin_user(db: Any) -> User:
         email=f"admin_{unique_id}@test.com",
     )
 
-    await SocialAccount.objects.acreate(
+    await UserGroups.objects.acreate(
         user=user,
-        provider="authentik",
-        uid=f"test-uid-{unique_id}",
-        extra_data={
-            "id_token": {
-                "groups": [
-                    "WCComps_Discord_Admin",
-                    "WCComps_Ticketing_Admin",
-                ],
-                "preferred_username": username,
-            }
-        },
+        authentik_id=f"test-uid-{unique_id}",
+        groups=[
+            "WCComps_Discord_Admin",
+            "WCComps_Ticketing_Admin",
+        ],
     )
 
     await DiscordLink.objects.acreate(
         discord_id=discord_id,
-        authentik_username=username,
+        discord_username=username,
+        user=user,
         is_active=True,
         team=None,
     )
@@ -97,21 +92,16 @@ async def mock_team_user(db: Any) -> User:
         max_members=5,
     )
 
-    await SocialAccount.objects.acreate(
+    await UserGroups.objects.acreate(
         user=user,
-        provider="authentik",
-        uid=f"test-team-uid-{unique_id}",
-        extra_data={
-            "id_token": {
-                "groups": ["WCComps_BlueTeam01"],
-                "preferred_username": username,
-            }
-        },
+        authentik_id=f"test-team-uid-{unique_id}",
+        groups=["WCComps_BlueTeam01"],
     )
 
     await DiscordLink.objects.acreate(
         discord_id=discord_id,
-        authentik_username=username,
+        discord_username=username,
+        user=user,
         is_active=True,
         team=team,
     )

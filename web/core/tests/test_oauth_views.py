@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
@@ -68,7 +69,7 @@ class TestLinkInitiate:
         client = Client()
         response = client.get(f"/auth/link?token={token.token}")
         assert response.status_code == 302
-        assert "/accounts/oidc/authentik/login/" in response.url
+        assert "/auth/login/" in response.url
         assert f"token={token.token}" in response.url
 
     def test_valid_token_stores_in_session(self):
@@ -92,15 +93,15 @@ class TestLinkCallback:
     def test_unauthenticated_redirects_to_login(self):
         """Unauthenticated users should be redirected to login."""
         client = Client()
-        response = client.get("/auth/callback")
+        response = client.get("/auth/link-callback")
         assert response.status_code == 302
-        assert "/accounts/" in response.url or "login" in response.url
+        assert "/auth/login" in response.url
 
     def test_missing_token_in_url_shows_error(self, blue_team_user):
         """Callback without token in URL should show error."""
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get("/auth/callback")
+        response = client.get("/auth/link-callback")
         assert response.status_code == 200
         assert b"Missing authentication state" in response.content
 
@@ -119,7 +120,7 @@ class TestLinkCallback:
         session = client.session
         session["pending_link_token"] = "different_token"
         session.save()
-        response = client.get(f"/auth/callback?token={token.token}")
+        response = client.get(f"/auth/link-callback?token={token.token}")
         assert response.status_code == 200
         assert b"Security verification failed" in response.content
 
@@ -147,7 +148,7 @@ class TestLinkCallback:
 
         # Mock the Authentik API call to avoid real API errors
         with patch("core.authentik.AuthentikManager"):
-            response = client.get(f"/auth/callback?token={token.token}")
+            response = client.get(f"/auth/link-callback?token={token.token}")
 
         assert response.status_code == 200
         assert b"Successfully Linked" in response.content
@@ -175,11 +176,11 @@ class TestLinkCallback:
             max_members=1,
         )
         # Fill the team
+        existing_user = User.objects.create_user(username="existinguser")
         DiscordLink.objects.create(
             discord_id=111111111,
             discord_username="existinguser",
-            authentik_username="existing",
-            authentik_user_id="existing-id",
+            user=existing_user,
             team=team,
             is_active=True,
         )
@@ -198,7 +199,7 @@ class TestLinkCallback:
 
         # Mock the Authentik API call to avoid real API errors
         with patch("core.authentik.AuthentikManager"):
-            response = client.get(f"/auth/callback?token={token.token}")
+            response = client.get(f"/auth/link-callback?token={token.token}")
 
         assert response.status_code == 200
         assert b"Team full" in response.content
@@ -246,13 +247,14 @@ class TestDiscordLinkConstraints:
         """Creating new link deactivates previous active link."""
         team = Team.objects.create(team_number=1, team_name="Blue Team 01", max_members=10)
         discord_id = 123456789
+        user1 = User.objects.create_user(username="auth1")
+        user2 = User.objects.create_user(username="auth2")
 
         # Create first link
         link1 = DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username="user1",
-            authentik_username="auth1",
-            authentik_user_id="auth-id-1",
+            user=user1,
             team=team,
             is_active=True,
         )
@@ -261,8 +263,7 @@ class TestDiscordLinkConstraints:
         link2 = DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username="user1_updated",
-            authentik_username="auth2",
-            authentik_user_id="auth-id-2",
+            user=user2,
             team=team,
             is_active=True,
         )
@@ -275,20 +276,20 @@ class TestDiscordLinkConstraints:
     def test_multiple_discord_users_can_link_to_team_account(self):
         """Multiple Discord users can link to same team Authentik account."""
         team = Team.objects.create(team_number=1, team_name="Blue Team 01", max_members=10)
+        # Blue teams share a single Authentik account
+        team_user = User.objects.create_user(username="team01")
 
         link1 = DiscordLink.objects.create(
             discord_id=111111111,
             discord_username="user1",
-            authentik_username="team01",
-            authentik_user_id="team01-id",
+            user=team_user,
             team=team,
             is_active=True,
         )
         link2 = DiscordLink.objects.create(
             discord_id=222222222,
             discord_username="user2",
-            authentik_username="team01",
-            authentik_user_id="team01-id",
+            user=team_user,
             team=team,
             is_active=True,
         )

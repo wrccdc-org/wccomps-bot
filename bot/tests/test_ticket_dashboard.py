@@ -11,7 +11,7 @@ from bot.ticket_dashboard import (
     post_ticket_to_dashboard,
     update_ticket_dashboard,
 )
-from team.models import Team
+from team.models import DiscordLink, Team
 from ticketing.models import Ticket
 
 
@@ -45,12 +45,13 @@ class TicketDashboardTest(TestCase):
         self.assertIsNotNone(open_embed)
         self.assertIn("Test Open", str(open_embed.title))
 
-        # Create Person for assignment testing
+        # Create DiscordLink for assignment testing
         volunteer_user = User.objects.create(username="volunteer1")
-        volunteer_person = volunteer_user.person
-        volunteer_person.discord_id = 123456789
-        volunteer_person.discord_username = "volunteer1"
-        volunteer_person.save()
+        volunteer_link = DiscordLink.objects.create(
+            user=volunteer_user,
+            discord_id=123456789,
+            discord_username="volunteer1",
+        )
 
         # Test claimed ticket with assignment
         claimed_ticket = Ticket.objects.create(
@@ -60,18 +61,19 @@ class TicketDashboardTest(TestCase):
             title="Test Claimed",
             description="Claimed description",
             status="claimed",
-            assigned_to=volunteer_person,
+            assigned_to=volunteer_link,
         )
         claimed_embed = format_ticket_embed(claimed_ticket)
         field_names = [field.name for field in claimed_embed.fields]
         self.assertIn("Assigned To", field_names)
 
-        # Create Person for resolver
+        # Create DiscordLink for resolver
         admin_user = User.objects.create(username="admin1")
-        admin_person = admin_user.person
-        admin_person.discord_id = 987654321
-        admin_person.discord_username = "admin1"
-        admin_person.save()
+        admin_link = DiscordLink.objects.create(
+            user=admin_user,
+            discord_id=987654321,
+            discord_username="admin1",
+        )
 
         # Test resolved ticket with resolution info
         resolved_ticket = Ticket.objects.create(
@@ -82,7 +84,7 @@ class TicketDashboardTest(TestCase):
             description="Resolved description",
             status="resolved",
             resolved_at=tz.now(),
-            resolved_by=admin_person,
+            resolved_by=admin_link,
             resolution_notes="All fixed",
             points_charged=10,
         )

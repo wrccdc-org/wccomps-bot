@@ -42,7 +42,7 @@ def goldteam_page(browser_context, live_server_url):
     page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
 
     # Fill in Authentik login form
-    page.fill('input[name="uid_field"]', goldteam_username)
+    page.fill('input[name="uidField"]', goldteam_username)
     page.fill('input[type="password"]', goldteam_password)
     page.click('button[type="submit"]')
 

@@ -9,7 +9,6 @@ dependencies = [
     "python-dotenv>=1.0.1",
     # Django web app
     "django>=5.1.14,<5.2",
-    "django-allauth>=0.57",
     "django-cotton>=0.9",
     "django-stubs>=5.1.1",
     "pyjwt>=2.8.0",
@@ -25,6 +24,8 @@ dependencies = [
     "aiohttp>=3.9",
     "xkcdpass>=1.19.9",
     "django-smart-ratelimit>=0.8.11",
+    "httpx>=0.28.1",
+    "pyotp>=2.9.0",
 ]
 
 [project.optional-dependencies]
