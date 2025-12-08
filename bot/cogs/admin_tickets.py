@@ -305,15 +305,11 @@ class AdminTicketsCog(commands.Cog):
         else:
             point_penalty = cat_info.get("points", 0)
 
-        # Get or create Person for resolver
         from asgiref.sync import sync_to_async
 
-        from ticketing.utils import get_or_create_person_for_ticket
+        from ticketing.utils import get_discord_link_for_ticket
 
-        resolver = await sync_to_async(get_or_create_person_for_ticket)(
-            discord_id=interaction.user.id,
-            discord_username=str(interaction.user),
-        )
+        resolver = await sync_to_async(get_discord_link_for_ticket)(discord_id=interaction.user.id)
 
         # Update ticket
         ticket.status = "resolved"
@@ -378,15 +374,11 @@ class AdminTicketsCog(commands.Cog):
             )
             return
 
-        # Get or create Person for canceller
         from asgiref.sync import sync_to_async
 
-        from ticketing.utils import get_or_create_person_for_ticket
+        from ticketing.utils import get_discord_link_for_ticket
 
-        canceller = await sync_to_async(get_or_create_person_for_ticket)(
-            discord_id=interaction.user.id,
-            discord_username=str(interaction.user),
-        )
+        canceller = await sync_to_async(get_discord_link_for_ticket)(discord_id=interaction.user.id)
 
         # Update ticket
         ticket.status = "cancelled"

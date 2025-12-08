@@ -41,7 +41,7 @@ def goldteam_page(browser_context, live_server_url):
     page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
 
     # Fill in Authentik login form
-    page.fill('input[name="uid_field"]', goldteam_username)
+    page.fill('input[name="uidField"]', goldteam_username)
     page.fill('input[type="password"]', goldteam_password)
     page.click('button[type="submit"]')
 
@@ -117,15 +117,18 @@ class TestTeamMembershipDisplay:
 
     def test_shows_linked_members(self, goldteam_page: Page, db, live_server_url):
         """Group role mappings should display linked Discord users."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
 
-        # Create test link
+        # Create user and link
+        user = User.objects.create_user(username="test_e2e_auth_user")
         link = DiscordLink.objects.create(
             discord_id=111222333444555,
             discord_username="test_e2e_user",
-            authentik_username="test_e2e_auth_user",
+            user=user,
             team=team,
             is_active=True,
         )
@@ -144,6 +147,8 @@ class TestTeamFullStatus:
 
     def test_full_team_indicator(self, goldteam_page: Page, db, live_server_url):
         """Teams at max capacity should show full indicator."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         # Get or create a test team
@@ -158,18 +163,20 @@ class TestTeamFullStatus:
         )
 
         # Create links to fill the team
+        user1 = User.objects.create_user(username="test_auth_1")
         link1 = DiscordLink.objects.create(
             discord_id=111111111111111,
             discord_username="test_user_1",
-            authentik_username="test_auth_1",
+            user=user1,
             team=team,
             is_active=True,
         )
 
+        user2 = User.objects.create_user(username="test_auth_2")
         link2 = DiscordLink.objects.create(
             discord_id=222222222222222,
             discord_username="test_user_2",
-            authentik_username="test_auth_2",
+            user=user2,
             team=team,
             is_active=True,
         )
@@ -188,6 +195,8 @@ class TestTeamFullStatus:
 
     def test_available_team_indicator(self, goldteam_page: Page, db, live_server_url):
         """Teams below max capacity should show available status."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
@@ -196,10 +205,11 @@ class TestTeamFullStatus:
         DiscordLink.objects.filter(team=team).delete()
 
         # Create one link (team has capacity for more)
+        user = User.objects.create_user(username="test_single_auth")
         link = DiscordLink.objects.create(
             discord_id=333333333333333,
             discord_username="test_single_user",
-            authentik_username="test_single_auth",
+            user=user,
             team=team,
             is_active=True,
         )
@@ -218,14 +228,17 @@ class TestLinkedUserDetails:
 
     def test_shows_discord_username(self, goldteam_page: Page, db, live_server_url):
         """Group role mappings should show Discord username for linked users."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
 
+        user = User.objects.create_user(username="test_authentik_username_e2e")
         link = DiscordLink.objects.create(
             discord_id=444444444444444,
             discord_username="test_discord_username_e2e",
-            authentik_username="test_authentik_username_e2e",
+            user=user,
             team=team,
             is_active=True,
         )
@@ -240,14 +253,17 @@ class TestLinkedUserDetails:
 
     def test_shows_authentik_username(self, goldteam_page: Page, db, live_server_url):
         """Group role mappings should show Authentik username for linked users."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
 
+        user = User.objects.create_user(username="test_authentik_e2e_2")
         link = DiscordLink.objects.create(
             discord_id=555555555555555,
             discord_username="test_discord_e2e_2",
-            authentik_username="test_authentik_e2e_2",
+            user=user,
             team=team,
             is_active=True,
         )
@@ -262,16 +278,19 @@ class TestLinkedUserDetails:
 
     def test_shows_discord_id(self, goldteam_page: Page, db, live_server_url):
         """Group role mappings should show Discord ID for linked users."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
 
         test_discord_id = 666666666666666
 
+        user = User.objects.create_user(username="test_authentik_e2e_3")
         link = DiscordLink.objects.create(
             discord_id=test_discord_id,
             discord_username="test_discord_e2e_3",
-            authentik_username="test_authentik_e2e_3",
+            user=user,
             team=team,
             is_active=True,
         )
@@ -362,6 +381,8 @@ class TestDataAccuracy:
 
     def test_member_count_accurate(self, goldteam_page: Page, db, live_server_url):
         """Member count should accurately reflect number of active links."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
@@ -370,26 +391,29 @@ class TestDataAccuracy:
         DiscordLink.objects.filter(team=team).delete()
 
         # Create exactly 3 links
+        user1 = User.objects.create_user(username="accurate_auth_1")
         link1 = DiscordLink.objects.create(
             discord_id=777777777777771,
             discord_username="accurate_test_1",
-            authentik_username="accurate_auth_1",
+            user=user1,
             team=team,
             is_active=True,
         )
 
+        user2 = User.objects.create_user(username="accurate_auth_2")
         link2 = DiscordLink.objects.create(
             discord_id=777777777777772,
             discord_username="accurate_test_2",
-            authentik_username="accurate_auth_2",
+            user=user2,
             team=team,
             is_active=True,
         )
 
+        user3 = User.objects.create_user(username="accurate_auth_3")
         link3 = DiscordLink.objects.create(
             discord_id=777777777777773,
             discord_username="accurate_test_3",
-            authentik_username="accurate_auth_3",
+            user=user3,
             team=team,
             is_active=True,
         )
@@ -409,15 +433,18 @@ class TestDataAccuracy:
 
     def test_inactive_links_not_shown(self, goldteam_page: Page, db, live_server_url):
         """Inactive links should not be counted or displayed."""
+        from django.contrib.auth.models import User
+
         from team.models import DiscordLink, Team
 
         team = Team.objects.get(team_number=50)
 
         # Create an inactive link
+        user = User.objects.create_user(username="inactive_auth_user")
         inactive_link = DiscordLink.objects.create(
             discord_id=888888888888888,
             discord_username="inactive_test_user",
-            authentik_username="inactive_auth_user",
+            user=user,
             team=team,
             is_active=False,  # Inactive
         )

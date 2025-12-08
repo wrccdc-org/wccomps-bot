@@ -9,10 +9,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from allauth.socialaccount.models import SocialApp
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
+
+from core.models import UserGroups
 
 from .models import RedTeamFinding
 
@@ -43,9 +44,10 @@ class TestBulkApproveRedFindingsView:
         # Red Team should be denied
         assert response.status_code == 302  # Redirect to leaderboard or error page
 
-    def test_admin_can_access_bulk_approve(self, social_app: SocialApp) -> None:
+    def test_admin_can_access_bulk_approve(self, db) -> None:
         """Admin users should be able to access bulk approve."""
         admin_user = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        UserGroups.objects.create(user=admin_user, authentik_id="admin-uid", groups=["WCComps_Discord_Admin"])
         client = Client()
         client.force_login(admin_user)
 

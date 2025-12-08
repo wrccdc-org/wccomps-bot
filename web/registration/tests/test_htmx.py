@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from person.models import Person
+from core.models import UserGroups
 
 pytestmark = pytest.mark.django_db
 
@@ -16,14 +16,7 @@ pytestmark = pytest.mark.django_db
 def gold_team_user(db):
     """Create a gold team user."""
     user = User.objects.create_user(username="gold_user", password="test")
-    person = Person.objects.create(
-        user=user,
-        authentik_username="gold_user",
-        discord_id="123456789",
-        discord_username="gold_user",
-    )
-    person.permissions = ["gold_team"]
-    person.save()
+    UserGroups.objects.create(user=user, authentik_id="gold-user-uid", groups=["WCComps_GoldTeam"])
     return user
 
 

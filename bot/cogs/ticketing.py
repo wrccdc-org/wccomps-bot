@@ -272,23 +272,18 @@ class TicketingCog(commands.Cog):
         await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=message.author.id)
 
         # Save message as comment in database (for web interface visibility)
-        if message.content:  # Only save if there's text content
-            # Check if this message is already saved (prevent duplicates)
+        if message.content:
             existing = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
 
             if not existing:
-                # Get or create Person for author
                 from asgiref.sync import sync_to_async
 
-                from ticketing.utils import get_or_create_person_for_ticket
+                from ticketing.utils import get_discord_link_for_ticket
 
-                author_person = await sync_to_async(get_or_create_person_for_ticket)(
-                    discord_id=message.author.id,
-                    discord_username=str(message.author),
-                )
+                author_discord_link = await sync_to_async(get_discord_link_for_ticket)(discord_id=message.author.id)
                 await TicketComment.objects.acreate(
                     ticket=ticket,
-                    author=author_person,
+                    author=author_discord_link,
                     comment_text=message.content,
                     discord_message_id=message.id,
                 )

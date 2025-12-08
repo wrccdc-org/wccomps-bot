@@ -29,7 +29,7 @@ class TestAuthentikOAuthFlow:
         expect(page).to_have_url("**/auth.wccomps.org/**", timeout=10000)
 
         # Fill in credentials
-        page.fill('input[name="uid_field"]', authentik_credentials["username"])
+        page.fill('input[name="uidField"]', authentik_credentials["username"])
         page.fill('input[type="password"]', authentik_credentials["password"])
 
         # Submit form
@@ -52,7 +52,7 @@ class TestAuthentikOAuthFlow:
         expect(page).to_have_url("**/accounts/**", timeout=5000)
 
         # Complete login (simplified)
-        page.fill('input[name="uid_field"]', authentik_credentials["username"])
+        page.fill('input[name="uidField"]', authentik_credentials["username"])
         page.fill('input[type="password"]', authentik_credentials["password"])
         page.click('button[type="submit"]')
 
@@ -171,22 +171,22 @@ class TestTicketOperations:
         # Claim ticket first via API
         from django.contrib.auth.models import User
 
-        from person.models import Person
+        from team.models import DiscordLink
 
         # Get or create test user
         user, _ = User.objects.get_or_create(
             username="test_browser_user",
             defaults={"email": "test_browser_user@example.com"},
         )
-        person, _ = Person.objects.get_or_create(
+        discord_link, _ = DiscordLink.objects.get_or_create(
             user=user,
             defaults={
-                "discord_id": "111111111",
-                "authentik_username": "test_browser_user",
+                "discord_id": 111111111,
+                "discord_username": "test_browser_user",
             },
         )
 
-        test_ticket.claimed_by = person
+        test_ticket.assigned_to = discord_link
         test_ticket.save()
 
         # Navigate to ticket detail
@@ -208,7 +208,7 @@ class TestTicketOperations:
             expect(authenticated_page.locator("body")).not_to_contain_text("Server Error")
 
         # Cleanup
-        person.delete()
+        discord_link.delete()
         user.delete()
 
 

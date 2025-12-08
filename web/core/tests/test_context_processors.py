@@ -1,11 +1,11 @@
 """Tests for context processors."""
 
 import pytest
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
 from django.test import RequestFactory
 
 from core.context_processors import permissions
+from core.models import UserGroups
 
 pytestmark = pytest.mark.django_db
 
@@ -38,21 +38,10 @@ class TestPermissionsContextProcessor:
         assert context["is_orange_team"] is False
         assert context["authentik_username"] == ""
 
-    def test_white_team_user_has_is_white_team_true(self, request_factory, social_app):
+    def test_white_team_user_has_is_white_team_true(self, request_factory):
         """User in WCComps_WhiteTeam group should have is_white_team = True."""
         user = User.objects.create_user(username="whiteteam", password="test")
-
-        _social_account = SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="white-team-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_WhiteTeam"],
-                    "preferred_username": "whiteteam",
-                },
-            },
-        )
+        UserGroups.objects.create(user=user, authentik_id="white-team-uid", groups=["WCComps_WhiteTeam"])
 
         request = request_factory.get("/")
         request.user = user
@@ -65,21 +54,10 @@ class TestPermissionsContextProcessor:
         assert context["is_blue_team"] is False
         assert context["is_red_team"] is False
 
-    def test_orange_team_user_has_is_orange_team_true(self, request_factory, social_app):
+    def test_orange_team_user_has_is_orange_team_true(self, request_factory):
         """User in WCComps_OrangeTeam group should have is_orange_team = True."""
         user = User.objects.create_user(username="orangeteam", password="test")
-
-        _social_account = SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="orange-team-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_OrangeTeam"],
-                    "preferred_username": "orangeteam",
-                },
-            },
-        )
+        UserGroups.objects.create(user=user, authentik_id="orange-team-uid", groups=["WCComps_OrangeTeam"])
 
         request = request_factory.get("/")
         request.user = user
@@ -92,20 +70,11 @@ class TestPermissionsContextProcessor:
         assert context["is_blue_team"] is False
         assert context["is_red_team"] is False
 
-    def test_user_with_multiple_teams(self, request_factory, social_app):
+    def test_user_with_multiple_teams(self, request_factory):
         """User in both WhiteTeam and OrangeTeam should have both flags True."""
         user = User.objects.create_user(username="multipleams", password="test")
-
-        _social_account = SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="multiple-teams-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_WhiteTeam", "WCComps_OrangeTeam"],
-                    "preferred_username": "multipleams",
-                },
-            },
+        UserGroups.objects.create(
+            user=user, authentik_id="multiple-teams-uid", groups=["WCComps_WhiteTeam", "WCComps_OrangeTeam"]
         )
 
         request = request_factory.get("/")
@@ -116,21 +85,10 @@ class TestPermissionsContextProcessor:
         assert context["is_white_team"] is True
         assert context["is_orange_team"] is True
 
-    def test_non_white_team_user_has_is_white_team_false(self, request_factory, social_app):
+    def test_non_white_team_user_has_is_white_team_false(self, request_factory):
         """User not in WCComps_WhiteTeam group should have is_white_team = False."""
         user = User.objects.create_user(username="goldteam", password="test")
-
-        _social_account = SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="gold-team-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_GoldTeam"],
-                    "preferred_username": "goldteam",
-                },
-            },
-        )
+        UserGroups.objects.create(user=user, authentik_id="gold-team-uid", groups=["WCComps_GoldTeam"])
 
         request = request_factory.get("/")
         request.user = user
@@ -141,21 +99,10 @@ class TestPermissionsContextProcessor:
         assert context["is_orange_team"] is False
         assert context["is_gold_team"] is True
 
-    def test_non_orange_team_user_has_is_orange_team_false(self, request_factory, social_app):
+    def test_non_orange_team_user_has_is_orange_team_false(self, request_factory):
         """User not in WCComps_OrangeTeam group should have is_orange_team = False."""
         user = User.objects.create_user(username="admin", password="test")
-
-        _social_account = SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="admin-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": ["WCComps_Discord_Admin"],
-                    "preferred_username": "admin",
-                },
-            },
-        )
+        UserGroups.objects.create(user=user, authentik_id="admin-uid", groups=["WCComps_Discord_Admin"])
 
         request = request_factory.get("/")
         request.user = user
@@ -166,8 +113,8 @@ class TestPermissionsContextProcessor:
         assert context["is_white_team"] is False
         assert context["is_admin"] is True
 
-    def test_user_without_social_account_returns_false(self, request_factory):
-        """User without SocialAccount should have all team flags False."""
+    def test_user_without_usergroups_returns_false(self, request_factory):
+        """User without UserGroups should have all team flags False."""
         user = User.objects.create_user(username="nosocial", password="test")
 
         request = request_factory.get("/")

@@ -5,27 +5,23 @@ Simplified Authentik-only authorization utilities.
 from collections.abc import Callable
 from typing import Any
 
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpRequest
+
+from .models import UserGroups
 
 
 def get_authentik_groups(user: User | AnonymousUser) -> list[str]:
     """
-    Get user's Authentik groups directly from their SocialAccount.
-    This is the single source of truth - no Django flags needed.
+    Get user's Authentik groups from UserGroups model.
+    This is the single source of truth for permissions.
     """
     if isinstance(user, AnonymousUser):
         return []
 
     try:
-        # Get the user's Authentik social account
-        social_account = SocialAccount.objects.get(user=user, provider="authentik")
-        # Groups can be in userinfo.groups or groups (depends on OAuth flow)
-        extra_data = social_account.extra_data
-        groups: list[str] = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
-        return groups
-    except SocialAccount.DoesNotExist:
+        return list(user.usergroups.groups)
+    except UserGroups.DoesNotExist:
         return []
 
 
@@ -45,37 +41,40 @@ def get_permissions_context(user: User) -> dict[str, bool]:
     }
 
 
+PERMISSION_MAP: dict[str, list[str]] = {
+    "admin": ["WCComps_Discord_Admin"],
+    "ticketing_admin": ["WCComps_Ticketing_Admin"],
+    "ticketing_support": ["WCComps_Ticketing_Support"],
+    "gold_team": ["WCComps_GoldTeam", "WCComps_Discord_Admin"],
+    "white_team": ["WCComps_WhiteTeam"],
+    "orange_team": ["WCComps_OrangeTeam"],
+    "helper_eligible": ["WCComps_Ticketing_Support", "WCComps_Quotient_Injects"],
+}
+
+
 def has_permission(user: User | AnonymousUser, permission_name: str) -> bool:
     """
     Check if user has a specific permission based on Authentik groups.
 
-    Permission mappings:
-    - 'admin' -> WCComps_Discord_Admin
-    - 'ticketing_admin' -> WCComps_Ticketing_Admin
-    - 'ticketing_support' -> WCComps_Ticketing_Support
-    - 'gold_team' -> WCComps_GoldTeam
-    - 'blue_team' -> WCComps_BlueTeam* (pattern match)
-    - 'white_team' -> WCComps_WhiteTeam
-    - 'orange_team' -> WCComps_OrangeTeam
+    Uses SocialAccount as source of truth.
     """
     groups = get_authentik_groups(user)
+    return check_groups_for_permission(groups, permission_name)
 
-    # Define permission to group mappings
-    permission_map = {
-        "admin": lambda g: "WCComps_Discord_Admin" in g,
-        "ticketing_admin": lambda g: "WCComps_Ticketing_Admin" in g,
-        "ticketing_support": lambda g: "WCComps_Ticketing_Support" in g,
-        "gold_team": lambda g: "WCComps_GoldTeam" in g or "WCComps_Discord_Admin" in g,
-        "blue_team": lambda g: any(group.startswith("WCComps_BlueTeam") for group in g),
-        "white_team": lambda g: "WCComps_WhiteTeam" in g,
-        "orange_team": lambda g: "WCComps_OrangeTeam" in g,
-    }
 
-    # Check if user has the permission
-    if permission_name in permission_map:
-        return permission_map[permission_name](groups)
+def check_groups_for_permission(groups: list[str], permission_name: str) -> bool:
+    """
+    Check if a list of groups grants a permission.
 
-    # Direct group check for any other group name
+    Can be used with groups from UserGroups.groups.
+    """
+    if permission_name == "blue_team":
+        return any(g.startswith("WCComps_BlueTeam") for g in groups)
+
+    if permission_name in PERMISSION_MAP:
+        return any(g in groups for g in PERMISSION_MAP[permission_name])
+
+    # Direct group check
     return permission_name in groups
 
 

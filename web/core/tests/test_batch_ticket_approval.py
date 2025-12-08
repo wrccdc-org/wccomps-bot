@@ -3,12 +3,11 @@
 from typing import Any
 
 import pytest
-from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.auth.models import User
-from django.contrib.sites.models import Site
 from django.test import Client
 from django.utils import timezone
 
+from core.models import UserGroups
 from team.models import Team
 from ticketing.models import Ticket, TicketHistory
 
@@ -108,59 +107,21 @@ def setup_users_and_auth(setup_teams: tuple[Team, Team]) -> dict[str, Any]:
     """Create test users with authentication."""
     team1, team2 = setup_teams
 
-    site = Site.objects.get_or_create(id=1, defaults={"domain": "testserver", "name": "Test Site"})[0]
-
-    social_app = SocialApp.objects.create(
-        provider="authentik",
-        name="Authentik",
-        client_id="test_client",
-        secret="test_secret",
-    )
-    social_app.sites.add(site)
-
     # Ticketing Admin user
     admin_user = User.objects.create_user(username="admin_user", password="test123")
-    SocialAccount.objects.create(
-        user=admin_user,
-        provider="authentik",
-        uid="admin_uid",
-        extra_data={
-            "groups": ["WCComps_Ticketing_Admin"],
-        },
-    )
+    UserGroups.objects.create(user=admin_user, authentik_id="admin_uid", groups=["WCComps_Ticketing_Admin"])
 
     # Ticketing Support user (not admin)
     support_user = User.objects.create_user(username="support_user", password="test123")
-    SocialAccount.objects.create(
-        user=support_user,
-        provider="authentik",
-        uid="support_uid",
-        extra_data={
-            "groups": ["WCComps_Ticketing_Support"],
-        },
-    )
+    UserGroups.objects.create(user=support_user, authentik_id="support_uid", groups=["WCComps_Ticketing_Support"])
 
     # Team user
     team_user = User.objects.create_user(username="team_user", password="test123")
-    SocialAccount.objects.create(
-        user=team_user,
-        provider="authentik",
-        uid="team_uid",
-        extra_data={
-            "groups": ["WCComps_BlueTeam01"],
-        },
-    )
+    UserGroups.objects.create(user=team_user, authentik_id="team_uid", groups=["WCComps_BlueTeam01"])
 
     # Admin user (general admin, not ticketing admin)
     general_admin = User.objects.create_user(username="general_admin", password="test123")
-    SocialAccount.objects.create(
-        user=general_admin,
-        provider="authentik",
-        uid="general_admin_uid",
-        extra_data={
-            "groups": ["WCComps_Admin"],
-        },
-    )
+    UserGroups.objects.create(user=general_admin, authentik_id="general_admin_uid", groups=["WCComps_Admin"])
 
     return {
         "admin_user": admin_user,

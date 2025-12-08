@@ -1,10 +1,11 @@
 """
 Tests for c-score_value Cotton component.
 
-This component displays numeric score values with automatic color coding:
-- Positive values: green (#28a745)
-- Negative values: red (#dc3545)
-- Zero: gray (#6c757d)
+This component displays numeric score values with automatic color coding
+via CSS classes:
+- Positive values: score-positive class
+- Negative values: score-negative class
+- Zero: score-zero class
 - Signed format adds +/- prefix for positive numbers
 
 These tests verify the component template exists and contains the correct logic.
@@ -31,17 +32,17 @@ class TestScoreValueComponent:
         assert component_path.exists(), f"Component file should exist at {component_path}"
 
     def test_component_contains_color_logic(self) -> None:
-        """Component should contain color logic for positive/negative/zero."""
+        """Component should contain CSS class logic for positive/negative/zero."""
         content = (COTTON_DIR / "score_value.html").read_text()
 
-        # Should contain green color for positive
-        assert "#28a745" in content, "Should contain green color #28a745 for positive values"
+        # Should contain CSS class for positive
+        assert "score-positive" in content, "Should contain score-positive class for positive values"
 
-        # Should contain red color for negative
-        assert "#dc3545" in content, "Should contain red color #dc3545 for negative values"
+        # Should contain CSS class for negative
+        assert "score-negative" in content, "Should contain score-negative class for negative values"
 
-        # Should contain gray color for zero
-        assert "#6c757d" in content, "Should contain gray color #6c757d for zero values"
+        # Should contain CSS class for zero
+        assert "score-zero" in content, "Should contain score-zero class for zero values"
 
     def test_component_contains_signed_format_logic(self) -> None:
         """Component should contain logic for signed format (+/-)."""

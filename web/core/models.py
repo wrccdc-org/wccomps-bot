@@ -1,7 +1,36 @@
 """Database models for WCComps ticket system."""
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+
+
+class UserGroups(models.Model):
+    """
+    Stores Authentik groups for a user. Refreshed on every login.
+
+    This is the single source of truth for user permissions.
+    Replaces allauth SocialAccount for group storage.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
+    authentik_id = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="Authentik user UUID (sub claim)",
+    )
+    groups = models.JSONField(
+        default=list,
+        help_text="List of Authentik group names",
+    )
+
+    class Meta:
+        verbose_name = "User Groups"
+        verbose_name_plural = "User Groups"
+
+    def __str__(self) -> str:
+        return f"{self.user.username} ({len(self.groups)} groups)"
 
 
 class AuditLog(models.Model):

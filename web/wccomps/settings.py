@@ -52,10 +52,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.openid_connect",
     "django_cotton",
     "core",
     "team",
@@ -77,7 +73,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "core.middleware.AuthentikRequiredMiddleware",
 ]
 
@@ -213,43 +208,20 @@ SITE_ID = 1
 # Authentication
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-# Allauth configuration
-ACCOUNT_EMAIL_VERIFICATION = "none"
-SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_LOGIN_ON_GET = True  # Skip intermediate page, redirect immediately
-SOCIALACCOUNT_STORE_TOKENS = False  # Don't store OAuth tokens (we don't need them)
-LOGIN_URL = "/accounts/oidc/authentik/login/"
+# OAuth configuration (custom Authentik OIDC)
+LOGIN_URL = "/auth/login/"
 LOGIN_REDIRECT_URL = "/"
-SOCIALACCOUNT_PROVIDERS = {
-    "openid_connect": {
-        "APPS": [
-            {
-                "provider_id": "authentik",
-                "name": "Authentik",
-                "client_id": os.environ.get("AUTHENTIK_CLIENT_ID"),
-                "secret": os.environ.get("AUTHENTIK_SECRET"),
-                "settings": {
-                    "server_url": os.environ.get(
-                        "AUTHENTIK_OIDC_URL",
-                        "https://auth.wccomps.org/application/o/discord-bot/",
-                    ),
-                    "end_session_endpoint": os.environ.get(
-                        "AUTHENTIK_LOGOUT_URL",
-                        "https://auth.wccomps.org/application/o/discord-bot/end-session/",
-                    ),
-                },
-                "scope": ["openid", "profile", "email", "groups"],
-            }
-        ]
-    }
-}
+LOGOUT_REDIRECT_URL = "/"
 
-# Logout configuration - redirect through Authentik logout
-ACCOUNT_LOGOUT_ON_GET = True  # Allow GET logout (no confirmation page)
-ACCOUNT_LOGOUT_REDIRECT_URL = "/"
+# Authentik OAuth settings
+AUTHENTIK_CLIENT_ID = os.environ.get("AUTHENTIK_CLIENT_ID")
+AUTHENTIK_SECRET = os.environ.get("AUTHENTIK_SECRET")
+AUTHENTIK_OIDC_URL = os.environ.get(
+    "AUTHENTIK_OIDC_URL",
+    "https://auth.wccomps.org/application/o/discord-bot/",
+)
 
 # Session configuration (12-hour expiry for competitions)
 SESSION_COOKIE_AGE = 43200

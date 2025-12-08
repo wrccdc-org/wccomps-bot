@@ -14,10 +14,9 @@ from django.utils import timezone
 from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme
 
 from core.models import DiscordTask
-from person.models import Person
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
-from ticketing.utils import get_or_create_person_for_ticket
+from ticketing.utils import get_discord_link_for_ticket
 
 from .auth_utils import get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
@@ -106,8 +105,7 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
     request.session["pending_link_discord_id"] = link_token.discord_id
 
     # Pass token through OAuth redirect via next parameter
-    # This is more reliable than session storage which django-allauth may clear
-    return redirect(f"/accounts/oidc/authentik/login/?next=/auth/callback?token={link_token.token}")
+    return redirect(f"/auth/login/?next=/auth/link-callback?token={link_token.token}")
 
 
 @login_required
@@ -214,7 +212,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     # For team accounts, multiple Discord users can link to the same Authentik account (shared team account)
     # For non-team accounts (admins/support), enforce one-to-one mapping
     if not is_team_account:
-        existing_link = DiscordLink.objects.filter(authentik_user_id=authentik_user_id, is_active=True).first()
+        existing_link = DiscordLink.objects.filter(user=user, is_active=True).first()
 
         if existing_link and existing_link.discord_id != discord_id:
             # This Authentik account is already linked to a different Discord account
@@ -289,8 +287,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
                 # Update existing active link
                 link.discord_username = discord_username
-                link.authentik_username = authentik_username
-                link.authentik_user_id = authentik_user_id
+                link.user = user
                 link.team = team
                 link.is_active = True
                 link.linked_at = timezone.now()
@@ -301,8 +298,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 link = DiscordLink.objects.create(
                     discord_id=discord_id,
                     discord_username=discord_username,
-                    authentik_username=authentik_username,
-                    authentik_user_id=authentik_user_id,
+                    user=user,
                     team=team,
                     is_active=True,
                 )
@@ -313,8 +309,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
             # Update existing active link
             link.discord_username = discord_username
-            link.authentik_username = authentik_username
-            link.authentik_user_id = authentik_user_id
+            link.user = user
             link.team = None
             link.is_active = True
             link.linked_at = timezone.now()
@@ -325,8 +320,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             link = DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=discord_username,
-                authentik_username=authentik_username,
-                authentik_user_id=authentik_user_id,
+                user=user,
                 team=None,
                 is_active=True,
             )
@@ -543,23 +537,16 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     if not is_allowed:
         return JsonResponse({"error": reason}, status=429)
 
-    # Record rate limit
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
-    # Get or create Person for comment author
-    author_person = get_or_create_person_for_ticket(
-        authentik_user_id=authentik_user_id,
-        authentik_username=authentik_username,
-    )
+    author_discord_link = get_discord_link_for_ticket(user=user)
 
-    # Create comment
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author=author_person,
+        author=author_discord_link,
         comment_text=comment_text,
     )
 
-    # Create Discord task to post to thread
     DiscordTask.objects.create(
         task_type="post_comment",
         ticket=ticket,
@@ -984,7 +971,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         if assignee_filter == "unassigned":
             query = query.filter(assigned_to__isnull=True)
         else:
-            # Filter by Person ID (assignee_filter is now a person ID string)
+            # Filter by DiscordLink ID (assignee_filter is now a DiscordLink ID string)
             with contextlib.suppress(ValueError):
                 query = query.filter(assigned_to_id=int(assignee_filter))
 
@@ -1009,8 +996,8 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         "-team__team_number",
         "category",
         "-category",
-        "assigned_to__authentik_username",
-        "-assigned_to__authentik_username",
+        "assigned_to__discord_username",
+        "-assigned_to__discord_username",
     ]
     if sort_by not in valid_sort_fields:
         sort_by = "-created_at"
@@ -1043,7 +1030,11 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page)
 
     # Get unique assignees for filter dropdown
-    assignees = Person.objects.filter(assigned_tickets__isnull=False).distinct().order_by("authentik_username")
+    assignees = (
+        DiscordLink.objects.filter(assigned_tickets__isnull=False, is_active=True)
+        .distinct()
+        .order_by("discord_username")
+    )
 
     # Check if user is ticketing admin
     is_ticketing_admin = has_permission(user, "ticketing_admin")
@@ -1181,20 +1172,14 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
-    # Get or create Person for comment author
-    author_person = get_or_create_person_for_ticket(
-        authentik_user_id=authentik_user_id,
-        authentik_username=authentik_username,
-    )
+    author_discord_link = get_discord_link_for_ticket(user=user)
 
-    # Create comment
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author=author_person,
+        author=author_discord_link,
         comment_text=comment_text,
     )
 
-    # Create Discord task to post to thread
     DiscordTask.objects.create(
         task_type="post_comment",
         ticket=ticket,
@@ -1230,10 +1215,7 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Try to find Discord link (optional for web UI)
     try:
-        if authentik_user_id:
-            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
-        else:
-            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
+        discord_link = DiscordLink.objects.get(user=user, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1248,8 +1230,7 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         actor_username=authentik_username,
         discord_id=discord_id,
         discord_username=discord_username,
-        authentik_username=authentik_username,
-        authentik_user_id=authentik_user_id,
+        user=user,
     )
 
     if error or ticket is None:
@@ -1341,16 +1322,17 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
         return HttpResponse("New assignee username is required", status=400)
 
     # Try to find Discord link for the new assignee
+    new_assignee_user: User | None = None
     try:
-        discord_link = DiscordLink.objects.get(authentik_username=new_assignee_username, is_active=True)
+        discord_link = DiscordLink.objects.get(user__username=new_assignee_username, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
-        authentik_user_id = discord_link.authentik_user_id
+        new_assignee_user = discord_link.user
     except DiscordLink.DoesNotExist:
         # New assignee doesn't have Discord linked, but that's okay for web-only users
         discord_id = None
         discord_username = None
-        authentik_user_id = None
+        new_assignee_user = User.objects.filter(username=new_assignee_username).first()
 
     # Use shared atomic reassign function
     from ticketing.utils import reassign_ticket_atomic
@@ -1360,8 +1342,7 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
         actor_username=authentik_username,
         discord_id=discord_id,
         discord_username=discord_username,
-        authentik_username=new_assignee_username,
-        authentik_user_id=authentik_user_id,
+        user=new_assignee_user,
     )
 
     if error or ticket is None:
@@ -1427,10 +1408,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     # Try to find Discord link (optional for web UI)
     try:
-        if authentik_user_id:
-            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
-        else:
-            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
+        discord_link = DiscordLink.objects.get(user=user, is_active=True)
         discord_id = discord_link.discord_id
         discord_username = discord_link.discord_username
     except DiscordLink.DoesNotExist:
@@ -1447,8 +1425,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         points_override=points_override,
         discord_id=discord_id,
         discord_username=discord_username,
-        authentik_username=authentik_username,
-        authentik_user_id=authentik_user_id,
+        user=user,
     )
 
     if error or ticket is None:
@@ -1593,40 +1570,22 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     if not ticket_numbers:
         return HttpResponse("No tickets selected", status=400)
 
-    # Try to find Discord link (optional for web UI)
-    try:
-        if authentik_user_id:
-            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
-        else:
-            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
-        discord_id = discord_link.discord_id
-        discord_username = discord_link.discord_username
-    except DiscordLink.DoesNotExist:
-        # No Discord link - use Authentik identity only
-        discord_id = None
-        discord_username = None
-
-    # Get or create Person for assignee
-    person = get_or_create_person_for_ticket(
-        discord_id=discord_id,
-        discord_username=discord_username,
-        authentik_username=authentik_username,
-        authentik_user_id=authentik_user_id,
-    )
+    # Get Discord link for ticket assignment (optional for web UI)
+    discord_link = get_discord_link_for_ticket(user=user)
 
     claimed_count = 0
     for ticket_number in ticket_numbers:
         try:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="open")
             ticket.status = "claimed"
-            ticket.assigned_to = person
+            ticket.assigned_to = discord_link
             ticket.assigned_at = timezone.now()
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="claimed",
-                actor=person,
+                actor=discord_link,
                 details={"claimed_by": authentik_username, "bulk": True},
             )
 
@@ -1656,26 +1615,8 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     if not ticket_numbers:
         return HttpResponse("No tickets selected", status=400)
 
-    # Try to find Discord link (optional for web UI)
-    try:
-        if authentik_user_id:
-            discord_link = DiscordLink.objects.get(authentik_user_id=authentik_user_id, is_active=True)
-        else:
-            discord_link = DiscordLink.objects.get(authentik_username=authentik_username, is_active=True)
-        discord_id = discord_link.discord_id
-        discord_username = discord_link.discord_username
-    except DiscordLink.DoesNotExist:
-        # No Discord link - use Authentik identity only
-        discord_id = None
-        discord_username = None
-
-    # Get or create Person for resolver
-    person = get_or_create_person_for_ticket(
-        discord_id=discord_id,
-        discord_username=discord_username,
-        authentik_username=authentik_username,
-        authentik_user_id=authentik_user_id,
-    )
+    # Get Discord link for ticket assignment (optional for web UI)
+    discord_link = get_discord_link_for_ticket(user=user)
 
     resolved_count = 0
     for ticket_number in ticket_numbers:
@@ -1683,14 +1624,14 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="claimed")
             ticket.status = "resolved"
             ticket.resolved_at = timezone.now()
-            ticket.resolved_by = person
+            ticket.resolved_by = discord_link
             ticket.resolution_notes = "Bulk resolved via web interface"
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="resolved",
-                actor=person,
+                actor=discord_link,
                 details={"resolved_by": authentik_username, "bulk": True},
             )
 
@@ -2021,33 +1962,11 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
 
 
 def custom_logout(request: HttpRequest) -> HttpResponse:
-    """Custom logout view that ends both Django and Authentik SSO sessions."""
-    from urllib.parse import urlencode
+    """Custom logout view - redirects to OAuth logout."""
+    # Use the oauth module's logout which handles Authentik end-session
+    from .oauth import oauth_logout
 
-    from django.conf import settings
-    from django.contrib.auth import logout
-
-    # Clear Django session
-    logout(request)
-
-    # Build Authentik logout URL with post_logout_redirect_uri
-    providers = cast(dict[str, Any], settings.SOCIALACCOUNT_PROVIDERS)
-    apps_list = cast(list[dict[str, Any]], providers["openid_connect"]["APPS"])
-    app_settings = cast(dict[str, Any], apps_list[0]["settings"])
-    authentik_logout_url = cast(
-        str,
-        app_settings.get(
-            "end_session_endpoint",
-            "https://auth.wccomps.org/application/o/discord-bot/end-session/",
-        ),
-    )
-
-    # Add redirect parameter so Authentik sends user back to our homepage after logout
-    redirect_uri = request.build_absolute_uri("/")
-    logout_params = urlencode({"post_logout_redirect_uri": redirect_uri})
-    full_logout_url = f"{authentik_logout_url}?{logout_params}"
-
-    return redirect(full_logout_url)
+    return oauth_logout(request)
 
 
 @login_required

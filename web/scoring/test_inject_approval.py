@@ -24,7 +24,7 @@ class TestInjectGradesReviewAccess:
         response = client.get(reverse("scoring:inject_grades_review"))
 
         assert response.status_code == 302
-        assert "/accounts/" in response.url and "login" in response.url
+        assert "/auth/" in response.url and "login" in response.url
 
     def test_gold_team_can_access_review(self, create_user_with_groups: Callable[..., User]) -> None:
         """Gold Team members should be able to access inject grades review."""

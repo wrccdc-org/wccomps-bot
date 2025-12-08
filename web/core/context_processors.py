@@ -3,7 +3,7 @@
 from django.contrib.auth.models import User
 from django.http import HttpRequest
 
-from .auth_utils import get_permissions_context
+from .auth_utils import get_permissions_context, has_permission
 from .utils import get_authentik_data
 
 NAV_MAPPING: dict[str, tuple[str, str]] = {
@@ -103,24 +103,14 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
 
     user: User = request.user
 
-    # Get Authentik data
     authentik_username, _groups, _ = get_authentik_data(user)
-
-    # Get permissions
     perms = get_permissions_context(user)
-
-    # Check team membership via person
-    is_blue_team = False
-    is_red_team = False
-    if hasattr(user, "person"):
-        is_blue_team = user.person.is_blue_team()
-        is_red_team = user.person.is_red_team()
 
     nav_context = _get_nav_active(request)
     return {
         **perms,
-        "is_blue_team": is_blue_team,
-        "is_red_team": is_red_team,
+        "is_blue_team": has_permission(user, "blue_team"),
+        "is_red_team": has_permission(user, "WCComps_RedTeam"),
         "authentik_username": authentik_username,
         "nav_active": nav_context["nav"],
         "subnav_active": nav_context["subnav"],
