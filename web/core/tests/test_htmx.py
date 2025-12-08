@@ -1,5 +1,7 @@
 """Tests for htmx partial responses in core views."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -7,6 +9,84 @@ from django.urls import reverse
 from team.models import DiscordLink, Team
 
 pytestmark = pytest.mark.django_db
+
+
+class TestCreateTicketTemplate:
+    """Tests for create_ticket template rendering."""
+
+    @pytest.fixture
+    def mock_quotient(self):
+        """Mock Quotient client to avoid API calls."""
+        mock_client = MagicMock()
+        mock_client.get_infrastructure.return_value = None
+        mock_client.get_service_choices.return_value = [
+            {
+                "value": "web:http",
+                "label": "web - HTTP",
+                "box_ip": "10.0.0.1",
+                "box_name": "web",
+                "service_name": "http",
+            }
+        ]
+        mock_client.get_box_names.return_value = ["web", "mail"]
+
+        with patch("quotient.client.get_quotient_client", return_value=mock_client):
+            yield mock_client
+
+    def test_create_ticket_renders_service_dropdown_without_template_tag(self, blue_team_user, mock_quotient):
+        """
+        Service dropdown should NOT use <template x-for> inside <select>.
+
+        This is a regression test for the Alpine.js bug where <template> elements
+        inside <select> don't work in browsers.
+        """
+        team = Team.objects.create(team_number=1, team_name="Test Team", is_active=True)
+        DiscordLink.objects.create(
+            discord_id=123456789,
+            discord_username="blueteam01",
+            user=blue_team_user,
+            team=team,
+            is_active=True,
+        )
+
+        client = Client()
+        client.force_login(blue_team_user)
+        response = client.get(reverse("create_ticket"))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+
+        # Verify the service dropdown exists
+        assert 'name="service_name"' in content
+
+        # The critical regression test: verify NO <template x-for> inside select
+        # This pattern doesn't work in browsers - Alpine can't process templates inside select
+        assert "<template x-for" not in content
+
+        # Verify Alpine.js setup is present (rebuildServiceOptions method)
+        assert "rebuildServiceOptions" in content
+
+    def test_create_ticket_passes_categories_to_template(self, blue_team_user, mock_quotient):
+        """Create ticket view should pass TICKET_CATEGORIES to template."""
+        team = Team.objects.create(team_number=1, team_name="Test Team", is_active=True)
+        DiscordLink.objects.create(
+            discord_id=123456789,
+            discord_username="blueteam01",
+            user=blue_team_user,
+            team=team,
+            is_active=True,
+        )
+
+        client = Client()
+        client.force_login(blue_team_user)
+        response = client.get(reverse("create_ticket"))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+
+        # Verify categories are in the dropdown
+        assert "scoring-service-check" in content
+        assert "box-reset" in content
 
 
 @pytest.fixture
