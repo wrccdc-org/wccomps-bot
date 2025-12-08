@@ -571,6 +571,60 @@ class TestTicketCommand:
         assert ticket.hostname == "webserver01"
         assert ticket.ip_address == "10.0.0.5"
 
+    async def test_create_ticket_auto_populates_ip_from_hostname(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket auto-populates IP address from hostname."""
+        from unittest.mock import MagicMock, patch
+
+        # Mock infrastructure data
+        mock_infrastructure = MagicMock()
+        mock_box = MagicMock()
+        mock_box.name = "webserver01"
+        mock_box.ip = "10.0.0.99"
+        mock_box.services = []
+        mock_infrastructure.boxes = [mock_box]
+
+        mock_client = MagicMock()
+        mock_client.get_infrastructure.return_value = mock_infrastructure
+        mock_client.get_service_choices.return_value = []
+
+        # Mock thread creation
+        mock_thread = AsyncMock()
+        mock_thread.id = 9999888877776667
+        mock_thread.send = AsyncMock()
+        mock_thread.add_user = AsyncMock()
+
+        mock_channel = Mock(spec=discord.TextChannel)
+        mock_channel.name = "general-chat"
+        mock_channel.create_thread = AsyncMock(return_value=mock_thread)
+
+        mock_category = Mock(spec=discord.CategoryChannel)
+        mock_category.id = team.discord_category_id
+        mock_category.channels = [mock_channel]
+
+        interaction.guild.get_channel = Mock(return_value=mock_category)
+
+        with (
+            patch("bot.cogs.ticketing.post_ticket_to_dashboard", new_callable=AsyncMock),
+            patch("quotient.client.get_quotient_client", return_value=mock_client),
+        ):
+            await cog.create_ticket.callback(
+                cog,
+                interaction,
+                category="box-reset",
+                description="please reset",
+                hostname="webserver01",
+                ip_address=None,  # Not provided - should be auto-populated
+                service=None,
+            )
+
+        # Verify ticket was created with auto-populated IP
+        ticket = await Ticket.objects.filter(team=team).order_by("-created_at").afirst()
+        assert ticket is not None
+        assert ticket.hostname == "webserver01"
+        assert ticket.ip_address == "10.0.0.99"
+
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
