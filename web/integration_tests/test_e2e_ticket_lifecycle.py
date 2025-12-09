@@ -172,7 +172,9 @@ class TestOpsClaimsTicket:
         """After claiming, ticket appears in claimed filter."""
         from django.contrib.auth.models import User
 
-        user = User.objects.filter(username=os.getenv("TEST_OPS_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME"))).first()
+        user = User.objects.filter(
+            username=os.getenv("TEST_OPS_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME"))
+        ).first()
         if user:
             team_ticket.assigned_to = user
             team_ticket.status = "claimed"

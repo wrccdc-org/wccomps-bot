@@ -80,9 +80,7 @@ class AdminTeamsCog(commands.Cog):
 
         if members:
             # Build member list, respecting Discord's 1024 char field limit
-            member_lines = [
-                f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.user.username}`" for m in members
-            ]
+            member_lines = [f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.user.username}`" for m in members]
 
             member_list = ""
             shown_count = 0
