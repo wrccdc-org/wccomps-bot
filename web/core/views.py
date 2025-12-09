@@ -1966,7 +1966,7 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
             {
                 "discord_id": link.discord_id,
                 "discord_username": link.discord_username or "Unknown",
-                "authentik_username": link.authentik_username,
+                "authentik_username": link.user.username,
             }
             for link in links
         ]

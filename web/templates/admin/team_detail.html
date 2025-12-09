@@ -86,7 +86,7 @@
             {% for member in members %}
             <tr class="{% cycle 'row1' 'row2' %}">
                 <td class="field-discord_username">{{ member.discord_username }}</td>
-                <td class="field-authentik_username">{{ member.authentik_username }}</td>
+                <td class="field-authentik_username">{{ member.user.username }}</td>
                 <td class="field-discord_id">{{ member.discord_id }}</td>
                 <td class="field-linked_at">{{ member.linked_at|timesince }} ago</td>
                 <td class="field-action">
