@@ -73,24 +73,19 @@ class QuotientClient:
     def __init__(
         self,
         base_url: str | None = None,
-        fallback_url: str | None = None,
         cache_ttl: int = 300,  # 5 minutes
     ):
         """
         Initialize Quotient API client.
 
         Args:
-            base_url: Primary URL for Quotient API (default from settings)
-            fallback_url: Fallback URL if primary fails (default from settings)
+            base_url: URL for Quotient API (default from settings)
             cache_ttl: Cache time-to-live in seconds (default 300)
         """
         base = base_url or str(getattr(settings, "QUOTIENT_API_URL", ""))
         self.base_url = base.rstrip("/")
-        fallback = fallback_url or str(getattr(settings, "QUOTIENT_FALLBACK_URL", ""))
-        self.fallback_url = fallback.rstrip("/")
         self.cache_ttl = cache_ttl
         self.session: requests.Session | None = None
-        self._active_url: str | None = None
 
     def _get_session(self) -> requests.Session:
         """Get or create authenticated session."""
@@ -107,7 +102,7 @@ class QuotientClient:
 
             try:
                 response = self.session.post(
-                    f"{self._get_active_url()}/api/login",
+                    f"{self.base_url}/api/login",
                     json={
                         "username": username,
                         "password": password,
@@ -122,12 +117,6 @@ class QuotientClient:
                 raise QuotientAPIError(f"Authentication failed: {e}") from e
 
         return self.session
-
-    def _get_active_url(self) -> str:
-        """Get the currently active URL (primary or fallback)."""
-        if self._active_url:
-            return self._active_url
-        return self.base_url
 
     def get_infrastructure(self, force_refresh: bool = False) -> QuotientInfrastructure | None:
         """
@@ -148,71 +137,54 @@ class QuotientClient:
                 logger.debug("Returning cached infrastructure")
                 return cached
 
-        # Try primary URL first, then fallback
-        urls_to_try = [self.base_url]
-        if self.fallback_url:
-            urls_to_try.append(self.fallback_url)
+        try:
+            session = self._get_session()
+            response = session.get(f"{self.base_url}/api/metadata", timeout=10)
+            response.raise_for_status()
 
-        last_error: Exception | None = None
-        for url_attempt in urls_to_try:
-            self._active_url = url_attempt
-            # Reset session for new URL
-            self.session = None
+            data = response.json()
 
-            try:
-                session = self._get_session()
-                response = session.get(f"{url_attempt}/api/metadata", timeout=10)
-                response.raise_for_status()
-
-                data = response.json()
-
-                # Parse response into dataclasses
-                # /api/metadata returns: {"boxes": [{"name": str, "ip": str, "services": [str]}]}
-                boxes = []
-                for box_data in data.get("boxes", []):
-                    # Services are just strings (display names) in metadata endpoint
-                    services = [
-                        QuotientService(
-                            name=svc_name,
-                            display_name=svc_name,
-                            type="custom",  # Type not provided by metadata endpoint
-                        )
-                        for svc_name in box_data.get("services", [])
-                    ]
-
-                    boxes.append(
-                        QuotientBox(
-                            name=box_data["name"],
-                            ip=box_data["ip"],
-                            services=services,
-                        )
+            # Parse response into dataclasses
+            # /api/metadata returns: {"boxes": [{"name": str, "ip": str, "services": [str]}]}
+            boxes = []
+            for box_data in data.get("boxes", []):
+                # Services are just strings (display names) in metadata endpoint
+                services = [
+                    QuotientService(
+                        name=svc_name,
+                        display_name=svc_name,
+                        type="custom",  # Type not provided by metadata endpoint
                     )
+                    for svc_name in box_data.get("services", [])
+                ]
 
-                infrastructure = QuotientInfrastructure(
-                    boxes=boxes,
-                    event_name="",  # Not provided by metadata endpoint
-                    team_count=0,  # Not provided by metadata endpoint
-                    api_version="v1",
+                boxes.append(
+                    QuotientBox(
+                        name=box_data["name"],
+                        ip=box_data["ip"],
+                        services=services,
+                    )
                 )
 
-                # Cache the result
-                cache.set(cache_key, infrastructure, self.cache_ttl)
-                logger.info(f"Fetched {len(boxes)} boxes from Quotient API at {url_attempt}")
+            infrastructure = QuotientInfrastructure(
+                boxes=boxes,
+                event_name="",  # Not provided by metadata endpoint
+                team_count=0,  # Not provided by metadata endpoint
+                api_version="v1",
+            )
 
-                return infrastructure
+            # Cache the result
+            cache.set(cache_key, infrastructure, self.cache_ttl)
+            logger.info(f"Fetched {len(boxes)} boxes from Quotient API")
 
-            except requests.RequestException as e:
-                last_error = e
-                logger.warning(f"Failed to fetch infrastructure from {url_attempt}: {e}")
-                continue
-            except (KeyError, ValueError) as e:
-                last_error = e
-                logger.warning(f"Failed to parse response from {url_attempt}: {e}")
-                continue
+            return infrastructure
 
-        # All URLs failed
-        logger.error(f"Failed to fetch infrastructure from all URLs. Last error: {last_error}")
-        return None
+        except requests.RequestException as e:
+            logger.exception(f"Failed to fetch infrastructure from Quotient: {e}")
+            return None
+        except (KeyError, ValueError) as e:
+            logger.exception(f"Failed to parse infrastructure response: {e}")
+            return None
 
     def get_scores(self, force_refresh: bool = False) -> list[TeamScore] | None:
         """
@@ -233,7 +205,7 @@ class QuotientClient:
 
         try:
             session = self._get_session()
-            response = session.get(f"{self._get_active_url()}/api/graphs/scores", timeout=10)
+            response = session.get(f"{self.base_url}/api/graphs/scores", timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -288,7 +260,7 @@ class QuotientClient:
 
         try:
             session = self._get_session()
-            response = session.get(f"{self._get_active_url()}/api/injects", timeout=10)
+            response = session.get(f"{self.base_url}/api/injects", timeout=10)
             response.raise_for_status()
 
             data = response.json()
