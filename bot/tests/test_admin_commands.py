@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
+from django.contrib.auth.models import User
 
 from bot.cogs.admin_competition import AdminCompetitionCog
 from bot.cogs.admin_teams import AdminTeamsCog
@@ -155,20 +156,20 @@ class TestAdminCommands:
             discord_category_id=2001,
         )
 
-        # Create team members with active links
+        # Create users and team members with active links
+        member1_user = await User.objects.acreate(username="team_member1")
         member1_link = await DiscordLink.objects.acreate(
             discord_id=111111111,
             discord_username="member1",
-            authentik_username="team_member1",
-            authentik_user_id="auth-id-1",
+            user=member1_user,
             team=team,
             is_active=True,
         )
+        member2_user = await User.objects.acreate(username="team_member2")
         member2_link = await DiscordLink.objects.acreate(
             discord_id=222222222,
             discord_username="member2",
-            authentik_username="team_member2",
-            authentik_user_id="auth-id-2",
+            user=member2_user,
             team=team,
             is_active=True,
         )
@@ -285,12 +286,12 @@ class TestAdminCommands:
 
         # Create a team member with active link
         member_id = 999999999999999999
+        team_user = await User.objects.acreate(username="team_user_01")
 
         await DiscordLink.objects.acreate(
             discord_id=member_id,
             discord_username="test_member",
-            authentik_username="team_user_01",
-            authentik_user_id="test-user-uuid",
+            user=team_user,
             team=team,
             is_active=True,
         )
@@ -403,11 +404,11 @@ class TestAdminCommands:
 
         # Create a Discord link
         member_id = 777777777777777777
+        old_user = await User.objects.acreate(username="old_user")
         await DiscordLink.objects.acreate(
             discord_id=member_id,
             discord_username="old_member",
-            authentik_username="old_user",
-            authentik_user_id="old-user-uuid",
+            user=old_user,
             team=team,
             is_active=True,
         )

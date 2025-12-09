@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import discord
 import pytest
 import pytest_asyncio
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from bot.cogs.ticketing import TicketingCog
@@ -48,11 +49,12 @@ class TestTicketingCog:
     @pytest_asyncio.fixture
     async def discord_link(self, team: Team) -> DiscordLink:
         """Create test Discord link."""
+        user = await User.objects.acreate(username="testuser")
         return await DiscordLink.objects.acreate(
             team=team,
             discord_id=999888777,
             discord_username="testuser#1234",
-            authentik_username="testuser",
+            user=user,
             is_active=True,
         )
 
@@ -311,6 +313,16 @@ class TestTicketingCog:
             discord_thread_id=7777888999,
         )
 
+        # Create user and discord link for the message author
+        author_user = await User.objects.acreate(username="comment_author")
+        await DiscordLink.objects.acreate(
+            discord_id=123456789,
+            discord_username="testuser#1234",
+            user=author_user,
+            team=team,
+            is_active=True,
+        )
+
         # Mock Discord message
         message = AsyncMock(spec=discord.Message)
         message.author = Mock()
@@ -329,13 +341,12 @@ class TestTicketingCog:
         # Verify comment created
         assert await TicketComment.objects.acount() == initial_count + 1
 
-        # Verify comment has correct data
+        # Verify comment has correct data (author is now a User, not DiscordLink)
         comment = await TicketComment.objects.select_related("author").filter(discord_message_id=message.id).afirst()
         assert comment is not None
         assert comment.ticket_id == ticket.id
         assert comment.author is not None
-        assert comment.author.discord_username == "testuser#1234"
-        assert comment.author.discord_id == 123456789
+        assert comment.author.username == "comment_author"
         assert comment.comment_text == "This is a test message"
         assert comment.discord_message_id == 999888777666
 

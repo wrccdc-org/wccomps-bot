@@ -97,7 +97,7 @@ class TestTicketWorkflow:
         """Step 2: Support claims ticket - verify claim state."""
         team = setup_team
         users = setup_users
-        support_discord_link = users["support_discord_link"]
+        support_user = users["support"]
 
         # Create open ticket
         ticket = Ticket.objects.create(
@@ -109,38 +109,38 @@ class TestTicketWorkflow:
             status="open",
         )
 
-        # Support claims ticket
+        # Support claims ticket (assigned_to is now User, not DiscordLink)
         ticket.status = "claimed"
-        ticket.assigned_to = support_discord_link
+        ticket.assigned_to = support_user
         ticket.assigned_at = timezone.now()
         ticket.save()
 
-        # Create history entry
+        # Create history entry (actor is now User, not DiscordLink)
         TicketHistory.objects.create(
             ticket=ticket,
             action="claimed",
-            actor=support_discord_link,
-            details={"assigned_to": str(support_discord_link)},
+            actor=support_user,
+            details={"assigned_to": support_user.username},
         )
 
         # Verify ticket was claimed
         ticket.refresh_from_db()
         assert ticket.status == "claimed"
-        assert ticket.assigned_to == support_discord_link
+        assert ticket.assigned_to == support_user
         assert ticket.assigned_at is not None
 
         # Verify history entry was created
         history = TicketHistory.objects.filter(ticket=ticket, action="claimed").first()
         assert history is not None
-        assert history.actor == support_discord_link
+        assert history.actor == support_user
 
     def test_step3_support_resolves_ticket(self, setup_team, setup_users):
         """Step 3: Support resolves ticket - verify resolution state."""
         team = setup_team
         users = setup_users
-        support_discord_link = users["support_discord_link"]
+        support_user = users["support"]
 
-        # Create claimed ticket
+        # Create claimed ticket (assigned_to is User, not DiscordLink)
         ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=team,
@@ -148,31 +148,31 @@ class TestTicketWorkflow:
             title="Database server reset",
             description="Database is unresponsive",
             status="claimed",
-            assigned_to=support_discord_link,
+            assigned_to=support_user,
             assigned_at=timezone.now(),
         )
 
-        # Support resolves ticket
+        # Support resolves ticket (resolved_by is User, not DiscordLink)
         ticket.status = "resolved"
-        ticket.resolved_by = support_discord_link
+        ticket.resolved_by = support_user
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = "Reset database server successfully"
         ticket.duration_notes = "15 minutes"
         ticket.points_charged = 60
         ticket.save()
 
-        # Create history entry
+        # Create history entry (actor is User, not DiscordLink)
         TicketHistory.objects.create(
             ticket=ticket,
             action="resolved",
-            actor=support_discord_link,
+            actor=support_user,
             details={"points_charged": 60},
         )
 
         # Verify ticket was resolved
         ticket.refresh_from_db()
         assert ticket.status == "resolved"
-        assert ticket.resolved_by == support_discord_link
+        assert ticket.resolved_by == support_user
         assert ticket.resolved_at is not None
         assert ticket.points_charged == 60
         assert ticket.points_verified is False
@@ -185,9 +185,9 @@ class TestTicketWorkflow:
         """Step 4: Ticketing Admin verifies points."""
         team = setup_team
         users = setup_users
-        support_discord_link = users["support_discord_link"]
+        support_user = users["support"]
 
-        # Create resolved ticket
+        # Create resolved ticket (assigned_to and resolved_by are now User, not DiscordLink)
         ticket = Ticket.objects.create(
             ticket_number="T001-004",
             team=team,
@@ -195,9 +195,9 @@ class TestTicketWorkflow:
             title="Phone consultation",
             description="Need help with firewall rules",
             status="resolved",
-            assigned_to=support_discord_link,
+            assigned_to=support_user,
             assigned_at=timezone.now(),
-            resolved_by=support_discord_link,
+            resolved_by=support_user,
             resolved_at=timezone.now(),
             resolution_notes="Provided firewall assistance",
             points_charged=100,
@@ -236,7 +236,7 @@ class TestTicketWorkflow:
 
         # Create another support user for this test
         support2_user = User.objects.create_user(username="support_person2", password="test123")
-        support2_discord_link = DiscordLink.objects.create(
+        DiscordLink.objects.create(
             user=support2_user,
             discord_id=987654321,
             discord_username="support_person",
@@ -254,25 +254,25 @@ class TestTicketWorkflow:
         )
         assert ticket.status == "open"
 
-        # Step 2: Support claims ticket
+        # Step 2: Support claims ticket (assigned_to is User, not DiscordLink)
         ticket.status = "claimed"
-        ticket.assigned_to = support2_discord_link
+        ticket.assigned_to = support2_user
         ticket.assigned_at = timezone.now()
         ticket.save()
 
         TicketHistory.objects.create(
             ticket=ticket,
             action="claimed",
-            actor=support2_discord_link,
+            actor=support2_user,
         )
 
         ticket.refresh_from_db()
         assert ticket.status == "claimed"
-        assert ticket.assigned_to == support2_discord_link
+        assert ticket.assigned_to == support2_user
 
-        # Step 3: Support resolves ticket
+        # Step 3: Support resolves ticket (resolved_by is User, not DiscordLink)
         ticket.status = "resolved"
-        ticket.resolved_by = support2_discord_link
+        ticket.resolved_by = support2_user
         ticket.resolved_at = timezone.now()
         ticket.resolution_notes = "Verified service is working correctly"
         ticket.duration_notes = "10 minutes"
@@ -282,7 +282,7 @@ class TestTicketWorkflow:
         TicketHistory.objects.create(
             ticket=ticket,
             action="resolved",
-            actor=support2_discord_link,
+            actor=support2_user,
             details={"points_charged": 10},
         )
 

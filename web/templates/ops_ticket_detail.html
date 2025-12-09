@@ -67,7 +67,7 @@
                 </form>
             </c-button_row>
             {% elif ticket.status == 'claimed' %}
-            {% if ticket.assigned_to_authentik_username == authentik_username or is_ticketing_admin %}
+            {% if ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
             <form method="POST" action="{% url 'ops_ticket_resolve' ticket.ticket_number %}">
                 {% csrf_token %}
                 <c-form_field label="Points Override" id="points_override" help_text="Enter a value to override the default point penalty (e.g., 0 for ops errors)">
@@ -89,7 +89,7 @@
             {% else %}
             <c-alert variant="warning">
                 <strong>Ticket Claimed by Another User</strong>
-                <p class="mt-5 mb-0">This ticket is assigned to <strong>{{ ticket.assigned_to_authentik_username }}</strong>. Only they or an administrator can resolve it.</p>
+                <p class="mt-5 mb-0">This ticket is assigned to <strong>{{ ticket.assigned_to.username }}</strong>. Only they or an administrator can resolve it.</p>
             </c-alert>
             {% endif %}
             {% if is_ticketing_support or is_ticketing_admin %}

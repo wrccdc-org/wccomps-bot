@@ -308,12 +308,10 @@ class UnifiedDashboard:
                             ticket.description[:40] + "..." if len(ticket.description) > 40 else ticket.description
                         )
 
-                        # Assignee
+                        # Assignee (ticket.assigned_to is now a User)
                         assignee = ""
                         if ticket.assigned_to:
-                            assignee = (
-                                f" - {ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username}"
-                            )
+                            assignee = f" - {ticket.assigned_to.username}"
 
                         lines.append(
                             f"{status_emoji} {ticket_display} {ticket.team.team_name}{assignee}{stale}\n"

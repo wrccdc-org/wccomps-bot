@@ -62,7 +62,7 @@ def extract_commands_from_cog(cog_name: str) -> dict[str, Any]:
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="class")
 class TestCommandRegistration:
     """Test that all commands are properly registered in the command tree.
 
@@ -74,7 +74,7 @@ class TestCommandRegistration:
         pytest bot/tests/test_command_registration.py
     """
 
-    @pytest_asyncio.fixture(scope="class")
+    @pytest_asyncio.fixture(loop_scope="class", scope="class")
     async def bot_with_cogs(self):
         """Create a bot and load all cogs (runs once for all tests)."""
         bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
@@ -89,7 +89,7 @@ class TestCommandRegistration:
         # Cleanup
         await bot.close()
 
-    @pytest_asyncio.fixture(scope="class")
+    @pytest.fixture(scope="class")
     def expected_cogs(self) -> dict[str, dict[str, Any]]:
         """Extract expected commands from discovered cogs."""
         cog_modules = discover_cogs()

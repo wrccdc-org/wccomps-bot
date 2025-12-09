@@ -15,9 +15,10 @@ from playwright.sync_api import Page, sync_playwright
 
 # IMPORTANT: Set environment variables BEFORE calling django.setup()
 # Load test environment variables first
+# Use override=True to handle special chars that bash sourcing mangles (like QUOTIENT_PASSWORD)
 env_test_path = Path(__file__).parent.parent.parent / ".env.test"
 if env_test_path.exists():
-    load_dotenv(env_test_path)
+    load_dotenv(env_test_path, override=True)
 
 # Allow sync database operations in async context detection.
 # Required for pytest-asyncio + pytest-django + Playwright live_server compatibility.
@@ -49,6 +50,38 @@ django.setup()
 # ============================================================================
 # Database Fixtures
 # ============================================================================
+
+
+@pytest.fixture(scope="session")
+def django_db_setup():
+    """
+    Use existing database without creating a test database.
+
+    For E2E tests against a running server, we need to use the same database
+    as the server. This fixture disables pytest-django's test database creation.
+    See: https://pytest-django.readthedocs.io/en/latest/database.html
+    """
+    from django.conf import settings
+
+    # Verify we're pointing to the right database
+    db_settings = settings.DATABASES["default"]
+    db_name = db_settings.get("NAME")
+    db_host = db_settings.get("HOST")
+    db_port = db_settings.get("PORT")
+    print(f"\n[Integration Tests] Using database: {db_name} on {db_host}:{db_port}")
+
+
+@pytest.fixture(scope="session")
+def django_db_modify_db_settings():
+    """Skip test database creation - use the configured database directly."""
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _enable_db_access_for_all_tests(django_db_blocker):
+    """Enable database access for all integration tests at session scope."""
+    django_db_blocker.unblock()
+    yield
+    django_db_blocker.restore()
 
 
 @pytest.fixture
@@ -141,15 +174,19 @@ def authentik_client(authentik_credentials):
     Create Authentik API client for real API calls.
     Uses real Authentik instance, not mocked.
     """
-    from authentik_client import AuthenticatedClient
+    try:
+        from authentik_client import ApiClient, Configuration
 
-    api_token = authentik_credentials["api_token"]
-    authentik_url = os.getenv("AUTHENTIK_URL", "https://auth.wccomps.org")
+        api_token = authentik_credentials["api_token"]
+        authentik_url = os.getenv("AUTHENTIK_URL", "https://auth.wccomps.org")
 
-    return AuthenticatedClient(
-        base_url=f"{authentik_url}/api/v3",
-        token=api_token,
-    )
+        config = Configuration(host=f"{authentik_url}/api/v3")
+        config.api_key["Authorization"] = api_token
+        config.api_key_prefix["Authorization"] = "Bearer"
+
+        return ApiClient(config)
+    except ImportError:
+        pytest.skip("authentik_client package not available or incompatible")
 
 
 # ============================================================================
@@ -210,61 +247,75 @@ def page(browser_context) -> Page:
     page.close()
 
 
-@pytest.fixture
-def authenticated_page(page, authentik_credentials, live_server_url) -> Page:
+def _perform_authentik_login(page, username: str, password: str, live_server_url: str):
+    """Helper to perform Authentik OAuth login.
+
+    Authentik uses a multi-step login flow:
+    1. Username entry (uidField)
+    2. Password entry (may be separate step or combined)
+    3. Optional MFA/TOTP
+    4. Optional consent screen
     """
-    Create an authenticated page by logging in via Authentik OAuth.
-    This performs a real OAuth login flow.
-    """
-    # Navigate to login URL (redirects to Authentik)
     page.goto(f"{live_server_url}/auth/login/")
 
-    # Fill in Authentik login form (uidField is the actual field name)
-    page.fill('input[name="uidField"]', authentik_credentials["username"])
-    page.fill('input[name="password"]', authentik_credentials["password"])
-    page.click('button[type="submit"]')
+    # Wait for redirect to Authentik
+    page.wait_for_timeout(2000)
 
-    # Handle MFA if present (requires TEST_TOTP_SECRET in .env.test)
-    import os
+    # Check if we already landed back at the app (SSO session reuse)
+    if page.url.startswith(live_server_url):
+        return page
 
-    totp_secret = os.getenv("TEST_TOTP_SECRET")
-    if totp_secret:
-        try:
-            import pyotp
+    # Handle Authentik login flow
+    try:
+        # Step 1: Username entry
+        uid_field = page.locator('input[name="uidField"]')
+        if uid_field.is_visible(timeout=5000):
+            page.fill('input[name="uidField"]', username)
 
+            # Check if password field is visible (combined form)
+            password_field = page.locator('input[name="password"]')
+            if password_field.is_visible(timeout=500):
+                page.fill('input[name="password"]', password)
+
+            page.click('button[type="submit"]')
             page.wait_for_timeout(2000)
 
-            # Check if we're on MFA selection page
-            if "Select an authentication method" in page.content():
-                page.click("text=TOTP Device")
-                page.wait_for_timeout(1000)
+            # Check if we redirected back (fast login)
+            if page.url.startswith(live_server_url):
+                return page
 
-            # Enter TOTP code
-            totp = pyotp.TOTP(totp_secret)
-            page.wait_for_selector('input[name="code"]', timeout=5000)
-            page.fill('input[name="code"]', totp.now())
+            # Step 2: Password entry (if separate step)
+            password_field = page.locator('input[name="password"]')
+            if password_field.is_visible(timeout=3000):
+                page.fill('input[name="password"]', password)
+                page.click('button[type="submit"]')
+                page.wait_for_timeout(2000)
+
+        # Check for consent/continue button
+        continue_btn = page.locator('button:has-text("Continue")')
+        if continue_btn.is_visible(timeout=1000):
+            continue_btn.click()
+            page.wait_for_timeout(1000)
+
+    except Exception:
+        # Fallback: wait for username and try again
+        page.wait_for_selector('input[name="uidField"]', timeout=15000)
+        page.fill('input[name="uidField"]', username)
+        password_field = page.locator('input[name="password"]')
+        if password_field.is_visible(timeout=1000):
+            page.fill('input[name="password"]', password)
+        page.click('button[type="submit"]')
+        page.wait_for_timeout(2000)
+
+        # Try password in separate step
+        password_field = page.locator('input[name="password"]')
+        if password_field.is_visible(timeout=3000):
+            page.fill('input[name="password"]', password)
             page.click('button[type="submit"]')
-        except (ImportError, TimeoutError):
-            pass  # pyotp not installed or no MFA prompt
 
-    # Wait for redirect back to application
-    page.wait_for_url(f"{live_server_url}/**", timeout=10000)
-
-    return page
-
-
-# ============================================================================
-# Multi-User Browser Fixtures
-# ============================================================================
-
-
-def _perform_authentik_login(page, username: str, password: str, live_server_url: str):
-    """Helper to perform Authentik OAuth login."""
-    page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
-
-    page.fill('input[name="uidField"]', username)
-    page.fill('input[type="password"]', password)
-    page.click('button[type="submit"]')
+    # Check if we already redirected back
+    if page.url.startswith(live_server_url):
+        return page
 
     # Handle MFA if present
     totp_secret = os.getenv("TEST_TOTP_SECRET")
@@ -272,24 +323,59 @@ def _perform_authentik_login(page, username: str, password: str, live_server_url
         try:
             import pyotp
 
-            page.wait_for_timeout(2000)
-
+            # Check for MFA selection screen
             if "Select an authentication method" in page.content():
                 page.click("text=TOTP Device")
                 page.wait_for_timeout(1000)
 
             totp = pyotp.TOTP(totp_secret)
-            page.wait_for_selector('input[name="code"]', timeout=5000)
-            page.fill('input[name="code"]', totp.now())
-            page.click('button[type="submit"]')
+            code_input = page.locator('input[name="code"]')
+            if code_input.is_visible(timeout=3000):
+                page.fill('input[name="code"]', totp.now())
+                page.click('button[type="submit"]')
+                page.wait_for_timeout(2000)
         except (ImportError, TimeoutError):
             pass
 
-    page.wait_for_url(f"{live_server_url}/**", timeout=10000)
+    # Check if we already redirected back
+    if page.url.startswith(live_server_url):
+        return page
+
+    # Final consent screen check
+    continue_btn = page.locator('button:has-text("Continue")')
+    if continue_btn.is_visible(timeout=1000):
+        continue_btn.click()
+
+    # Wait for redirect back to application
+    page.wait_for_url(f"{live_server_url}/**", timeout=15000)
     return page
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
+def authenticated_page(browser, browser_context_args, authentik_credentials, live_server_url) -> Page:
+    """
+    Create an authenticated page by logging in via Authentik OAuth.
+    This performs a real OAuth login flow.
+
+    Session-scoped to avoid repeated OAuth logins which trigger Authentik's
+    reputation system when too many concurrent sessions are created.
+    """
+    context = browser.new_context(**browser_context_args)
+    page = context.new_page()
+    _perform_authentik_login(
+        page, authentik_credentials["username"], authentik_credentials["password"], live_server_url
+    )
+    yield page
+    page.close()
+    context.close()
+
+
+# ============================================================================
+# Multi-User Browser Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
 def ops_user_credentials():
     """Ops/support user credentials from environment."""
     return {
@@ -298,7 +384,7 @@ def ops_user_credentials():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def team_user_credentials():
     """Team member credentials from environment."""
     return {
@@ -307,7 +393,7 @@ def team_user_credentials():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def admin_user_credentials():
     """Admin user credentials from environment."""
     return {
@@ -316,9 +402,12 @@ def admin_user_credentials():
     }
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def ops_page(browser, browser_context_args, ops_user_credentials, live_server_url) -> Page:
-    """Browser page authenticated as ops/support user."""
+    """Browser page authenticated as ops/support user.
+
+    Scoped to session to avoid repeated OAuth logins.
+    """
     context = browser.new_context(**browser_context_args)
     page = context.new_page()
     _perform_authentik_login(page, ops_user_credentials["username"], ops_user_credentials["password"], live_server_url)
@@ -331,6 +420,7 @@ def _ensure_team_membership(username: str, team_number: int) -> None:
     """Ensure user has team membership in the shared database."""
     from django.contrib.auth import get_user_model
 
+    from core.models import UserGroups
     from team.models import DiscordLink, Team
 
     user_model = get_user_model()
@@ -339,16 +429,31 @@ def _ensure_team_membership(username: str, team_number: int) -> None:
     if not user:
         return
 
+    team_group = f"WCComps_BlueTeam{team_number}"
+
     team, _ = Team.objects.get_or_create(
         team_number=team_number,
         defaults={
             "team_name": f"Test Team {team_number}",
-            "authentik_group": f"WCComps_BlueTeam{team_number}",
+            "authentik_group": team_group,
             "is_active": True,
         },
     )
 
-    # Create or update DiscordLink
+    # Add team group to UserGroups (required for web access)
+    try:
+        user_groups = user.usergroups
+        if team_group not in user_groups.groups:
+            user_groups.groups = [team_group] + user_groups.groups
+            user_groups.save()
+    except UserGroups.DoesNotExist:
+        UserGroups.objects.create(
+            user=user,
+            groups=[team_group],
+            authentik_id="test-integration",
+        )
+
+    # Create or update DiscordLink (required for ticket assignment)
     link, created = DiscordLink.objects.get_or_create(
         user=user,
         defaults={
@@ -363,9 +468,12 @@ def _ensure_team_membership(username: str, team_number: int) -> None:
         link.save()
 
 
-@pytest.fixture
-def team_page(browser, browser_context_args, team_user_credentials, live_server_url, transactional_db) -> Page:
-    """Browser page authenticated as team member with team membership."""
+@pytest.fixture(scope="session")
+def team_page(browser, browser_context_args, team_user_credentials, live_server_url) -> Page:
+    """Browser page authenticated as team member with team membership.
+
+    Scoped to session to avoid repeated OAuth logins.
+    """
     context = browser.new_context(**browser_context_args)
     page = context.new_page()
     _perform_authentik_login(
@@ -373,7 +481,7 @@ def team_page(browser, browser_context_args, team_user_credentials, live_server_
     )
 
     # After OAuth login, ensure user has team membership
-    # Uses transactional_db so changes are visible to the external server
+    # DB access is always enabled for integration tests via _enable_db_access_for_all_tests
     team_number = int(os.getenv("TEST_TEAM_ID", "50"))
     _ensure_team_membership(team_user_credentials["username"], team_number)
 
@@ -385,9 +493,22 @@ def team_page(browser, browser_context_args, team_user_credentials, live_server_
     context.close()
 
 
-@pytest.fixture
-def admin_page(browser, browser_context_args, admin_user_credentials, live_server_url) -> Page:
-    """Browser page authenticated as admin user."""
+@pytest.fixture(scope="session")
+def admin_page(
+    browser, browser_context_args, admin_user_credentials, ops_user_credentials, ops_page, live_server_url
+) -> Page:
+    """Browser page authenticated as admin user.
+
+    If admin credentials match ops credentials, reuses ops_page to avoid
+    OAuth issues with multiple sessions for the same user.
+    """
+    if (
+        admin_user_credentials["username"] == ops_user_credentials["username"]
+        and admin_user_credentials["password"] == ops_user_credentials["password"]
+    ):
+        yield ops_page
+        return
+
     context = browser.new_context(**browser_context_args)
     page = context.new_page()
     _perform_authentik_login(

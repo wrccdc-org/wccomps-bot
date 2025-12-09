@@ -47,13 +47,13 @@ class TicketDashboardTest(TestCase):
 
         # Create DiscordLink for assignment testing
         volunteer_user = User.objects.create(username="volunteer1")
-        volunteer_link = DiscordLink.objects.create(
+        DiscordLink.objects.create(
             user=volunteer_user,
             discord_id=123456789,
             discord_username="volunteer1",
         )
 
-        # Test claimed ticket with assignment
+        # Test claimed ticket with assignment (assigned_to is now User, not DiscordLink)
         claimed_ticket = Ticket.objects.create(
             ticket_number="T001-002",
             team=self.team,
@@ -61,21 +61,21 @@ class TicketDashboardTest(TestCase):
             title="Test Claimed",
             description="Claimed description",
             status="claimed",
-            assigned_to=volunteer_link,
+            assigned_to=volunteer_user,
         )
         claimed_embed = format_ticket_embed(claimed_ticket)
         field_names = [field.name for field in claimed_embed.fields]
         self.assertIn("Assigned To", field_names)
 
-        # Create DiscordLink for resolver
+        # Create user for resolver
         admin_user = User.objects.create(username="admin1")
-        admin_link = DiscordLink.objects.create(
+        DiscordLink.objects.create(
             user=admin_user,
             discord_id=987654321,
             discord_username="admin1",
         )
 
-        # Test resolved ticket with resolution info
+        # Test resolved ticket with resolution info (resolved_by is now User, not DiscordLink)
         resolved_ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=self.team,
@@ -84,7 +84,7 @@ class TicketDashboardTest(TestCase):
             description="Resolved description",
             status="resolved",
             resolved_at=tz.now(),
-            resolved_by=admin_link,
+            resolved_by=admin_user,
             resolution_notes="All fixed",
             points_charged=10,
         )

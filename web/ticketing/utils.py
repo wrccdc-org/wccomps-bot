@@ -13,25 +13,27 @@ from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketHistory
 
 
-def get_discord_link_for_ticket(
+def get_user_for_ticket(
     discord_id: int | None = None,
     user: User | None = None,
-) -> DiscordLink | None:
+) -> User | None:
     """
-    Look up a DiscordLink for ticket assignment/resolution. NEVER creates users.
+    Get a User for ticket assignment/resolution.
 
-    Discord linking via OAuth is required before a user can be assigned to tickets.
+    Args:
+        discord_id: Discord user ID (looks up DiscordLink -> User)
+        user: Django User object (preferred, returned directly)
+
+    Returns:
+        User object or None if not found.
     """
-    # Prefer user FK if provided - find their active DiscordLink
     if user:
-        discord_link = DiscordLink.objects.filter(user=user, is_active=True).first()
-        if discord_link:
-            return discord_link
+        return user
 
     if discord_id:
         discord_link = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).first()
-        if discord_link:
-            return discord_link
+        if discord_link and discord_link.user:
+            return discord_link.user
 
     return None
 
@@ -161,8 +163,8 @@ def claim_ticket_atomic(
     Args:
         ticket_id: ID of ticket to claim
         actor_username: Username for history (e.g., "discord:user" or "web:user")
-        discord_id: Discord user ID (optional)
-        discord_username: Discord username (optional)
+        discord_id: Discord user ID (optional, used to look up User via DiscordLink)
+        discord_username: Discord username (optional, for history only)
         user: Django User object (preferred)
 
     Returns:
@@ -177,14 +179,14 @@ def claim_ticket_atomic(
         if ticket.status != "open":
             return None, f"This ticket is already {ticket.status}."
 
-        discord_link = get_discord_link_for_ticket(
-            discord_id=discord_id,
-            user=user,
-        )
+        assignee = get_user_for_ticket(discord_id=discord_id, user=user)
+
+        if not assignee:
+            return None, "Could not find a valid user to assign."
 
         # Update ticket
         ticket.status = "claimed"
-        ticket.assigned_to = discord_link
+        ticket.assigned_to = assignee
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -192,11 +194,11 @@ def claim_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="claimed",
-            actor=discord_link,
+            actor=assignee,
             details={
                 "claimed_by": actor_username,
                 "discord_username": discord_username,
-                "authentik_username": user.username if user else None,
+                "authentik_username": assignee.username,
             },
         )
 
@@ -251,8 +253,8 @@ def resolve_ticket_atomic(
         actor_username: Username for history (e.g., "discord:user" or "web:user")
         resolution_notes: Notes describing resolution
         points_override: Override points for variable-point categories
-        discord_id: Discord user ID (optional)
-        discord_username: Discord username (optional)
+        discord_id: Discord user ID (optional, used to look up User via DiscordLink)
+        discord_username: Discord username (optional, for history only)
         user: Django User object (preferred)
 
     Returns:
@@ -292,21 +294,18 @@ def resolve_ticket_atomic(
             # Use default for fixed categories
             point_penalty = cat_info.get("points", 0)
 
-        discord_link = get_discord_link_for_ticket(
-            discord_id=discord_id,
-            user=user,
-        )
+        resolver = get_user_for_ticket(discord_id=discord_id, user=user)
 
         # Update ticket
         ticket.status = "resolved"
         ticket.resolved_at = timezone.now()
-        ticket.resolved_by = discord_link
+        ticket.resolved_by = resolver
         ticket.resolution_notes = resolution_notes
         ticket.points_charged = point_penalty
 
         # If not already assigned, mark as assigned to resolver
-        if not ticket.assigned_to and discord_link:
-            ticket.assigned_to = discord_link
+        if not ticket.assigned_to and resolver:
+            ticket.assigned_to = resolver
 
         # Schedule thread archiving if Discord thread exists
         if ticket.discord_thread_id:
@@ -320,11 +319,11 @@ def resolve_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="resolved",
-            actor=discord_link,
+            actor=resolver,
             details={
                 "resolved_by": actor_username,
                 "discord_username": discord_username,
-                "authentik_username": user.username if user else None,
+                "authentik_username": resolver.username if resolver else None,
                 "notes": resolution_notes,
                 "point_penalty": point_penalty,
             },
@@ -373,6 +372,7 @@ async def aresolve_ticket_atomic(
 def unclaim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
     """
     Unclaim a ticket atomically.
@@ -380,6 +380,7 @@ def unclaim_ticket_atomic(
     Args:
         ticket_id: ID of ticket to unclaim
         actor_username: Username for history (e.g., "discord:user" or "web:user")
+        user: User performing the unclaim (optional, for history)
 
     Returns:
         Tuple of (ticket, error_message). If error, ticket is None.
@@ -403,6 +404,7 @@ def unclaim_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="unclaimed",
+            actor=user,
             details={"unclaimed_by": actor_username},
         )
 
@@ -447,8 +449,8 @@ def reassign_ticket_atomic(
     Args:
         ticket_id: ID of ticket to reassign
         actor_username: Username for history (e.g., "discord:user" or "web:user")
-        discord_id: Discord user ID of new assignee (optional)
-        discord_username: Discord username of new assignee (optional)
+        discord_id: Discord user ID of new assignee (optional, used to look up User)
+        discord_username: Discord username of new assignee (optional, for history only)
         user: Django User object of new assignee (preferred)
 
     Returns:
@@ -463,15 +465,15 @@ def reassign_ticket_atomic(
         if ticket.status != "claimed":
             return None, f"Can only reassign claimed tickets. This ticket is {ticket.status}."
 
-        previous_assignee = str(ticket.assigned_to) if ticket.assigned_to else None
+        previous_assignee = ticket.assigned_to.username if ticket.assigned_to else None
 
-        discord_link = get_discord_link_for_ticket(
-            discord_id=discord_id,
-            user=user,
-        )
+        new_assignee = get_user_for_ticket(discord_id=discord_id, user=user)
+
+        if not new_assignee:
+            return None, "Could not find a valid user for the new assignee."
 
         # Update ticket assignment
-        ticket.assigned_to = discord_link
+        ticket.assigned_to = new_assignee
         ticket.assigned_at = timezone.now()
         ticket.save()
 
@@ -479,11 +481,11 @@ def reassign_ticket_atomic(
         TicketHistory.objects.create(
             ticket=ticket,
             action="reassigned",
-            actor=discord_link,
+            actor=new_assignee,
             details={
                 "reassigned_by": actor_username,
                 "previous_assignee": previous_assignee,
-                "new_assignee": str(discord_link) if discord_link else None,
+                "new_assignee": new_assignee.username,
             },
         )
 
