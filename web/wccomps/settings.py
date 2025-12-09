@@ -64,8 +64,6 @@ INSTALLED_APPS = [
     "core",
     "team",
     "ticketing",
-    "person",
-    "competition",
     "quotient",
     "scoring",
     "packets",
