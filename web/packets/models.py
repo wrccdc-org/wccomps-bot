@@ -119,11 +119,6 @@ class PacketDistribution(models.Model):
     def __str__(self) -> str:
         return f"{self.packet.title} → Team {self.team.team_number} ({self.email_status})"
 
-    @property
-    def status(self) -> str:
-        """Combined status property for compatibility."""
-        return self.email_status
-
     def mark_as_sent(self, email: str) -> None:
         """Mark as sent via email."""
         self.email_status = "sent"
