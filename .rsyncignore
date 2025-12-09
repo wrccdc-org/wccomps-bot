@@ -20,3 +20,4 @@ htmlcov
 *.db
 *.sqlite3
 web/staticfiles
+backups
