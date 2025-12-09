@@ -39,15 +39,20 @@ class TeamAdmin(admin.ModelAdmin[Team]):
 class DiscordLinkAdmin(admin.ModelAdmin[DiscordLink]):
     list_display = [
         "discord_username",
-        "authentik_username",
+        "get_username",
         "team",
         "is_active",
         "linked_at",
     ]
     list_filter = ["is_active", "team", "linked_at"]
-    search_fields = ["discord_username", "authentik_username"]
+    search_fields = ["discord_username", "user__username"]
     readonly_fields = ["linked_at", "unlinked_at"]
     ordering = ["-linked_at"]
+
+    @admin.display(description="Authentik Username")
+    def get_username(self, obj: DiscordLink) -> str:
+        """Display the linked user's username."""
+        return obj.user.username if obj.user else ""
 
 
 @admin.register(LinkToken)
