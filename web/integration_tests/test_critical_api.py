@@ -113,9 +113,9 @@ class TestOAuthCallback:
         # Verify DiscordLink was created
         from team.models import DiscordLink
 
-        discord_link = DiscordLink.objects.filter(discord_id=discord_id).first()
+        discord_link = DiscordLink.objects.select_related("user__usergroups").filter(discord_id=discord_id).first()
         assert discord_link is not None, "DiscordLink should have been created"
-        assert discord_link.authentik_user_id == f"test_uid_oauth_{unique_id}"
+        assert discord_link.user.usergroups.authentik_id == f"test_uid_oauth_{unique_id}"
         assert discord_link.is_active is True
 
     def test_oauth_callback_requires_authentication(self, db):
