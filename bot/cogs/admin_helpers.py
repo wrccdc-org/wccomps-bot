@@ -101,7 +101,7 @@ class AdminHelpersCog(commands.Cog):
                     details={
                         "discord_id": discord_link.discord_id,
                         "discord_username": discord_link.discord_username,
-                        "authentik_username": discord_link.authentik_username,
+                        "authentik_username": discord_link.user.username,
                         "role_name": role_name,
                     },
                 )
@@ -109,7 +109,7 @@ class AdminHelpersCog(commands.Cog):
             await set_helper()
 
             msg = "✅ **Student helper added successfully!**\n\n"
-            msg += f"**Helper:** {discord_user.mention} ({discord_link.authentik_username})\n"
+            msg += f"**Helper:** {discord_user.mention} ({discord_link.user.username})\n"
             msg += f"**Role:** {role_name}\n"
             msg += "**Status:** Active\n\n"
             msg += "The role will be removed when `/competition end-competition` is run."
@@ -186,7 +186,7 @@ class AdminHelpersCog(commands.Cog):
                             details={
                                 "discord_id": discord_link.discord_id,
                                 "discord_username": discord_link.discord_username,
-                                "authentik_username": discord_link.authentik_username,
+                                "authentik_username": discord_link.user.username,
                                 "role_name": role.name,
                                 "import_source": "bulk_role_import",
                             },
@@ -283,7 +283,7 @@ class AdminHelpersCog(commands.Cog):
             for discord_link in helpers[:25]:
                 status_emoji = "✅" if discord_link.is_student_helper else "⏹️"
 
-                field_name = f"{status_emoji} {discord_link.discord_username or discord_link.authentik_username}"
+                field_name = f"{status_emoji} {discord_link.discord_username or discord_link.user.username}"
                 field_value = f"**Role:** {discord_link.helper_role_name}\n"
                 field_value += f"**Status:** {'Active' if discord_link.is_student_helper else 'Inactive'}\n"
 
@@ -421,7 +421,7 @@ class AdminHelpersCog(commands.Cog):
                 return
 
             desc = (
-                f"**Authentik Username:** {discord_link.authentik_username}\n**Discord ID:** {discord_link.discord_id}"
+                f"**Authentik Username:** {discord_link.user.username}\n**Discord ID:** {discord_link.discord_id}"
             )
             embed = discord.Embed(
                 title=f"Helper Status - {discord_user.display_name}",

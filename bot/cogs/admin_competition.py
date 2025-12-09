@@ -86,7 +86,7 @@ class AdminCompetitionCog(commands.Cog):
                         details={
                             "discord_id": link.discord_id,
                             "team_name": link.team.team_name if link.team else "Unknown",
-                            "authentik_username": link.authentik_username,
+                            "authentik_username": link.user.username,
                             "reason": "competition_ended",
                         },
                     )
@@ -123,7 +123,6 @@ class AdminCompetitionCog(commands.Cog):
 
                 await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
-                # Remove all student helper roles (select_related for authentik_username property)
                 active_helpers = [
                     dl
                     async for dl in DiscordLink.objects.filter(is_student_helper=True, is_active=True).select_related(
@@ -166,7 +165,7 @@ class AdminCompetitionCog(commands.Cog):
                             },
                         )
                     except Exception as e:
-                        logger.exception(f"Error removing helper {discord_link.authentik_username}: {e}")
+                        logger.exception(f"Error removing helper {discord_link.user.username}: {e}")
 
                 if helpers_removed > 0:
                     await log_to_ops_channel(self.bot, f"Removed {helpers_removed} student helper role(s)")

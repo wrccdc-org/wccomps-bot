@@ -54,24 +54,12 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
                 return []
 
             # Get groups via User → UserGroups
-            if discord_link.user:
-                try:
-                    groups = discord_link.user.usergroups.groups
-                    logger.debug(f"Found groups for {discord_user_id}: {groups}")
-                except UserGroups.DoesNotExist:
-                    logger.warning(f"No UserGroups found for user {discord_link.user.username}")
-                    groups = []
-            else:
-                # Legacy path: user FK not populated yet (during migration)
-                logger.warning(f"DiscordLink.user not populated for {discord_user_id}, falling back to username lookup")
-                try:
-                    user_groups = UserGroups.objects.select_related("user").get(
-                        user__username=discord_link.authentik_username
-                    )
-                    groups = user_groups.groups
-                except UserGroups.DoesNotExist:
-                    logger.warning(f"No UserGroups found for username {discord_link.authentik_username}")
-                    groups = []
+            try:
+                groups = discord_link.user.usergroups.groups
+                logger.debug(f"Found groups for {discord_user_id}: {groups}")
+            except UserGroups.DoesNotExist:
+                logger.warning(f"No UserGroups found for user {discord_link.user.username}")
+                groups = []
 
         except Exception as db_error:
             logger.exception(f"Database query failed: {db_error}")

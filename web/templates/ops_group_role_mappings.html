@@ -106,7 +106,7 @@
                                     <div class="member-details">
                                         <ul class="member-list">
                                         {% for member in item.members %}
-                                            <li>{{ member.discord_username }} <span class="mini quiet">({{ member.authentik_username }})</span></li>
+                                            <li>{{ member.discord_username }} <span class="mini quiet">({{ member.user.username }})</span></li>
                                         {% endfor %}
                                         </ul>
                                     </div>

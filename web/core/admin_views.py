@@ -534,7 +534,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
                 details={
                     "discord_username": link.discord_username,
                     "team_name": team.team_name,
-                    "authentik_username": link.authentik_username,
+                    "authentik_username": link.user.username,
                 },
             )
 

@@ -146,11 +146,6 @@ class DiscordLink(models.Model):
         ]
 
     @property
-    def authentik_username(self) -> str:
-        """Return username from linked User for backward compatibility."""
-        return self.user.username
-
-    @property
     def authentik_user_id(self) -> str | None:
         """Return authentik_id from UserGroups for backward compatibility."""
         try:
