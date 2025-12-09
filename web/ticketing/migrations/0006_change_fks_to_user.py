@@ -63,11 +63,9 @@ def migrate_discordlink_to_user(apps, schema_editor):
 
 def reverse_migrate(apps, schema_editor):
     """Reverse migration - not fully reversible."""
-    pass
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("ticketing", "0005_change_fks_to_discordlink"),
         ("team", "0006_migrate_helper_data"),
