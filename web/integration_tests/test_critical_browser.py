@@ -47,7 +47,6 @@ class TestAuthentikOAuthFlow:
         """Logout should clear session and redirect to Authentik logout."""
         # This test is skipped because it would invalidate the session-scoped
         # authenticated_page fixture, breaking subsequent tests that depend on it.
-        pass
 
 
 class TestOpsTicketDashboard:

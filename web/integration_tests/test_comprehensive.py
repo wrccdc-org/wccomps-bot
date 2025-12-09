@@ -7,7 +7,6 @@ edge cases, and integration with external services (Authentik, Discord).
 Run with: pytest -m integration
 """
 
-import os
 
 import pytest
 from django.contrib.auth.models import User
@@ -142,14 +141,12 @@ class TestAuthentikIntegration:
         """Verify Authentik API client can connect."""
         # The authentik_client package API has changed significantly.
         # This test needs to be updated to use the new CoreApi class.
-        pass
 
     @pytest.mark.skip(reason="Authentik client API changed, needs update")
     def test_authentik_group_fetch(self, authentik_client):
         """Test fetching groups from Authentik."""
         # The authentik_client package API has changed significantly.
         # This test needs to be updated to use the new CoreApi class.
-        pass
 
 
 class TestDiscordIntegration:
@@ -207,7 +204,6 @@ class TestAttachmentHandling:
     @pytest.mark.skip(reason="Attachment upload endpoint not yet implemented")
     def test_attachment_upload(self, db, test_ticket, support_user):
         """Test file attachment upload."""
-        pass
 
     def test_attachment_download(self, db, test_ticket, support_user):
         """Test file attachment download."""
