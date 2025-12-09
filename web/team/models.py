@@ -91,7 +91,6 @@ class DiscordLink(models.Model):
 
     discord_id = models.BigIntegerField()
     discord_username = models.CharField(max_length=255)
-    # Direct link to Django User (populated via user.usergroups.authentik_id)
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -144,14 +143,6 @@ class DiscordLink(models.Model):
                 name="team_unique_active_discord_link",
             ),
         ]
-
-    @property
-    def authentik_user_id(self) -> str | None:
-        """Return authentik_id from UserGroups for backward compatibility."""
-        try:
-            return self.user.usergroups.authentik_id
-        except Exception:
-            return None
 
     def __str__(self) -> str:
         if self.team:

@@ -768,7 +768,7 @@ def admin_helper_action(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"success": True, "message": f"Added {discord_link.discord_username} as helper"})
 
     elif action == "remove":
-        discord_link_id = request.POST.get("person_id")  # Still called person_id in form for backward compat
+        discord_link_id = request.POST.get("discord_link_id")
         reason = request.POST.get("reason", "Removed via web interface")
 
         if not discord_link_id:
