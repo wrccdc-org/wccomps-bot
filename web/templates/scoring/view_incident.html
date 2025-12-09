@@ -33,30 +33,49 @@
             <h3>Attack Information</h3>
             <c-detail_grid>
                 <dt>Affected Box</dt>
-                <dd>{{ incident.affected_box }}</dd>
+                <dd>{{ incident.affected_box|default:"—" }}</dd>
                 <dt>Affected Service</dt>
-                <dd>{{ incident.affected_service }}</dd>
+                <dd>{{ incident.affected_service|default:"—" }}</dd>
                 <dt>Source IP</dt>
                 <dd><code>{{ incident.source_ip }}</code></dd>
-                <dt>Attack Vector</dt>
-                <dd>{{ incident.attack_vector }}</dd>
+                {% if incident.destination_ip %}
+                <dt>Destination IP</dt>
+                <dd><code>{{ incident.destination_ip }}</code></dd>
+                {% endif %}
+                <dt>Attack Mitigated</dt>
+                <dd>{% if incident.attack_mitigated %}Yes{% else %}No{% endif %}</dd>
             </c-detail_grid>
         </div>
     </div>
 
-    <c-fieldset heading="Description">
+    <c-fieldset heading="Attack Description">
         <c-info_box>
-            {{ incident.description|linebreaks }}
+            {{ incident.attack_description|linebreaks }}
         </c-info_box>
     </c-fieldset>
+
+    {% if incident.evidence_notes %}
+    <c-fieldset heading="Evidence Notes">
+        <c-info_box>
+            {{ incident.evidence_notes|linebreaks }}
+        </c-info_box>
+    </c-fieldset>
+    {% endif %}
 
     <c-fieldset heading="Evidence Screenshots">
         {% if incident.screenshots.exists %}
             <c-image_grid>
                 {% for screenshot in incident.screenshots.all %}
-                <a href="{{ screenshot.image.url }}" target="_blank">
-                    <img src="{{ screenshot.image.url }}" alt="Evidence">
-                </a>
+                    {% if screenshot.has_data %}
+                    <a href="{% url 'scoring:incident_screenshot' screenshot.id %}" target="_blank">
+                        <img src="{% url 'scoring:incident_screenshot' screenshot.id %}" alt="{{ screenshot.filename }}">
+                    </a>
+                    {% else %}
+                    <div class="screenshot-lost">
+                        <span class="text-muted">{{ screenshot.filename|cut:"scoring/incidents/" }}</span>
+                        <small class="text-danger d-block">(file lost)</small>
+                    </div>
+                    {% endif %}
                 {% endfor %}
             </c-image_grid>
         {% else %}

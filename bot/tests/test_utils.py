@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
+from django.contrib.auth.models import User
 
 from bot.utils import (
     get_team_member_discord_ids,
@@ -79,25 +80,30 @@ class TestTeamHelpers:
             max_members=5,
         )
 
+        # Create users for the discord links
+        user1 = await User.objects.acreate(username="user1")
+        user2 = await User.objects.acreate(username="user2")
+        user3 = await User.objects.acreate(username="user3")
+
         # Create active and inactive members
         await DiscordLink.objects.acreate(
             discord_id=111111111,
-            authentik_username="user1",
-            authentik_user_id="uid1",
+            discord_username="user1#0001",
+            user=user1,
             team=team,
             is_active=True,
         )
         await DiscordLink.objects.acreate(
             discord_id=222222222,
-            authentik_username="user2",
-            authentik_user_id="uid2",
+            discord_username="user2#0002",
+            user=user2,
             team=team,
             is_active=True,
         )
         await DiscordLink.objects.acreate(
             discord_id=333333333,
-            authentik_username="user3",
-            authentik_user_id="uid3",
+            discord_username="user3#0003",
+            user=user3,
             team=team,
             is_active=False,  # Inactive
         )

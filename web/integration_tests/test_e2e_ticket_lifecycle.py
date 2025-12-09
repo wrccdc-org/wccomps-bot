@@ -28,16 +28,19 @@ class TestTicketCreationByTeam:
 
     def test_team_member_can_access_ticket_form(self, team_page: Page, live_server_url):
         """Team member should be able to access create ticket form."""
-        team_page.goto(f"{live_server_url}/tickets/create/")
+        team_page.goto(f"{live_server_url}/tickets/create/", wait_until="networkidle")
 
         form = team_page.locator("form")
-        expect(form).to_be_visible()
+        expect(form).to_be_visible(timeout=10000)
         expect(team_page.locator('select[name="category"]')).to_be_visible()
         expect(team_page.locator('input[name="title"]')).to_be_visible()
 
     def test_service_dropdown_populates_when_category_selected(self, team_page: Page, live_server_url):
         """Service dropdown should populate with options when category requiring service is selected."""
-        team_page.goto(f"{live_server_url}/tickets/create/")
+        team_page.goto(f"{live_server_url}/tickets/create/", wait_until="networkidle")
+
+        # Wait for form to be ready
+        team_page.wait_for_selector('select[name="category"]', timeout=10000)
 
         # Select a category that requires service_name
         team_page.select_option('select[name="category"]', "scoring-service-check")
@@ -59,7 +62,10 @@ class TestTicketCreationByTeam:
         """Team member creates ticket with service selection (regression test for x-for fix)."""
         from ticketing.models import Ticket
 
-        team_page.goto(f"{live_server_url}/tickets/create/")
+        team_page.goto(f"{live_server_url}/tickets/create/", wait_until="networkidle")
+
+        # Wait for form to be ready
+        team_page.wait_for_selector('select[name="category"]', timeout=10000)
 
         unique_title = f"[E2E SERVICE] Service dropdown test {os.urandom(4).hex()}"
 
@@ -95,11 +101,12 @@ class TestTicketCreationByTeam:
         """Team member creates ticket and sees it in their list."""
         from ticketing.models import Ticket
 
-        team_page.goto(f"{live_server_url}/tickets/create/")
+        team_page.goto(f"{live_server_url}/tickets/create/", wait_until="networkidle")
+        team_page.wait_for_selector('select[name="category"]', timeout=10000)
 
         unique_title = f"[E2E LIFECYCLE] Test ticket {os.urandom(4).hex()}"
 
-        team_page.select_option('select[name="category"]', "general-question")
+        team_page.select_option('select[name="category"]', "other")
         team_page.fill('input[name="title"]', unique_title)
         team_page.fill('textarea[name="description"]', "Created via E2E test")
         team_page.click('button[type="submit"]')
@@ -130,7 +137,7 @@ class TestOpsClaimsTicket:
         team = Team.objects.get(team_number=test_team_id)
         ticket = Ticket.objects.create(
             team=team,
-            category="general-question",
+            category="other",
             title=f"[E2E LIFECYCLE] Claimable ticket {os.urandom(4).hex()}",
             description="Waiting for ops to claim",
             status="open",
@@ -165,12 +172,9 @@ class TestOpsClaimsTicket:
         """After claiming, ticket appears in claimed filter."""
         from django.contrib.auth.models import User
 
-        from team.models import DiscordLink
-
-        user = User.objects.get(username=os.getenv("TEST_OPS_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME")))
-        discord_link = DiscordLink.objects.filter(user=user).first()
-        if discord_link:
-            team_ticket.assigned_to = discord_link
+        user = User.objects.filter(username=os.getenv("TEST_OPS_USERNAME", os.getenv("TEST_AUTHENTIK_USERNAME"))).first()
+        if user:
+            team_ticket.assigned_to = user
             team_ticket.status = "claimed"
             team_ticket.save()
 
@@ -187,7 +191,7 @@ class TestTicketCommentExchange:
         """Create a claimed ticket for comment testing."""
         from django.contrib.auth.models import User
 
-        from team.models import DiscordLink, Team
+        from team.models import Team
         from ticketing.models import Ticket
 
         team = Team.objects.get(team_number=test_team_id)
@@ -197,18 +201,14 @@ class TestTicketCommentExchange:
             username=ops_username,
             defaults={"email": f"{ops_username}@test.local"},
         )
-        discord_link, _ = DiscordLink.objects.get_or_create(
-            user=user,
-            defaults={"discord_id": 999888777, "discord_username": ops_username},
-        )
 
         ticket = Ticket.objects.create(
             team=team,
-            category="general-question",
+            category="other",
             title=f"[E2E LIFECYCLE] Comment test {os.urandom(4).hex()}",
             description="Testing comments",
             status="claimed",
-            assigned_to=discord_link,
+            assigned_to=user,
         )
         yield ticket
         if Ticket.objects.filter(pk=ticket.pk).exists():
@@ -259,7 +259,7 @@ class TestTicketResolution:
         """Create claimed ticket for resolution testing."""
         from django.contrib.auth.models import User
 
-        from team.models import DiscordLink, Team
+        from team.models import Team
         from ticketing.models import Ticket
 
         team = Team.objects.get(team_number=test_team_id)
@@ -269,18 +269,14 @@ class TestTicketResolution:
             username=ops_username,
             defaults={"email": f"{ops_username}@test.local"},
         )
-        discord_link, _ = DiscordLink.objects.get_or_create(
-            user=user,
-            defaults={"discord_id": 999888777, "discord_username": ops_username},
-        )
 
         ticket = Ticket.objects.create(
             team=team,
-            category="general-question",
+            category="other",
             title=f"[E2E LIFECYCLE] Resolution test {os.urandom(4).hex()}",
             description="To be resolved",
             status="claimed",
-            assigned_to=discord_link,
+            assigned_to=user,
         )
         yield ticket
         if Ticket.objects.filter(pk=ticket.pk).exists():
@@ -327,7 +323,7 @@ class TestTicketReopen:
         """Create resolved ticket for reopen testing."""
         from django.contrib.auth.models import User
 
-        from team.models import DiscordLink, Team
+        from team.models import Team
         from ticketing.models import Ticket
 
         team = Team.objects.get(team_number=test_team_id)
@@ -337,19 +333,15 @@ class TestTicketReopen:
             username=ops_username,
             defaults={"email": f"{ops_username}@test.local"},
         )
-        discord_link, _ = DiscordLink.objects.get_or_create(
-            user=user,
-            defaults={"discord_id": 999888777, "discord_username": ops_username},
-        )
 
         ticket = Ticket.objects.create(
             team=team,
-            category="general-question",
+            category="other",
             title=f"[E2E LIFECYCLE] Reopen test {os.urandom(4).hex()}",
             description="Was resolved, needs reopening",
             status="resolved",
-            assigned_to=discord_link,
-            resolved_by=discord_link,
+            assigned_to=user,
+            resolved_by=user,
             resolution_notes="Initial resolution",
         )
         yield ticket
@@ -400,8 +392,9 @@ class TestFullLifecycle:
         unique_id = os.urandom(4).hex()
         ticket_title = f"[E2E FULL LIFECYCLE] {unique_id}"
 
-        team_page.goto(f"{live_server_url}/tickets/create/")
-        team_page.select_option('select[name="category"]', "general-question")
+        team_page.goto(f"{live_server_url}/tickets/create/", wait_until="networkidle")
+        team_page.wait_for_selector('select[name="category"]', timeout=10000)
+        team_page.select_option('select[name="category"]', "other")
         team_page.fill('input[name="title"]', ticket_title)
         team_page.fill('textarea[name="description"]', "Full lifecycle test")
         team_page.click('button[type="submit"]')
@@ -467,7 +460,7 @@ class TestAccessControl:
         team = Team.objects.get(team_number=test_team_id)
         ticket = Ticket.objects.create(
             team=team,
-            category="general-question",
+            category="other",
             title="[E2E ACCESS] Reopen test",
             status="resolved",
         )
@@ -488,7 +481,7 @@ class TestAccessControl:
         if other_team:
             other_ticket = Ticket.objects.create(
                 team=other_team,
-                category="general-question",
+                category="other",
                 title="[E2E ACCESS] Other team ticket",
                 status="open",
             )

@@ -65,7 +65,7 @@ class AdminCompetitionCog(commands.Cog):
                 links_to_deactivate = [
                     link
                     async for link in DiscordLink.objects.filter(is_active=True, team__isnull=False).select_related(
-                        "team"
+                        "team", "user"
                     )
                 ]
 
@@ -123,9 +123,12 @@ class AdminCompetitionCog(commands.Cog):
 
                 await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
-                # Remove all student helper roles
+                # Remove all student helper roles (select_related for authentik_username property)
                 active_helpers = [
-                    dl async for dl in DiscordLink.objects.filter(is_student_helper=True, is_active=True).all()
+                    dl
+                    async for dl in DiscordLink.objects.filter(is_student_helper=True, is_active=True).select_related(
+                        "user"
+                    )
                 ]
 
                 helpers_removed = 0

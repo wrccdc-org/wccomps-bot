@@ -200,17 +200,16 @@ class RedTeamFinding(models.Model):
 
 
 class RedTeamScreenshot(models.Model):
-    """Screenshots for red team findings."""
+    """Screenshots for red team findings (stored in database)."""
 
     finding = models.ForeignKey(
         RedTeamFinding,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
-    image = models.ImageField(
-        upload_to="scoring/red_team/%Y/%m/%d/",
-        validators=[validate_file_size],
-    )
+    file_data = models.BinaryField(null=True, blank=True)
+    filename = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, default="image/png")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     description = models.CharField(max_length=200, blank=True)
 
@@ -218,8 +217,13 @@ class RedTeamScreenshot(models.Model):
         db_table = "red_team_screenshot"
         ordering = ["uploaded_at"]
 
+    @property
+    def has_data(self) -> bool:
+        """Check if file data exists (for legacy records without data)."""
+        return bool(self.file_data)
+
     def __str__(self) -> str:
-        return f"Screenshot for {self.finding}"
+        return f"{self.filename} ({self.finding})"
 
 
 class IncidentReport(models.Model):
@@ -302,17 +306,16 @@ class IncidentReport(models.Model):
 
 
 class IncidentScreenshot(models.Model):
-    """Screenshots for incident reports."""
+    """Screenshots for incident reports (stored in database)."""
 
     incident = models.ForeignKey(
         IncidentReport,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
-    image = models.ImageField(
-        upload_to="scoring/incidents/%Y/%m/%d/",
-        validators=[validate_file_size],
-    )
+    file_data = models.BinaryField(null=True, blank=True)
+    filename = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, default="image/png")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     description = models.CharField(max_length=200, blank=True)
 
@@ -320,8 +323,13 @@ class IncidentScreenshot(models.Model):
         db_table = "incident_screenshot"
         ordering = ["uploaded_at"]
 
+    @property
+    def has_data(self) -> bool:
+        """Check if file data exists (for legacy records without data)."""
+        return bool(self.file_data)
+
     def __str__(self) -> str:
-        return f"Screenshot for {self.incident}"
+        return f"{self.filename} ({self.incident})"
 
 
 class InjectGrade(models.Model):

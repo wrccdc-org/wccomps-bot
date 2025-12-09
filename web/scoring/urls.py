@@ -14,11 +14,13 @@ urlpatterns = [
     path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),
     path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
     path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),
+    path("red-team/screenshot/<int:screenshot_id>/", views.red_screenshot_download, name="red_screenshot"),
     # Incident Reports (Blue Team)
     path("incident/list/", views.incident_list, name="incident_list"),
     path("incident/submit/", views.submit_incident_report, name="submit_incident_report"),
     path("incident/<int:incident_id>/", views.view_incident_report, name="view_incident_report"),
     path("incident/<int:incident_id>/delete/", views.delete_incident_report, name="delete_incident_report"),
+    path("incident/screenshot/<int:screenshot_id>/", views.incident_screenshot_download, name="incident_screenshot"),
     # Orange Team
     path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
     path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),

@@ -15,6 +15,14 @@ import secrets
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load .env.test if it exists (for integration tests with special characters)
+# Must use override=True because shell sourcing can mangle special chars
+env_test_path = Path(__file__).resolve().parent.parent.parent / ".env.test"
+if env_test_path.exists() and os.environ.get("USE_POSTGRES_FOR_TESTS"):
+    load_dotenv(env_test_path, override=True)
+
 # Monkeypatch Django for django-stubs type support
 import django_stubs_ext
 
@@ -173,6 +181,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = str(BASE_DIR / "staticfiles")
+
+# Media files (user uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = str(BASE_DIR / "media")
 
 # WhiteNoise configuration for serving static files
 STORAGES = {

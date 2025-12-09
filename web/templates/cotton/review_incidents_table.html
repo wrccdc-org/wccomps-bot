@@ -19,7 +19,7 @@
                 <c-table_header sortable="false">ID</c-table_header>
                 <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Team</c-table_header>
                 <c-table_header sortable="false">Box/Service</c-table_header>
-                <c-table_header sortable="false">Attack Vector</c-table_header>
+                <c-table_header sortable="false">Description</c-table_header>
                 <c-table_header sort_field="attack_detected_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Detected</c-table_header>
                 <c-table_header sortable="false">Evidence</c-table_header>
                 <c-table_header sortable="false">Status</c-table_header>
@@ -36,7 +36,7 @@
                 {{ incident.affected_box }}
                 <div class="text-sm text-muted">{{ incident.affected_service }}</div>
             </td>
-            <td class="field-attack_vector">{{ incident.attack_vector|truncatechars:50 }}</td>
+            <td class="field-attack_description">{{ incident.attack_description|truncatechars:50 }}</td>
             <td class="field-detected">
                 {{ incident.attack_detected_at|timesince }} ago
                 <div class="text-sm text-muted">Submitted: {{ incident.created_at|date:"m/d H:i" }}</div>

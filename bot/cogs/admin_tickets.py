@@ -239,7 +239,7 @@ class AdminTicketsCog(commands.Cog):
                 f"Created: {discord.utils.format_dt(ticket.created_at, style='R')}"
             )
             if ticket.assigned_to:
-                value += f"\nAssigned: {ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username}"
+                value += f"\nAssigned: {ticket.assigned_to.username}"
 
             embed.add_field(
                 name=f"{ticket.ticket_number}: {ticket.title}",
@@ -307,11 +307,11 @@ class AdminTicketsCog(commands.Cog):
 
         from asgiref.sync import sync_to_async
 
-        from ticketing.utils import get_discord_link_for_ticket
+        from ticketing.utils import get_user_for_ticket
 
-        resolver = await sync_to_async(get_discord_link_for_ticket)(discord_id=interaction.user.id)
+        resolver = await sync_to_async(get_user_for_ticket)(discord_id=interaction.user.id)
 
-        # Update ticket
+        # Update ticket (assigned_to and resolved_by are now User, not DiscordLink)
         ticket.status = "resolved"
         ticket.resolved_at = timezone.now()
         ticket.resolved_by = resolver
@@ -376,9 +376,9 @@ class AdminTicketsCog(commands.Cog):
 
         from asgiref.sync import sync_to_async
 
-        from ticketing.utils import get_discord_link_for_ticket
+        from ticketing.utils import get_user_for_ticket
 
-        canceller = await sync_to_async(get_discord_link_for_ticket)(discord_id=interaction.user.id)
+        canceller = await sync_to_async(get_user_for_ticket)(discord_id=interaction.user.id)
 
         # Update ticket
         ticket.status = "cancelled"
@@ -524,11 +524,7 @@ class AdminTicketsCog(commands.Cog):
             await interaction.followup.send(f"Cannot reassign {ticket.status} ticket", ephemeral=True)
             return
 
-        old_assignee = (
-            (ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username)
-            if ticket.assigned_to
-            else "Unassigned"
-        )
+        old_assignee = ticket.assigned_to.username if ticket.assigned_to else "Unassigned"
 
         if volunteer:
             # If ticket is open, claim it first

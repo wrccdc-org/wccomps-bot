@@ -18,7 +18,6 @@ from django.utils.http import content_disposition_header, url_has_allowed_host_a
 from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
-from ticketing.utils import get_discord_link_for_ticket
 
 from .auth_utils import get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
@@ -542,11 +541,9 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
-    author_discord_link = get_discord_link_for_ticket(user=user)
-
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author=author_discord_link,
+        author=user,
         comment_text=comment_text,
     )
 
@@ -597,19 +594,24 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    # Fetch infrastructure from Quotient API
-    from quotient.client import get_quotient_client
+    # Fetch infrastructure from Quotient API (graceful degradation if unavailable)
+    from quotient.client import QuotientAPIError, get_quotient_client
 
-    quotient_client = get_quotient_client()
-    infrastructure = quotient_client.get_infrastructure()
-    service_choices = quotient_client.get_service_choices()
-    box_names = quotient_client.get_box_names()
+    infrastructure = None
+    service_choices: list[dict[str, str]] = []
+    box_names: list[str] = []
+    box_ip_map: dict[str, str] = {}
 
-    # Build box mapping for IP lookups (box_name -> ip)
-    box_ip_map = {}
-    if infrastructure:
-        for box in infrastructure.boxes:
-            box_ip_map[box.name] = box.ip
+    try:
+        quotient_client = get_quotient_client()
+        infrastructure = quotient_client.get_infrastructure()
+        service_choices = quotient_client.get_service_choices()
+        box_names = quotient_client.get_box_names()
+        if infrastructure:
+            for box in infrastructure.boxes:
+                box_ip_map[box.name] = box.ip
+    except QuotientAPIError:
+        logger.warning("Quotient API unavailable, ticket form will have limited functionality")
 
     if request.method == "POST":
         category = request.POST.get("category")
@@ -974,7 +976,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         if assignee_filter == "unassigned":
             query = query.filter(assigned_to__isnull=True)
         else:
-            # Filter by DiscordLink ID (assignee_filter is now a DiscordLink ID string)
+            # Filter by User ID
             with contextlib.suppress(ValueError):
                 query = query.filter(assigned_to_id=int(assignee_filter))
 
@@ -999,8 +1001,8 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         "-team__team_number",
         "category",
         "-category",
-        "assigned_to__discord_username",
-        "-assigned_to__discord_username",
+        "assigned_to__username",
+        "-assigned_to__username",
     ]
     if sort_by not in valid_sort_fields:
         sort_by = "-created_at"
@@ -1033,11 +1035,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page)
 
     # Get unique assignees for filter dropdown
-    assignees = (
-        DiscordLink.objects.filter(assigned_tickets__isnull=False, is_active=True)
-        .distinct()
-        .order_by("discord_username")
-    )
+    assignees = User.objects.filter(assigned_tickets__isnull=False).distinct().order_by("username")
 
     # Check if user is ticketing admin
     is_ticketing_admin = has_permission(user, "ticketing_admin")
@@ -1175,11 +1173,9 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 
-    author_discord_link = get_discord_link_for_ticket(user=user)
-
     comment = TicketComment.objects.create(
         ticket=ticket,
-        author=author_discord_link,
+        author=user,
         comment_text=comment_text,
     )
 
@@ -1216,23 +1212,12 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
-    # Try to find Discord link (optional for web UI)
-    try:
-        discord_link = DiscordLink.objects.get(user=user, is_active=True)
-        discord_id = discord_link.discord_id
-        discord_username = discord_link.discord_username
-    except DiscordLink.DoesNotExist:
-        discord_id = None
-        discord_username = None
-
     # Use shared atomic claim function
     from ticketing.utils import claim_ticket_atomic
 
     ticket, error = claim_ticket_atomic(
         ticket_id=ticket_obj.id,
         actor_username=authentik_username,
-        discord_id=discord_id,
-        discord_username=discord_username,
         user=user,
     )
 
@@ -1240,16 +1225,18 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse(error or "Failed to claim ticket", status=400)
 
     # Add volunteer to thread if they have Discord linked and ticket has a thread
-    if discord_id and ticket.discord_thread_id:
-        DiscordTask.objects.create(
-            task_type="add_user_to_thread",
-            ticket=ticket,
-            payload={
-                "discord_id": discord_id,
-                "thread_id": ticket.discord_thread_id,
-            },
-            status="pending",
-        )
+    if ticket.discord_thread_id:
+        discord_link = DiscordLink.objects.filter(user=user, is_active=True).first()
+        if discord_link:
+            DiscordTask.objects.create(
+                task_type="add_user_to_thread",
+                ticket=ticket,
+                payload={
+                    "discord_id": discord_link.discord_id,
+                    "thread_id": ticket.discord_thread_id,
+                },
+                status="pending",
+            )
 
     logger.info(f"Ticket {ticket_number} claimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1278,7 +1265,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     # Check if user claimed the ticket or is admin
     is_admin = has_permission(user, "ticketing_admin")
-    has_claimed = ticket_obj.assigned_to and ticket_obj.assigned_to.authentik_username == authentik_username
+    has_claimed = ticket_obj.assigned_to and ticket_obj.assigned_to.username == authentik_username
 
     if not is_admin and not has_claimed:
         return HttpResponse("You can only unclaim tickets you have claimed", status=403)
@@ -1289,6 +1276,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     ticket, error = unclaim_ticket_atomic(
         ticket_id=ticket_obj.id,
         actor_username=authentik_username,
+        user=user,
     )
 
     if error or ticket is None:
@@ -1324,18 +1312,10 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     if not new_assignee_username:
         return HttpResponse("New assignee username is required", status=400)
 
-    # Try to find Discord link for the new assignee
-    new_assignee_user: User | None = None
-    try:
-        discord_link = DiscordLink.objects.get(user__username=new_assignee_username, is_active=True)
-        discord_id = discord_link.discord_id
-        discord_username = discord_link.discord_username
-        new_assignee_user = discord_link.user
-    except DiscordLink.DoesNotExist:
-        # New assignee doesn't have Discord linked, but that's okay for web-only users
-        discord_id = None
-        discord_username = None
-        new_assignee_user = User.objects.filter(username=new_assignee_username).first()
+    # Find the user to assign
+    new_assignee_user = User.objects.filter(username=new_assignee_username).first()
+    if not new_assignee_user:
+        return HttpResponse(f"User '{new_assignee_username}' not found", status=400)
 
     # Use shared atomic reassign function
     from ticketing.utils import reassign_ticket_atomic
@@ -1343,8 +1323,6 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     ticket, error = reassign_ticket_atomic(
         ticket_id=ticket_obj.id,
         actor_username=authentik_username,
-        discord_id=discord_id,
-        discord_username=discord_username,
         user=new_assignee_user,
     )
 
@@ -1352,16 +1330,18 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
         return HttpResponse(error or "Failed to reassign ticket", status=400)
 
     # Add new assignee to thread if they have Discord linked and ticket has a thread
-    if discord_id and ticket.discord_thread_id:
-        DiscordTask.objects.create(
-            task_type="add_user_to_thread",
-            ticket=ticket,
-            payload={
-                "discord_id": discord_id,
-                "thread_id": ticket.discord_thread_id,
-            },
-            status="pending",
-        )
+    if ticket.discord_thread_id:
+        discord_link = DiscordLink.objects.filter(user=new_assignee_user, is_active=True).first()
+        if discord_link:
+            DiscordTask.objects.create(
+                task_type="add_user_to_thread",
+                ticket=ticket,
+                payload={
+                    "discord_id": discord_link.discord_id,
+                    "thread_id": ticket.discord_thread_id,
+                },
+                status="pending",
+            )
 
     logger.info(f"Ticket {ticket_number} reassigned to {new_assignee_username} by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1391,7 +1371,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Ticket not found", status=404)
 
     # Verify ownership: only the assigned user or admins can resolve
-    assigned_username = ticket_obj.assigned_to.authentik_username if ticket_obj.assigned_to else None
+    assigned_username = ticket_obj.assigned_to.username if ticket_obj.assigned_to else None
     if not is_ticketing_admin and assigned_username != authentik_username:
         return HttpResponse(
             "Access denied: Only the assigned support member or administrators can resolve this ticket",
@@ -1409,15 +1389,6 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         except ValueError:
             return HttpResponse("Invalid points value. Must be a number.", status=400)
 
-    # Try to find Discord link (optional for web UI)
-    try:
-        discord_link = DiscordLink.objects.get(user=user, is_active=True)
-        discord_id = discord_link.discord_id
-        discord_username = discord_link.discord_username
-    except DiscordLink.DoesNotExist:
-        discord_id = None
-        discord_username = None
-
     # Use shared atomic resolve function
     from ticketing.utils import resolve_ticket_atomic
 
@@ -1426,8 +1397,6 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         actor_username=authentik_username,
         resolution_notes=resolution_notes,
         points_override=points_override,
-        discord_id=discord_id,
-        discord_username=discord_username,
         user=user,
     )
 
@@ -1511,7 +1480,7 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
 
     # Check if user has claimed the ticket or is admin
     is_admin = has_permission(user, "ticketing_admin")
-    has_claimed = ticket.assigned_to and ticket.assigned_to.authentik_username == authentik_username
+    has_claimed = ticket.assigned_to and ticket.assigned_to.username == authentik_username
 
     if not is_admin and not has_claimed:
         return HttpResponse("You must claim the ticket first", status=403)
@@ -1573,22 +1542,19 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     if not ticket_numbers:
         return HttpResponse("No tickets selected", status=400)
 
-    # Get Discord link for ticket assignment (optional for web UI)
-    discord_link = get_discord_link_for_ticket(user=user)
-
     claimed_count = 0
     for ticket_number in ticket_numbers:
         try:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="open")
             ticket.status = "claimed"
-            ticket.assigned_to = discord_link
+            ticket.assigned_to = user
             ticket.assigned_at = timezone.now()
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="claimed",
-                actor=discord_link,
+                actor=user,
                 details={"claimed_by": authentik_username, "bulk": True},
             )
 
@@ -1618,23 +1584,20 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     if not ticket_numbers:
         return HttpResponse("No tickets selected", status=400)
 
-    # Get Discord link for ticket assignment (optional for web UI)
-    discord_link = get_discord_link_for_ticket(user=user)
-
     resolved_count = 0
     for ticket_number in ticket_numbers:
         try:
             ticket = Ticket.objects.get(ticket_number=ticket_number, status="claimed")
             ticket.status = "resolved"
             ticket.resolved_at = timezone.now()
-            ticket.resolved_by = discord_link
+            ticket.resolved_by = user
             ticket.resolution_notes = "Bulk resolved via web interface"
             ticket.save()
 
             TicketHistory.objects.create(
                 ticket=ticket,
                 action="resolved",
-                actor=discord_link,
+                actor=user,
                 details={"resolved_by": authentik_username, "bulk": True},
             )
 

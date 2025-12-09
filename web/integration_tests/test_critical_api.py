@@ -247,14 +247,14 @@ class TestTicketOperations:
         # Create DiscordLink so ticket operations can find Discord ID
         from team.models import DiscordLink
 
-        discord_link = DiscordLink.objects.create(
+        DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username=username,
             user=user,
             is_active=True,
         )
 
-        return discord_link
+        return user
         # Let pytest-django's transaction rollback handle cleanup
 
     def test_ticket_claim_requires_authentication(self, db, test_ticket):
@@ -269,7 +269,7 @@ class TestTicketOperations:
     def test_ticket_claim_with_authenticated_user(self, db, test_ticket, support_user):
         """Ticket claim should succeed with authenticated support user."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
@@ -280,7 +280,7 @@ class TestTicketOperations:
         test_ticket.refresh_from_db()
         assert test_ticket.status == "claimed"
         assert test_ticket.assigned_to is not None
-        assert test_ticket.assigned_to.discord_id == support_user.discord_id
+        assert test_ticket.assigned_to.pk == support_user.pk
 
     def test_ticket_resolve_requires_authentication(self, db, test_ticket):
         """Ticket resolve should require authentication."""
@@ -300,7 +300,7 @@ class TestTicketOperations:
     def test_ticket_resolve_with_points(self, db, test_ticket, support_user):
         """Ticket resolve should handle point assignment."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         # Claim ticket first
         test_ticket.status = "claimed"
@@ -344,7 +344,7 @@ class TestTicketOperations:
             groups=["WCComps_Ticketing_Support"],
         )
 
-        # First user claims the ticket
+        # First user claims the ticket (support_user is now User, not DiscordLink)
         test_ticket.status = "claimed"
         test_ticket.assigned_to = support_user
         test_ticket.save()
@@ -421,14 +421,14 @@ class TestConcurrentOperations:
             # Create DiscordLink so ticket operations can find Discord ID
             from team.models import DiscordLink
 
-            discord_link = DiscordLink.objects.create(
+            DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=username,
                 user=user,
                 is_active=True,
             )
 
-            users.append(discord_link)
+            users.append(user)
 
         return users
         # Let pytest-django's transaction rollback handle cleanup
@@ -442,10 +442,10 @@ class TestConcurrentOperations:
 
         results = []
 
-        def claim_ticket(person):
+        def claim_ticket(user):
             """Claim ticket in separate thread."""
             client = Client()
-            client.force_login(person.user)
+            client.force_login(user)
 
             response = client.post(
                 reverse(
@@ -453,12 +453,12 @@ class TestConcurrentOperations:
                     kwargs={"ticket_number": test_ticket.ticket_number},
                 )
             )
-            results.append((person, response.status_code))
+            results.append((user, response.status_code))
 
         # Launch concurrent claims
         threads = []
-        for person in support_users:
-            thread = threading.Thread(target=claim_ticket, args=(person,))
+        for user in support_users:
+            thread = threading.Thread(target=claim_ticket, args=(user,))
             threads.append(thread)
             thread.start()
 
@@ -468,7 +468,7 @@ class TestConcurrentOperations:
 
         # Verify no 500 errors occurred
         for person, status_code in results:
-            assert status_code != 500, f"500 error for user {person.authentik_username}"
+            assert status_code != 500, f"500 error for user {person.username}"
 
         # Verify exactly one user claimed the ticket
         test_ticket.refresh_from_db()
@@ -476,7 +476,7 @@ class TestConcurrentOperations:
         assert test_ticket.assigned_to is not None
         # Verify assigned user is one of the support users
         assigned_user = next(
-            (u for u in support_users if u.discord_id == test_ticket.assigned_to.discord_id),
+            (u for u in support_users if u.pk == test_ticket.assigned_to.pk),
             None,
         )
         assert assigned_user is not None, "Ticket assigned to unknown user"
@@ -535,20 +535,20 @@ class TestBulkOperations:
         # Create DiscordLink so ticket operations can find Discord ID
         from team.models import DiscordLink
 
-        discord_link = DiscordLink.objects.create(
+        DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username=username,
             user=user,
             is_active=True,
         )
 
-        return discord_link
+        return user
         # Let pytest-django's transaction rollback handle cleanup
 
     def test_bulk_claim_all_or_nothing(self, db, test_tickets, support_user):
         """Bulk claim should be atomic - all succeed or all fail."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         ticket_numbers = ",".join([ticket.ticket_number for ticket in test_tickets])
 
@@ -565,12 +565,12 @@ class TestBulkOperations:
             ticket.refresh_from_db()
             assert ticket.status == "claimed"
             assert ticket.assigned_to is not None
-            assert ticket.assigned_to.discord_id == support_user.discord_id
+            assert ticket.assigned_to.pk == support_user.pk
 
     def test_bulk_resolve_with_points(self, db, test_tickets, support_user):
         """Bulk resolve should handle point assignment for all tickets."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         # Claim all tickets first
         for ticket in test_tickets:

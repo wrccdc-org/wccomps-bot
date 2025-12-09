@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -297,9 +297,12 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
             try:
                 for screenshot in screenshots:
+                    file_data = screenshot.read()
                     RedTeamScreenshot.objects.create(
                         finding=finding,
-                        image=screenshot,
+                        file_data=file_data,
+                        filename=screenshot.name or "screenshot.png",
+                        mime_type=screenshot.content_type or "image/png",
                     )
             except Exception as e:
                 messages.error(request, f"File upload failed: {str(e)}")
@@ -398,9 +401,12 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
 
             try:
                 for screenshot in screenshots:
+                    file_data = screenshot.read()
                     IncidentScreenshot.objects.create(
                         incident=incident,
-                        image=screenshot,
+                        file_data=file_data,
+                        filename=screenshot.name or "screenshot.png",
+                        mime_type=screenshot.content_type or "image/png",
                     )
             except Exception as e:
                 messages.error(request, f"File upload failed: {str(e)}")
@@ -700,7 +706,9 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("gold_team", error_message="Only Gold Team members can review incident reports")
+@require_role(
+    "gold_team", "white_team", error_message="Only Gold Team or White Team members can review incident reports"
+)
 def review_incidents(request: HttpRequest) -> HttpResponse:
     """Review and match incident reports (gold team)."""
     from django.core.paginator import Paginator
@@ -776,7 +784,9 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("gold_team", error_message="Only Gold Team members can match incident reports")
+@require_role(
+    "gold_team", "white_team", error_message="Only Gold Team or White Team members can match incident reports"
+)
 @transaction.atomic
 def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
     """Match incident to red team finding (gold team)."""
@@ -1292,3 +1302,41 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
 
     messages.success(request, f"Rejected {count} adjustment(s)")
     return redirect("scoring:orange_team_portal")
+
+
+@login_required
+def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
+    """Serve incident screenshot from database."""
+    from django.http import Http404
+
+    screenshot = get_object_or_404(IncidentScreenshot, id=screenshot_id)
+
+    # Check permission: must be staff or team member
+    user = cast(User, request.user)
+    if not user.is_staff:
+        user_team = _get_user_team(user)
+        if not user_team or screenshot.incident.team != user_team:
+            return HttpResponseForbidden("You do not have permission to view this file")
+
+    if not screenshot.file_data:
+        raise Http404("File data not available (file was lost)")
+
+    response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
+    response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
+    return response
+
+
+@login_required
+@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can view this")
+def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
+    """Serve red team screenshot from database."""
+    from django.http import Http404
+
+    screenshot = get_object_or_404(RedTeamScreenshot, id=screenshot_id)
+
+    if not screenshot.file_data:
+        raise Http404("File data not available (file was lost)")
+
+    response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
+    response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
+    return response

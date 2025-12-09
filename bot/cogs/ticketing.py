@@ -356,12 +356,12 @@ class TicketingCog(commands.Cog):
             if not existing:
                 from asgiref.sync import sync_to_async
 
-                from ticketing.utils import get_discord_link_for_ticket
+                from ticketing.utils import get_user_for_ticket
 
-                author_discord_link = await sync_to_async(get_discord_link_for_ticket)(discord_id=message.author.id)
+                author = await sync_to_async(get_user_for_ticket)(discord_id=message.author.id)
                 await TicketComment.objects.acreate(
                     ticket=ticket,
-                    author=author_discord_link,
+                    author=author,
                     comment_text=message.content,
                     discord_message_id=message.id,
                 )

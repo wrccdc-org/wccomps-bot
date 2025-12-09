@@ -71,8 +71,8 @@ class AdminTeamsCog(commands.Cog):
             return
 
         member_count = await team.members.filter(is_active=True).acount()
-        # Fetch all members
-        members = [m async for m in team.members.filter(is_active=True).order_by("linked_at")]
+        # Fetch all members (select_related for authentik_username property)
+        members = [m async for m in team.members.filter(is_active=True).select_related("user").order_by("linked_at")]
 
         embed = discord.Embed(title=f"{team.team_name} Details", color=discord.Color.blue())
         embed.add_field(name="Team Number", value=f"#{team.team_number}", inline=True)
@@ -148,9 +148,11 @@ class AdminTeamsCog(commands.Cog):
                 member = interaction.guild.get_member(user_id)
                 user_display = member.mention if member else f"User ID {user_id}"
 
-                # Check if user is linked
+                # Check if user is linked (select_related for authentik_username property)
                 link = await (
-                    DiscordLink.objects.filter(discord_id=user_id, is_active=True).select_related("team").afirst()
+                    DiscordLink.objects.filter(discord_id=user_id, is_active=True)
+                    .select_related("team", "user")
+                    .afirst()
                 )
 
                 if not link:
@@ -266,8 +268,8 @@ class AdminTeamsCog(commands.Cog):
 
         removed_items = []
 
-        # Get all team members
-        members = [m async for m in team.members.filter(is_active=True)]
+        # Get all team members (select_related for authentik_username property)
+        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
         unlinked_count = 0
 
         # Remove roles BEFORE deactivating links
@@ -410,8 +412,8 @@ class AdminTeamsCog(commands.Cog):
         results = []
         guild = interaction.guild
 
-        # Step 1: Unlink all Discord users
-        members = [m async for m in team.members.filter(is_active=True)]
+        # Step 1: Unlink all Discord users (select_related for authentik_username property)
+        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
         unlinked_count = 0
 
         for link in members:

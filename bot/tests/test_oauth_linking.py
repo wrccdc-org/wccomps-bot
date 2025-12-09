@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from bot.cogs.linking import LinkingCog
@@ -49,9 +50,11 @@ class TestLinkTokenGeneration:
             max_members=5,
         )
 
+        user = await User.objects.acreate(username="testuser")
         await DiscordLink.objects.acreate(
             discord_id=mock_interaction.user.id,
-            authentik_username="testuser",
+            discord_username="testuser#1234",
+            user=user,
             is_active=True,
             team=team,
         )
@@ -80,9 +83,11 @@ class TestLinkTokenGeneration:
         """Test that /link command allows relinking when user has orphaned link (no team)."""
         # Create orphaned link (linked but no team)
         discord_id = mock_interaction.user.id
+        user = await User.objects.acreate(username="olduser")
         await DiscordLink.objects.acreate(
             discord_id=discord_id,
-            authentik_username="olduser",
+            discord_username="olduser#1234",
+            user=user,
             is_active=True,
             team=None,
         )
@@ -156,9 +161,11 @@ class TestDiscordLinkCreation:
             max_members=5,
         )
 
+        user = await User.objects.acreate(username="team61_member1")
         link = await DiscordLink.objects.acreate(
             discord_id=333333333,
-            authentik_username="team61_member1",
+            discord_username="team61_member1#0001",
+            user=user,
             is_active=True,
             team=team,
         )
@@ -176,9 +183,11 @@ class TestDiscordLinkCreation:
         )
 
         # Create first link
+        user = await User.objects.acreate(username="team62_member1")
         await DiscordLink.objects.acreate(
             discord_id=444444444,
-            authentik_username="team62_member1",
+            discord_username="team62_member1#0001",
+            user=user,
             is_active=True,
             team=team,
         )
@@ -198,9 +207,11 @@ class TestDiscordLinkCreation:
             max_members=5,
         )
 
+        user = await User.objects.acreate(username="team63_member1")
         link = await DiscordLink.objects.acreate(
             discord_id=555555555,
-            authentik_username="team63_member1",
+            discord_username="team63_member1#0001",
+            user=user,
             is_active=True,
             team=team,
         )
@@ -231,9 +242,11 @@ class TestLinkingWithRoles:
             max_members=5,
         )
 
+        user = await User.objects.acreate(username="team64_member1")
         link = await DiscordLink.objects.acreate(
             discord_id=666666666,
-            authentik_username="team64_member1",
+            discord_username="team64_member1#0001",
+            user=user,
             is_active=True,
             team=team,
         )
@@ -264,9 +277,11 @@ class TestLinkingWithRoles:
             max_members=5,
         )
 
+        user = await User.objects.acreate(username="team65_member1")
         link = await DiscordLink.objects.acreate(
             discord_id=777777777,
-            authentik_username="team65_member1",
+            discord_username="team65_member1#0001",
+            user=user,
             is_active=True,
             team=team,
         )

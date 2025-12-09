@@ -6,12 +6,26 @@ import logging
 from typing import cast
 
 import discord
+from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from core.tickets_config import TICKET_CATEGORIES
+from team.models import DiscordLink
 from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
+
+
+async def get_discord_link_for_user(user_id: int | None) -> DiscordLink | None:
+    """Look up DiscordLink for a User, for Discord mentions."""
+    if not user_id:
+        return None
+
+    @sync_to_async
+    def lookup() -> DiscordLink | None:
+        return DiscordLink.objects.filter(user_id=user_id, is_active=True).first()
+
+    return await lookup()
 
 
 def get_ticket_color(status: str) -> discord.Color:
@@ -55,21 +69,13 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
     if ticket.ip_address:
         embed.add_field(name="IP Address", value=ticket.ip_address, inline=True)
 
-    # Assigned to
+    # Assigned to (ticket.assigned_to is now a User)
     if ticket.assigned_to:
-        if ticket.assigned_to.discord_id:
-            display_name = ticket.assigned_to.discord_username or ticket.assigned_to.authentik_username
-            embed.add_field(
-                name="Assigned To",
-                value=f"<@{ticket.assigned_to.discord_id}> ({display_name})",
-                inline=False,
-            )
-        else:
-            embed.add_field(
-                name="Assigned To",
-                value=f"{ticket.assigned_to.authentik_username} (web user)",
-                inline=False,
-            )
+        embed.add_field(
+            name="Assigned To",
+            value=ticket.assigned_to.username,
+            inline=False,
+        )
 
     # Point impact
     points = cat_info.get("points", 0)
