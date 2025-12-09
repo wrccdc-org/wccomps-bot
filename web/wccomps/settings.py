@@ -286,7 +286,6 @@ AUTHENTIK_TOKEN = os.environ.get("AUTHENTIK_TOKEN", "")
 
 # Quotient API settings
 QUOTIENT_API_URL = os.environ.get("QUOTIENT_API_URL", "https://scoring.wccomps.org")
-QUOTIENT_FALLBACK_URL = os.environ.get("QUOTIENT_FALLBACK_URL", "")
 
 # Quotient authentication (hardcoded admin in event.conf)
 QUOTIENT_USERNAME = os.environ.get("QUOTIENT_USERNAME", "")
