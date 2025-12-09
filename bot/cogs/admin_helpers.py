@@ -420,9 +420,7 @@ class AdminHelpersCog(commands.Cog):
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
-            desc = (
-                f"**Authentik Username:** {discord_link.user.username}\n**Discord ID:** {discord_link.discord_id}"
-            )
+            desc = f"**Authentik Username:** {discord_link.user.username}\n**Discord ID:** {discord_link.discord_id}"
             embed = discord.Embed(
                 title=f"Helper Status - {discord_user.display_name}",
                 description=desc,
