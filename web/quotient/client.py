@@ -326,19 +326,6 @@ class QuotientClient:
 
         return sorted([box.name for box in infrastructure.boxes])
 
-    def clear_cache(self) -> None:
-        """Clear all cached Quotient data."""
-        cache.delete_many(
-            [
-                "quotient_infrastructure",
-                "quotient_scores",
-                "quotient_service_status",
-                "quotient_uptimes",
-                "quotient_injects",
-            ]
-        )
-        logger.info("Cleared Quotient caches")
-
 
 @lru_cache(maxsize=1)
 def get_quotient_client() -> QuotientClient:

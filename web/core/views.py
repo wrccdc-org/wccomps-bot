@@ -1927,14 +1927,6 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
     )
 
 
-def custom_logout(request: HttpRequest) -> HttpResponse:
-    """Custom logout view - redirects to OAuth logout."""
-    # Use the oauth module's logout which handles Authentik end-session
-    from .oauth import oauth_logout
-
-    return oauth_logout(request)
-
-
 @login_required
 def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     """View team membership status and linked users (GoldTeam only)."""

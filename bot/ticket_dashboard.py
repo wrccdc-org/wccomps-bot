@@ -16,18 +16,6 @@ from ticketing.models import Ticket
 logger = logging.getLogger(__name__)
 
 
-async def get_discord_link_for_user(user_id: int | None) -> DiscordLink | None:
-    """Look up DiscordLink for a User, for Discord mentions."""
-    if not user_id:
-        return None
-
-    @sync_to_async
-    def lookup() -> DiscordLink | None:
-        return DiscordLink.objects.filter(user_id=user_id, is_active=True).first()
-
-    return await lookup()
-
-
 def get_ticket_color(status: str) -> discord.Color:
     """Get embed color based on ticket status."""
     colors: dict[str, discord.Color] = {
@@ -278,7 +266,6 @@ class TicketActionView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
     ) -> None:
         """Cancel an unclaimed ticket."""
-        from asgiref.sync import sync_to_async
 
         from bot.permissions import can_support_tickets_async
         from team.models import DiscordLink
