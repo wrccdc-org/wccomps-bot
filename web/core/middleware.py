@@ -16,9 +16,8 @@ class AuthentikRequiredMiddleware:
 
         # Paths that don't require authentication
         self.whitelist = [
-            "/accounts/",  # Allauth OAuth endpoints
+            "/auth/",  # OAuth endpoints (login, callback, logout, link)
             "/static/",  # Static files
-            "/auth/link",  # Discord linking entry point (redirects to OAuth)
             "/health/",  # Health check endpoint for monitoring
             "/register/",  # Public registration form
         ]
@@ -36,6 +35,6 @@ class AuthentikRequiredMiddleware:
             if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 next_url = "/"
             safe_next = quote(next_url, safe="")
-            return redirect(f"/accounts/oidc/authentik/login/?next={safe_next}")
+            return redirect(f"/auth/login/?next={safe_next}")
 
         return self.get_response(request)

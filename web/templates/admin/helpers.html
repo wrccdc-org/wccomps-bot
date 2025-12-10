@@ -129,7 +129,7 @@ function helpersAdmin() {
             try {
                 const formData = new FormData();
                 formData.append('action', 'remove');
-                formData.append('person_id', personId);
+                formData.append('discord_link_id', personId);
                 formData.append('reason', reason || 'Removed via web interface');
 
                 const response = await fetch('{% url "admin_helper_action" %}', {

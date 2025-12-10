@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wccomps.settings")
 
@@ -16,7 +15,7 @@ django.setup()
 from django.urls import URLPattern, URLResolver, get_resolver
 
 
-def get_all_url_patterns(resolver: Any = None, prefix: str = "") -> list[str]:
+def get_all_url_patterns(resolver: URLResolver | None = None, prefix: str = "") -> list[str]:
     """Extract all URL patterns from Django's URL configuration."""
     if resolver is None:
         resolver = get_resolver()

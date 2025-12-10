@@ -62,28 +62,22 @@ class TestOAuthCallback:
         import uuid
         from datetime import timedelta
 
-        from allauth.socialaccount.models import SocialAccount
         from django.utils import timezone
 
+        from core.models import UserGroups
         from team.models import LinkToken, Team
 
-        # Create authenticated user with SocialAccount (simulates completed OAuth)
+        # Create authenticated user with UserGroups (simulates completed OAuth)
         unique_id = str(uuid.uuid4())[:8]
         username = f"test_oauth_{unique_id}"
         user = User.objects.create_user(username=username, email=f"{username}@example.com")
 
-        # Create SocialAccount with team groups
+        # Create UserGroups with team groups
         team = Team.objects.get(team_number=test_team_id)
-        social_account = SocialAccount.objects.create(
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid=f"test_uid_oauth_{unique_id}",
-            extra_data={
-                "userinfo": {
-                    "preferred_username": username,
-                    "groups": [f"WCComps_{team.authentik_group}"],
-                },
-            },
+            authentik_id=f"test_uid_oauth_{unique_id}",
+            groups=[f"WCComps_{team.authentik_group}"],
         )
 
         # Create LinkToken (simulates Discord /link command)
@@ -119,9 +113,9 @@ class TestOAuthCallback:
         # Verify DiscordLink was created
         from team.models import DiscordLink
 
-        discord_link = DiscordLink.objects.filter(discord_id=discord_id).first()
+        discord_link = DiscordLink.objects.select_related("user__usergroups").filter(discord_id=discord_id).first()
         assert discord_link is not None, "DiscordLink should have been created"
-        assert discord_link.authentik_user_id == social_account.uid
+        assert discord_link.user.usergroups.authentik_id == f"test_uid_oauth_{unique_id}"
         assert discord_link.is_active is True
 
     def test_oauth_callback_requires_authentication(self, db):
@@ -149,9 +143,9 @@ class TestOAuthCallback:
         import uuid
         from datetime import timedelta
 
-        from allauth.socialaccount.models import SocialAccount
         from django.utils import timezone
 
+        from core.models import UserGroups
         from team.models import LinkToken, Team
 
         # Create authenticated user
@@ -160,16 +154,10 @@ class TestOAuthCallback:
         user = User.objects.create_user(username=username, email=f"{username}@example.com")
 
         team = Team.objects.get(team_number=test_team_id)
-        SocialAccount.objects.create(
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid=f"test_uid_csrf_{unique_id}",
-            extra_data={
-                "userinfo": {
-                    "preferred_username": username,
-                    "groups": [f"WCComps_{team.authentik_group}"],
-                },
-            },
+            authentik_id=f"test_uid_csrf_{unique_id}",
+            groups=[f"WCComps_{team.authentik_group}"],
         )
 
         # Create attacker's LinkToken
@@ -182,14 +170,19 @@ class TestOAuthCallback:
         )
 
         # Attacker tries to trick victim into visiting callback with attacker's token
-        # Victim is logged in but hasn't initiated linking
+        # Victim is logged in and has their own pending link (different token in session)
         client = Client()
         client.force_login(user)
 
-        # Direct callback access without going through initiate (CSRF attack attempt)
+        # Victim has their own link token in session (they initiated their own linking)
+        session = client.session
+        session["pending_link_token"] = "victims_own_token_12345"
+        session.save()
+
+        # Attacker sends victim a link with attacker's token (CSRF attack attempt)
         response = client.get(reverse("link_callback"), {"token": attacker_token.token})
 
-        # Should reject - CSRF protection
+        # Should reject - session token mismatch indicates CSRF
         assert response.status_code == 200  # Renders error page
         assert b"Security verification failed" in response.content or b"CSRF" in response.content
 
@@ -231,38 +224,25 @@ class TestTicketOperations:
         import random
         import uuid
 
-        from allauth.socialaccount.models import SocialAccount
+        from core.models import UserGroups
 
         unique_id = str(uuid.uuid4())[:8]
         # Generate numeric discord ID (as integer)
         discord_id = random.randint(100000000000000000, 999999999999999999)
         username = f"test_support_{unique_id}"
 
-        # Create Django user (signal auto-creates Person)
+        # Create Django user
         user = django_user_model.objects.create_user(
             username=username,
             email=f"{username}@example.com",
         )
 
-        # Create SocialAccount with Authentik groups
-        social_account = SocialAccount.objects.create(
+        # Create UserGroups with Authentik groups
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid=f"test_uid_{unique_id}",
-            extra_data={
-                "userinfo": {
-                    "preferred_username": username,
-                    "groups": ["WCComps_Ticketing_Support"],  # Grant ticketing permissions
-                },
-            },
+            authentik_id=f"test_uid_{unique_id}",
+            groups=["WCComps_Ticketing_Support"],
         )
-
-        # Update Person with Discord info
-        person = user.person
-        person.discord_id = discord_id
-        person.authentik_username = username
-        person.authentik_groups = ["WCComps_Ticketing_Support"]
-        person.save()
 
         # Create DiscordLink so ticket operations can find Discord ID
         from team.models import DiscordLink
@@ -270,12 +250,11 @@ class TestTicketOperations:
         DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username=username,
-            authentik_username=username,
-            authentik_user_id=social_account.uid,
+            user=user,
             is_active=True,
         )
 
-        return person
+        return user
         # Let pytest-django's transaction rollback handle cleanup
 
     def test_ticket_claim_requires_authentication(self, db, test_ticket):
@@ -290,7 +269,7 @@ class TestTicketOperations:
     def test_ticket_claim_with_authenticated_user(self, db, test_ticket, support_user):
         """Ticket claim should succeed with authenticated support user."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
@@ -301,7 +280,7 @@ class TestTicketOperations:
         test_ticket.refresh_from_db()
         assert test_ticket.status == "claimed"
         assert test_ticket.assigned_to is not None
-        assert test_ticket.assigned_to.discord_id == support_user.discord_id
+        assert test_ticket.assigned_to.pk == support_user.pk
 
     def test_ticket_resolve_requires_authentication(self, db, test_ticket):
         """Ticket resolve should require authentication."""
@@ -321,7 +300,7 @@ class TestTicketOperations:
     def test_ticket_resolve_with_points(self, db, test_ticket, support_user):
         """Ticket resolve should handle point assignment."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         # Claim ticket first
         test_ticket.status = "claimed"
@@ -350,7 +329,7 @@ class TestTicketOperations:
         """Non-admin support users should only be able to resolve tickets they claimed."""
         import uuid
 
-        from allauth.socialaccount.models import SocialAccount
+        from core.models import UserGroups
 
         # Create another support user
         unique_id = str(uuid.uuid4())[:8]
@@ -359,19 +338,13 @@ class TestTicketOperations:
             username=other_username, email=f"{other_username}@example.com"
         )
 
-        SocialAccount.objects.create(
+        UserGroups.objects.create(
             user=other_user,
-            provider="authentik",
-            uid=f"other_support_uid_{unique_id}",
-            extra_data={
-                "userinfo": {
-                    "preferred_username": other_username,
-                    "groups": ["WCComps_Ticketing_Support"],
-                },
-            },
+            authentik_id=f"other_support_uid_{unique_id}",
+            groups=["WCComps_Ticketing_Support"],
         )
 
-        # First user claims the ticket
+        # First user claims the ticket (support_user is now User, not DiscordLink)
         test_ticket.status = "claimed"
         test_ticket.assigned_to = support_user
         test_ticket.save()
@@ -424,7 +397,7 @@ class TestConcurrentOperations:
         import random
         import uuid
 
-        from allauth.socialaccount.models import SocialAccount
+        from core.models import UserGroups
 
         users = []
         for i in range(3):
@@ -433,31 +406,17 @@ class TestConcurrentOperations:
             discord_id = random.randint(100000000000000000, 999999999999999999)
             username = f"test_support_{i}_{unique_id}"
 
-            # Create Django user (signal auto-creates Person)
             user = django_user_model.objects.create_user(
                 username=username,
                 email=f"{username}@example.com",
             )
 
-            # Create SocialAccount with Authentik groups
-            social_account = SocialAccount.objects.create(
+            # Create UserGroups with Authentik groups
+            UserGroups.objects.create(
                 user=user,
-                provider="authentik",
-                uid=f"test_uid_{i}_{unique_id}",
-                extra_data={
-                    "userinfo": {
-                        "preferred_username": username,
-                        "groups": ["WCComps_Ticketing_Support"],
-                    },
-                },
+                authentik_id=f"test_uid_{i}_{unique_id}",
+                groups=["WCComps_Ticketing_Support"],
             )
-
-            # Update Person with Discord info
-            person = user.person
-            person.discord_id = discord_id
-            person.authentik_username = username
-            person.authentik_groups = ["WCComps_Ticketing_Support"]
-            person.save()
 
             # Create DiscordLink so ticket operations can find Discord ID
             from team.models import DiscordLink
@@ -465,12 +424,11 @@ class TestConcurrentOperations:
             DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=username,
-                authentik_username=username,
-                authentik_user_id=social_account.uid,
+                user=user,
                 is_active=True,
             )
 
-            users.append(person)
+            users.append(user)
 
         return users
         # Let pytest-django's transaction rollback handle cleanup
@@ -484,10 +442,10 @@ class TestConcurrentOperations:
 
         results = []
 
-        def claim_ticket(person):
+        def claim_ticket(user):
             """Claim ticket in separate thread."""
             client = Client()
-            client.force_login(person.user)
+            client.force_login(user)
 
             response = client.post(
                 reverse(
@@ -495,12 +453,12 @@ class TestConcurrentOperations:
                     kwargs={"ticket_number": test_ticket.ticket_number},
                 )
             )
-            results.append((person, response.status_code))
+            results.append((user, response.status_code))
 
         # Launch concurrent claims
         threads = []
-        for person in support_users:
-            thread = threading.Thread(target=claim_ticket, args=(person,))
+        for user in support_users:
+            thread = threading.Thread(target=claim_ticket, args=(user,))
             threads.append(thread)
             thread.start()
 
@@ -510,7 +468,7 @@ class TestConcurrentOperations:
 
         # Verify no 500 errors occurred
         for person, status_code in results:
-            assert status_code != 500, f"500 error for user {person.authentik_username}"
+            assert status_code != 500, f"500 error for user {person.username}"
 
         # Verify exactly one user claimed the ticket
         test_ticket.refresh_from_db()
@@ -518,7 +476,7 @@ class TestConcurrentOperations:
         assert test_ticket.assigned_to is not None
         # Verify assigned user is one of the support users
         assigned_user = next(
-            (u for u in support_users if u.discord_id == test_ticket.assigned_to.discord_id),
+            (u for u in support_users if u.pk == test_ticket.assigned_to.pk),
             None,
         )
         assert assigned_user is not None, "Ticket assigned to unknown user"
@@ -555,38 +513,24 @@ class TestBulkOperations:
         import random
         import uuid
 
-        from allauth.socialaccount.models import SocialAccount
+        from core.models import UserGroups
 
         unique_id = str(uuid.uuid4())[:8]
         # Generate numeric discord ID (as integer)
         discord_id = random.randint(100000000000000000, 999999999999999999)
         username = f"test_bulk_support_{unique_id}"
 
-        # Create Django user (signal auto-creates Person)
         user = django_user_model.objects.create_user(
             username=username,
             email=f"{username}@example.com",
         )
 
-        # Create SocialAccount with Authentik groups
-        social_account = SocialAccount.objects.create(
+        # Create UserGroups with Authentik groups
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid=f"test_uid_bulk_{unique_id}",
-            extra_data={
-                "userinfo": {
-                    "preferred_username": username,
-                    "groups": ["WCComps_Ticketing_Support"],
-                },
-            },
+            authentik_id=f"test_uid_bulk_{unique_id}",
+            groups=["WCComps_Ticketing_Support"],
         )
-
-        # Update Person with Discord info
-        person = user.person
-        person.discord_id = discord_id
-        person.authentik_username = username
-        person.authentik_groups = ["WCComps_Ticketing_Support"]
-        person.save()
 
         # Create DiscordLink so ticket operations can find Discord ID
         from team.models import DiscordLink
@@ -594,18 +538,17 @@ class TestBulkOperations:
         DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username=username,
-            authentik_username=username,
-            authentik_user_id=social_account.uid,
+            user=user,
             is_active=True,
         )
 
-        return person
+        return user
         # Let pytest-django's transaction rollback handle cleanup
 
     def test_bulk_claim_all_or_nothing(self, db, test_tickets, support_user):
         """Bulk claim should be atomic - all succeed or all fail."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         ticket_numbers = ",".join([ticket.ticket_number for ticket in test_tickets])
 
@@ -622,12 +565,12 @@ class TestBulkOperations:
             ticket.refresh_from_db()
             assert ticket.status == "claimed"
             assert ticket.assigned_to is not None
-            assert ticket.assigned_to.discord_id == support_user.discord_id
+            assert ticket.assigned_to.pk == support_user.pk
 
     def test_bulk_resolve_with_points(self, db, test_tickets, support_user):
         """Bulk resolve should handle point assignment for all tickets."""
         client = Client()
-        client.force_login(support_user.user)
+        client.force_login(support_user)
 
         # Claim all tickets first
         for ticket in test_tickets:

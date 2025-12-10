@@ -18,16 +18,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from core import admin_views, views
+from core import admin_views, oauth, views
 
 urlpatterns = [
     path("", views.home, name="home"),
     path("health/", views.health_check, name="health_check"),
     path("admin/", admin.site.urls),
-    path("accounts/logout/", views.custom_logout, name="account_logout"),
-    path("accounts/", include("allauth.urls")),
+    # OAuth routes (replaces allauth)
+    path("auth/login/", oauth.oauth_login, name="oauth_login"),
+    path("auth/callback/", oauth.oauth_callback, name="oauth_callback"),
+    path("auth/logout/", oauth.oauth_logout, name="oauth_logout"),
+    # Discord linking routes
     path("auth/link", views.link_initiate, name="link_initiate"),
-    path("auth/callback", views.link_callback, name="link_callback"),
+    path("auth/link-callback", views.link_callback, name="link_callback"),
     path("team-packets/", include("packets.urls")),
     path("ops/school-info/", views.ops_school_info, name="ops_school_info"),
     path(

@@ -85,8 +85,48 @@ class TicketingCog(commands.Cog):
         """Wait for bot to be ready before starting task."""
         await self.bot.wait_until_ready()
 
+    def _get_infrastructure_data(self) -> tuple[list[str], dict[str, str], list[dict[str, str]]]:
+        """Get infrastructure data from Quotient (cached)."""
+        try:
+            from quotient.client import get_quotient_client
+
+            client = get_quotient_client()
+            infrastructure = client.get_infrastructure()
+            if not infrastructure:
+                return [], {}, []
+
+            box_names = [box.name for box in infrastructure.boxes]
+            box_ip_map = {box.name: box.ip for box in infrastructure.boxes}
+            service_choices = client.get_service_choices()
+            return box_names, box_ip_map, service_choices
+        except Exception as e:
+            logger.warning(f"Failed to get infrastructure data: {e}")
+            return [], {}, []
+
+    async def hostname_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocomplete for hostname field."""
+        box_names, box_ip_map, _ = self._get_infrastructure_data()
+        matches = [name for name in box_names if current.lower() in name.lower()]
+        return [app_commands.Choice(name=f"{name} ({box_ip_map.get(name, '')})", value=name) for name in matches[:25]]
+
+    async def service_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocomplete for service field."""
+        _, _, service_choices = self._get_infrastructure_data()
+        matches = [s for s in service_choices if current.lower() in s["label"].lower()]
+        return [app_commands.Choice(name=s["label"], value=s["value"]) for s in matches[:25]]
+
     @app_commands.command(name="ticket", description="[BLUE TEAM] Create a support ticket for your team")
-    @app_commands.describe(category="Type of support needed", description="Describe the issue or request")
+    @app_commands.describe(
+        category="Type of support needed",
+        description="Describe the issue or request",
+        hostname="Hostname/box name (required for box-reset, hands-on consultation)",
+        service="Service name like 'web:http' (required for scoring validation, service check)",
+        ip_address="IP address (auto-filled from hostname, or enter manually)",
+    )
     @app_commands.choices(
         category=[
             app_commands.Choice(name=f"{cat['display_name']} ({cat.get('points', 0)}pt)", value=cat_id)
@@ -94,8 +134,17 @@ class TicketingCog(commands.Cog):
             if cat.get("user_creatable", True)
         ]
     )
+    @app_commands.autocomplete(hostname=hostname_autocomplete, service=service_autocomplete)
     @app_commands.check(check_blue_team)
-    async def create_ticket(self, interaction: discord.Interaction, category: str, description: str) -> None:
+    async def create_ticket(
+        self,
+        interaction: discord.Interaction,
+        category: str,
+        description: str,
+        hostname: str | None = None,
+        service: str | None = None,
+        ip_address: str | None = None,
+    ) -> None:
         """Create a support ticket."""
         if not interaction.guild:
             await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
@@ -113,16 +162,43 @@ class TicketingCog(commands.Cog):
             await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
-        # For box-reset, validate hostname is provided
-        if category == "box-reset" and not description.strip():
+        # Validate required fields based on category config
+        required_fields = cat_info.get("required_fields", [])
+        missing_fields = []
+
+        if "hostname" in required_fields and not hostname:
+            missing_fields.append("hostname")
+        if "service_name" in required_fields and not service:
+            missing_fields.append("service (e.g., 'web:http')")
+        # IP address can be auto-populated from hostname, so only require if no hostname provided
+        if "ip_address" in required_fields and not ip_address and not hostname:
+            missing_fields.append("ip_address (or select a hostname)")
+        if "description" in required_fields and not description.strip():
+            missing_fields.append("description")
+
+        if missing_fields:
             await interaction.response.send_message(
-                "Box reset requires a hostname.\nPlease specify which box to reset in the description field.",
+                f"**{cat_info['display_name']}** requires: {', '.join(missing_fields)}\n"
+                f"Please provide these fields when creating the ticket.",
                 ephemeral=True,
             )
             return
 
-        # For box-reset, use description as hostname
-        hostname = description if category == "box-reset" else ""
+        # Auto-populate IP address from hostname if not provided
+        resolved_ip = ip_address
+        if hostname and not ip_address:
+            _, box_ip_map, _ = self._get_infrastructure_data()
+            resolved_ip = box_ip_map.get(hostname)
+
+        # Auto-populate hostname/IP from service if not provided
+        if service and not hostname:
+            _, _, service_choices = self._get_infrastructure_data()
+            for svc in service_choices:
+                if svc["value"] == service:
+                    hostname = svc.get("box_name", "")
+                    if not resolved_ip:
+                        resolved_ip = svc.get("box_ip")
+                    break
 
         # Create ticket atomically to prevent race conditions
         from ticketing.utils import acreate_ticket_atomic
@@ -132,7 +208,9 @@ class TicketingCog(commands.Cog):
             category=category,
             title=cat_info["display_name"],
             description=description,
-            hostname=hostname,
+            hostname=hostname or "",
+            ip_address=resolved_ip,
+            service_name=service or "",
             actor_username=f"discord:{interaction.user}",
         )
 
@@ -272,23 +350,18 @@ class TicketingCog(commands.Cog):
         await CommentRateLimit.objects.acreate(ticket=ticket, discord_id=message.author.id)
 
         # Save message as comment in database (for web interface visibility)
-        if message.content:  # Only save if there's text content
-            # Check if this message is already saved (prevent duplicates)
+        if message.content:
             existing = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
 
             if not existing:
-                # Get or create Person for author
                 from asgiref.sync import sync_to_async
 
-                from ticketing.utils import get_or_create_person_for_ticket
+                from ticketing.utils import get_user_for_ticket
 
-                author_person = await sync_to_async(get_or_create_person_for_ticket)(
-                    discord_id=message.author.id,
-                    discord_username=str(message.author),
-                )
+                author = await sync_to_async(get_user_for_ticket)(discord_id=message.author.id)
                 await TicketComment.objects.acreate(
                     ticket=ticket,
-                    author=author_person,
+                    author=author,
                     comment_text=message.content,
                     discord_message_id=message.id,
                 )

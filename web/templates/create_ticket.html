@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static cotton %}
 
 {% block title %}Create Ticket - {{ team.team_name }}{% endblock %}
 
@@ -108,11 +108,8 @@
                 <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('service_name') }" id="field-service_name">
                     <div>
                         <label for="service_name">Service: <span class="text-danger" x-show="requiredFields.includes('service_name')">*</span></label>
-                        <select name="service_name" id="service_name" x-model="selectedService" @change="onServiceChange()" :required="requiredFields.includes('service_name')">
+                        <select name="service_name" id="service_name" x-ref="serviceSelect" x-model="selectedService" @change="onServiceChange()" :required="requiredFields.includes('service_name')">
                             <option value="">Select a service...</option>
-                            <template x-for="svc in filteredServices" :key="svc.value">
-                                <option :value="svc.value" x-text="selectedHostname ? svc.service_name : svc.label"></option>
-                            </template>
                         </select>
                     </div>
                 </div>
@@ -155,6 +152,7 @@ function ticketForm() {
         requiredFields: [],
 
         init() {
+            this.rebuildServiceOptions();
             if (this.selectedCategory) {
                 this.onCategoryChange();
             }
@@ -163,11 +161,30 @@ function ticketForm() {
             }
         },
 
-        get filteredServices() {
+        getFilteredServices() {
             if (this.selectedHostname) {
                 return allServiceChoices.filter(s => s.box_name === this.selectedHostname);
             }
             return allServiceChoices;
+        },
+
+        rebuildServiceOptions() {
+            const select = this.$refs.serviceSelect;
+            if (!select) return;
+
+            const currentValue = this.selectedService;
+            select.innerHTML = '<option value="">Select a service...</option>';
+
+            const services = this.getFilteredServices();
+            services.forEach(svc => {
+                const option = document.createElement('option');
+                option.value = svc.value;
+                option.textContent = this.selectedHostname ? svc.service_name : svc.label;
+                if (svc.value === currentValue) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
         },
 
         onCategoryChange() {
@@ -197,6 +214,7 @@ function ticketForm() {
                     this.selectedService = '';
                 }
             }
+            this.rebuildServiceOptions();
         },
 
         onServiceChange() {
@@ -205,6 +223,7 @@ function ticketForm() {
             if (svc) {
                 if (this.visibleFields.includes('hostname') && !this.selectedHostname) {
                     this.selectedHostname = svc.box_name;
+                    this.onHostnameChange();
                 }
                 if (this.visibleFields.includes('ip_address')) {
                     this.ipAddress = svc.box_ip;

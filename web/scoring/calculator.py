@@ -1,13 +1,9 @@
 """Score calculation logic for competitions."""
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from django.db import transaction
-from django.db.models import Q, Sum
-
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
+from django.db.models import Q, QuerySet, Sum
 
 from team.models import Team
 
@@ -190,7 +186,7 @@ def get_leaderboard() -> list[FinalScore]:
     )
 
 
-def suggest_red_finding_matches(incident: IncidentReport) -> "QuerySet[RedTeamFinding]":
+def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFinding]:
     """
     Suggest potential red team findings that match an incident report.
 

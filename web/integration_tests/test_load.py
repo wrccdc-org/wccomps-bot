@@ -14,8 +14,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from person.models import Person
-from team.models import Team
+from team.models import DiscordLink, Team
 from ticketing.models import Ticket
 
 pytestmark = [
@@ -174,19 +173,19 @@ class TestConcurrentTicketOperations:
                 username=f"load_support_{i}",
                 email=f"load_support_{i}@example.com",
             )
-            person = Person.objects.create(
+            discord_link = DiscordLink.objects.create(
                 user=user,
-                discord_id=f"99999999{i}",
-                authentik_username=f"load_support_{i}",
+                discord_id=999999990 + i,
+                discord_username=f"load_support_{i}",
             )
-            users.append(person)
+            users.append(discord_link)
 
         yield users
 
         # Cleanup
-        for person in users:
-            person.user.delete()
-            person.delete()
+        for discord_link in users:
+            discord_link.user.delete()
+            discord_link.delete()
 
     def test_concurrent_ticket_claims(self, db, test_tickets, support_users):
         """10 users claiming 20 tickets concurrently should work."""
@@ -194,10 +193,10 @@ class TestConcurrentTicketOperations:
 
         results = []
 
-        def claim_ticket(person, ticket):
+        def claim_ticket(discord_link, ticket):
             """Claim a ticket."""
             client = Client()
-            client.force_login(person.user)
+            client.force_login(discord_link.user)
 
             try:
                 response = client.post(
@@ -213,10 +212,10 @@ class TestConcurrentTicketOperations:
         # Each user claims 2 tickets concurrently
         with ThreadPoolExecutor(max_workers=20) as executor:
             futures = []
-            for i, person in enumerate(support_users):
+            for i, discord_link in enumerate(support_users):
                 # Each person claims 2 tickets
-                futures.append(executor.submit(claim_ticket, person, test_tickets[i * 2]))
-                futures.append(executor.submit(claim_ticket, person, test_tickets[i * 2 + 1]))
+                futures.append(executor.submit(claim_ticket, discord_link, test_tickets[i * 2]))
+                futures.append(executor.submit(claim_ticket, discord_link, test_tickets[i * 2 + 1]))
 
             results = [future.result() for future in as_completed(futures)]
 
@@ -225,9 +224,9 @@ class TestConcurrentTicketOperations:
             assert error is None, f"Concurrent claim error: {error}"
             assert status_code in [200, 302], f"Expected 200/302, got {status_code}"
 
-        # Verify all tickets were claimed
-        claimed_count = sum(1 for ticket in test_tickets if Ticket.objects.get(id=ticket.id).claimed_by is not None)
-        assert claimed_count == 20, f"Only {claimed_count}/20 tickets were claimed"
+        # Verify all tickets were assigned
+        assigned_count = sum(1 for ticket in test_tickets if Ticket.objects.get(id=ticket.id).assigned_to is not None)
+        assert assigned_count == 20, f"Only {assigned_count}/20 tickets were assigned"
 
     def test_rapid_ticket_list_queries(self, db):
         """Rapid ticket list queries should not cause N+1 problems."""
@@ -238,10 +237,10 @@ class TestConcurrentTicketOperations:
             username="rapid_query_user",
             email="rapid_query@example.com",
         )
-        person = Person.objects.create(
+        discord_link = DiscordLink.objects.create(
             user=user,
-            discord_id="111222333",
-            authentik_username="rapid_query_user",
+            discord_id=111222333,
+            discord_username="rapid_query_user",
         )
 
         client = Client()
@@ -269,7 +268,7 @@ class TestConcurrentTicketOperations:
             assert max(query_counts) - min(query_counts) < 5, f"Query counts vary too much: {query_counts}"
 
         finally:
-            person.delete()
+            discord_link.delete()
             user.delete()
 
 
@@ -359,10 +358,10 @@ class TestDatabaseQueryPerformance:
                 username="perf_test_user",
                 email="perf_test@example.com",
             )
-            person = Person.objects.create(
+            discord_link = DiscordLink.objects.create(
                 user=user,
-                discord_id="444555666",
-                authentik_username="perf_test_user",
+                discord_id=444555666,
+                discord_username="perf_test_user",
             )
 
             client = Client()
@@ -376,7 +375,7 @@ class TestDatabaseQueryPerformance:
             assert response.status_code in [200, 302]
             assert elapsed < 5.0, f"Query took {elapsed}s (should be < 5s)"
 
-            person.delete()
+            discord_link.delete()
             user.delete()
 
         finally:

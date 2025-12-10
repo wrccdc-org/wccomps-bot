@@ -1,17 +1,17 @@
 """Scoring system models for CCDC competitions."""
 
 from decimal import Decimal
-from typing import Any
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
-def validate_file_size(file: Any) -> Any:
+def validate_file_size(file: UploadedFile) -> UploadedFile:
     """Validate that uploaded file is not larger than 50MB."""
     max_size_mb = 50
-    if file.size > max_size_mb * 1024 * 1024:
+    if file.size and file.size > max_size_mb * 1024 * 1024:
         from django.core.exceptions import ValidationError
 
         raise ValidationError(f"File size cannot exceed {max_size_mb}MB")
@@ -200,17 +200,16 @@ class RedTeamFinding(models.Model):
 
 
 class RedTeamScreenshot(models.Model):
-    """Screenshots for red team findings."""
+    """Screenshots for red team findings (stored in database)."""
 
     finding = models.ForeignKey(
         RedTeamFinding,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
-    image = models.ImageField(
-        upload_to="scoring/red_team/%Y/%m/%d/",
-        validators=[validate_file_size],
-    )
+    file_data = models.BinaryField(null=True, blank=True)
+    filename = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, default="image/png")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     description = models.CharField(max_length=200, blank=True)
 
@@ -218,8 +217,13 @@ class RedTeamScreenshot(models.Model):
         db_table = "red_team_screenshot"
         ordering = ["uploaded_at"]
 
+    @property
+    def has_data(self) -> bool:
+        """Check if file data exists (for legacy records without data)."""
+        return bool(self.file_data)
+
     def __str__(self) -> str:
-        return f"Screenshot for {self.finding}"
+        return f"{self.filename} ({self.finding})"
 
 
 class IncidentReport(models.Model):
@@ -302,17 +306,16 @@ class IncidentReport(models.Model):
 
 
 class IncidentScreenshot(models.Model):
-    """Screenshots for incident reports."""
+    """Screenshots for incident reports (stored in database)."""
 
     incident = models.ForeignKey(
         IncidentReport,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
-    image = models.ImageField(
-        upload_to="scoring/incidents/%Y/%m/%d/",
-        validators=[validate_file_size],
-    )
+    file_data = models.BinaryField(null=True, blank=True)
+    filename = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, default="image/png")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     description = models.CharField(max_length=200, blank=True)
 
@@ -320,8 +323,13 @@ class IncidentScreenshot(models.Model):
         db_table = "incident_screenshot"
         ordering = ["uploaded_at"]
 
+    @property
+    def has_data(self) -> bool:
+        """Check if file data exists (for legacy records without data)."""
+        return bool(self.file_data)
+
     def __str__(self) -> str:
-        return f"Screenshot for {self.incident}"
+        return f"{self.filename} ({self.incident})"
 
 
 class InjectGrade(models.Model):

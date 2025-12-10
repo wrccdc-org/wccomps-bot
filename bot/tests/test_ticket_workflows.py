@@ -167,13 +167,13 @@ class TestTicketResolutionWorkflow:
                 points=5,
             )
 
-        # Refresh ticket with resolved_by relation
+        # Refresh ticket with resolved_by relation (resolved_by is now User, not DiscordLink)
         ticket = await Ticket.objects.select_related("resolved_by").aget(pk=ticket.pk)
 
         assert ticket.status == "resolved"
         assert ticket.resolved_at is not None
         assert ticket.resolved_by is not None
-        assert ticket.resolved_by.discord_id == mock_admin_user._discord_id
+        assert ticket.resolved_by.pk == mock_admin_user.pk
         assert ticket.resolution_notes == "Fixed the issue"
         assert ticket.points_charged == 10
 

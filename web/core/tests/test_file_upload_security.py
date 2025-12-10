@@ -18,9 +18,9 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
 
+from core.views import ticket_attachment_download, ticket_attachment_upload
 from team.models import Team
 from ticketing.models import Ticket, TicketAttachment
-from web.core.views import ticket_attachment_download, ticket_attachment_upload
 
 
 @pytest.mark.django_db
@@ -57,9 +57,9 @@ class TestFileUploadConstraints:
         request.user.is_authenticated = True
 
         with (
-            patch("web.core.views.get_authentik_data", return_value=("testuser", ["WCComps_BlueTeam01"], None)),
-            patch("web.core.views.get_team_from_groups", return_value=(team, 1, True)),
-            patch("web.core.views.has_permission", return_value=False),
+            patch("core.views.get_authentik_data", return_value=("testuser", ["WCComps_BlueTeam01"], None)),
+            patch("core.views.get_team_from_groups", return_value=(team, 1, True)),
+            patch("core.views.has_permission", return_value=False),
         ):
             response = ticket_attachment_upload(request, ticket_id=ticket.id)
 
@@ -118,9 +118,9 @@ class TestFileUploadAuthorizationBypass:
         request.user.is_authenticated = True
 
         with (
-            patch("web.core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
-            patch("web.core.views.get_team_from_groups", return_value=(team2, 2, True)),
-            patch("web.core.views.has_permission", return_value=False),
+            patch("core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
+            patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
+            patch("core.views.has_permission", return_value=False),
         ):
             response = ticket_attachment_download(request, attachment_id=attachment1.id, ticket_id=ticket1.id)
 
@@ -141,9 +141,9 @@ class TestFileUploadAuthorizationBypass:
         request.user.is_authenticated = True
 
         with (
-            patch("web.core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
-            patch("web.core.views.get_team_from_groups", return_value=(team2, 2, True)),
-            patch("web.core.views.has_permission", return_value=False),
+            patch("core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
+            patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
+            patch("core.views.has_permission", return_value=False),
         ):
             response = ticket_attachment_upload(request, ticket_id=ticket1.id)
 

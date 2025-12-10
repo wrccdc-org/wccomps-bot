@@ -71,8 +71,7 @@ class AdminTeamsCog(commands.Cog):
             return
 
         member_count = await team.members.filter(is_active=True).acount()
-        # Fetch all members
-        members = [m async for m in team.members.filter(is_active=True).order_by("linked_at")]
+        members = [m async for m in team.members.filter(is_active=True).select_related("user").order_by("linked_at")]
 
         embed = discord.Embed(title=f"{team.team_name} Details", color=discord.Color.blue())
         embed.add_field(name="Team Number", value=f"#{team.team_number}", inline=True)
@@ -81,9 +80,7 @@ class AdminTeamsCog(commands.Cog):
 
         if members:
             # Build member list, respecting Discord's 1024 char field limit
-            member_lines = [
-                f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.authentik_username}`" for m in members
-            ]
+            member_lines = [f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.user.username}`" for m in members]
 
             member_list = ""
             shown_count = 0
@@ -148,9 +145,10 @@ class AdminTeamsCog(commands.Cog):
                 member = interaction.guild.get_member(user_id)
                 user_display = member.mention if member else f"User ID {user_id}"
 
-                # Check if user is linked
                 link = await (
-                    DiscordLink.objects.filter(discord_id=user_id, is_active=True).select_related("team").afirst()
+                    DiscordLink.objects.filter(discord_id=user_id, is_active=True)
+                    .select_related("team", "user")
+                    .afirst()
                 )
 
                 if not link:
@@ -195,7 +193,7 @@ class AdminTeamsCog(commands.Cog):
                     details={
                         "discord_username": str(member) if member else f"ID:{user_id}",
                         "team_name": team.team_name,
-                        "authentik_username": link.authentik_username,
+                        "authentik_username": link.user.username,
                         "multiple_users": len(user_ids) > 1,
                     },
                 )
@@ -266,8 +264,7 @@ class AdminTeamsCog(commands.Cog):
 
         removed_items = []
 
-        # Get all team members
-        members = [m async for m in team.members.filter(is_active=True)]
+        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
         unlinked_count = 0
 
         # Remove roles BEFORE deactivating links
@@ -311,7 +308,7 @@ class AdminTeamsCog(commands.Cog):
                 details={
                     "discord_username": str(member) if member else f"ID:{link.discord_id}",
                     "team_name": team.team_name,
-                    "authentik_username": link.authentik_username,
+                    "authentik_username": link.user.username,
                     "reason": "team_removed",
                 },
             )
@@ -410,8 +407,7 @@ class AdminTeamsCog(commands.Cog):
         results = []
         guild = interaction.guild
 
-        # Step 1: Unlink all Discord users
-        members = [m async for m in team.members.filter(is_active=True)]
+        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
         unlinked_count = 0
 
         for link in members:
@@ -449,7 +445,7 @@ class AdminTeamsCog(commands.Cog):
                 details={
                     "discord_username": str(member) if member else f"ID:{link.discord_id}",
                     "team_name": team.team_name,
-                    "authentik_username": link.authentik_username,
+                    "authentik_username": link.user.username,
                     "reason": "team_reset",
                 },
             )

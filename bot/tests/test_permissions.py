@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import discord
 import pytest
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
 
 from bot.permissions import (
@@ -20,6 +19,7 @@ from bot.permissions import (
     is_admin_async,
     is_gold_team_async,
 )
+from core.models import UserGroups
 from team.models import DiscordLink, Team
 
 
@@ -83,15 +83,16 @@ class TestGetAuthentikGroups:
 
         assert result == []
 
-    def test_discord_link_without_social_account(self) -> None:
-        """Test DiscordLink without SocialAccount returns empty list."""
+    def test_discord_link_without_usergroups(self) -> None:
+        """Test DiscordLink without UserGroups returns empty list."""
         team = Team.objects.create(team_number=1, team_name="Test Team", max_members=5)
+        user = User.objects.create_user(username="nonexistent_user")
 
         discord_link = DiscordLink.objects.create(
             team=team,
             discord_id=111111111,
             discord_username="testuser",
-            authentik_username="nonexistent_user",
+            user=user,
             is_active=True,
         )
 
@@ -99,24 +100,23 @@ class TestGetAuthentikGroups:
 
         assert result == []
 
-    def test_groups_from_id_token(self) -> None:
-        """Test extracting groups from id_token in extra_data."""
+    def test_groups_from_usergroups(self) -> None:
+        """Test extracting groups from UserGroups model."""
         team = Team.objects.create(team_number=2, team_name="Test Team 2", max_members=5)
 
         user = User.objects.create_user(username="testuser2")
 
-        SocialAccount.objects.create(
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid="test-uid-2",
-            extra_data={"id_token": {"groups": ["WCComps_Discord_Admin", "WCComps_BlueTeam02"]}},
+            authentik_id="test-uid-2",
+            groups=["WCComps_Discord_Admin", "WCComps_BlueTeam02"],
         )
 
         discord_link = DiscordLink.objects.create(
             team=team,
             discord_id=222222222,
             discord_username="testuser2",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -125,76 +125,23 @@ class TestGetAuthentikGroups:
         assert "WCComps_Discord_Admin" in result
         assert "WCComps_BlueTeam02" in result
 
-    def test_groups_from_userinfo(self) -> None:
-        """Test extracting groups from userinfo in extra_data."""
-        team = Team.objects.create(team_number=3, team_name="Test Team 3", max_members=5)
-
-        user = User.objects.create_user(username="testuser3")
-
-        SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="test-uid-3",
-            extra_data={"userinfo": {"groups": ["WCComps_Ticketing_Admin", "WCComps_BlueTeam03"]}},
-        )
-
-        discord_link = DiscordLink.objects.create(
-            team=team,
-            discord_id=333333333,
-            discord_username="testuser3",
-            authentik_username=user.username,
-            is_active=True,
-        )
-
-        result = _get_authentik_groups_sync(discord_link.discord_id)
-
-        assert "WCComps_Ticketing_Admin" in result
-        assert "WCComps_BlueTeam03" in result
-
-    def test_groups_from_root_extra_data(self) -> None:
-        """Test extracting groups from root of extra_data."""
-        team = Team.objects.create(team_number=4, team_name="Test Team 4", max_members=5)
-
-        user = User.objects.create_user(username="testuser4")
-
-        SocialAccount.objects.create(
-            user=user,
-            provider="authentik",
-            uid="test-uid-4",
-            extra_data={"groups": ["WCComps_Ticketing_Support", "WCComps_BlueTeam04"]},
-        )
-
-        discord_link = DiscordLink.objects.create(
-            team=team,
-            discord_id=444444444,
-            discord_username="testuser4",
-            authentik_username=user.username,
-            is_active=True,
-        )
-
-        result = _get_authentik_groups_sync(discord_link.discord_id)
-
-        assert "WCComps_Ticketing_Support" in result
-        assert "WCComps_BlueTeam04" in result
-
     def test_groups_cached_after_first_query(self) -> None:
         """Test that groups are cached after first query."""
         team = Team.objects.create(team_number=5, team_name="Test Team 5", max_members=5)
 
         user = User.objects.create_user(username="testuser5")
 
-        SocialAccount.objects.create(
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid="test-uid-5",
-            extra_data={"groups": ["WCComps_GoldTeam"]},
+            authentik_id="test-uid-5",
+            groups=["WCComps_GoldTeam"],
         )
 
         discord_link = DiscordLink.objects.create(
             team=team,
             discord_id=555555555,
             discord_username="testuser5",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -232,18 +179,17 @@ class TestPermissionChecks:
 
         user = await User.objects.acreate(username="admin_user")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="admin-uid",
-            extra_data={"groups": ["WCComps_Discord_Admin"]},
+            authentik_id="admin-uid",
+            groups=["WCComps_Discord_Admin"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=1010101010,
             discord_username="admin_user",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -285,18 +231,17 @@ class TestPermissionChecks:
 
         user = await User.objects.acreate(username="admin_user2")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="admin-uid-2",
-            extra_data={"groups": ["WCComps_Discord_Admin"]},
+            authentik_id="admin-uid-2",
+            groups=["WCComps_Discord_Admin"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=1111111111,
             discord_username="admin_user2",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -314,18 +259,17 @@ class TestPermissionChecks:
 
         user = await User.objects.acreate(username="ticketing_admin")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="ticketing-admin-uid",
-            extra_data={"groups": ["WCComps_Ticketing_Admin"]},
+            authentik_id="ticketing-admin-uid",
+            groups=["WCComps_Ticketing_Admin"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=1212121212,
             discord_username="ticketing_admin",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -360,18 +304,17 @@ class TestPermissionChecks:
 
         user = await User.objects.acreate(username="support_user")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="support-uid",
-            extra_data={"groups": ["WCComps_Ticketing_Support"]},
+            authentik_id="support-uid",
+            groups=["WCComps_Ticketing_Support"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=1414141414,
             discord_username="support_user",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -407,18 +350,17 @@ class TestPermissionChecks:
 
         user = await User.objects.acreate(username="gold_user")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="gold-uid",
-            extra_data={"groups": ["WCComps_GoldTeam"]},
+            authentik_id="gold-uid",
+            groups=["WCComps_GoldTeam"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=1616161616,
             discord_username="gold_user",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 
@@ -463,18 +405,17 @@ class TestPermissionCheckFunctions:
 
         user = await User.objects.acreate(username="check_admin_user")
 
-        await SocialAccount.objects.acreate(
+        await UserGroups.objects.acreate(
             user=user,
-            provider="authentik",
-            uid="check-admin-uid",
-            extra_data={"groups": ["WCComps_Discord_Admin"]},
+            authentik_id="check-admin-uid",
+            groups=["WCComps_Discord_Admin"],
         )
 
         await DiscordLink.objects.acreate(
             team=team,
             discord_id=2222222222,
             discord_username="check_admin_user",
-            authentik_username=user.username,
+            user=user,
             is_active=True,
         )
 

@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 
 import discord
-from allauth.socialaccount.models import SocialAccount
 
+from core.models import UserGroups
 from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
@@ -27,10 +27,9 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
 
     Checks:
     1. Permission cache (5 minute TTL)
-    2. Authentik API (via stored discord_id attribute)
-    3. DiscordLink table (for team members)
+    2. DiscordLink → User → UserGroups path
 
-    Returns empty list if user is not linked to Authentik.
+    Returns empty list if user is not linked.
     """
     try:
         # Check cache first
@@ -43,48 +42,27 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
             # Cache expired, remove it
             del _permission_cache[discord_user_id]
 
-        # Use DiscordLink table for all permission checks
-        # (Authentik API discord_id attribute is unreliable)
+        # Use DiscordLink → User → UserGroups path
         try:
-            logger.info(f"Checking DiscordLink table for {discord_user_id}")
-            discord_link = DiscordLink.objects.filter(discord_id=discord_user_id, is_active=True).first()
-
-            if not discord_link:
-                logger.info(f"No DiscordLink found for {discord_user_id}")
-                return []
-
-            logger.info(
-                f"Found DiscordLink for {discord_user_id}: authentik_username={discord_link.authentik_username}"
+            logger.debug(f"Checking DiscordLink table for {discord_user_id}")
+            discord_link = (
+                DiscordLink.objects.select_related("user").filter(discord_id=discord_user_id, is_active=True).first()
             )
 
-            # Get associated Django user's Authentik account
-            # Query through User model instead of JSONField to avoid nested structure issues
-            social_account = SocialAccount.objects.filter(
-                user__username=discord_link.authentik_username,
-                provider="authentik",
-            ).first()
-
-            if not social_account:
-                logger.warning(f"No SocialAccount found for authentik_username={discord_link.authentik_username}")
+            if not discord_link:
+                logger.debug(f"No DiscordLink found for {discord_user_id}")
                 return []
 
-            logger.info(f"Found SocialAccount for {discord_user_id}: user_id={social_account.user_id}")
+            # Get groups via User → UserGroups
+            try:
+                groups = discord_link.user.usergroups.groups
+                logger.debug(f"Found groups for {discord_user_id}: {groups}")
+            except UserGroups.DoesNotExist:
+                logger.warning(f"No UserGroups found for user {discord_link.user.username}")
+                groups = []
 
-            # Groups are nested in id_token or userinfo from OIDC response
-            # Check each location deterministically
-            groups = []
-            if "id_token" in social_account.extra_data and "groups" in social_account.extra_data["id_token"]:
-                groups = social_account.extra_data["id_token"]["groups"]
-            elif "userinfo" in social_account.extra_data and "groups" in social_account.extra_data["userinfo"]:
-                groups = social_account.extra_data["userinfo"]["groups"]
-            elif "groups" in social_account.extra_data:
-                groups = social_account.extra_data["groups"]
-
-            logger.info(f"Found groups for {discord_user_id} via DiscordLink: {groups}")
         except Exception as db_error:
-            # If we're in async context, database queries won't work
-            # Fall back to API-only permission checking
-            logger.exception(f"Database query failed (likely async context): {db_error}")
+            logger.exception(f"Database query failed: {db_error}")
             return []
 
         # Cache the result
@@ -93,7 +71,7 @@ def _get_authentik_groups_sync(discord_user_id: int) -> list[str]:
             "expires_at": now + timedelta(minutes=5),
         }
 
-        return groups
+        return list(groups)
     except Exception as e:
         logger.warning(f"Error getting Authentik groups for Discord user {discord_user_id}: {e}")
         return []

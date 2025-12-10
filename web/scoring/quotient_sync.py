@@ -1,7 +1,7 @@
 """Quotient API integration for scoring system."""
 
 from decimal import Decimal
-from typing import Any
+from typing import TypedDict
 
 from django.contrib.auth.models import User
 from quotient.client import QuotientClient
@@ -9,6 +9,22 @@ from quotient.client import QuotientClient
 from team.models import Team
 
 from .models import QuotientMetadataCache, ServiceScore
+
+
+class ServiceData(TypedDict):
+    """Service metadata from Quotient."""
+
+    name: str
+    display_name: str
+    type: str
+
+
+class BoxData(TypedDict):
+    """Box metadata from Quotient."""
+
+    name: str
+    ip: str
+    services: list[ServiceData]
 
 
 def clear_quotient_metadata() -> None:
@@ -40,28 +56,29 @@ def sync_quotient_metadata(user: User | None = None) -> QuotientMetadataCache:
         raise ValueError("Failed to retrieve infrastructure from Quotient")
 
     # Convert infrastructure to JSON-serializable format
-    boxes_data: list[dict[str, Any]] = []
-    services_data: list[dict[str, Any]] = []
+    boxes_data: list[BoxData] = []
+    services_data: list[ServiceData] = []
 
     for box in infrastructure.boxes:
-        box_dict: dict[str, Any] = {
-            "name": box.name,
-            "ip": box.ip,
-            "services": [],
-        }
+        box_services: list[ServiceData] = []
 
         for service in box.services:
-            service_dict = {
+            service_dict: ServiceData = {
                 "name": service.name,
                 "display_name": service.display_name,
                 "type": service.type,
             }
-            box_dict["services"].append(service_dict)
+            box_services.append(service_dict)
 
             # Add to global services list if not already there
             if service_dict not in services_data:
                 services_data.append(service_dict)
 
+        box_dict: BoxData = {
+            "name": box.name,
+            "ip": box.ip,
+            "services": box_services,
+        }
         boxes_data.append(box_dict)
 
     # Update or create metadata cache (singleton)

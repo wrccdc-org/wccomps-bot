@@ -1,69 +1,71 @@
 """
 Tests for c-score_value Cotton component.
 
-This component displays numeric score values with automatic color coding:
-- Positive values: green (#28a745)
-- Negative values: red (#dc3545)
-- Zero: gray (#6c757d)
-- Signed format adds +/- prefix for positive numbers
-
-These tests verify the component template exists and contains the correct logic.
-Full rendering tests are done through integration tests.
+This component displays numeric score values with automatic color coding.
+Tests verify rendering behavior through actual component usage rather than
+checking template file contents.
 """
 
-from pathlib import Path
-
 import pytest
-from django.conf import settings
+from django.template import Context, Template
 
-# Get template directory from Django settings
-TEMPLATES_DIR = Path(settings.BASE_DIR) / "templates"
-COTTON_DIR = TEMPLATES_DIR / "cotton"
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
-class TestScoreValueComponent:
-    """Test c-score_value component."""
+class TestScoreValueComponentRendering:
+    """Test c-score_value component rendering behavior."""
 
-    def test_component_file_exists(self) -> None:
-        """Component template file should exist."""
-        component_path = COTTON_DIR / "score_value.html"
-        assert component_path.exists(), f"Component file should exist at {component_path}"
+    def _render_component(self, value: str, fmt: str = "") -> str:
+        """Render the score_value component with given parameters."""
+        template_str = f'{{% load cotton %}}<c-score_value value="{value}" format="{fmt}" />'
+        template = Template(template_str)
+        return template.render(Context({}))
 
-    def test_component_contains_color_logic(self) -> None:
-        """Component should contain color logic for positive/negative/zero."""
-        content = (COTTON_DIR / "score_value.html").read_text()
+    def test_positive_value_renders_with_positive_class(self) -> None:
+        """Positive values should render with score-positive class."""
+        html = self._render_component("100")
+        assert "score-positive" in html
+        assert "100" in html
 
-        # Should contain green color for positive
-        assert "#28a745" in content, "Should contain green color #28a745 for positive values"
+    def test_negative_value_renders_with_negative_class(self) -> None:
+        """Negative values should render with score-negative class."""
+        html = self._render_component("-50")
+        assert "score-negative" in html
+        assert "-50" in html
 
-        # Should contain red color for negative
-        assert "#dc3545" in content, "Should contain red color #dc3545 for negative values"
+    def test_zero_value_renders_with_zero_class(self) -> None:
+        """Zero values should render with score-zero class."""
+        html = self._render_component("0")
+        assert "score-zero" in html
+        assert "0" in html
 
-        # Should contain gray color for zero
-        assert "#6c757d" in content, "Should contain gray color #6c757d for zero values"
+    def test_signed_format_adds_plus_to_positive(self) -> None:
+        """Signed format should add + prefix to positive values."""
+        html = self._render_component("75", "signed")
+        assert "+75" in html or "+<" in html  # + might be before or inside span
 
-    def test_component_contains_signed_format_logic(self) -> None:
-        """Component should contain logic for signed format (+/-)."""
-        content = (COTTON_DIR / "score_value.html").read_text()
+    def test_signed_format_keeps_minus_on_negative(self) -> None:
+        """Signed format should keep - prefix on negative values."""
+        html = self._render_component("-25", "signed")
+        assert "-25" in html
 
-        # Should check for signed format
-        assert "signed" in content.lower(), "Should contain 'signed' format check"
+    def test_renders_as_inline_element(self) -> None:
+        """Component should render as inline element (span)."""
+        html = self._render_component("100")
+        assert "<span" in html
+        assert "</span>" in html
 
-        # Should contain plus sign logic
-        assert "+" in content, "Should contain + prefix logic for signed format"
-
-    def test_component_uses_span_element(self) -> None:
-        """Component should use span element for inline display."""
-        content = (COTTON_DIR / "score_value.html").read_text()
-
-        assert "<span" in content, "Should use <span> tag for inline display"
-        assert "</span>" in content, "Should close <span> tag"
-
-    def test_component_has_default_vars(self) -> None:
-        """Component should declare c-vars for value and format."""
-        content = (COTTON_DIR / "score_value.html").read_text()
-
-        assert "<c-vars" in content, "Should declare component variables with <c-vars>"
-        assert "value" in content, "Should have 'value' prop"
-        assert "format" in content, "Should have 'format' prop"
+    @pytest.mark.parametrize(
+        "value,expected_class",
+        [
+            ("1", "score-positive"),
+            ("999", "score-positive"),
+            ("-1", "score-negative"),
+            ("-999", "score-negative"),
+            ("0", "score-zero"),
+        ],
+    )
+    def test_various_values_get_correct_class(self, value: str, expected_class: str) -> None:
+        """Various values should get the appropriate CSS class."""
+        html = self._render_component(value)
+        assert expected_class in html

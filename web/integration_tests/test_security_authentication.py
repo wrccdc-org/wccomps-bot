@@ -125,7 +125,7 @@ class TestSessionSecurity:
             # Login with both
             for page in [page1, page2]:
                 page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
-                page.fill('input[name="uid_field"]', authentik_credentials["username"])
+                page.fill('input[name="uidField"]', authentik_credentials["username"])
                 page.fill('input[type="password"]', authentik_credentials["password"])
                 page.click('button[type="submit"]')
                 page.wait_for_url(f"{live_server_url}/**", timeout=10000)
@@ -167,7 +167,7 @@ class TestPasswordSecurity:
 
         # Perform login
         page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
-        page.fill('input[name="uid_field"]', authentik_credentials["username"])
+        page.fill('input[name="uidField"]', authentik_credentials["username"])
         page.fill('input[type="password"]', authentik_credentials["password"])
         page.click('button[type="submit"]')
 
@@ -256,7 +256,7 @@ class TestBruteForceProtection:
             page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
 
             # Try with invalid credentials
-            page.fill('input[name="uid_field"]', f"invalid_user_{attempt}")
+            page.fill('input[name="uidField"]', f"invalid_user_{attempt}")
             page.fill('input[type="password"]', "invalid_password")
             page.click('button[type="submit"]')
 
@@ -274,7 +274,7 @@ class TestAccountEnumeration:
         page.goto(f"{live_server_url}/accounts/oidc/authentik/login/")
 
         # Try with nonexistent user
-        page.fill('input[name="uid_field"]', "definitely_nonexistent_user_12345")
+        page.fill('input[name="uidField"]', "definitely_nonexistent_user_12345")
         page.fill('input[type="password"]', "wrong_password")
         page.click('button[type="submit"]')
 

@@ -1,6 +1,12 @@
-# WCComps Discord Bot
+# WCComps
 
-Competition management: Discord bot + Django web + Authentik SSO.
+Competition management platform for WRCCDC: Discord bot, Django web app, and Authentik SSO integration.
+
+## Components
+
+- **Discord Bot** - Team ticketing, role sync, competition commands
+- **Django Web** - Scoring portal, inject grading, packet distribution, ops dashboard
+- **Authentik Integration** - SSO, team provisioning, permission sync
 
 ## Setup
 

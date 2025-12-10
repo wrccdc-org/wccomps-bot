@@ -59,6 +59,22 @@ if [ -f .env.test ]; then
     set +a
 fi
 
+echo "Applying migrations to test database..."
+export USE_POSTGRES_FOR_TESTS=1
+export DB_HOST="${TEST_DB_HOST:-localhost}"
+export DB_PORT="${TEST_DB_PORT:-5433}"
+export DB_NAME="${TEST_DB_NAME:-wccomps_test}"
+export DB_USER="${TEST_DB_USER:-test_user}"
+export DB_PASSWORD="${TEST_DB_PASSWORD:-test_password}"
+
+if ! (cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py migrate --noinput 2>&1); then
+    echo "✗ Failed to apply migrations"
+    docker compose -f docker-compose.test.yml down -v
+    exit 1
+fi
+echo "✓ Migrations applied"
+echo ""
+
 echo "Checking for unapplied model changes..."
 MAKEMIGRATIONS_OUTPUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py makemigrations --check --dry-run 2>&1)
 MAKEMIGRATIONS_EXIT=$?

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import discord
 import pytest
 import pytest_asyncio
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from bot.cogs.ticketing import TicketingCog
@@ -48,11 +49,12 @@ class TestTicketingCog:
     @pytest_asyncio.fixture
     async def discord_link(self, team: Team) -> DiscordLink:
         """Create test Discord link."""
+        user = await User.objects.acreate(username="testuser")
         return await DiscordLink.objects.acreate(
             team=team,
             discord_id=999888777,
             discord_username="testuser#1234",
-            authentik_username="testuser",
+            user=user,
             is_active=True,
         )
 
@@ -311,6 +313,16 @@ class TestTicketingCog:
             discord_thread_id=7777888999,
         )
 
+        # Create user and discord link for the message author
+        author_user = await User.objects.acreate(username="comment_author")
+        await DiscordLink.objects.acreate(
+            discord_id=123456789,
+            discord_username="testuser#1234",
+            user=author_user,
+            team=team,
+            is_active=True,
+        )
+
         # Mock Discord message
         message = AsyncMock(spec=discord.Message)
         message.author = Mock()
@@ -329,13 +341,12 @@ class TestTicketingCog:
         # Verify comment created
         assert await TicketComment.objects.acount() == initial_count + 1
 
-        # Verify comment has correct data
+        # Verify comment has correct data (author is now a User, not DiscordLink)
         comment = await TicketComment.objects.select_related("author").filter(discord_message_id=message.id).afirst()
         assert comment is not None
         assert comment.ticket_id == ticket.id
         assert comment.author is not None
-        assert comment.author.discord_username == "testuser#1234"
-        assert comment.author.discord_id == 123456789
+        assert comment.author.username == "comment_author"
         assert comment.comment_text == "This is a test message"
         assert comment.discord_message_id == 999888777666
 
@@ -459,11 +470,14 @@ class TestTicketCommand:
     @pytest_asyncio.fixture
     async def discord_link(self, team: Team) -> DiscordLink:
         """Create test Discord link for team member."""
+        from django.contrib.auth.models import User
+
+        user = await User.objects.acreate(username="teammember", email="teammember@test.local")
         return await DiscordLink.objects.acreate(
             team=team,
+            user=user,
             discord_id=555666777888,
             discord_username="teammember#9999",
-            authentik_username="teammember",
             is_active=True,
         )
 
@@ -499,13 +513,128 @@ class TestTicketCommand:
     async def test_create_ticket_box_reset_requires_hostname(
         self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
     ) -> None:
-        """Test /ticket box-reset requires hostname in description."""
-        await cog.create_ticket.callback(cog, interaction, category="box-reset", description="   ")  # Empty/whitespace
+        """Test /ticket box-reset requires hostname parameter."""
+        await cog.create_ticket.callback(
+            cog, interaction, category="box-reset", description="need reset", hostname=None, ip_address=None
+        )
 
-        # Should send error message
+        # Should send error message about missing fields
         interaction.response.send_message.assert_called_once()
         args = interaction.response.send_message.call_args
-        assert "requires a hostname" in args[0][0].lower()
+        assert "hostname" in args[0][0].lower()
+
+    async def test_create_ticket_scoring_check_requires_service(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket scoring-service-check requires service parameter."""
+        await cog.create_ticket.callback(
+            cog, interaction, category="scoring-service-check", description="check this", service=None
+        )
+
+        # Should send error message about missing service
+        interaction.response.send_message.assert_called_once()
+        args = interaction.response.send_message.call_args
+        assert "service" in args[0][0].lower()
+
+    async def test_create_ticket_with_required_fields_succeeds(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket with all required fields creates ticket."""
+        from unittest.mock import patch
+
+        # Mock thread creation
+        mock_thread = AsyncMock()
+        mock_thread.id = 9999888877776666
+        mock_thread.send = AsyncMock()
+        mock_thread.add_user = AsyncMock()
+
+        # Create proper mock for TextChannel with correct isinstance check
+        mock_channel = Mock(spec=discord.TextChannel)
+        mock_channel.name = "general-chat"
+        mock_channel.create_thread = AsyncMock(return_value=mock_thread)
+
+        mock_category = Mock(spec=discord.CategoryChannel)
+        mock_category.id = team.discord_category_id
+        mock_category.channels = [mock_channel]
+
+        interaction.guild.get_channel = Mock(return_value=mock_category)
+
+        with patch("bot.cogs.ticketing.post_ticket_to_dashboard", new_callable=AsyncMock):
+            await cog.create_ticket.callback(
+                cog,
+                interaction,
+                category="box-reset",
+                description="please reset my web server",
+                hostname="webserver01",
+                ip_address="10.0.0.5",
+                service=None,
+            )
+
+        # Should send success message
+        interaction.response.send_message.assert_called_once()
+        args, kwargs = interaction.response.send_message.call_args
+        embed = kwargs.get("embed") or args[0]
+        assert "Ticket Created" in embed.title
+
+        # Verify ticket was created with all fields
+        ticket = await Ticket.objects.filter(team=team).order_by("-created_at").afirst()
+        assert ticket is not None
+        assert ticket.hostname == "webserver01"
+        assert ticket.ip_address == "10.0.0.5"
+
+    async def test_create_ticket_auto_populates_ip_from_hostname(
+        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+    ) -> None:
+        """Test /ticket auto-populates IP address from hostname."""
+        from unittest.mock import MagicMock, patch
+
+        # Mock infrastructure data
+        mock_infrastructure = MagicMock()
+        mock_box = MagicMock()
+        mock_box.name = "webserver01"
+        mock_box.ip = "10.0.0.99"
+        mock_box.services = []
+        mock_infrastructure.boxes = [mock_box]
+
+        mock_client = MagicMock()
+        mock_client.get_infrastructure.return_value = mock_infrastructure
+        mock_client.get_service_choices.return_value = []
+
+        # Mock thread creation
+        mock_thread = AsyncMock()
+        mock_thread.id = 9999888877776667
+        mock_thread.send = AsyncMock()
+        mock_thread.add_user = AsyncMock()
+
+        mock_channel = Mock(spec=discord.TextChannel)
+        mock_channel.name = "general-chat"
+        mock_channel.create_thread = AsyncMock(return_value=mock_thread)
+
+        mock_category = Mock(spec=discord.CategoryChannel)
+        mock_category.id = team.discord_category_id
+        mock_category.channels = [mock_channel]
+
+        interaction.guild.get_channel = Mock(return_value=mock_category)
+
+        with (
+            patch("bot.cogs.ticketing.post_ticket_to_dashboard", new_callable=AsyncMock),
+            patch("quotient.client.get_quotient_client", return_value=mock_client),
+        ):
+            await cog.create_ticket.callback(
+                cog,
+                interaction,
+                category="box-reset",
+                description="please reset",
+                hostname="webserver01",
+                ip_address=None,  # Not provided - should be auto-populated
+                service=None,
+            )
+
+        # Verify ticket was created with auto-populated IP
+        ticket = await Ticket.objects.filter(team=team).order_by("-created_at").afirst()
+        assert ticket is not None
+        assert ticket.hostname == "webserver01"
+        assert ticket.ip_address == "10.0.0.99"
 
 
 @pytest.mark.asyncio

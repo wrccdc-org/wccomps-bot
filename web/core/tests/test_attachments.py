@@ -3,12 +3,11 @@
 from typing import Any
 
 import pytest
-from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.auth.models import User
-from django.contrib.sites.models import Site
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 
+from core.models import UserGroups
 from team.models import Team
 from ticketing.models import Ticket, TicketAttachment
 
@@ -38,50 +37,17 @@ def setup_users_and_auth(setup_teams: tuple[Team, Team]) -> dict[str, Any]:
     """Create test users with authentication and groups."""
     team1, team2 = setup_teams
 
-    # Create or get default site
-    site = Site.objects.get_or_create(id=1, defaults={"domain": "testserver", "name": "Test Site"})[0]
-
-    # Create social app for Authentik
-    social_app = SocialApp.objects.create(
-        provider="authentik",
-        name="Authentik",
-        client_id="test_client",
-        secret="test_secret",
-    )
-    social_app.sites.add(site)
-
     # Team 1 user
     team1_user = User.objects.create_user(username="team1_user", password="test123")
-    SocialAccount.objects.create(
-        user=team1_user,
-        provider="authentik",
-        uid="team1_uid",
-        extra_data={
-            "groups": ["WCComps_BlueTeam01"],
-        },
-    )
+    UserGroups.objects.create(user=team1_user, authentik_id="team1_uid", groups=["WCComps_BlueTeam01"])
 
     # Team 2 user
     team2_user = User.objects.create_user(username="team2_user", password="test123")
-    SocialAccount.objects.create(
-        user=team2_user,
-        provider="authentik",
-        uid="team2_uid",
-        extra_data={
-            "groups": ["WCComps_BlueTeam02"],
-        },
-    )
+    UserGroups.objects.create(user=team2_user, authentik_id="team2_uid", groups=["WCComps_BlueTeam02"])
 
     # Ops user (ticketing support)
     ops_user = User.objects.create_user(username="ops_user", password="test123")
-    SocialAccount.objects.create(
-        user=ops_user,
-        provider="authentik",
-        uid="ops_uid",
-        extra_data={
-            "groups": ["WCComps_Ticketing_Support"],
-        },
-    )
+    UserGroups.objects.create(user=ops_user, authentik_id="ops_uid", groups=["WCComps_Ticketing_Support"])
 
     return {
         "team1": team1,
@@ -224,9 +190,9 @@ class TestTeamAttachmentUpload:
             {"attachment": test_file},
         )
 
-        # Should redirect to login (OIDC login page)
+        # Should redirect to login
         assert response.status_code == 302
-        assert "/accounts/" in response["Location"] and "login" in response["Location"]
+        assert "/auth/login" in response["Location"]
 
 
 @pytest.mark.django_db

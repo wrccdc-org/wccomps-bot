@@ -2,25 +2,23 @@
 
 import logging
 import secrets
-from typing import Any
+from typing import TypedDict
 from urllib.parse import quote
 
 import requests
 from django.conf import settings
 
+
+class AuthentikUser(TypedDict):
+    pk: int
+    username: str
+
+
 logger = logging.getLogger(__name__)
 
 
-def validate_team_account(user_data: dict[str, Any], expected_username: str) -> tuple[bool, str]:
-    """Validate that a user account is a legitimate team account.
-
-    Args:
-        user_data: User data from Authentik API
-        expected_username: Expected username (e.g., "team01")
-
-    Returns:
-        Tuple of (is_valid: bool, error_message: str)
-    """
+def validate_team_account(user_data: AuthentikUser, expected_username: str) -> tuple[bool, str]:
+    """Validate that a user account is a legitimate team account."""
     retrieved_username = user_data.get("username", "")
 
     # Check username starts with "team"
@@ -63,12 +61,12 @@ def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
             timeout=10,
         )
         response.raise_for_status()
-        users = response.json().get("results", [])
+        users: list[AuthentikUser] = response.json().get("results", [])
 
         if not users:
             return (False, "User not found")
 
-        user = users[0]
+        user: AuthentikUser = users[0]
 
         # Safety check: Verify this is actually a team account
         is_valid, error = validate_team_account(user, username)
@@ -180,13 +178,13 @@ def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]
             timeout=10,
         )
         response.raise_for_status()
-        users = response.json().get("results", [])
+        users: list[AuthentikUser] = response.json().get("results", [])
 
         if not users:
             return (False, f"User {username} not found")
 
-        user = users[0]
-        user_pk = user["pk"]
+        user: AuthentikUser = users[0]
+        user_pk: int = user["pk"]
 
         # Safety check: Verify this is actually a team account
         is_valid, error = validate_team_account(user, username)

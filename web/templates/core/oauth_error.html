@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load cotton %}
+
+{% block title %}{{ error_title }} - WCComps{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <c-page_header title="{{ error_title }}" />
+
+    <c-module>
+        <c-alert variant="error">
+            <p style="margin: 0;">{{ error_message }}</p>
+        </c-alert>
+
+        <p style="margin-top: 20px;">
+            <a href="/auth/login/">Try again</a>
+        </p>
+    </c-module>
+</div>
+{% endblock %}

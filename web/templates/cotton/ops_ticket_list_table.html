@@ -1,4 +1,5 @@
 {# Ops ticket list table - swappable content for htmx #}
+{% load cotton %}
 
 <div id="ops-ticket-list-content"
      x-data="{
@@ -67,7 +68,7 @@
                     <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Team</c-table_header>
                     <c-table_header sort_field="category" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Category</c-table_header>
                     <c-table_header sort_field="status" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Status</c-table_header>
-                    <c-table_header sort_field="assigned_to__authentik_username" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Assigned</c-table_header>
+                    <c-table_header sort_field="assigned_to__username" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Assigned</c-table_header>
                     <c-table_header sort_field="created_at" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Created</c-table_header>
                     <th scope="col">
                         <div class="text">Actions</div>
@@ -124,7 +125,7 @@
                                 {% csrf_token %}
                                 <c-button type="submit" variant="success">Resolve</c-button>
                             </form>
-                            {% if item.ticket.assigned_to.authentik_username == authentik_username or is_ticketing_admin %}
+                            {% if item.ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
                             <form method="post" action="{% url 'ops_ticket_unclaim' item.ticket.ticket_number %}" class="d-inline">
                                 {% csrf_token %}
                                 <c-button type="submit" variant="default">Unclaim</c-button>

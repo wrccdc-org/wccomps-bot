@@ -16,13 +16,11 @@
             <dd><code>{{ incident.source_ip }}</code></dd>
             <dt>Detected At</dt>
             <dd>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</dd>
-            <dt>Attack Description</dt>
-            <dd>{{ incident.attack_description }}</dd>
         </c-detail_grid>
 
-        <c-fieldset heading="Description">
+        <c-fieldset heading="Attack Description">
             <c-info_box>
-                <small>{{ incident.description|linebreaks }}</small>
+                <small>{{ incident.attack_description|linebreaks }}</small>
             </c-info_box>
         </c-fieldset>
 
@@ -30,9 +28,16 @@
             {% if incident.screenshots.exists %}
                 <c-image_grid>
                     {% for screenshot in incident.screenshots.all %}
-                    <a href="{{ screenshot.image.url }}" target="_blank">
-                        <img src="{{ screenshot.image.url }}" alt="Evidence">
-                    </a>
+                        {% if screenshot.has_data %}
+                        <a href="{% url 'scoring:incident_screenshot' screenshot.id %}" target="_blank">
+                            <img src="{% url 'scoring:incident_screenshot' screenshot.id %}" alt="{{ screenshot.filename }}">
+                        </a>
+                        {% else %}
+                        <div class="screenshot-lost">
+                            <span class="text-muted">{{ screenshot.filename|cut:"scoring/incidents/" }}</span>
+                            <small class="text-danger d-block">(file lost)</small>
+                        </div>
+                        {% endif %}
                     {% endfor %}
                 </c-image_grid>
             {% else %}

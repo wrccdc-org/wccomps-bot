@@ -4,44 +4,33 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from allauth.socialaccount.models import SocialAccount, SocialApp
 from django.contrib.auth.models import User
-from django.contrib.sites.models import Site
 from django.test import Client
 
-
-@pytest.fixture
-def social_app(db: Any) -> SocialApp:
-    """Set up SocialApp for Authentik provider."""
-    site = Site.objects.get_current()
-    app, _ = SocialApp.objects.get_or_create(
-        provider="authentik",
-        name="Authentik",
-        defaults={"client_id": "test-client-id", "secret": "test-secret"},
-    )
-    app.sites.add(site)
-    return app
+from core.models import UserGroups
+from team.models import DiscordLink
 
 
 @pytest.fixture
-def create_user_with_groups(db: Any, social_app: SocialApp) -> Callable[..., User]:
-    """Factory fixture to create users with Authentik groups."""
+def create_user_with_groups(db: Any) -> Callable[..., User]:
+    """Factory fixture to create users with Authentik groups and DiscordLink."""
+    _discord_id_counter = [1000000000]
 
     def _create(username: str, groups: list[str], is_staff: bool = False) -> User:
-        user = User.objects.create_user(username=username, password="testpass123", is_staff=is_staff)  # noqa: S106
-        SocialAccount.objects.create(
+        user = User.objects.create_user(username=username, password="testpass123", is_staff=is_staff)
+        UserGroups.objects.create(
             user=user,
-            provider="authentik",
-            uid=f"{username}-uid",
-            extra_data={
-                "userinfo": {
-                    "groups": groups,
-                    "preferred_username": username,
-                },
-            },
+            authentik_id=f"{username}-uid",
+            groups=groups,
         )
-        if hasattr(user, "person"):
-            user.person.refresh_from_authentik()
+        # Also create DiscordLink for ticketing users
+        DiscordLink.objects.create(
+            user=user,
+            discord_id=_discord_id_counter[0],
+            discord_username=username,
+            is_active=True,
+        )
+        _discord_id_counter[0] += 1
         return user
 
     return _create

@@ -2,9 +2,9 @@
 
 import re
 
-from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import User
 
+from core.models import UserGroups
 from team.models import Team
 
 
@@ -17,29 +17,14 @@ def get_authentik_data(user: User) -> tuple[str, list[str], str | None]:
 
     Returns:
         tuple: (username, groups, authentik_user_id)
-            - username: Authentik preferred_username or Django username as fallback
-            - groups: List of Authentik group names
-            - authentik_user_id: Authentik UID or None
+            - username: Django username (synced from Authentik on login)
+            - groups: List of Authentik group names from UserGroups
+            - authentik_user_id: Authentik UID from UserGroups or None
     """
     try:
-        social_account = SocialAccount.objects.get(user=user, provider="authentik")
-        extra_data = social_account.extra_data
-
-        # Extract username from various possible locations
-        username = (
-            extra_data.get("userinfo", {}).get("preferred_username")
-            or extra_data.get("preferred_username")
-            or extra_data.get("username")
-            or extra_data.get("email")
-            or user.username
-        )
-
-        # Extract groups (can be in userinfo.groups or groups)
-        groups = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
-
-        return username, groups, social_account.uid
-
-    except SocialAccount.DoesNotExist:
+        user_groups = user.usergroups
+        return user.username, user_groups.groups, user_groups.authentik_id
+    except UserGroups.DoesNotExist:
         return user.username, [], None
 
 

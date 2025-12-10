@@ -1,10 +1,11 @@
 """Admin commands for competition and account management."""
 
+from __future__ import annotations
+
 import csv
 import io
 import logging
 import re
-from typing import Any
 
 import discord
 from discord import app_commands
@@ -64,7 +65,7 @@ class AdminCompetitionCog(commands.Cog):
                 links_to_deactivate = [
                     link
                     async for link in DiscordLink.objects.filter(is_active=True, team__isnull=False).select_related(
-                        "team"
+                        "team", "user"
                     )
                 ]
 
@@ -85,7 +86,7 @@ class AdminCompetitionCog(commands.Cog):
                         details={
                             "discord_id": link.discord_id,
                             "team_name": link.team.team_name if link.team else "Unknown",
-                            "authentik_username": link.authentik_username,
+                            "authentik_username": link.user.username,
                             "reason": "competition_ended",
                         },
                     )
@@ -122,17 +123,19 @@ class AdminCompetitionCog(commands.Cog):
 
                 await Team.objects.all().aupdate(discord_category_id=None, discord_role_id=None)
 
-                # Remove all student helper roles
-                from person.models import Person
-
-                active_helpers = [p async for p in Person.objects.filter(is_student_helper=True).all()]
+                active_helpers = [
+                    dl
+                    async for dl in DiscordLink.objects.filter(is_student_helper=True, is_active=True).select_related(
+                        "user"
+                    )
+                ]
 
                 helpers_removed = 0
-                for person in active_helpers:
+                for discord_link in active_helpers:
                     try:
                         # Remove Discord role
-                        if person.helper_role_id:
-                            role = guild.get_role(person.helper_role_id)
+                        if discord_link.helper_role_id:
+                            role = guild.get_role(discord_link.helper_role_id)
                             if role:
                                 for member in guild.members:
                                     if role in member.roles:
@@ -142,27 +145,27 @@ class AdminCompetitionCog(commands.Cog):
                                             logger.warning(f"Could not remove helper role from {member}: {e}")
 
                         # Mark helper as removed in database
-                        person.is_student_helper = False
-                        person.helper_removal_reason = "Competition ended"
-                        person.helper_deactivated_at = timezone.now()
-                        await person.asave()
+                        discord_link.is_student_helper = False
+                        discord_link.helper_removal_reason = "Competition ended"
+                        discord_link.helper_deactivated_at = timezone.now()
+                        await discord_link.asave()
                         helpers_removed += 1
 
                         # Create audit log
                         await AuditLog.objects.acreate(
                             action="helper_removed",
                             admin_user=str(interaction.user),
-                            target_entity="person",
-                            target_id=person.user_id,
+                            target_entity="discordlink",
+                            target_id=discord_link.id,
                             details={
-                                "discord_id": person.discord_id,
-                                "discord_username": person.discord_username,
-                                "role_name": person.helper_role_name,
+                                "discord_id": discord_link.discord_id,
+                                "discord_username": discord_link.discord_username,
+                                "role_name": discord_link.helper_role_name,
                                 "reason": "competition_ended",
                             },
                         )
                     except Exception as e:
-                        logger.exception(f"Error removing helper {person.authentik_username}: {e}")
+                        logger.exception(f"Error removing helper {discord_link.user.username}: {e}")
 
                 if helpers_removed > 0:
                     await log_to_ops_channel(self.bot, f"Removed {helpers_removed} student helper role(s)")
@@ -246,7 +249,7 @@ class AdminCompetitionCog(commands.Cog):
                 async def confirm_button(
                     self,
                     button_interaction: discord.Interaction,
-                    button: discord.ui.Button[Any],
+                    button: discord.ui.Button[PasswordResetConfirmView],
                 ) -> None:
                     self.confirmed = True
                     self.stop()
@@ -256,7 +259,7 @@ class AdminCompetitionCog(commands.Cog):
                 async def cancel_button(
                     self,
                     button_interaction: discord.Interaction,
-                    button: discord.ui.Button[Any],
+                    button: discord.ui.Button[PasswordResetConfirmView],
                 ) -> None:
                     self.confirmed = False
                     self.stop()

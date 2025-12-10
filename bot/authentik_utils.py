@@ -2,16 +2,22 @@
 
 import logging
 import secrets
-from typing import Any
+from typing import TypedDict
 from urllib.parse import quote
 
 import requests
 from django.conf import settings
 
+
+class AuthentikUser(TypedDict):
+    pk: int
+    username: str
+
+
 logger = logging.getLogger(__name__)
 
 
-def validate_team_account(user_data: dict[str, Any], expected_username: str) -> tuple[bool, str]:
+def validate_team_account(user_data: AuthentikUser, expected_username: str) -> tuple[bool, str]:
     """Validate that a user account is a legitimate team account.
 
     Args:

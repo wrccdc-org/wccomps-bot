@@ -20,7 +20,6 @@ from core.authentik_utils import (
     toggle_authentik_user,
 )
 from core.models import AuditLog, CompetitionConfig, DiscordTask
-from person.models import Person
 from team.models import DiscordLink, Team
 
 from .auth_utils import has_permission
@@ -349,13 +348,13 @@ def admin_competition_action(request: HttpRequest) -> HttpResponse:
         Team.objects.all().update(discord_category_id=None, discord_role_id=None)
 
         # Deactivate helpers
-        helpers = Person.objects.filter(is_student_helper=True)
+        helpers = DiscordLink.objects.filter(is_student_helper=True, is_active=True)
         helpers_removed = 0
-        for person in helpers:
-            person.is_student_helper = False
-            person.helper_removal_reason = "Competition ended"
-            person.helper_deactivated_at = timezone.now()
-            person.save()
+        for discord_link in helpers:
+            discord_link.is_student_helper = False
+            discord_link.helper_removal_reason = "Competition ended"
+            discord_link.helper_deactivated_at = timezone.now()
+            discord_link.save()
             helpers_removed += 1
 
         if helpers_removed:
@@ -535,7 +534,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
                 details={
                     "discord_username": link.discord_username,
                     "team_name": team.team_name,
-                    "authentik_username": link.authentik_username,
+                    "authentik_username": link.user.username,
                 },
             )
 
@@ -691,7 +690,7 @@ def admin_helpers(request: HttpRequest) -> HttpResponse:
         )
 
     helpers = (
-        Person.objects.filter(helper_role_name__isnull=False)
+        DiscordLink.objects.filter(helper_role_name__isnull=False, is_active=True)
         .exclude(helper_role_name="")
         .order_by("-helper_activated_at")
     )
@@ -726,75 +725,80 @@ def admin_helper_action(request: HttpRequest) -> HttpResponse:
         if not discord_id or not role_name:
             return JsonResponse({"error": "Discord ID and role name required"}, status=400)
 
-        # Find person by discord_id (Person is the source of truth)
+        # Find DiscordLink by discord_id
         try:
-            person = Person.objects.get(discord_id=int(discord_id))
-        except (Person.DoesNotExist, ValueError):
-            return JsonResponse({"error": "Person not found. User must link their account first."}, status=404)
+            discord_link = DiscordLink.objects.select_related("user__usergroups").get(
+                discord_id=int(discord_id), is_active=True
+            )
+        except (DiscordLink.DoesNotExist, ValueError):
+            return JsonResponse({"error": "DiscordLink not found. User must link their account first."}, status=404)
 
-        if person.is_student_helper:
+        if discord_link.is_student_helper:
             return JsonResponse(
-                {"error": f"Person is already a helper with role: {person.helper_role_name}"}, status=400
+                {"error": f"User is already a helper with role: {discord_link.helper_role_name}"}, status=400
             )
 
-        # Check Authentik groups
-        has_support = person.has_group("WCComps_Ticketing_Support")
-        has_injects = person.has_group("WCComps_Quotient_Injects")
+        from core.auth_utils import check_groups_for_permission
 
-        if not (has_support or has_injects):
+        try:
+            groups = discord_link.user.usergroups.groups
+        except Exception:
+            groups = []
+
+        if not check_groups_for_permission(groups, "helper_eligible"):
             return JsonResponse(
                 {"error": "User must have WCComps_Ticketing_Support or WCComps_Quotient_Injects group"}, status=400
             )
 
         # Role ID will be set later by Discord bot when it assigns the role
-        person.set_helper(role_name)
+        discord_link.set_helper(role_name)
 
         AuditLog.objects.create(
             action="helper_added",
             admin_user=authentik_username,
-            target_entity="person",
-            target_id=person.user_id or 0,
+            target_entity="discordlink",
+            target_id=discord_link.id,
             details={
-                "discord_id": person.discord_id,
-                "discord_username": person.discord_username,
+                "discord_id": discord_link.discord_id,
+                "discord_username": discord_link.discord_username,
                 "role_name": role_name,
             },
         )
 
-        return JsonResponse({"success": True, "message": f"Added {person.discord_username} as helper"})
+        return JsonResponse({"success": True, "message": f"Added {discord_link.discord_username} as helper"})
 
     elif action == "remove":
-        person_id = request.POST.get("person_id")
+        discord_link_id = request.POST.get("discord_link_id")
         reason = request.POST.get("reason", "Removed via web interface")
 
-        if not person_id:
-            return JsonResponse({"error": "Person ID required"}, status=400)
+        if not discord_link_id:
+            return JsonResponse({"error": "DiscordLink ID required"}, status=400)
 
         try:
-            person = Person.objects.get(pk=int(person_id))
-        except (Person.DoesNotExist, ValueError):
-            return JsonResponse({"error": "Person not found"}, status=404)
+            discord_link = DiscordLink.objects.get(pk=int(discord_link_id))
+        except (DiscordLink.DoesNotExist, ValueError):
+            return JsonResponse({"error": "DiscordLink not found"}, status=404)
 
-        if not person.is_student_helper:
-            return JsonResponse({"error": "Person is not currently a helper"}, status=400)
+        if not discord_link.is_student_helper:
+            return JsonResponse({"error": "User is not currently a helper"}, status=400)
 
-        role_name = person.helper_role_name
-        person.remove_helper(reason)
+        role_name = discord_link.helper_role_name
+        discord_link.remove_helper(reason)
 
         AuditLog.objects.create(
             action="helper_removed",
             admin_user=authentik_username,
-            target_entity="person",
-            target_id=person.user_id or 0,
+            target_entity="discordlink",
+            target_id=discord_link.id,
             details={
-                "discord_id": person.discord_id,
-                "discord_username": person.discord_username,
+                "discord_id": discord_link.discord_id,
+                "discord_username": discord_link.discord_username,
                 "role_name": role_name,
                 "reason": reason,
             },
         )
 
-        return JsonResponse({"success": True, "message": f"Removed {person.discord_username} as helper"})
+        return JsonResponse({"success": True, "message": f"Removed {discord_link.discord_username} as helper"})
 
     return JsonResponse({"error": "Unknown action"}, status=400)
 

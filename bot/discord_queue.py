@@ -462,7 +462,7 @@ class DiscordQueueProcessor:
         @sync_to_async
         def get_data() -> tuple[Ticket, TicketComment]:
             ticket = Ticket.objects.get(id=ticket_id)
-            comment = TicketComment.objects.get(id=comment_id)
+            comment = TicketComment.objects.select_related("author").get(id=comment_id)
             return ticket, comment
 
         ticket, comment = await get_data()
@@ -482,10 +482,10 @@ class DiscordQueueProcessor:
         if not isinstance(thread, (discord.TextChannel, discord.Thread)):
             raise TypeError(f"Channel {ticket.discord_thread_id} is not a text channel or thread")
 
-        # Format message
+        # Format message (comment.author is now a User, not DiscordLink)
         author_display = "Unknown"
         if comment.author:
-            author_display = comment.author.discord_username or comment.author.authentik_username or "Unknown"
+            author_display = comment.author.username or "Unknown"
         message_content = f"**{author_display}**\n{comment.comment_text}"
 
         # Post to thread

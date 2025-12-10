@@ -5,110 +5,138 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Team',
+            name="Team",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('team_number', models.IntegerField(unique=True)),
-                ('team_name', models.CharField(max_length=100)),
-                ('authentik_group', models.CharField(blank=True, max_length=255)),
-                ('discord_role_id', models.BigIntegerField(blank=True, null=True)),
-                ('discord_category_id', models.BigIntegerField(blank=True, null=True)),
-                ('max_members', models.IntegerField(default=10)),
-                ('ticket_counter', models.IntegerField(default=0)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("team_number", models.IntegerField(unique=True)),
+                ("team_name", models.CharField(max_length=100)),
+                ("authentik_group", models.CharField(blank=True, max_length=255)),
+                ("discord_role_id", models.BigIntegerField(blank=True, null=True)),
+                ("discord_category_id", models.BigIntegerField(blank=True, null=True)),
+                ("max_members", models.IntegerField(default=10)),
+                ("ticket_counter", models.IntegerField(default=0)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['team_number'],
+                "ordering": ["team_number"],
             },
         ),
         migrations.CreateModel(
-            name='LinkRateLimit',
+            name="LinkRateLimit",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('discord_id', models.BigIntegerField()),
-                ('attempted_at', models.DateTimeField(auto_now_add=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("discord_id", models.BigIntegerField()),
+                ("attempted_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'indexes': [models.Index(fields=['discord_id', '-attempted_at'], name='team_linkra_discord_517b86_idx')],
+                "indexes": [
+                    models.Index(fields=["discord_id", "-attempted_at"], name="team_linkra_discord_517b86_idx")
+                ],
             },
         ),
         migrations.CreateModel(
-            name='LinkToken',
+            name="LinkToken",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('token', models.CharField(max_length=64, unique=True)),
-                ('discord_id', models.BigIntegerField()),
-                ('discord_username', models.CharField(max_length=255)),
-                ('used', models.BooleanField(default=False)),
-                ('expires_at', models.DateTimeField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("token", models.CharField(max_length=64, unique=True)),
+                ("discord_id", models.BigIntegerField()),
+                ("discord_username", models.CharField(max_length=255)),
+                ("used", models.BooleanField(default=False)),
+                ("expires_at", models.DateTimeField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'indexes': [models.Index(fields=['token', 'used', 'expires_at'], name='team_linkto_token_e1d8eb_idx')],
+                "indexes": [models.Index(fields=["token", "used", "expires_at"], name="team_linkto_token_e1d8eb_idx")],
             },
         ),
         migrations.CreateModel(
-            name='SchoolInfo',
+            name="SchoolInfo",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('school_name', models.CharField(max_length=255)),
-                ('contact_email', models.EmailField(max_length=254)),
-                ('secondary_email', models.EmailField(blank=True, max_length=254)),
-                ('notes', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('updated_by', models.CharField(blank=True, max_length=255)),
-                ('team', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='school_info', to='team.team')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("school_name", models.CharField(max_length=255)),
+                ("contact_email", models.EmailField(max_length=254)),
+                ("secondary_email", models.EmailField(blank=True, max_length=254)),
+                ("notes", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("updated_by", models.CharField(blank=True, max_length=255)),
+                (
+                    "team",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="school_info", to="team.team"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'School Information',
-                'verbose_name_plural': 'School Information',
-                'ordering': ['team__team_number'],
+                "verbose_name": "School Information",
+                "verbose_name_plural": "School Information",
+                "ordering": ["team__team_number"],
             },
         ),
         migrations.CreateModel(
-            name='LinkAttempt',
+            name="LinkAttempt",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('discord_id', models.BigIntegerField()),
-                ('discord_username', models.CharField(max_length=255)),
-                ('authentik_username', models.CharField(max_length=255)),
-                ('success', models.BooleanField()),
-                ('failure_reason', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('team', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='team.team')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("discord_id", models.BigIntegerField()),
+                ("discord_username", models.CharField(max_length=255)),
+                ("authentik_username", models.CharField(max_length=255)),
+                ("success", models.BooleanField()),
+                ("failure_reason", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "team",
+                    models.ForeignKey(
+                        blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to="team.team"
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['-created_at'], name='team_linkat_created_e65df2_idx')],
+                "ordering": ["-created_at"],
+                "indexes": [models.Index(fields=["-created_at"], name="team_linkat_created_e65df2_idx")],
             },
         ),
         migrations.CreateModel(
-            name='DiscordLink',
+            name="DiscordLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('discord_id', models.BigIntegerField()),
-                ('discord_username', models.CharField(max_length=255)),
-                ('authentik_username', models.CharField(max_length=255)),
-                ('authentik_user_id', models.CharField(max_length=255)),
-                ('is_active', models.BooleanField(default=True)),
-                ('linked_at', models.DateTimeField(auto_now_add=True)),
-                ('unlinked_at', models.DateTimeField(blank=True, null=True)),
-                ('team', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='members', to='team.team')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("discord_id", models.BigIntegerField()),
+                ("discord_username", models.CharField(max_length=255)),
+                ("authentik_username", models.CharField(max_length=255)),
+                ("authentik_user_id", models.CharField(max_length=255)),
+                ("is_active", models.BooleanField(default=True)),
+                ("linked_at", models.DateTimeField(auto_now_add=True)),
+                ("unlinked_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "team",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="members",
+                        to="team.team",
+                    ),
+                ),
             ],
             options={
-                'indexes': [models.Index(fields=['discord_id', 'is_active'], name='team_discor_discord_19af28_idx'), models.Index(fields=['authentik_user_id', 'is_active'], name='team_discor_authent_81456e_idx')],
-                'constraints': [models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('discord_id',), name='team_unique_active_discord_link')],
+                "indexes": [
+                    models.Index(fields=["discord_id", "is_active"], name="team_discor_discord_19af28_idx"),
+                    models.Index(fields=["authentik_user_id", "is_active"], name="team_discor_authent_81456e_idx"),
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        condition=models.Q(("is_active", True)),
+                        fields=("discord_id",),
+                        name="team_unique_active_discord_link",
+                    )
+                ],
             },
         ),
     ]

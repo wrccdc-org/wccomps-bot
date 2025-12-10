@@ -141,7 +141,7 @@ class DiscordManager:
 
         try:
             # Copy permission overwrites
-            overwrites: dict[discord.Role, discord.PermissionOverwrite] = {}
+            overwrites: dict[discord.Role | discord.Member | discord.Object, discord.PermissionOverwrite] = {}
 
             # Get specific roles by name
             white_team = discord.utils.get(self.guild.roles, name="White Team")
@@ -158,7 +158,12 @@ class DiscordManager:
 
             # Team role: full access
             overwrites[role] = discord.PermissionOverwrite(
-                read_messages=True, send_messages=True, connect=True, speak=True
+                read_messages=True,
+                send_messages=True,
+                connect=True,
+                speak=True,
+                embed_links=True,
+                attach_files=True,
             )
 
             # White Team: read and connect only
@@ -194,12 +199,9 @@ class DiscordManager:
                 )
 
             # Create category
-            from typing import Any
-            from typing import cast as type_cast
-
             category = await self.guild.create_category(
                 name=category_name,
-                overwrites=type_cast(Any, overwrites),
+                overwrites=overwrites,
                 reason="WCComps team category",
             )
 

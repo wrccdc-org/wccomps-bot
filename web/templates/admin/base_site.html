@@ -36,7 +36,7 @@
     {% endif %}
     <span class="nav-spacer"></span>
     <span class="nav-user">{{ authentik_username|default:user.username }}</span>
-    <a href="{% url 'account_logout' %}">Log out</a>
+    <a href="{% url 'oauth_logout' %}">Log out</a>
 </nav>
 {% endblock %}
 

@@ -1,10 +1,12 @@
 """Team management models."""
 
 import logging
-from typing import Any
+from collections.abc import Iterable
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.base import ModelBase
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -56,12 +58,24 @@ class Team(models.Model):
         if self.max_members is not None and self.max_members < 1:
             raise ValidationError({"max_members": f"Team must have at least 1 member, got {self.max_members}"})
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
         """Override save to run validation."""
         # Skip validation when using update_fields (e.g., with F() expressions)
-        if not kwargs.get("update_fields"):
+        if not update_fields:
             self.full_clean()
-        super().save(*args, **kwargs)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     def get_member_count(self) -> int:
         """Get count of active members."""
@@ -77,17 +91,50 @@ class DiscordLink(models.Model):
 
     discord_id = models.BigIntegerField()
     discord_username = models.CharField(max_length=255)
-    authentik_username = models.CharField(max_length=255)
-    authentik_user_id = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="discord_links",
+    )
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members", null=True, blank=True)
     is_active = models.BooleanField(default=True)
     linked_at = models.DateTimeField(auto_now_add=True)
     unlinked_at = models.DateTimeField(null=True, blank=True)
 
+    # Student helper fields (moved from Person model)
+    is_student_helper = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this person is currently a student helper",
+    )
+    helper_role_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Discord role name (e.g., "UCI Invitationals 2026")',
+    )
+    helper_role_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Discord role ID (snowflake)",
+    )
+    helper_activated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When helper access was granted",
+    )
+    helper_deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When helper access was revoked",
+    )
+    helper_removal_reason = models.TextField(
+        blank=True,
+        help_text="Reason for helper access removal",
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=["discord_id", "is_active"]),
-            models.Index(fields=["authentik_user_id", "is_active"]),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -95,16 +142,40 @@ class DiscordLink(models.Model):
                 condition=models.Q(is_active=True),
                 name="team_unique_active_discord_link",
             ),
-            # Note: authentik_user_id is NOT unique because blue teams share a single
-            # Authentik account (e.g., team01) but multiple Discord users link to it
         ]
 
     def __str__(self) -> str:
         if self.team:
             return f"{self.discord_username} → {self.team.team_name}"
-        return f"{self.discord_username} → {self.authentik_username}"
+        return f"{self.discord_username} → {self.user.username}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def set_helper(self, role_name: str, role_id: int | None = None) -> None:
+        """Grant student helper access."""
+        self.is_student_helper = True
+        self.helper_role_name = role_name
+        if role_id is not None:
+            self.helper_role_id = role_id
+        self.helper_activated_at = timezone.now()
+        self.helper_deactivated_at = None
+        self.helper_removal_reason = ""
+        self.save()
+
+    def remove_helper(self, reason: str = "") -> None:
+        """Revoke student helper access."""
+        if self.is_student_helper:
+            self.is_student_helper = False
+            self.helper_deactivated_at = timezone.now()
+            self.helper_removal_reason = reason
+            self.save()
+
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
         """Override save to deactivate previous active link when creating new one."""
         if self.is_active:
             # Deactivate any existing active link for this discord_id
@@ -115,7 +186,12 @@ class DiscordLink(models.Model):
 
             # Do NOT deactivate links based on authentik_user_id because blue teams
             # share a single Authentik account (multiple Discord users -> same authentik_user_id)
-        super().save(*args, **kwargs)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
 
 class LinkToken(models.Model):

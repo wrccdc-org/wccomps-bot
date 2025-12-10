@@ -11,7 +11,7 @@ from discord.ext import commands
 from bot.permissions import check_admin, check_gold_team
 from bot.utils import log_to_ops_channel
 from core.models import AuditLog
-from person.models import Person
+from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
 
@@ -45,28 +45,34 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_person():  # type: ignore[no-untyped-def]
+            def get_discord_link() -> tuple[DiscordLink | None, str | None]:
                 try:
-                    person = Person.objects.get(discord_id=discord_user.id)
-                except Person.DoesNotExist:
+                    discord_link = DiscordLink.objects.select_related("user__usergroups").get(
+                        discord_id=discord_user.id, is_active=True
+                    )
+                except DiscordLink.DoesNotExist:
                     return None, "User must link their Discord account first with `/link`"
 
-                has_support = person.has_group("WCComps_Ticketing_Support")
-                has_injects = person.has_group("WCComps_Quotient_Injects")
+                from core.auth_utils import check_groups_for_permission
 
-                if not (has_support or has_injects):
+                try:
+                    groups = discord_link.user.usergroups.groups
+                except Exception:
+                    groups = []
+
+                if not check_groups_for_permission(groups, "helper_eligible"):
                     return (
                         None,
                         "User must have WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik",
                     )
 
-                if person.is_student_helper:
-                    return None, f"Person is already a helper with role: {person.helper_role_name}"
+                if discord_link.is_student_helper:
+                    return None, f"User is already a helper with role: {discord_link.helper_role_name}"
 
-                return person, None
+                return discord_link, None
 
-            person, error = await get_person()
-            if error:
+            discord_link, error = await get_discord_link()
+            if error or discord_link is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
@@ -85,17 +91,17 @@ class AdminHelpersCog(commands.Cog):
             await discord_user.add_roles(role, reason=f"Student helper added by {interaction.user}")
 
             @sync_to_async
-            def set_helper():  # type: ignore[no-untyped-def]
-                person.set_helper(role_name, role.id)
+            def set_helper() -> None:
+                discord_link.set_helper(role_name, role.id)
                 AuditLog.objects.create(
                     action="helper_added",
                     admin_user=str(interaction.user),
-                    target_entity="person",
-                    target_id=person.user_id,
+                    target_entity="discordlink",
+                    target_id=discord_link.id,
                     details={
-                        "discord_id": person.discord_id,
-                        "discord_username": person.discord_username,
-                        "authentik_username": person.authentik_username,
+                        "discord_id": discord_link.discord_id,
+                        "discord_username": discord_link.discord_username,
+                        "authentik_username": discord_link.user.username,
                         "role_name": role_name,
                     },
                 )
@@ -103,7 +109,7 @@ class AdminHelpersCog(commands.Cog):
             await set_helper()
 
             msg = "✅ **Student helper added successfully!**\n\n"
-            msg += f"**Helper:** {discord_user.mention} ({person.authentik_username})\n"
+            msg += f"**Helper:** {discord_user.mention} ({discord_link.user.username})\n"
             msg += f"**Role:** {role_name}\n"
             msg += "**Status:** Active\n\n"
             msg += "The role will be removed when `/competition end-competition` is run."
@@ -150,31 +156,37 @@ class AdminHelpersCog(commands.Cog):
                 try:
 
                     @sync_to_async
-                    def check_and_import(member_id: int):  # type: ignore[no-untyped-def]
+                    def check_and_import(member_id: int) -> tuple[str, str | None]:
                         try:
-                            person = Person.objects.get(discord_id=member_id)
-                        except Person.DoesNotExist:
+                            discord_link = DiscordLink.objects.select_related("user__usergroups").get(
+                                discord_id=member_id, is_active=True
+                            )
+                        except DiscordLink.DoesNotExist:
                             return "not_linked", None
 
-                        has_support = person.has_group("WCComps_Ticketing_Support")
-                        has_injects = person.has_group("WCComps_Quotient_Injects")
+                        from core.auth_utils import check_groups_for_permission
 
-                        if not (has_support or has_injects):
+                        try:
+                            groups = discord_link.user.usergroups.groups
+                        except Exception:
+                            groups = []
+
+                        if not check_groups_for_permission(groups, "helper_eligible"):
                             return "no_permission", None
 
-                        if person.is_student_helper:
-                            return "already_exists", person.helper_role_name
+                        if discord_link.is_student_helper:
+                            return "already_exists", discord_link.helper_role_name
 
-                        person.set_helper(role.name, role.id)
+                        discord_link.set_helper(role.name, role.id)
                         AuditLog.objects.create(
                             action="helper_imported",
                             admin_user=str(interaction.user),
-                            target_entity="person",
-                            target_id=person.user_id,
+                            target_entity="discordlink",
+                            target_id=discord_link.id,
                             details={
-                                "discord_id": person.discord_id,
-                                "discord_username": person.discord_username,
-                                "authentik_username": person.authentik_username,
+                                "discord_id": discord_link.discord_id,
+                                "discord_username": discord_link.discord_username,
+                                "authentik_username": discord_link.user.username,
                                 "role_name": role.name,
                                 "import_source": "bulk_role_import",
                             },
@@ -241,8 +253,10 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_helpers():  # type: ignore[no-untyped-def]
-                query = Person.objects.filter(helper_role_name__isnull=False).exclude(helper_role_name="")
+            def get_helpers() -> list[DiscordLink]:
+                query = DiscordLink.objects.filter(helper_role_name__isnull=False, is_active=True).exclude(
+                    helper_role_name=""
+                )
 
                 if status == "active":
                     query = query.filter(is_student_helper=True)
@@ -266,19 +280,19 @@ class AdminHelpersCog(commands.Cog):
                 color=discord.Color.blue(),
             )
 
-            for person in helpers[:25]:
-                status_emoji = "✅" if person.is_student_helper else "⏹️"
+            for discord_link in helpers[:25]:
+                status_emoji = "✅" if discord_link.is_student_helper else "⏹️"
 
-                field_name = f"{status_emoji} {person.discord_username or person.authentik_username}"
-                field_value = f"**Role:** {person.helper_role_name}\n"
-                field_value += f"**Status:** {'Active' if person.is_student_helper else 'Inactive'}\n"
+                field_name = f"{status_emoji} {discord_link.discord_username or discord_link.user.username}"
+                field_value = f"**Role:** {discord_link.helper_role_name}\n"
+                field_value += f"**Status:** {'Active' if discord_link.is_student_helper else 'Inactive'}\n"
 
-                if person.is_student_helper and person.helper_activated_at:
-                    field_value += f"**Activated:** {person.helper_activated_at.strftime('%m/%d %H:%M')}\n"
-                elif not person.is_student_helper and person.helper_deactivated_at:
-                    field_value += f"**Removed:** {person.helper_deactivated_at.strftime('%m/%d %H:%M')}\n"
-                    if person.helper_removal_reason:
-                        field_value += f"**Reason:** {person.helper_removal_reason[:50]}\n"
+                if discord_link.is_student_helper and discord_link.helper_activated_at:
+                    field_value += f"**Activated:** {discord_link.helper_activated_at.strftime('%m/%d %H:%M')}\n"
+                elif not discord_link.is_student_helper and discord_link.helper_deactivated_at:
+                    field_value += f"**Removed:** {discord_link.helper_deactivated_at.strftime('%m/%d %H:%M')}\n"
+                    if discord_link.helper_removal_reason:
+                        field_value += f"**Reason:** {discord_link.helper_removal_reason[:50]}\n"
 
                 embed.add_field(name=field_name, value=field_value, inline=False)
 
@@ -309,27 +323,27 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def remove_helper_db():  # type: ignore[no-untyped-def]
+            def remove_helper_db() -> tuple[dict[str, str | int | None] | None, str | None]:
                 try:
-                    person = Person.objects.get(discord_id=discord_user.id)
-                except Person.DoesNotExist:
+                    discord_link = DiscordLink.objects.get(discord_id=discord_user.id, is_active=True)
+                except DiscordLink.DoesNotExist:
                     return None, "User not found in database"
 
-                if not person.is_student_helper:
+                if not discord_link.is_student_helper:
                     return None, "User is not currently a helper"
 
-                role_name = person.helper_role_name
-                role_id = person.helper_role_id
-                person.remove_helper(reason)
+                role_name = discord_link.helper_role_name
+                role_id = discord_link.helper_role_id
+                discord_link.remove_helper(reason)
 
                 AuditLog.objects.create(
                     action="helper_removed",
                     admin_user=str(interaction.user),
-                    target_entity="person",
-                    target_id=person.user_id,
+                    target_entity="discordlink",
+                    target_id=discord_link.id,
                     details={
-                        "discord_id": person.discord_id,
-                        "discord_username": person.discord_username,
+                        "discord_id": discord_link.discord_id,
+                        "discord_username": discord_link.discord_username,
                         "reason": reason,
                     },
                 )
@@ -337,13 +351,14 @@ class AdminHelpersCog(commands.Cog):
                 return {"role_name": role_name, "role_id": role_id}, None
 
             result, error = await remove_helper_db()
-            if error:
+            if error or result is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
-            if result["role_id"] and interaction.guild:
+            role_id = result["role_id"]
+            if role_id and interaction.guild and isinstance(role_id, int):
                 try:
-                    role = interaction.guild.get_role(result["role_id"])
+                    role = interaction.guild.get_role(role_id)
                     if role and role in discord_user.roles:
                         await discord_user.remove_roles(role, reason=f"Helper removed: {reason}")
                         logger.info(f"Removed role {role.name} from {discord_user}")
@@ -380,25 +395,35 @@ class AdminHelpersCog(commands.Cog):
         try:
 
             @sync_to_async
-            def get_helper_status():  # type: ignore[no-untyped-def]
+            def get_helper_status() -> tuple[DiscordLink | None, str | None, bool, bool]:
                 try:
-                    person = Person.objects.get(discord_id=discord_user.id)
-                except Person.DoesNotExist:
+                    discord_link = DiscordLink.objects.select_related("user__usergroups").get(
+                        discord_id=discord_user.id, is_active=True
+                    )
+                except DiscordLink.DoesNotExist:
                     return None, "User not found in database", False, False
 
-                has_support_group = person.has_group("WCComps_Ticketing_Support")
-                has_injects_group = person.has_group("WCComps_Quotient_Injects")
+                from core.auth_utils import PERMISSION_MAP
 
-                return person, None, has_support_group, has_injects_group
+                try:
+                    groups = discord_link.user.usergroups.groups
+                except Exception:
+                    groups = []
 
-            person, error, has_support_group, has_injects_group = await get_helper_status()
-            if error:
+                has_support_group = PERMISSION_MAP["helper_eligible"][0] in groups
+                has_injects_group = PERMISSION_MAP["helper_eligible"][1] in groups
+
+                return discord_link, None, has_support_group, has_injects_group
+
+            discord_link, error, has_support_group, has_injects_group = await get_helper_status()
+            if error or discord_link is None:
                 await interaction.followup.send(f"❌ {error}", ephemeral=True)
                 return
 
+            desc = f"**Authentik Username:** {discord_link.user.username}\n**Discord ID:** {discord_link.discord_id}"
             embed = discord.Embed(
                 title=f"Helper Status - {discord_user.display_name}",
-                description=f"**Authentik Username:** {person.authentik_username}\n**Discord ID:** {person.discord_id}",
+                description=desc,
                 color=discord.Color.green() if (has_support_group or has_injects_group) else discord.Color.red(),
             )
 
@@ -418,19 +443,19 @@ class AdminHelpersCog(commands.Cog):
 
             embed.add_field(name="Authentik Groups", value=perm_value, inline=False)
 
-            if person.helper_role_name:
-                status_emoji = "✅" if person.is_student_helper else "⏹️"
+            if discord_link.helper_role_name:
+                status_emoji = "✅" if discord_link.is_student_helper else "⏹️"
                 field_value = (
-                    f"**Status:** {status_emoji} {'Active' if person.is_student_helper else 'Inactive'}\n"
-                    f"**Role:** {person.helper_role_name}\n"
+                    f"**Status:** {status_emoji} {'Active' if discord_link.is_student_helper else 'Inactive'}\n"
+                    f"**Role:** {discord_link.helper_role_name}\n"
                 )
 
-                if person.is_student_helper and person.helper_activated_at:
-                    field_value += f"**Activated:** {person.helper_activated_at.strftime('%Y-%m-%d %H:%M')}\n"
-                elif not person.is_student_helper and person.helper_deactivated_at:
-                    field_value += f"**Removed:** {person.helper_deactivated_at.strftime('%Y-%m-%d %H:%M')}\n"
-                    if person.helper_removal_reason:
-                        field_value += f"**Reason:** {person.helper_removal_reason[:100]}\n"
+                if discord_link.is_student_helper and discord_link.helper_activated_at:
+                    field_value += f"**Activated:** {discord_link.helper_activated_at.strftime('%Y-%m-%d %H:%M')}\n"
+                elif not discord_link.is_student_helper and discord_link.helper_deactivated_at:
+                    field_value += f"**Removed:** {discord_link.helper_deactivated_at.strftime('%Y-%m-%d %H:%M')}\n"
+                    if discord_link.helper_removal_reason:
+                        field_value += f"**Reason:** {discord_link.helper_removal_reason[:100]}\n"
 
                 embed.add_field(name="Helper Assignment", value=field_value, inline=False)
             else:

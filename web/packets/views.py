@@ -1,7 +1,7 @@
 """Views for team packet distribution system."""
 
 import mimetypes
-from typing import Any, cast
+from typing import TypedDict, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -16,6 +16,13 @@ from team.models import Team
 
 from .models import PacketDistribution, TeamPacket
 from .services import PacketDistributionService
+
+
+class PacketWithStats(TypedDict):
+    """Packet paired with its distribution stats."""
+
+    packet: TeamPacket
+    stats: dict[str, int]
 
 
 @require_GET
@@ -91,7 +98,7 @@ def ops_packets_list(request: HttpRequest) -> HttpResponse:
     packets = list(TeamPacket.objects.all().order_by("-created_at"))
 
     # Build packets with stats for template
-    packets_with_stats: list[dict[str, Any]] = [
+    packets_with_stats: list[PacketWithStats] = [
         {"packet": packet, "stats": packet.get_distribution_stats()} for packet in packets
     ]
 

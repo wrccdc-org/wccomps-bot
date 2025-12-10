@@ -11,7 +11,7 @@ from bot.ticket_dashboard import (
     post_ticket_to_dashboard,
     update_ticket_dashboard,
 )
-from team.models import Team
+from team.models import DiscordLink, Team
 from ticketing.models import Ticket
 
 
@@ -45,14 +45,15 @@ class TicketDashboardTest(TestCase):
         self.assertIsNotNone(open_embed)
         self.assertIn("Test Open", str(open_embed.title))
 
-        # Create Person for assignment testing
+        # Create DiscordLink for assignment testing
         volunteer_user = User.objects.create(username="volunteer1")
-        volunteer_person = volunteer_user.person
-        volunteer_person.discord_id = 123456789
-        volunteer_person.discord_username = "volunteer1"
-        volunteer_person.save()
+        DiscordLink.objects.create(
+            user=volunteer_user,
+            discord_id=123456789,
+            discord_username="volunteer1",
+        )
 
-        # Test claimed ticket with assignment
+        # Test claimed ticket with assignment (assigned_to is now User, not DiscordLink)
         claimed_ticket = Ticket.objects.create(
             ticket_number="T001-002",
             team=self.team,
@@ -60,20 +61,21 @@ class TicketDashboardTest(TestCase):
             title="Test Claimed",
             description="Claimed description",
             status="claimed",
-            assigned_to=volunteer_person,
+            assigned_to=volunteer_user,
         )
         claimed_embed = format_ticket_embed(claimed_ticket)
         field_names = [field.name for field in claimed_embed.fields]
         self.assertIn("Assigned To", field_names)
 
-        # Create Person for resolver
+        # Create user for resolver
         admin_user = User.objects.create(username="admin1")
-        admin_person = admin_user.person
-        admin_person.discord_id = 987654321
-        admin_person.discord_username = "admin1"
-        admin_person.save()
+        DiscordLink.objects.create(
+            user=admin_user,
+            discord_id=987654321,
+            discord_username="admin1",
+        )
 
-        # Test resolved ticket with resolution info
+        # Test resolved ticket with resolution info (resolved_by is now User, not DiscordLink)
         resolved_ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=self.team,
@@ -82,7 +84,7 @@ class TicketDashboardTest(TestCase):
             description="Resolved description",
             status="resolved",
             resolved_at=tz.now(),
-            resolved_by=admin_person,
+            resolved_by=admin_user,
             resolution_notes="All fixed",
             points_charged=10,
         )
@@ -102,6 +104,47 @@ class TicketDashboardTest(TestCase):
             )
             embed = format_ticket_embed(ticket)
             self.assertIsNotNone(embed)
+
+    def test_format_ticket_embed_includes_category_fields(self) -> None:
+        """Embed should include hostname, service_name, and ip_address when present."""
+        ticket = Ticket.objects.create(
+            ticket_number="T001-099",
+            team=self.team,
+            category="box-reset",
+            title="Reset Request",
+            description="Please reset my box",
+            status="open",
+            hostname="webserver01",
+            service_name="web:http",
+            ip_address="10.0.0.42",
+        )
+        embed = format_ticket_embed(ticket)
+        field_names = [field.name for field in embed.fields]
+        field_values = [field.value for field in embed.fields]
+
+        self.assertIn("Hostname", field_names)
+        self.assertIn("Service", field_names)
+        self.assertIn("IP Address", field_names)
+        self.assertIn("webserver01", field_values)
+        self.assertIn("web:http", field_values)
+        self.assertIn("10.0.0.42", field_values)
+
+    def test_format_ticket_embed_omits_empty_category_fields(self) -> None:
+        """Embed should omit hostname/service/IP fields when not set."""
+        ticket = Ticket.objects.create(
+            ticket_number="T001-100",
+            team=self.team,
+            category="other",
+            title="General Question",
+            description="Just a question",
+            status="open",
+        )
+        embed = format_ticket_embed(ticket)
+        field_names = [field.name for field in embed.fields]
+
+        self.assertNotIn("Hostname", field_names)
+        self.assertNotIn("Service", field_names)
+        self.assertNotIn("IP Address", field_names)
 
 
 @pytest.mark.asyncio

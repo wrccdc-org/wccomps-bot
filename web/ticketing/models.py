@@ -6,22 +6,22 @@ from django.db import models
 class Ticket(models.Model):
     """Support ticket from team."""
 
-    # Person FK fields (new normalized references)
+    # User FK fields (references the user who acted)
     assigned_to = models.ForeignKey(
-        "person.Person",
+        "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="assigned_tickets",
-        help_text="Person assigned to this ticket",
+        help_text="User assigned to this ticket",
     )
     resolved_by = models.ForeignKey(
-        "person.Person",
+        "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="resolved_tickets",
-        help_text="Person who resolved this ticket",
+        help_text="User who resolved this ticket",
     )
 
     STATUS_CHOICES = [
@@ -115,12 +115,12 @@ class TicketComment(models.Model):
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(
-        "person.Person",
+        "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="comments",
-        help_text="Person who authored this comment",
+        related_name="ticket_comments",
+        help_text="User who authored this comment",
     )
     comment_text = models.TextField()
     posted_at = models.DateTimeField(auto_now_add=True)
@@ -140,12 +140,12 @@ class TicketHistory(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="history")
     action = models.CharField(max_length=50)
     actor = models.ForeignKey(
-        "person.Person",
+        "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="history_entries",
-        help_text="Person who performed this action",
+        related_name="ticket_history_entries",
+        help_text="User who performed this action",
     )
     details = models.JSONField(default=dict)
     timestamp = models.DateTimeField(auto_now_add=True)

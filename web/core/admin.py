@@ -1,10 +1,10 @@
 """Django admin configuration for WCComps."""
 
-from typing import Any
-
-from allauth.socialaccount.models import SocialAccount
 from django.contrib import admin
+from django.db.models import QuerySet
 from django.http import HttpRequest
+
+from .auth_utils import get_authentik_groups
 
 # Team, DiscordLink, LinkToken, LinkAttempt moved to team.admin
 # Ticket, TicketAttachment, TicketComment, TicketHistory moved to ticketing.admin
@@ -14,6 +14,7 @@ from .models import (
     CompetitionConfig,
     DashboardUpdate,
     DiscordTask,
+    UserGroups,
 )
 
 
@@ -31,14 +32,8 @@ class AuthentikAdminSite(admin.AdminSite):
         if not request.user.is_active or not request.user.is_authenticated:
             return False
 
-        try:
-            social_account = SocialAccount.objects.get(user=request.user, provider="authentik")
-            # Groups can be in userinfo.groups or groups (depends on OAuth flow)
-            extra_data = social_account.extra_data
-            groups = extra_data.get("userinfo", {}).get("groups", []) or extra_data.get("groups", [])
-            return "WCComps_Discord_Admin" in groups or "WCComps_Ticketing_Admin" in groups
-        except SocialAccount.DoesNotExist:
-            return False
+        groups = get_authentik_groups(request.user)
+        return "WCComps_Discord_Admin" in groups or "WCComps_Ticketing_Admin" in groups
 
 
 # Replace default admin site
@@ -89,7 +84,7 @@ class DiscordTaskAdmin(admin.ModelAdmin[DiscordTask]):
     actions = ["retry_failed_tasks"]
 
     @admin.action(description="Retry failed tasks")
-    def retry_failed_tasks(self, request: HttpRequest, queryset: Any) -> None:
+    def retry_failed_tasks(self, request: HttpRequest, queryset: QuerySet[DiscordTask]) -> None:
         from django.utils import timezone
 
         updated = queryset.filter(status="failed").update(
@@ -111,7 +106,7 @@ class BotStateAdmin(admin.ModelAdmin[BotState]):
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False  # Managed by Discord bot
 
-    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: BotState | None = None) -> bool:
         return False  # Internal bot state
 
 
@@ -123,7 +118,7 @@ class DashboardUpdateAdmin(admin.ModelAdmin[DashboardUpdate]):
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False  # Singleton managed by system
 
-    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: DashboardUpdate | None = None) -> bool:
         return False  # System singleton
 
 
@@ -194,5 +189,22 @@ class CompetitionConfigAdmin(admin.ModelAdmin[CompetitionConfig]):
         # Only allow creation if no config exists
         return not CompetitionConfig.objects.exists()
 
-    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+    def has_delete_permission(self, request: HttpRequest, obj: CompetitionConfig | None = None) -> bool:
         return False  # Singleton - never delete
+
+
+@admin.register(UserGroups)
+class UserGroupsAdmin(admin.ModelAdmin[UserGroups]):
+    list_display = ["user", "authentik_id", "group_count"]
+    search_fields = ["user__username", "authentik_id"]
+    readonly_fields = ["user", "authentik_id", "groups"]
+
+    @admin.display(description="Groups")
+    def group_count(self, obj: UserGroups) -> str:
+        return str(len(obj.groups))
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False  # Created by OAuth flow
+
+    def has_delete_permission(self, request: HttpRequest, obj: UserGroups | None = None) -> bool:
+        return True  # Allow deletion to force re-login

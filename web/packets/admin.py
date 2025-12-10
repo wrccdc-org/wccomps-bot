@@ -1,14 +1,24 @@
 """Admin interface for packet distribution system."""
 
-from typing import Any
+from typing import Protocol
 
 from django.contrib import admin
 from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from .models import PacketDistribution, TeamPacket
+
+
+class AnnotatedTeamPacket(Protocol):
+    """Protocol for TeamPacket with annotated distribution stats."""
+
+    total_distributions: int
+    sent_count: int
+    failed_count: int
+    downloaded_count: int
+
+    def get_distribution_stats(self) -> dict[str, int]: ...
 
 
 class PacketDistributionInline(admin.TabularInline[PacketDistribution, TeamPacket]):
@@ -127,7 +137,7 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
         )
 
     @admin.display(description="Distribution Stats")
-    def distribution_stats_display(self, obj: Any) -> str:
+    def distribution_stats_display(self, obj: AnnotatedTeamPacket) -> str:
         """Display distribution statistics."""
         if hasattr(obj, "total_distributions"):
             # From annotated queryset
@@ -141,19 +151,19 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
             # Fallback to method call
             stats = obj.get_distribution_stats()
 
-        html = f"""
-        <table style="width: 100%;">
-            <tr>
-                <td><strong>Total:</strong> {stats["total"]}</td>
-                <td><strong>Sent:</strong> {stats.get("sent", 0)}</td>
-            </tr>
-            <tr>
-                <td><strong>Failed:</strong> {stats.get("failed", 0)}</td>
-                <td><strong>Downloaded:</strong> {stats.get("downloaded", 0)}</td>
-            </tr>
-        </table>
-        """
-        return mark_safe(html)  # noqa: S308
+        return format_html(
+            '<table style="width: 100%;"><tr>'
+            "<td><strong>Total:</strong> {}</td>"
+            "<td><strong>Sent:</strong> {}</td>"
+            "</tr><tr>"
+            "<td><strong>Failed:</strong> {}</td>"
+            "<td><strong>Downloaded:</strong> {}</td>"
+            "</tr></table>",
+            stats["total"],
+            stats.get("sent", 0),
+            stats.get("failed", 0),
+            stats.get("downloaded", 0),
+        )
 
     @admin.action(description="Distribute selected packets now")
     def distribute_now(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> None:

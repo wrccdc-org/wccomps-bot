@@ -3,18 +3,19 @@
 from collections.abc import Callable
 from decimal import Decimal
 from functools import wraps
-from typing import Any, cast
+from typing import Concatenate, ParamSpec, TypeAlias, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from core.auth_utils import has_permission
 from team.models import Team
 
 from .calculator import (
@@ -45,72 +46,66 @@ from .models import (
 )
 from .quotient_sync import sync_quotient_metadata, sync_service_scores
 
+P = ParamSpec("P")
+ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
 
-def require_team_role(
-    role_check: Callable[[Any], bool], error_message: str = "You do not have permission to access this page"
-) -> Callable[[Callable[..., HttpResponse]], Callable[..., HttpResponse]]:
-    """Decorator to require specific team role (red, gold, orange, etc.)."""
 
-    def decorator(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+def require_role(
+    *permission_names: str, error_message: str = "You do not have permission to access this page"
+) -> Callable[[ViewFunc[P]], ViewFunc[P]]:
+    """Decorator to require specific permissions based on Authentik groups."""
+
+    def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
         @wraps(view_func)
-        def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
             user = cast(User, request.user)
-            # Staff always has access
             if user.is_staff:
                 return view_func(request, *args, **kwargs)
 
-            # Check if user has person object with required role
-            if not hasattr(user, "person"):
-                messages.error(request, error_message)
-                return redirect("scoring:leaderboard")
+            if any(has_permission(user, perm) for perm in permission_names):
+                return view_func(request, *args, **kwargs)
 
-            if not role_check(user.person):
-                messages.error(request, error_message)
-                return redirect("scoring:leaderboard")
+            messages.error(request, error_message)
+            return redirect("scoring:leaderboard")
 
-            return view_func(request, *args, **kwargs)
-
-        return wrapped_view
+        return wrapped_view  # type: ignore[return-value]
 
     return decorator
 
 
 def _get_user_team(user: User) -> Team | None:
-    """Get team for a user based on their Person object."""
-    if not hasattr(user, "person"):
-        return None
+    """Get team for a user based on their Authentik groups."""
+    from core.auth_utils import get_user_team_number
 
-    team_number = user.person.get_team_number()
+    team_number = get_user_team_number(user)
     if not team_number:
         return None
-
     return Team.objects.filter(team_number=team_number).first()
 
 
-def require_leaderboard_access(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+def require_leaderboard_access(
+    view_func: Callable[Concatenate[HttpRequest, P], HttpResponse],
+) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
     """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin."""
+    from django.http import HttpResponseForbidden
 
     @wraps(view_func)
-    def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        from django.http import HttpResponseForbidden
-
+    def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         user = cast(User, request.user)
 
-        # Staff always has access
         if user.is_staff:
             return view_func(request, *args, **kwargs)
 
-        # Check if user has person object with required role
-        if not hasattr(user, "person"):
-            return HttpResponseForbidden("You do not have permission to access this page")
-
-        person = user.person
-        if person.is_gold_team() or person.is_white_team() or person.has_group("WCComps_Ticketing_Admin"):
+        if (
+            has_permission(user, "gold_team")
+            or has_permission(user, "white_team")
+            or has_permission(user, "ticketing_admin")
+        ):
             return view_func(request, *args, **kwargs)
 
         return HttpResponseForbidden("You do not have permission to access this page")
 
-    return wrapped_view
+    return wrapped_view  # type: ignore[return-value]
 
 
 @login_required
@@ -126,8 +121,9 @@ def leaderboard(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(
-    lambda p: p.is_red_team() or p.is_gold_team(),
+@require_role(
+    "WCComps_RedTeam",
+    "gold_team",
     "Only Red Team or Gold Team members can access this page",
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
@@ -186,9 +182,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
     available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
 
-    # Check if user is Gold Team
     user = cast(User, request.user)
-    is_gold_team = user.is_staff or (hasattr(user, "person") and user.person.is_gold_team())
+    is_gold_team = user.is_staff or has_permission(user, "gold_team")
 
     # For bulk approve button visibility
     pending_findings = pending_count > 0
@@ -219,8 +214,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(
-    lambda p: p.is_gold_team(),
+@require_role(
+    "gold_team",
     "Only Gold Team members can bulk approve findings",
 )
 @transaction.atomic
@@ -270,7 +265,7 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_red_team(), "Only Red Team members can submit findings")
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can submit findings")
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding."""
@@ -302,9 +297,12 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
             try:
                 for screenshot in screenshots:
+                    file_data = screenshot.read()
                     RedTeamScreenshot.objects.create(
                         finding=finding,
-                        image=screenshot,
+                        file_data=file_data,
+                        filename=screenshot.name or "screenshot.png",
+                        mime_type=screenshot.content_type or "image/png",
                     )
             except Exception as e:
                 messages.error(request, f"File upload failed: {str(e)}")
@@ -334,7 +332,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_red_team(), "Only Red Team members can delete findings")
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can delete findings")
 @transaction.atomic
 @require_http_methods(["POST"])
 def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
@@ -367,13 +365,8 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
     is_admin = user.is_staff
     team: Team | None = None
 
-    # Get user's team if not admin
     if not is_admin:
-        if hasattr(user, "person"):
-            team_number = user.person.get_team_number()
-            if team_number:
-                team = Team.objects.filter(team_number=team_number).first()
-
+        team = _get_user_team(user)
         if not team:
             messages.error(request, "You must be assigned to a team to submit incident reports")
             return redirect("scoring:leaderboard")
@@ -408,9 +401,12 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
 
             try:
                 for screenshot in screenshots:
+                    file_data = screenshot.read()
                     IncidentScreenshot.objects.create(
                         incident=incident,
-                        image=screenshot,
+                        file_data=file_data,
+                        filename=screenshot.name or "screenshot.png",
+                        mime_type=screenshot.content_type or "image/png",
                     )
             except Exception as e:
                 messages.error(request, f"File upload failed: {str(e)}")
@@ -516,17 +512,17 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
 
 
 @login_required
-@require_team_role(
-    lambda p: p.is_orange_team() or p.is_gold_team(),
+@require_role(
+    "orange_team",
+    "gold_team",
     "Only Orange Team or Gold Team members can access this page",
 )
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
     """Orange team portal - list existing bonuses."""
     user = cast(User, request.user)
 
-    # Gold Team and Admin see all bonuses; Orange Team sees only their own
     base_query = OrangeTeamBonus.objects.all()
-    can_see_all = user.is_staff or (hasattr(user, "person") and user.person.is_gold_team())
+    can_see_all = user.is_staff or has_permission(user, "gold_team")
 
     if can_see_all:
         bonuses = base_query.select_related("team")
@@ -541,7 +537,7 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team members can submit bonuses")
+@require_role("orange_team", error_message="Only Orange Team members can submit bonuses")
 @transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     """Submit orange team bonus."""
@@ -569,7 +565,7 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+@require_role("orange_team", error_message="Only Orange Team can manage check types")
 def manage_check_types(request: HttpRequest) -> HttpResponse:
     """Manage orange check types."""
     check_types = OrangeCheckType.objects.all().order_by("name")
@@ -590,7 +586,7 @@ def manage_check_types(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+@require_role("orange_team", error_message="Only Orange Team can manage check types")
 def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Edit an orange check type."""
     check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
@@ -612,7 +608,7 @@ def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_orange_team(), "Only Orange Team can manage check types")
+@require_role("orange_team", error_message="Only Orange Team can manage check types")
 @require_http_methods(["POST"])
 def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Delete an orange check type."""
@@ -624,9 +620,7 @@ def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
 
 
 @login_required
-@require_team_role(
-    lambda p: p.is_white_team() or p.is_gold_team(), "Only White/Gold Team members can access inject grading"
-)
+@require_role("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
 @transaction.atomic
 def inject_grading(request: HttpRequest) -> HttpResponse:
     """Inject grading interface - select inject, grade all teams."""
@@ -636,12 +630,10 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     injects = client.get_injects()
 
     if injects is None:
-        context: dict[str, Any] = {"quotient_available": False, "no_injects": False}
-        return render(request, "scoring/inject_grading.html", context)
+        return render(request, "scoring/inject_grading.html", {"quotient_available": False, "no_injects": False})
 
     if len(injects) == 0:
-        context = {"quotient_available": True, "no_injects": True}
-        return render(request, "scoring/inject_grading.html", context)
+        return render(request, "scoring/inject_grading.html", {"quotient_available": True, "no_injects": True})
 
     inject_choices = [(str(i.inject_id), i.title) for i in injects]
     inject_lookup = {str(i.inject_id): i for i in injects}
@@ -714,7 +706,9 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can review incident reports")
+@require_role(
+    "gold_team", "white_team", error_message="Only Gold Team or White Team members can review incident reports"
+)
 def review_incidents(request: HttpRequest) -> HttpResponse:
     """Review and match incident reports (gold team)."""
     from django.core.paginator import Paginator
@@ -790,7 +784,9 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can match incident reports")
+@require_role(
+    "gold_team", "white_team", error_message="Only Gold Team or White Team members can match incident reports"
+)
 @transaction.atomic
 def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
     """Match incident to red team finding (gold team)."""
@@ -969,7 +965,7 @@ def api_orange_check_types(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can review inject grades")
+@require_role("gold_team", error_message="Only Gold Team members can review inject grades")
 def inject_grades_review(request: HttpRequest) -> HttpResponse:
     """Review and approve inject grades (Gold Team)."""
     import statistics
@@ -1001,8 +997,9 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         base_query = base_query.filter(team__id=team_filter)
 
     # Calculate outliers for each inject before filtering
-    all_grades_for_outlier_calc: list[Any] = list(base_query)
-    inject_grades_map: dict[str, list[Any]] = defaultdict(list)
+    # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
+    all_grades_for_outlier_calc = list(base_query)
+    inject_grades_map: dict[str, list[InjectGrade]] = defaultdict(list)
     for grade in all_grades_for_outlier_calc:
         inject_grades_map[grade.inject_id].append(grade)
 
@@ -1015,20 +1012,20 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
                 for grade in grades:
                     points = float(grade.points_awarded)
                     z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
-                    grade.is_outlier = z_score > 1.5
-                    grade.std_devs_from_mean = z_score
+                    grade.is_outlier = z_score > 1.5  # type: ignore[attr-defined]
+                    grade.std_devs_from_mean = z_score  # type: ignore[attr-defined]
             except statistics.StatisticsError:
                 for grade in grades:
-                    grade.is_outlier = False
-                    grade.std_devs_from_mean = 0
+                    grade.is_outlier = False  # type: ignore[attr-defined]
+                    grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
         else:
             for grade in grades:
-                grade.is_outlier = False
-                grade.std_devs_from_mean = 0
+                grade.is_outlier = False  # type: ignore[attr-defined]
+                grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
 
     # Filter outliers if requested
     if show_outliers_only:
-        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]
+        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]  # type: ignore[attr-defined]
 
     # Validate and apply sort
     valid_sort_fields = [
@@ -1096,7 +1093,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can approve inject grades")
+@require_role("gold_team", error_message="Only Gold Team members can approve inject grades")
 @transaction.atomic
 @require_http_methods(["POST"])
 def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
@@ -1212,7 +1209,7 @@ def export_final_scores(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can approve adjustments")
+@require_role("gold_team", error_message="Only Gold Team members can approve adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
@@ -1229,7 +1226,7 @@ def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpR
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can reject adjustments")
+@require_role("gold_team", error_message="Only Gold Team members can reject adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
@@ -1246,7 +1243,7 @@ def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpRe
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can bulk approve adjustments")
+@require_role("gold_team", error_message="Only Gold Team members can bulk approve adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
@@ -1277,7 +1274,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_team_role(lambda p: p.is_gold_team(), "Only Gold Team members can bulk reject adjustments")
+@require_role("gold_team", error_message="Only Gold Team members can bulk reject adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
@@ -1305,3 +1302,41 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
 
     messages.success(request, f"Rejected {count} adjustment(s)")
     return redirect("scoring:orange_team_portal")
+
+
+@login_required
+def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
+    """Serve incident screenshot from database."""
+    from django.http import Http404
+
+    screenshot = get_object_or_404(IncidentScreenshot, id=screenshot_id)
+
+    # Check permission: must be staff or team member
+    user = cast(User, request.user)
+    if not user.is_staff:
+        user_team = _get_user_team(user)
+        if not user_team or screenshot.incident.team != user_team:
+            return HttpResponseForbidden("You do not have permission to view this file")
+
+    if not screenshot.file_data:
+        raise Http404("File data not available (file was lost)")
+
+    response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
+    response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
+    return response
+
+
+@login_required
+@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can view this")
+def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
+    """Serve red team screenshot from database."""
+    from django.http import Http404
+
+    screenshot = get_object_or_404(RedTeamScreenshot, id=screenshot_id)
+
+    if not screenshot.file_data:
+        raise Http404("File data not available (file was lost)")
+
+    response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
+    response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
+    return response

@@ -1,8 +1,7 @@
 """Admin configuration for ticketing app."""
 
-from typing import Any
-
 from django.contrib import admin
+from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 
 from .models import (
@@ -109,7 +108,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
         return str(obj.assigned_to) if obj.assigned_to else ""
 
     @admin.action(description="Export selected tickets as CSV")
-    def export_as_csv(self, request: HttpRequest, queryset: Any) -> HttpResponse:
+    def export_as_csv(self, request: HttpRequest, queryset: QuerySet[Ticket]) -> HttpResponse:
         """Export selected tickets as CSV."""
         import csv
 
