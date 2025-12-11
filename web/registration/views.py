@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from core.auth_utils import require_permission
 from team.models import Team
@@ -38,6 +39,11 @@ def register(request: HttpRequest) -> HttpResponse:
 def registration_edit(request: HttpRequest, token: str) -> HttpResponse:
     """Token-based self-service editing of registration."""
     registration = get_object_or_404(TeamRegistration, edit_token=token)
+
+    # Check if token has expired
+    if registration.edit_token_expires and timezone.now() > registration.edit_token_expires:
+        messages.error(request, "This edit link has expired.")
+        return render(request, "registration/edit_locked.html", {"registration": registration})
 
     # Check if editing is allowed (not after credentials sent)
     if registration.status == "credentials_sent":
