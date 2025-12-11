@@ -940,6 +940,7 @@ def recalculate_scores(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_leaderboard_access
 def api_scores(request: HttpRequest) -> JsonResponse:
     """API endpoint for scores."""
     scores = get_leaderboard()
@@ -962,6 +963,7 @@ def api_scores(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
+@require_leaderboard_access
 def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
     """API endpoint for team detail."""
     team = get_object_or_404(Team, team_number=team_number)
@@ -976,6 +978,7 @@ def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
 
 
 @login_required
+@require_role("WCComps_RedTeam", "gold_team", error_message="Only Red Team or Gold Team can access attack suggestions")
 def api_attack_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for attack type suggestions."""
     # Get distinct attack vectors from previous findings
