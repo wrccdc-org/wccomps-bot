@@ -14,6 +14,14 @@ class TeamPacket(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packets",
+        help_text="Optionally associate packet with a specific event",
+    )
     title = models.CharField(max_length=255, help_text="Packet title/description")
     file_data = models.BinaryField(help_text="Packet file stored as binary data")
     filename = models.CharField(max_length=255, help_text="Original filename")

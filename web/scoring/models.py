@@ -121,6 +121,13 @@ class QuotientMetadataCache(models.Model):
 class RedTeamFinding(models.Model):
     """Red team vulnerability finding affecting one or more teams."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="red_team_findings",
+    )
     submitted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -229,6 +236,13 @@ class RedTeamScreenshot(models.Model):
 class IncidentReport(models.Model):
     """Blue team incident report submission."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="incident_reports",
+    )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
@@ -335,6 +349,13 @@ class IncidentScreenshot(models.Model):
 class InjectGrade(models.Model):
     """White/Gold team grading of inject submissions."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="inject_grades",
+    )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
@@ -421,6 +442,13 @@ class OrangeCheckType(models.Model):
 class OrangeTeamBonus(models.Model):
     """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="orange_team_bonuses",
+    )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
@@ -486,6 +514,13 @@ class OrangeTeamBonus(models.Model):
 class ServiceScore(models.Model):
     """Service uptime scores from Quotient."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="service_scores",
+    )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
@@ -528,6 +563,13 @@ class ServiceScore(models.Model):
 class BlackTeamAdjustment(models.Model):
     """Manual point adjustments by admin/black team."""
 
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="black_team_adjustments",
+    )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
@@ -598,3 +640,58 @@ class FinalScore(models.Model):
     def __str__(self) -> str:
         rank_str = f"#{self.rank}" if self.rank else "Unranked"
         return f"{rank_str} - {self.team.team_name}: {self.total_score}"
+
+
+class EventScore(models.Model):
+    """Per-event calculated totals for leaderboard."""
+
+    team = models.ForeignKey(
+        "team.Team",
+        on_delete=models.CASCADE,
+        related_name="event_scores",
+    )
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        related_name="scores",
+    )
+    team_assignment = models.ForeignKey(
+        "registration.EventTeamAssignment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="event_scores",
+        help_text="Link to registration for traceability",
+    )
+
+    # Component scores
+    service_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    inject_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    orange_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    red_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    incident_recovery_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    sla_penalties = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    black_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+
+    # Total and rank
+    total_score = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    rank = models.IntegerField(null=True, blank=True)
+
+    # Tracking
+    calculated_at = models.DateTimeField(auto_now=True)
+    scorecard_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When PDF score card was emailed",
+    )
+
+    class Meta:
+        db_table = "event_score"
+        verbose_name = "Event Score"
+        verbose_name_plural = "Event Scores"
+        unique_together = [["team", "event"]]
+        ordering = ["-total_score", "team__team_number"]
+
+    def __str__(self) -> str:
+        rank_str = f"#{self.rank}" if self.rank else "Unranked"
+        return f"{rank_str} - {self.team.team_name} @ {self.event.name}: {self.total_score}"

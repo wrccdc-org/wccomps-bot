@@ -1,23 +1,10 @@
 """Permission integration tests for scoring views."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 from django.test import Client
 from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def mock_quotient_client():
-    """Mock Quotient client to avoid API errors in tests."""
-    with patch("quotient.client.QuotientClient") as mock_client:
-        instance = MagicMock()
-        instance.get_infrastructure.return_value = None
-        instance.get_injects.return_value = []
-        mock_client.return_value = instance
-        yield instance
 
 
 class TestLeaderboardPermissions:

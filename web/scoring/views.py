@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from registration.models import Event
 
 from core.auth_utils import has_permission
 from team.models import Team
@@ -21,8 +22,10 @@ from team.models import Team
 from .calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
+    get_event_leaderboard,
     get_leaderboard,
     recalculate_all_scores,
+    recalculate_event_scores,
     suggest_red_finding_matches,
 )
 from .forms import (
@@ -118,6 +121,44 @@ def leaderboard(request: HttpRequest) -> HttpResponse:
         "scores": scores,
     }
     return render(request, "scoring/leaderboard.html", context)
+
+
+@login_required
+@require_leaderboard_access
+def event_leaderboard(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Event-scoped leaderboard view - shows scores for a specific event.
+
+    Scores are only visible after the event is finalized.
+    """
+    event = get_object_or_404(Event, id=event_id)
+
+    user = cast(User, request.user)
+    is_gold_team = user.is_staff or has_permission(user, "gold_team")
+
+    # Only show scores after event is finalized (or to Gold Team)
+    if not event.is_finalized and not is_gold_team:
+        messages.error(request, "Scores are not yet available for this event.")
+        return redirect("scoring:leaderboard")
+
+    scores = get_event_leaderboard(event)
+
+    context = {
+        "event": event,
+        "scores": scores,
+        "is_finalized": event.is_finalized,
+    }
+    return render(request, "scoring/event_leaderboard.html", context)
+
+
+@login_required
+@require_role("gold_team", error_message="Only Gold Team members can recalculate event scores")
+@require_http_methods(["POST"])
+def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Recalculate all scores for a specific event."""
+    event = get_object_or_404(Event, id=event_id)
+    recalculate_event_scores(event)
+    messages.success(request, f"Scores recalculated for {event.name}")
+    return redirect("scoring:event_leaderboard", event_id=event_id)
 
 
 @login_required
@@ -1302,6 +1343,56 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
 
     messages.success(request, f"Rejected {count} adjustment(s)")
     return redirect("scoring:orange_team_portal")
+
+
+@login_required
+@require_role("gold_team", error_message="Only Gold Team members can send scorecards")
+@require_http_methods(["POST"])
+def send_scorecards_batch_view(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Send scorecards to all teams for an event."""
+    from .services import send_scorecards_batch
+
+    event = get_object_or_404(Event, id=event_id)
+
+    if not event.is_finalized:
+        messages.warning(request, "Event must be finalized before sending scorecards.")
+        return redirect("scoring:event_leaderboard", event_id=event_id)
+
+    results = send_scorecards_batch(event)
+
+    success_count = sum(1 for r in results if r.success)
+    fail_count = sum(1 for r in results if not r.success)
+
+    if success_count > 0:
+        messages.success(request, f"Sent {success_count} scorecards successfully.")
+    if fail_count > 0:
+        messages.warning(request, f"Failed to send {fail_count} scorecards.")
+
+    return redirect("scoring:event_leaderboard", event_id=event_id)
+
+
+@login_required
+@require_role("gold_team", error_message="Only Gold Team members can send scorecards")
+@require_http_methods(["POST"])
+def send_scorecard_single_view(request: HttpRequest, event_score_id: int) -> HttpResponse:
+    """Send scorecard to a single team."""
+    from .models import EventScore
+    from .services import send_scorecard_single
+
+    event_score = get_object_or_404(EventScore, id=event_score_id)
+
+    if not event_score.event.is_finalized:
+        messages.warning(request, "Event must be finalized before sending scorecards.")
+        return redirect("scoring:event_leaderboard", event_id=event_score.event_id)
+
+    result = send_scorecard_single(event_score)
+
+    if result.success:
+        messages.success(request, f"Scorecard sent to {result.school_name} (Team {result.team_number}).")
+    else:
+        messages.error(request, f"Failed to send scorecard: {result.error}")
+
+    return redirect("scoring:event_leaderboard", event_id=event_score.event_id)
 
 
 @login_required

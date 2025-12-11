@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
@@ -94,3 +95,42 @@ def ticketing_admin_user(create_user_with_groups: Callable[..., User]) -> User:
 def admin_user(create_user_with_groups: Callable[..., User]) -> User:
     """Create an admin user (is_staff + Discord_Admin group)."""
     return create_user_with_groups("admin", ["WCComps_Discord_Admin"], is_staff=True)
+
+
+@pytest.fixture(autouse=True)
+def reset_quotient_client_cache():
+    """Reset the QuotientClient LRU cache before each test for proper isolation."""
+    from quotient.client import get_quotient_client
+
+    get_quotient_client.cache_clear()
+    yield
+    get_quotient_client.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_has_permission_reference():
+    """
+    Reset scoring.views.has_permission to the real function after each test.
+
+    This fixes test isolation issues where @patch("core.auth_utils.has_permission")
+    in one test module pollutes the reference in scoring.views.
+    """
+    yield
+    # After test, ensure scoring.views.has_permission points to the real function
+    import scoring.views
+
+    from core import auth_utils
+
+    scoring.views.has_permission = auth_utils.has_permission
+
+
+@pytest.fixture
+def mock_quotient_client():
+    """Mock Quotient client to avoid API errors in tests."""
+    with patch("quotient.client.QuotientClient") as mock_client:
+        instance = MagicMock()
+        instance.get_infrastructure.return_value = None
+        instance.get_injects.return_value = []
+        instance.get_scores.return_value = []
+        mock_client.return_value = instance
+        yield instance

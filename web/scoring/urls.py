@@ -9,6 +9,10 @@ app_name = "scoring"
 urlpatterns = [
     # Leaderboard
     path("", views.leaderboard, name="leaderboard"),
+    path("event/<int:event_id>/", views.event_leaderboard, name="event_leaderboard"),
+    path("event/<int:event_id>/recalculate/", views.recalculate_event_scores_view, name="recalculate_event_scores"),
+    path("event/<int:event_id>/send-scorecards/", views.send_scorecards_batch_view, name="send_scorecards_batch"),
+    path("scorecard/<int:event_score_id>/send/", views.send_scorecard_single_view, name="send_scorecard_single"),
     # Red Team
     path("red-team/", views.red_team_portal, name="red_team_portal"),
     path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),

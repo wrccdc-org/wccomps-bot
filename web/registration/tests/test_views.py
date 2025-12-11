@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import TeamRegistration
+from ..models import RegistrationContact, TeamRegistration
 
 
 class RegistrationViewTestCase(TestCase):
@@ -26,6 +26,7 @@ class RegistrationViewTestCase(TestCase):
         """Test registration page contains form."""
         response = self.client.get(reverse("registration_register"))
         self.assertContains(response, "school_name")
+        self.assertContains(response, "contact_name")
         self.assertContains(response, "contact_email")
         self.assertContains(response, "phone")
 
@@ -33,20 +34,25 @@ class RegistrationViewTestCase(TestCase):
         """Test submitting valid registration."""
         form_data = {
             "school_name": "Test High School",
+            "contact_name": "John Doe",
             "contact_email": "test@example.com",
             "phone": "555-1234",
         }
         response = self.client.post(reverse("registration_register"), data=form_data)
         self.assertEqual(response.status_code, 302)
 
-        registration = TeamRegistration.objects.get(contact_email="test@example.com")
-        self.assertEqual(registration.school_name, "Test High School")
+        registration = TeamRegistration.objects.get(school_name="Test High School")
         self.assertEqual(registration.status, "pending")
+
+        captain = registration.contacts.get(role="captain")
+        self.assertEqual(captain.name, "John Doe")
+        self.assertEqual(captain.email, "test@example.com")
 
     def test_submit_invalid_registration(self):
         """Test submitting invalid registration shows errors."""
         form_data = {
             "school_name": "",
+            "contact_name": "",
             "contact_email": "invalid-email",
             "phone": "",
         }
@@ -62,8 +68,13 @@ class AdminReviewListViewTestCase(TestCase):
         """Set up test data."""
         self.client = Client()
         self.admin_user = User.objects.create_user(username="admin", password="admin123")
-        self.registration = TeamRegistration.objects.create(
-            school_name="Test School", contact_email="test@example.com", phone="555-1234"
+        self.registration = TeamRegistration.objects.create(school_name="Test School")
+        RegistrationContact.objects.create(
+            registration=self.registration,
+            role="captain",
+            name="John Doe",
+            email="test@example.com",
+            phone="555-1234",
         )
 
     def test_review_list_requires_gold_team(self):
@@ -87,14 +98,17 @@ class AdminReviewListViewTestCase(TestCase):
         self.client.force_login(self.admin_user)
         response = self.client.get(reverse("registration_review_list"))
         self.assertContains(response, "Test School")
-        self.assertContains(response, "test@example.com")
 
     @patch("core.auth_utils.has_permission")
     def test_review_list_filters_by_status(self, mock_has_permission):
         """Test review list can filter by status."""
         mock_has_permission.return_value = True
-        TeamRegistration.objects.create(
-            school_name="Approved School", contact_email="approved@example.com", phone="555-0000", status="approved"
+        approved_reg = TeamRegistration.objects.create(school_name="Approved School", status="approved")
+        RegistrationContact.objects.create(
+            registration=approved_reg,
+            role="captain",
+            name="Jane Doe",
+            email="approved@example.com",
         )
         self.client.force_login(self.admin_user)
         response = self.client.get(reverse("registration_review_list"), {"status": "pending"})
@@ -109,8 +123,13 @@ class AdminApproveViewTestCase(TestCase):
         """Set up test data."""
         self.client = Client()
         self.admin_user = User.objects.create_user(username="admin", password="admin123")
-        self.registration = TeamRegistration.objects.create(
-            school_name="Test School", contact_email="test@example.com", phone="555-1234"
+        self.registration = TeamRegistration.objects.create(school_name="Test School")
+        RegistrationContact.objects.create(
+            registration=self.registration,
+            role="captain",
+            name="John Doe",
+            email="test@example.com",
+            phone="555-1234",
         )
 
     def test_approve_requires_gold_team(self):
@@ -139,8 +158,13 @@ class AdminRejectViewTestCase(TestCase):
         """Set up test data."""
         self.client = Client()
         self.admin_user = User.objects.create_user(username="admin", password="admin123")
-        self.registration = TeamRegistration.objects.create(
-            school_name="Test School", contact_email="test@example.com", phone="555-1234"
+        self.registration = TeamRegistration.objects.create(school_name="Test School")
+        RegistrationContact.objects.create(
+            registration=self.registration,
+            role="captain",
+            name="John Doe",
+            email="test@example.com",
+            phone="555-1234",
         )
 
     def test_reject_requires_gold_team(self):
@@ -169,3 +193,146 @@ class AdminRejectViewTestCase(TestCase):
         self.client.force_login(self.admin_user)
         response = self.client.post(reverse("registration_reject", args=[self.registration.id]), {"reason": ""})
         self.assertEqual(response.status_code, 200)
+
+
+class TokenEditViewTestCase(TestCase):
+    """Test token-based registration editing."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.registration = TeamRegistration.objects.create(school_name="Test School")
+        RegistrationContact.objects.create(
+            registration=self.registration,
+            role="captain",
+            name="John Doe",
+            email="john@example.com",
+            phone="555-1234",
+        )
+
+    def test_edit_page_loads_with_valid_token(self):
+        """Test edit page loads with valid token."""
+        response = self.client.get(reverse("registration_edit", args=[self.registration.edit_token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/edit.html")
+
+    def test_edit_page_404_with_invalid_token(self):
+        """Test edit page returns 404 with invalid token."""
+        response = self.client.get(reverse("registration_edit", args=["invalid-token"]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_edit_locked_after_credentials_sent(self):
+        """Test edit page shows locked message after credentials sent."""
+        self.registration.status = "credentials_sent"
+        self.registration.save()
+        response = self.client.get(reverse("registration_edit", args=[self.registration.edit_token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/edit_locked.html")
+
+    def test_edit_updates_registration(self):
+        """Test edit form updates registration."""
+        form_data = {
+            "school_name": "Updated School",
+            "contact_name": "Jane Doe",
+            "contact_email": "jane@example.com",
+            "phone": "555-5678",
+        }
+        response = self.client.post(
+            reverse("registration_edit", args=[self.registration.edit_token]),
+            data=form_data,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        self.registration.refresh_from_db()
+        self.assertEqual(self.registration.school_name, "Updated School")
+
+        captain = self.registration.contacts.get(role="captain")
+        self.assertEqual(captain.name, "Jane Doe")
+        self.assertEqual(captain.email, "jane@example.com")
+
+
+class SeasonViewTestCase(TestCase):
+    """Test season management views."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.client = Client()
+        self.admin_user = User.objects.create_user(username="admin", password="admin123")
+
+    def test_season_list_requires_gold_team(self):
+        """Test season list requires Gold Team permission."""
+        response = self.client.get(reverse("registration_season_list"))
+        self.assertEqual(response.status_code, 302)
+
+    @patch("core.auth_utils.has_permission")
+    def test_season_list_loads(self, mock_has_permission):
+        """Test season list loads for Gold Team users."""
+        mock_has_permission.return_value = True
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse("registration_season_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/seasons/list.html")
+
+    @patch("core.auth_utils.has_permission")
+    def test_season_create(self, mock_has_permission):
+        """Test creating a season."""
+        from ..models import Season
+
+        mock_has_permission.return_value = True
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse("registration_season_create"),
+            data={"name": "2026 Season", "year": 2026, "is_active": True},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Season.objects.filter(year=2026).exists())
+
+
+class EventViewTestCase(TestCase):
+    """Test event management views."""
+
+    def setUp(self):
+        """Set up test data."""
+
+        from ..models import Season
+
+        self.client = Client()
+        self.admin_user = User.objects.create_user(username="admin", password="admin123")
+        self.season = Season.objects.create(name="2026 Season", year=2026, is_active=True)
+
+    def test_event_list_requires_gold_team(self):
+        """Test event list requires Gold Team permission."""
+        response = self.client.get(reverse("registration_event_list", args=[self.season.id]))
+        self.assertEqual(response.status_code, 302)
+
+    @patch("core.auth_utils.has_permission")
+    def test_event_list_loads(self, mock_has_permission):
+        """Test event list loads for Gold Team users."""
+        mock_has_permission.return_value = True
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse("registration_event_list", args=[self.season.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "registration/events/list.html")
+
+    @patch("core.auth_utils.has_permission")
+    def test_event_create(self, mock_has_permission):
+        """Test creating an event."""
+        from ..models import Event
+
+        mock_has_permission.return_value = True
+        self.client.force_login(self.admin_user)
+        response = self.client.post(
+            reverse("registration_event_create", args=[self.season.id]),
+            data={
+                "name": "Invitational #1",
+                "event_type": "invitational",
+                "event_number": 1,
+                "date": "2026-01-15",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "max_teams": 50,
+                "registration_open": True,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Event.objects.filter(name="Invitational #1").exists())
