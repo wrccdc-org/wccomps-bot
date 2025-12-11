@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from bot.permissions import check_orange_team
+from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +85,18 @@ class OrangeTeamCog(commands.Cog):
             )
             return
 
+        # Resolve Discord user to Django user for attribution
+        discord_link = await (
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
+            .select_related("user")
+            .afirst()
+        )
+        submitted_by_user = discord_link.user if discord_link else None
+
         # Create adjustment
         bonus = await OrangeTeamBonus.objects.acreate(
             team=team,
-            submitted_by=None,
+            submitted_by=submitted_by_user,
             check_type=check_type_obj,
             description=description,
             points_awarded=points_decimal,

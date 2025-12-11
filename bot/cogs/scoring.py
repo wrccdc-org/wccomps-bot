@@ -41,11 +41,14 @@ class ScoringCog(commands.Cog):
     ) -> None:
         """Submit an incident report for red team activity."""
         link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
+            .select_related("team", "user")
+            .afirst()
         )
         if not link or not link.team:
             return
         team = link.team
+        submitted_by_user = link.user
 
         # Import models here to avoid circular imports
         from scoring.models import IncidentReport
@@ -78,7 +81,7 @@ class ScoringCog(commands.Cog):
                 destination_ip="",  # Will be filled in from web interface
                 attack_description=f"{attack_vector}\n\n{description}",
                 attack_detected_at=timezone.now(),  # Default to now
-                submitted_by=None,  # Discord submissions don't have User objects
+                submitted_by=submitted_by_user,
             )
 
             # Create success embed
