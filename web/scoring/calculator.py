@@ -4,11 +4,13 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum
+from registration.models import Event, EventTeamAssignment
 
 from team.models import Team
 
 from .models import (
     BlackTeamAdjustment,
+    EventScore,
     FinalScore,
     IncidentReport,
     InjectGrade,
@@ -238,3 +240,161 @@ def calculate_suggested_recovery_points(incident: IncidentReport, red_finding: R
     deduction_amount = abs(red_finding.points_per_team)
     suggested_return = deduction_amount * Decimal("0.80")
     return suggested_return
+
+
+def calculate_team_event_score(team: Team, event: Event) -> dict[str, Decimal]:
+    """
+    Calculate score for a single team for a specific event.
+
+    Args:
+        team: Team instance
+        event: Event instance
+
+    Returns:
+        Dictionary with score breakdown
+    """
+    # Get scoring template with weights
+    template = ScoringTemplate.objects.first()
+    if not template:
+        template = ScoringTemplate()
+
+    # 1. Service Points (from Quotient, scoped to event)
+    service_score = ServiceScore.objects.filter(team=team, event=event).first()
+    if service_score:
+        service_points = service_score.service_points
+        sla_penalties = service_score.sla_violations
+    else:
+        service_points = Decimal("0")
+        sla_penalties = Decimal("0")
+
+    # 2. Inject Points (scoped to event)
+    inject_total = InjectGrade.objects.filter(team=team, event=event).aggregate(total=Sum("points_awarded"))[
+        "total"
+    ] or Decimal("0")
+
+    # 3. Orange Team Bonuses (scoped to event)
+    orange_total = OrangeTeamBonus.objects.filter(team=team, event=event).aggregate(total=Sum("points_awarded"))[
+        "total"
+    ] or Decimal("0")
+
+    # 4. Red Team Deductions (scoped to event)
+    red_findings = RedTeamFinding.objects.filter(affected_teams=team, event=event)
+    red_deductions = sum(finding.points_per_team for finding in red_findings)
+    red_deductions = Decimal(str(red_deductions)) * Decimal("-1")
+
+    # 5. Incident Recovery Points (scoped to event)
+    incident_recovery = IncidentReport.objects.filter(
+        team=team,
+        event=event,
+        gold_team_reviewed=True,
+    ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
+
+    # 6. Black Team Adjustments (scoped to event)
+    black_adjustments = BlackTeamAdjustment.objects.filter(team=team, event=event).aggregate(
+        total=Sum("point_adjustment")
+    )["total"] or Decimal("0")
+
+    # Apply multipliers
+    scaled_service = service_points * template.service_multiplier
+    scaled_inject = inject_total * template.inject_multiplier
+    scaled_orange = orange_total * template.orange_multiplier
+    scaled_red = red_deductions * template.red_multiplier
+    scaled_sla = sla_penalties * template.sla_multiplier
+    scaled_recovery = incident_recovery * template.recovery_multiplier
+
+    total_score = scaled_service + scaled_inject + scaled_orange + scaled_red + scaled_sla + scaled_recovery
+
+    return {
+        "service_points": scaled_service,
+        "inject_points": scaled_inject,
+        "orange_points": scaled_orange,
+        "red_deductions": scaled_red,
+        "incident_recovery_points": scaled_recovery,
+        "sla_penalties": scaled_sla,
+        "black_adjustments": black_adjustments,
+        "total_score": total_score,
+    }
+
+
+@transaction.atomic
+def recalculate_event_scores(event: Event) -> None:
+    """
+    Recalculate scores for all teams participating in an event.
+
+    Only teams with an EventTeamAssignment for this event are included.
+    """
+    assignments = EventTeamAssignment.objects.filter(event=event).select_related("team", "registration")
+
+    score_data = []
+    for assignment in assignments:
+        team = assignment.team
+        scores = calculate_team_event_score(team, event)
+        score_data.append((assignment, team, scores))
+
+    # Separate teams with activity from those without
+    active_teams = [(a, t, s) for a, t, s in score_data if _has_scoring_activity(s)]
+    inactive_teams = [(a, t, s) for a, t, s in score_data if not _has_scoring_activity(s)]
+
+    # Sort by total_score descending
+    active_teams.sort(key=lambda x: x[2]["total_score"], reverse=True)
+
+    # Update or create EventScore records with ranks
+    for rank, (assignment, team, scores) in enumerate(active_teams, start=1):
+        EventScore.objects.update_or_create(
+            team=team,
+            event=event,
+            defaults={
+                "team_assignment": assignment,
+                "service_points": scores["service_points"],
+                "inject_points": scores["inject_points"],
+                "orange_points": scores["orange_points"],
+                "red_deductions": scores["red_deductions"],
+                "incident_recovery_points": scores["incident_recovery_points"],
+                "sla_penalties": scores["sla_penalties"],
+                "black_adjustments": scores["black_adjustments"],
+                "total_score": scores["total_score"],
+                "rank": rank,
+            },
+        )
+
+    # Update inactive teams with rank=None
+    for assignment, team, scores in inactive_teams:
+        EventScore.objects.update_or_create(
+            team=team,
+            event=event,
+            defaults={
+                "team_assignment": assignment,
+                "service_points": scores["service_points"],
+                "inject_points": scores["inject_points"],
+                "orange_points": scores["orange_points"],
+                "red_deductions": scores["red_deductions"],
+                "incident_recovery_points": scores["incident_recovery_points"],
+                "sla_penalties": scores["sla_penalties"],
+                "black_adjustments": scores["black_adjustments"],
+                "total_score": scores["total_score"],
+                "rank": None,
+            },
+        )
+
+
+def get_event_leaderboard(event: Event) -> list[EventScore]:
+    """
+    Get the leaderboard for a specific event.
+
+    Returns:
+        List of EventScore objects ordered by rank, excluding teams with no scoring activity
+    """
+    return list(
+        EventScore.objects.filter(event=event)
+        .exclude(
+            service_points=0,
+            inject_points=0,
+            orange_points=0,
+            red_deductions=0,
+            incident_recovery_points=0,
+            sla_penalties=0,
+            black_adjustments=0,
+        )
+        .select_related("team", "team_assignment", "team_assignment__registration")
+        .order_by("rank")
+    )

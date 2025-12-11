@@ -18,9 +18,15 @@
     <c-module>
         <form method="post">
             {% csrf_token %}
-            <c-fieldset heading="Registration Details" aligned="true">
+            <c-fieldset heading="School Information" aligned="true">
                 <c-form_field label="{{ form.school_name.label }}" required="true" id="{{ form.school_name.id_for_label }}" help_text="{{ form.school_name.help_text }}" error="{% for e in form.school_name.errors %}{{ e }}{% endfor %}">
                     {{ form.school_name }}
+                </c-form_field>
+            </c-fieldset>
+
+            <c-fieldset heading="Team Captain Contact" aligned="true">
+                <c-form_field label="{{ form.contact_name.label }}" required="true" id="{{ form.contact_name.id_for_label }}" help_text="{{ form.contact_name.help_text }}" error="{% for e in form.contact_name.errors %}{{ e }}{% endfor %}">
+                    {{ form.contact_name }}
                 </c-form_field>
 
                 <c-form_field label="{{ form.contact_email.label }}" required="true" id="{{ form.contact_email.id_for_label }}" help_text="{{ form.contact_email.help_text }}" error="{% for e in form.contact_email.errors %}{{ e }}{% endfor %}">

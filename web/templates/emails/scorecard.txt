@@ -1,0 +1,25 @@
+Your score card for {{ event_name }} is ready!
+
+Event: {{ event_name }}
+Date: {{ event_date|date:"F d, Y" }}
+School: {{ school_name }}
+Team Number: {{ team_number }}
+
+Score Summary:
+- Service Points: {{ service_points }}
+- Inject Points: {{ inject_points }}
+- Orange Team Bonuses: {{ orange_points }}
+- Red Team Deductions: {{ red_deductions }}
+- Incident Recovery: {{ incident_recovery_points }}
+- SLA Penalties: {{ sla_penalties }}
+- Black Team Adjustments: {{ black_adjustments }}
+
+Total Score: {{ total_score }}
+Rank: {{ rank }} of {{ total_teams }}
+
+{% if scorecard_attached %}A detailed score card PDF is attached to this email.{% endif %}
+
+Thank you for participating in {{ event_name }}!
+
+---
+WCComps Competition

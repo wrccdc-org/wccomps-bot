@@ -1,14 +1,24 @@
 """Views for team registration."""
 
+import random
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.auth_utils import require_permission
+from team.models import Team
 
-from .forms import RegistrationForm
-from .models import TeamRegistration
+from .forms import EventForm, RegistrationForm, SeasonForm
+from .models import (
+    Event,
+    EventTeamAssignment,
+    RegistrationEventEnrollment,
+    Season,
+    TeamRegistration,
+)
 
 
 def register(request: HttpRequest) -> HttpResponse:
@@ -25,13 +35,43 @@ def register(request: HttpRequest) -> HttpResponse:
     return render(request, "registration/register.html", {"form": form})
 
 
+def registration_edit(request: HttpRequest, token: str) -> HttpResponse:
+    """Token-based self-service editing of registration."""
+    registration = get_object_or_404(TeamRegistration, edit_token=token)
+
+    # Check if editing is allowed (not after credentials sent)
+    if registration.status == "credentials_sent":
+        messages.error(request, "This registration can no longer be edited.")
+        return render(request, "registration/edit_locked.html", {"registration": registration})
+
+    if request.method == "POST":
+        form = RegistrationForm(request.POST, instance=registration)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Registration updated successfully!")
+            return redirect("registration_edit", token=token)
+    else:
+        # Pre-populate form with existing data
+        captain = registration.contacts.filter(role="captain").first()
+        initial = {}
+        if captain:
+            initial = {
+                "contact_name": captain.name,
+                "contact_email": captain.email,
+                "phone": captain.phone,
+            }
+        form = RegistrationForm(instance=registration, initial=initial)
+
+    return render(request, "registration/edit.html", {"form": form, "registration": registration})
+
+
 @login_required
 @require_permission("gold_team")
 def review_list(request: HttpRequest) -> HttpResponse:
     """Admin review list of all registrations (Gold Team and Admin only)."""
     status_filter = request.GET.get("status", "")
 
-    registrations = TeamRegistration.objects.all()
+    registrations = TeamRegistration.objects.prefetch_related("contacts", "event_enrollments__event").all()
     if status_filter:
         registrations = registrations.filter(status=status_filter)
 
@@ -41,7 +81,6 @@ def review_list(request: HttpRequest) -> HttpResponse:
         "status_choices": TeamRegistration.STATUS_CHOICES,
     }
 
-    # Return partial for htmx requests
     if request.headers.get("HX-Request"):
         return render(request, "cotton/registration_review_table.html", context)
 
@@ -84,3 +123,259 @@ def reject_registration(request: HttpRequest, registration_id: int) -> HttpRespo
         return redirect("registration_review_list")
 
     return render(request, "registration/reject_confirm.html", {"registration": registration})
+
+
+@login_required
+@require_permission("gold_team")
+def mark_paid(request: HttpRequest, registration_id: int) -> HttpResponse:
+    """Mark a registration as paid (Gold Team only)."""
+    if request.method != "POST":
+        return redirect("registration_review_list")
+
+    registration = get_object_or_404(TeamRegistration, id=registration_id)
+    registration.mark_as_paid()
+    messages.success(request, f"Registration for {registration.school_name} marked as paid.")
+
+    return redirect("registration_review_list")
+
+
+# Season views
+
+
+@login_required
+@require_permission("gold_team")
+def season_list(request: HttpRequest) -> HttpResponse:
+    """List all seasons (Gold Team only)."""
+    seasons = Season.objects.prefetch_related("events").all()
+    return render(request, "registration/seasons/list.html", {"seasons": seasons})
+
+
+@login_required
+@require_permission("gold_team")
+def season_create(request: HttpRequest) -> HttpResponse:
+    """Create a new season (Gold Team only)."""
+    if request.method == "POST":
+        form = SeasonForm(request.POST)
+        if form.is_valid():
+            season = form.save()
+            messages.success(request, f"Season '{season.name}' created successfully.")
+            return redirect("registration_season_list")
+    else:
+        form = SeasonForm()
+
+    return render(request, "registration/seasons/form.html", {"form": form, "title": "Create Season"})
+
+
+@login_required
+@require_permission("gold_team")
+def season_edit(request: HttpRequest, season_id: int) -> HttpResponse:
+    """Edit a season (Gold Team only)."""
+    season = get_object_or_404(Season, id=season_id)
+
+    if request.method == "POST":
+        form = SeasonForm(request.POST, instance=season)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Season '{season.name}' updated successfully.")
+            return redirect("registration_season_list")
+    else:
+        form = SeasonForm(instance=season)
+
+    return render(request, "registration/seasons/form.html", {"form": form, "title": "Edit Season", "season": season})
+
+
+@login_required
+@require_permission("gold_team")
+def season_delete(request: HttpRequest, season_id: int) -> HttpResponse:
+    """Delete a season (Gold Team only)."""
+    season = get_object_or_404(Season, id=season_id)
+
+    if request.method == "POST":
+        name = season.name
+        season.delete()
+        messages.success(request, f"Season '{name}' deleted.")
+        return redirect("registration_season_list")
+
+    return render(request, "registration/seasons/delete_confirm.html", {"season": season})
+
+
+# Event views
+
+
+@login_required
+@require_permission("gold_team")
+def event_list(request: HttpRequest, season_id: int) -> HttpResponse:
+    """List events for a season (Gold Team only)."""
+    season = get_object_or_404(Season, id=season_id)
+    events = season.events.annotate_enrollment_count()
+
+    return render(request, "registration/events/list.html", {"season": season, "events": events})
+
+
+@login_required
+@require_permission("gold_team")
+def event_create(request: HttpRequest, season_id: int) -> HttpResponse:
+    """Create a new event (Gold Team only)."""
+    season = get_object_or_404(Season, id=season_id)
+
+    if request.method == "POST":
+        form = EventForm(request.POST)
+        if form.is_valid():
+            event = form.save(commit=False)
+            event.season = season
+            event.save()
+            messages.success(request, f"Event '{event.name}' created successfully.")
+            return redirect("registration_event_list", season_id=season.id)
+    else:
+        form = EventForm()
+
+    return render(request, "registration/events/form.html", {"form": form, "season": season, "title": "Create Event"})
+
+
+@login_required
+@require_permission("gold_team")
+def event_edit(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Edit an event (Gold Team only)."""
+    event = get_object_or_404(Event, id=event_id)
+
+    if request.method == "POST":
+        form = EventForm(request.POST, instance=event)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Event '{event.name}' updated successfully.")
+            return redirect("registration_event_list", season_id=event.season_id)
+    else:
+        form = EventForm(instance=event)
+
+    return render(
+        request,
+        "registration/events/form.html",
+        {"form": form, "season": event.season, "event": event, "title": "Edit Event"},
+    )
+
+
+@login_required
+@require_permission("gold_team")
+def event_delete(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Delete an event (Gold Team only)."""
+    event = get_object_or_404(Event, id=event_id)
+    season_id = event.season_id
+
+    if request.method == "POST":
+        name = event.name
+        event.delete()
+        messages.success(request, f"Event '{name}' deleted.")
+        return redirect("registration_event_list", season_id=season_id)
+
+    return render(request, "registration/events/delete_confirm.html", {"event": event})
+
+
+@login_required
+@require_permission("gold_team")
+def event_detail(request: HttpRequest, event_id: int) -> HttpResponse:
+    """View event details with enrolled registrations and team assignments (Gold Team only)."""
+    event = get_object_or_404(Event, id=event_id)
+    enrollments = (
+        RegistrationEventEnrollment.objects.filter(event=event)
+        .select_related("registration")
+        .prefetch_related("registration__contacts")
+    )
+    assignments = EventTeamAssignment.objects.filter(event=event).select_related("registration", "team")
+
+    # Build lookup of registration_id -> assignment
+    assignment_map = {a.registration_id: a for a in assignments}
+
+    # Enrich enrollments with assignment info
+    enrollment_data = []
+    for enrollment in enrollments:
+        assignment = assignment_map.get(enrollment.registration_id)
+        enrollment_data.append(
+            {
+                "enrollment": enrollment,
+                "registration": enrollment.registration,
+                "assignment": assignment,
+                "can_assign": enrollment.registration.status == "paid" and not assignment,
+            }
+        )
+
+    context = {
+        "event": event,
+        "enrollment_data": enrollment_data,
+        "total_enrolled": enrollments.count(),
+        "total_assigned": assignments.count(),
+        "assignable_count": sum(1 for e in enrollment_data if e["can_assign"]),
+    }
+
+    return render(request, "registration/events/detail.html", context)
+
+
+@login_required
+@require_permission("gold_team")
+def assign_teams(request: HttpRequest, event_id: int) -> HttpResponse:
+    """Randomly assign team numbers to all eligible registrations for an event (Gold Team only)."""
+    if request.method != "POST":
+        return redirect("registration_event_detail", event_id=event_id)
+
+    event = get_object_or_404(Event, id=event_id)
+
+    # Get paid registrations enrolled in this event that don't have assignments yet
+    enrolled_registrations = (
+        RegistrationEventEnrollment.objects.filter(
+            event=event,
+            registration__status="paid",
+        )
+        .exclude(registration__team_assignments__event=event)
+        .select_related("registration")
+    )
+
+    if not enrolled_registrations.exists():
+        messages.warning(request, "No eligible registrations to assign.")
+        return redirect("registration_event_detail", event_id=event_id)
+
+    # Get available teams (not already assigned to this event)
+    assigned_team_ids = EventTeamAssignment.objects.filter(event=event).values_list("team_id", flat=True)
+    available_teams = list(Team.objects.exclude(id__in=assigned_team_ids).order_by("team_number"))
+
+    registrations_to_assign = [e.registration for e in enrolled_registrations]
+
+    if len(registrations_to_assign) > len(available_teams):
+        messages.error(
+            request,
+            f"Not enough teams available. Need {len(registrations_to_assign)}, have {len(available_teams)}.",
+        )
+        return redirect("registration_event_detail", event_id=event_id)
+
+    # Randomly shuffle and assign
+    random.shuffle(available_teams)
+
+    with transaction.atomic():
+        for i, registration in enumerate(registrations_to_assign):
+            EventTeamAssignment.objects.create(
+                event=event,
+                registration=registration,
+                team=available_teams[i],
+            )
+
+    messages.success(request, f"Assigned {len(registrations_to_assign)} teams successfully.")
+    return redirect("registration_event_detail", event_id=event_id)
+
+
+@login_required
+@require_permission("gold_team")
+def unassign_team(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    """Remove a team assignment (Gold Team only)."""
+    if request.method != "POST":
+        return redirect("registration_season_list")
+
+    assignment = get_object_or_404(EventTeamAssignment, id=assignment_id)
+    event_id = assignment.event_id
+
+    if assignment.credentials_sent_at:
+        messages.error(request, "Cannot unassign a team after credentials have been sent.")
+        return redirect("registration_event_detail", event_id=event_id)
+
+    school_name = assignment.registration.school_name
+    assignment.delete()
+    messages.success(request, f"Team assignment for {school_name} removed.")
+
+    return redirect("registration_event_detail", event_id=event_id)
