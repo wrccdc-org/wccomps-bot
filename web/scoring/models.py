@@ -118,6 +118,53 @@ class QuotientMetadataCache(models.Model):
         return "Quotient Metadata Cache"
 
 
+class RedTeamIPPool(models.Model):
+    """Reusable pool of source IP addresses for red team members."""
+
+    name = models.CharField(max_length=100)
+    ip_addresses = models.TextField(
+        help_text="Newline or comma-separated IP addresses used for rotating attacks"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="ip_pools",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "red_team_ip_pool"
+        verbose_name = "Red Team IP Pool"
+        verbose_name_plural = "Red Team IP Pools"
+        unique_together = [["name", "created_by"]]
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.ip_count} IPs)"
+
+    @property
+    def ip_count(self) -> int:
+        """Return count of valid IPs in the pool."""
+        return len(self.get_ip_list())
+
+    def get_ip_list(self) -> list[str]:
+        """Parse and return list of IP addresses."""
+        if not self.ip_addresses:
+            return []
+        # Split by newlines and commas, strip whitespace, filter empty
+        ips = []
+        for line in self.ip_addresses.replace(",", "\n").split("\n"):
+            ip = line.strip()
+            if ip:
+                ips.append(ip)
+        return ips
+
+    def contains_ip(self, ip: str) -> bool:
+        """Check if the given IP exists in this pool."""
+        return ip.strip() in self.get_ip_list()
+
+
 class RedTeamFinding(models.Model):
     """Red team vulnerability finding affecting one or more teams."""
 
@@ -137,7 +184,19 @@ class RedTeamFinding(models.Model):
 
     # Attack details
     attack_vector = models.TextField(help_text="Description of the attack/exploit")
-    source_ip = models.GenericIPAddressField(help_text="Red team source IP")
+    source_ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="Red team source IP (use this OR source_ip_pool)",
+    )
+    source_ip_pool = models.ForeignKey(
+        RedTeamIPPool,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="findings",
+        help_text="Pool of rotating source IPs (use this OR source_ip)",
+    )
     destination_ip_template = models.CharField(
         max_length=50,
         blank=True,
@@ -204,6 +263,23 @@ class RedTeamFinding(models.Model):
 
     def __str__(self) -> str:
         return f"RF-{self.pk}: {self.attack_vector[:50]}"
+
+    @property
+    def source_ip_display(self) -> str:
+        """Return display string for source IP (single IP or pool name)."""
+        if self.source_ip:
+            return str(self.source_ip)
+        if self.source_ip_pool:
+            return f"Pool: {self.source_ip_pool.name} ({self.source_ip_pool.ip_count} IPs)"
+        return "No source IP"
+
+    def matches_source_ip(self, ip: str) -> bool:
+        """Check if the given IP matches this finding's source (single or pool)."""
+        if self.source_ip and self.source_ip == ip:
+            return True
+        if self.source_ip_pool and self.source_ip_pool.contains_ip(ip):
+            return True
+        return False
 
 
 class RedTeamScreenshot(models.Model):

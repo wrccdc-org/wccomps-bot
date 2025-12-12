@@ -193,7 +193,7 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
     Suggest potential red team findings that match an incident report.
 
     Matching criteria (prioritized):
-    1. Source IP match (most reliable - same attacker IP)
+    1. Source IP match (most reliable - same attacker IP, including IP pools)
     2. Team is in affected_teams
     3. Same box and/or service
 
@@ -203,6 +203,8 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
     Returns:
         QuerySet of potential RedTeamFinding matches, ordered by relevance
     """
+    from .models import RedTeamIPPool
+
     # Primary match: source_ip (most reliable indicator)
     # Secondary match: team + box/service
     query = Q(affected_teams=incident.team)
@@ -210,7 +212,16 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
     # Build optional filters
     filters = Q()
     if incident.source_ip:
+        # Match exact source_ip
         filters |= Q(source_ip=incident.source_ip)
+        # Also match any IP pools that contain this IP
+        # Find pools containing this IP
+        pool_ids = []
+        for pool in RedTeamIPPool.objects.all():
+            if pool.contains_ip(str(incident.source_ip)):
+                pool_ids.append(pool.id)
+        if pool_ids:
+            filters |= Q(source_ip_pool_id__in=pool_ids)
     if incident.affected_box:
         filters |= Q(affected_box=incident.affected_box)
     if incident.affected_service:

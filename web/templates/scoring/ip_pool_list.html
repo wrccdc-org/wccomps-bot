@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}IP Pools{% endblock %}
+
+{% block content %}
+{% load cotton %}
+<div class="max-w-800">
+    <c-page_header title="IP Pools" subtitle="Manage your rotating source IP pools" />
+    <c-module>
+        <div class="d-flex justify-between items-center mb-20">
+            <div>
+                {% if pools %}
+                <span class="text-muted">{{ pools|length }} pool(s)</span>
+                {% endif %}
+            </div>
+            <c-button href="{% url 'scoring:ip_pool_create' %}" variant="primary">Create Pool</c-button>
+        </div>
+
+        {% if pools %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Pool Name</th>
+                    <th>IP Count</th>
+                    <th>Findings</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pool in pools %}
+                <tr>
+                    <td>
+                        <strong>{{ pool.name }}</strong>
+                    </td>
+                    <td>{{ pool.ip_count }}</td>
+                    <td>{{ pool.findings.count }}</td>
+                    <td>{{ pool.created_at|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="d-flex gap-5">
+                            <a href="{% url 'scoring:ip_pool_edit' pool.id %}" class="btn btn-sm">Edit</a>
+                            {% if not pool.findings.exists %}
+                            <form method="post" action="{% url 'scoring:ip_pool_delete' pool.id %}" onsubmit="return confirm('Delete pool \'{{ pool.name }}\'?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted text-sm">(in use)</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <c-alert variant="info">
+            No IP pools created yet. Create a pool to use rotating source IPs in your findings.
+        </c-alert>
+        {% endif %}
+
+        <c-button_row class="justify-start mt-20">
+            <c-link href="{% url 'scoring:red_team_portal' %}">Back to Red Team Portal</c-link>
+        </c-button_row>
+    </c-module>
+</div>
+{% endblock %}

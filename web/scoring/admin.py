@@ -13,6 +13,7 @@ from .models import (
     OrangeTeamBonus,
     QuotientMetadataCache,
     RedTeamFinding,
+    RedTeamIPPool,
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceScore,
@@ -51,6 +52,7 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
                 "fields": [
                     "attack_vector",
                     "source_ip",
+                    "source_ip_pool",
                     "destination_ip_template",
                     "affected_box",
                     "affected_service",
@@ -304,3 +306,19 @@ class QuotientMetadataCacheAdmin(admin.ModelAdmin[QuotientMetadataCache]):
     list_display = ["event_name", "team_count", "last_synced", "synced_by"]
     readonly_fields = ["last_synced"]
     search_fields = ["event_name"]
+
+
+@admin.register(RedTeamIPPool)
+class RedTeamIPPoolAdmin(admin.ModelAdmin[RedTeamIPPool]):
+    list_display = ["name", "ip_count", "findings_count", "created_by", "created_at"]
+    search_fields = ["name", "created_by__username"]
+    readonly_fields = ["created_at", "updated_at"]
+    list_filter = ["created_by", "created_at"]
+
+    @admin.display(description="IPs")
+    def ip_count(self, obj: RedTeamIPPool) -> int:
+        return obj.ip_count
+
+    @admin.display(description="Findings")
+    def findings_count(self, obj: RedTeamIPPool) -> int:
+        return obj.findings.count()

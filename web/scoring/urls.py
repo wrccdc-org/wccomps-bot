@@ -19,6 +19,12 @@ urlpatterns = [
     path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
     path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),
     path("red-team/screenshot/<int:screenshot_id>/", views.red_screenshot_download, name="red_screenshot"),
+    # IP Pools (Red Team)
+    path("red-team/ip-pools/", views.ip_pool_list, name="ip_pool_list"),
+    path("red-team/ip-pools/create/", views.ip_pool_create, name="ip_pool_create"),
+    path("red-team/ip-pools/<int:pool_id>/edit/", views.ip_pool_edit, name="ip_pool_edit"),
+    path("red-team/ip-pools/<int:pool_id>/delete/", views.ip_pool_delete, name="ip_pool_delete"),
+    path("api/ip-pools/", views.api_user_ip_pools, name="api_user_ip_pools"),
     # Incident Reports (Blue Team)
     path("incident/list/", views.incident_list, name="incident_list"),
     path("incident/submit/", views.submit_incident_report, name="submit_incident_report"),
