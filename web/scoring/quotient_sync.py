@@ -188,3 +188,16 @@ def get_service_choices(box_name: str | None = None) -> list[tuple[str, str]]:
     else:
         # Return all unique services
         return [(s["name"], s["display_name"] or s["name"]) for s in metadata.services]
+
+
+def get_cached_team_count() -> int:
+    """
+    Get the team count from cached metadata.
+
+    Returns:
+        Team count from last sync, or 50 as default if not synced
+    """
+    metadata = QuotientMetadataCache.objects.first()
+    if metadata and metadata.team_count > 0:
+        return metadata.team_count
+    return 50  # Default to 50 teams if not synced
