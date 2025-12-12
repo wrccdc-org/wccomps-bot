@@ -47,7 +47,7 @@ from .models import (
     RedTeamScreenshot,
     ScoringTemplate,
 )
-from .quotient_sync import sync_quotient_metadata, sync_service_scores
+from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
 P = ParamSpec("P")
 ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
@@ -312,8 +312,8 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding."""
     from quotient.client import QuotientClient
 
-    client = QuotientClient()
-    team_count = client.get_team_count()
+    # Use cached team count from last metadata sync instead of querying Quotient on every page load
+    team_count = get_cached_team_count()
 
     if request.method == "POST":
         form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count)
