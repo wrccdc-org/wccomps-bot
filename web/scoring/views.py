@@ -310,17 +310,20 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding."""
-    from quotient.client import QuotientClient
+    from .models import RedTeamIPPool
 
-    # Use cached team count from last metadata sync instead of querying Quotient on every page load
+    user = cast(User, request.user)
     team_count = get_cached_team_count()
 
+    # Get user's IP pools for the form
+    user_pools = RedTeamIPPool.objects.filter(created_by=user)
+
     if request.method == "POST":
-        form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count)
+        form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count, user=user)
 
         if form.is_valid():
             finding = form.save(commit=False)
-            finding.submitted_by = cast(User, request.user)
+            finding.submitted_by = user
             finding.points_per_team = 0  # Gold team will assign points during review
             finding.save()
 
@@ -353,21 +356,22 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
             messages.success(request, f"Red team finding #{finding.id} submitted successfully")
             return redirect("scoring:red_team_portal")
     else:
-        form = RedTeamFindingForm(team_count=team_count)
+        form = RedTeamFindingForm(team_count=team_count, user=user)
 
-    # Get box metadata for auto-populating IP and services
+    # Get box metadata from cache for auto-populating IP and services
     box_metadata = {}
-    infra = client.get_infrastructure()
-    if infra:
-        for box in infra.boxes:
-            box_metadata[box.name] = {
-                "ip": box.ip,
-                "services": [svc.name for svc in box.services],
+    metadata = QuotientMetadataCache.objects.first()
+    if metadata:
+        for box in metadata.boxes:
+            box_metadata[box["name"]] = {
+                "ip": box["ip"],
+                "services": [svc["name"] for svc in box.get("services", [])],
             }
 
     context = {
         "form": form,
         "box_metadata": box_metadata,
+        "user_pools": user_pools,
     }
     return render(request, "scoring/submit_red_finding.html", context)
 
@@ -395,6 +399,134 @@ def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     finding.delete()
     messages.success(request, f"Red team finding #{finding_num} deleted")
     return redirect("scoring:red_team_portal")
+
+
+# IP Pool Management Views
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+def ip_pool_list(request: HttpRequest) -> HttpResponse:
+    """List user's IP pools."""
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+    pools = RedTeamIPPool.objects.filter(created_by=user)
+
+    context = {
+        "pools": pools,
+    }
+    return render(request, "scoring/ip_pool_list.html", context)
+
+
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@transaction.atomic
+def ip_pool_create(request: HttpRequest) -> HttpResponse:
+    """Create a new IP pool."""
+    from .forms import RedTeamIPPoolForm
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+
+    if request.method == "POST":
+        form = RedTeamIPPoolForm(request.POST, user=user)
+        if form.is_valid():
+            pool = form.save(commit=False)
+            pool.created_by = user
+            pool.save()
+            messages.success(request, f"IP pool '{pool.name}' created with {pool.ip_count} IPs")
+            # If this was an AJAX request (from modal), return JSON
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({
+                    "success": True,
+                    "pool": {
+                        "id": pool.id,
+                        "name": pool.name,
+                        "ip_count": pool.ip_count,
+                    }
+                })
+            return redirect("scoring:ip_pool_list")
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "errors": form.errors}, status=400)
+    else:
+        form = RedTeamIPPoolForm(user=user)
+
+    context = {
+        "form": form,
+        "action": "Create",
+    }
+    return render(request, "scoring/ip_pool_form.html", context)
+
+
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@transaction.atomic
+def ip_pool_edit(request: HttpRequest, pool_id: int) -> HttpResponse:
+    """Edit an IP pool."""
+    from .forms import RedTeamIPPoolForm
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+    pool = get_object_or_404(RedTeamIPPool, id=pool_id, created_by=user)
+
+    if request.method == "POST":
+        form = RedTeamIPPoolForm(request.POST, instance=pool, user=user)
+        if form.is_valid():
+            pool = form.save()
+            messages.success(request, f"IP pool '{pool.name}' updated")
+            return redirect("scoring:ip_pool_list")
+    else:
+        form = RedTeamIPPoolForm(instance=pool, user=user)
+
+    context = {
+        "form": form,
+        "pool": pool,
+        "action": "Edit",
+    }
+    return render(request, "scoring/ip_pool_form.html", context)
+
+
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@transaction.atomic
+@require_http_methods(["POST"])
+def ip_pool_delete(request: HttpRequest, pool_id: int) -> HttpResponse:
+    """Delete an IP pool."""
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+    pool = get_object_or_404(RedTeamIPPool, id=pool_id, created_by=user)
+
+    # Check if pool is in use by any findings
+    if pool.findings.exists():
+        messages.error(request, f"Cannot delete pool '{pool.name}' - it is used by {pool.findings.count()} finding(s)")
+        return redirect("scoring:ip_pool_list")
+
+    pool_name = pool.name
+    pool.delete()
+    messages.success(request, f"IP pool '{pool_name}' deleted")
+    return redirect("scoring:ip_pool_list")
+
+
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can view IP pools")
+def api_user_ip_pools(request: HttpRequest) -> JsonResponse:
+    """API endpoint to get user's IP pools for dropdown."""
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+    pools = RedTeamIPPool.objects.filter(created_by=user)
+
+    return JsonResponse({
+        "pools": [
+            {
+                "id": pool.id,
+                "name": pool.name,
+                "ip_count": pool.ip_count,
+            }
+            for pool in pools
+        ]
+    })
 
 
 @login_required

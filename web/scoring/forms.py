@@ -1,8 +1,10 @@
 """Forms for scoring system."""
 
+import ipaddress
 from typing import cast
 
 from django import forms
+from django.contrib.auth.models import User
 from django.db.models import QuerySet
 
 from team.models import Team
@@ -12,19 +14,107 @@ from .models import (
     OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
+    RedTeamIPPool,
     ScoringTemplate,
 )
 from .quotient_sync import get_box_choices, get_service_choices
 
 
+class RedTeamIPPoolForm(forms.ModelForm[RedTeamIPPool]):
+    """Form for managing IP pools."""
+
+    class Meta:
+        model = RedTeamIPPool
+        fields = ["name", "ip_addresses"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "placeholder": "e.g., Rotation Pool A",
+                    "class": "form-control",
+                }
+            ),
+            "ip_addresses": forms.Textarea(
+                attrs={
+                    "rows": 10,
+                    "placeholder": "Enter IP addresses, one per line or comma-separated:\n10.0.0.1\n10.0.0.2\n10.0.0.3",
+                    "class": "form-control",
+                }
+            ),
+        }
+        labels = {
+            "name": "Pool Name",
+            "ip_addresses": "IP Addresses",
+        }
+        help_texts = {
+            "name": "A memorable name for this pool of IPs",
+            "ip_addresses": "Enter one IP per line or comma-separated. Invalid IPs will be rejected.",
+        }
+
+    def __init__(self, *args: object, user: User | None = None, **kwargs: object) -> None:
+        self.user = user
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+
+    def clean_name(self) -> str:
+        """Validate pool name is unique for this user."""
+        name: str = self.cleaned_data["name"]
+        if self.user:
+            existing = RedTeamIPPool.objects.filter(name__iexact=name, created_by=self.user)
+            if self.instance and self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError("You already have a pool with this name")
+        return name
+
+    def clean_ip_addresses(self) -> str:
+        """Validate and normalize IP addresses."""
+        raw = self.cleaned_data["ip_addresses"]
+        if not raw:
+            raise forms.ValidationError("At least one IP address is required")
+
+        # Parse IPs (split by newline and comma)
+        valid_ips = []
+        invalid_ips = []
+        for line in raw.replace(",", "\n").split("\n"):
+            ip = line.strip()
+            if not ip:
+                continue
+            try:
+                # Validate IP address format
+                ipaddress.ip_address(ip)
+                valid_ips.append(ip)
+            except ValueError:
+                invalid_ips.append(ip)
+
+        if invalid_ips:
+            raise forms.ValidationError(f"Invalid IP addresses: {', '.join(invalid_ips[:5])}")
+
+        if not valid_ips:
+            raise forms.ValidationError("At least one valid IP address is required")
+
+        # Return normalized format (one per line)
+        return "\n".join(valid_ips)
+
+
 class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
     """Form for red team to submit vulnerability findings."""
+
+    # Radio button to choose between single IP or pool
+    source_ip_type = forms.ChoiceField(
+        choices=[
+            ("single", "Single IP"),
+            ("pool", "IP Pool"),
+        ],
+        initial="single",
+        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+        label="Source IP Type",
+    )
 
     class Meta:
         model = RedTeamFinding
         fields = [
             "attack_vector",
             "source_ip",
+            "source_ip_pool",
             "affected_box",
             "affected_service",
             "destination_ip_template",
@@ -51,10 +141,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             ),
             "destination_ip_template": forms.TextInput(attrs={"readonly": "readonly", "class": "form-control"}),
             "source_ip": forms.TextInput(attrs={"placeholder": "e.g., 10.0.0.5", "class": "form-control"}),
+            "source_ip_pool": forms.Select(attrs={"class": "form-select"}),
         }
         labels = {
             "attack_vector": "Attack Type",
             "source_ip": "Red Team Source IP",
+            "source_ip_pool": "IP Pool",
             "affected_box": "Affected Box",
             "affected_service": "Affected Service",
             "destination_ip_template": "Target IP Template (auto-populated)",
@@ -66,14 +158,30 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         help_texts = {
             "attack_vector": "Short name for this attack (1-2 words). Start typing to see suggestions.",
             "source_ip": "The IP address you attacked from.",
+            "source_ip_pool": "Select a pool of rotating IPs.",
             "universally_attempted": "Check if this attack was attempted against all teams.",
             "persistence_established": "Check if you established persistent access.",
             "affected_teams": "Select all teams that were successfully compromised.",
             "notes": "Full description of the attack and steps taken.",
         }
 
-    def __init__(self, *args: object, team_count: int | None = None, **kwargs: object) -> None:
+    def __init__(
+        self, *args: object, team_count: int | None = None, user: User | None = None, **kwargs: object
+    ) -> None:
+        self.user = user
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+
+        # Make source_ip and source_ip_pool not required at form level (validated in clean)
+        self.fields["source_ip"].required = False
+        self.fields["source_ip_pool"].required = False
+
+        # Populate IP pool dropdown with user's pools only
+        pool_field = cast("forms.ModelChoiceField[RedTeamIPPool]", self.fields["source_ip_pool"])
+        if user:
+            pool_field.queryset = RedTeamIPPool.objects.filter(created_by=user)
+        else:
+            pool_field.queryset = RedTeamIPPool.objects.none()
+        pool_field.empty_label = "Select a pool..."
 
         # Populate dropdowns from Quotient metadata
         box_choices = get_box_choices()
@@ -108,6 +216,26 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         if team_count is not None:
             queryset = queryset.filter(team_number__lte=team_count)
         affected_teams_field.queryset = queryset
+
+    def clean(self) -> dict[str, object]:
+        """Validate that either source_ip or source_ip_pool is provided."""
+        cleaned_data = super().clean() or {}
+        source_ip_type = cleaned_data.get("source_ip_type")
+        source_ip = cleaned_data.get("source_ip")
+        source_ip_pool = cleaned_data.get("source_ip_pool")
+
+        if source_ip_type == "single":
+            if not source_ip:
+                self.add_error("source_ip", "Source IP is required when using single IP mode")
+            # Clear pool if single IP selected
+            cleaned_data["source_ip_pool"] = None
+        elif source_ip_type == "pool":
+            if not source_ip_pool:
+                self.add_error("source_ip_pool", "Please select an IP pool")
+            # Clear single IP if pool selected
+            cleaned_data["source_ip"] = None
+
+        return cleaned_data
 
 
 class IncidentReportForm(forms.ModelForm[IncidentReport]):
