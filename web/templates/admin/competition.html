@@ -30,18 +30,18 @@
         <c-module>
             <c-slot name="title">Quick Actions</c-slot>
             <c-button_row class="flex-column">
-                <c-button variant="success" class="w-full" @click="startCompetition()" :disabled="loading">
+                <c-button variant="success" class="w-full" @click="startCompetition()" ::disabled="loading">
                     Start Competition
                 </c-button>
-                <c-button variant="danger" class="w-full" @click="endCompetition()" :disabled="loading">
+                <c-button variant="danger" class="w-full" @click="endCompetition()" ::disabled="loading">
                     End Competition
                 </c-button>
             </c-button_row>
             <c-button_row class="mt-15">
-                <c-button variant="default" @click="toggleBlueteams(true)" :disabled="loading">
+                <c-button variant="default" @click="toggleBlueteams(true)" ::disabled="loading">
                     Enable Accounts
                 </c-button>
-                <c-button variant="default" @click="toggleBlueteams(false)" :disabled="loading">
+                <c-button variant="default" @click="toggleBlueteams(false)" ::disabled="loading">
                     Disable Accounts
                 </c-button>
             </c-button_row>
@@ -56,7 +56,7 @@
                     <input type="number" name="max_members" id="max_members" x-model="maxMembers" min="1" max="20">
                 </c-form_field>
                 <c-button_row class="mt-15">
-                    <c-button type="submit" variant="default" :disabled="loading">Update Max Members</c-button>
+                    <c-button type="submit" variant="default" ::disabled="loading">Update Max Members</c-button>
                 </c-button_row>
             </form>
 
@@ -66,7 +66,7 @@
                     <input type="text" name="app_slugs" id="app_slugs" x-model="appSlugs" placeholder="netbird,scoring">
                 </c-form_field>
                 <c-button_row class="mt-15">
-                    <c-button type="submit" variant="default" :disabled="loading">Update Apps</c-button>
+                    <c-button type="submit" variant="default" ::disabled="loading">Update Apps</c-button>
                 </c-button_row>
             </form>
         </c-module>
@@ -85,7 +85,7 @@
                     </select>
                 </c-form_field>
                 <c-button_row class="mt-15">
-                    <c-button type="submit" variant="default" :disabled="loading">Set Start Time</c-button>
+                    <c-button type="submit" variant="default" ::disabled="loading">Set Start Time</c-button>
                 </c-button_row>
             </form>
 
@@ -102,7 +102,7 @@
                     </select>
                 </c-form_field>
                 <c-button_row class="mt-15">
-                    <c-button type="submit" variant="default" :disabled="loading">Set End Time</c-button>
+                    <c-button type="submit" variant="default" ::disabled="loading">Set End Time</c-button>
                 </c-button_row>
             </form>
         </c-module>
@@ -115,7 +115,7 @@
                 <input type="text" name="team_numbers" id="team_numbers" x-model="teamNumbers" placeholder="1,3,5-10,15">
             </c-form_field>
             <c-button_row class="mt-15">
-                <c-button type="submit" variant="danger" :disabled="loading">Reset Passwords</c-button>
+                <c-button type="submit" variant="danger" ::disabled="loading">Reset Passwords</c-button>
             </c-button_row>
         </form>
 

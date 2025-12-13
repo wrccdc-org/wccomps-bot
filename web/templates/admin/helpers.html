@@ -16,7 +16,7 @@
             <c-filter_field label="Role Name" id="role_name">
                 <input type="text" name="role_name" x-model="newRoleName" class="vTextField" placeholder="Student Helper">
             </c-filter_field>
-            <c-button type="submit" variant="success" :disabled="loading">Add Helper</c-button>
+            <c-button type="submit" variant="success" ::disabled="loading">Add Helper</c-button>
         </form>
         <p class="help-text mt-10">User must be linked and have WCComps_Ticketing_Support or WCComps_Quotient_Injects group in Authentik.</p>
     </c-module>
