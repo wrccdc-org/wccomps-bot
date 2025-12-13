@@ -164,4 +164,5 @@ urlpatterns = [
     path("ops/admin/broadcast/action/", admin_views.admin_broadcast_action, name="admin_broadcast_action"),
     path("ops/admin/sync-roles/", admin_views.admin_sync_roles, name="admin_sync_roles"),
     path("ops/admin/sync-roles/action/", admin_views.admin_sync_roles_action, name="admin_sync_roles_action"),
+    path("ops/admin/task/<int:task_id>/status/", admin_views.admin_task_status, name="admin_task_status"),
 ]

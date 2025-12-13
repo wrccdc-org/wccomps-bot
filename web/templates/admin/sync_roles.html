@@ -47,6 +47,7 @@ function syncRolesAdmin() {
         loading: false,
         message: '',
         messageType: 'success',
+        taskId: null,
 
         async requestSync() {
             if (!confirm('Start role synchronization? This may take a moment.')) {
@@ -54,7 +55,8 @@ function syncRolesAdmin() {
             }
 
             this.loading = true;
-            this.message = '';
+            this.message = 'Starting sync...';
+            this.messageType = 'success';
 
             try {
                 const response = await fetch('{% url "admin_sync_roles_action" %}', {
@@ -66,20 +68,47 @@ function syncRolesAdmin() {
 
                 const result = await response.json();
 
-                if (result.success) {
+                if (result.success && result.task_id) {
+                    this.taskId = result.task_id;
                     this.message = result.message;
-                    this.messageType = 'success';
+                    this.pollTaskStatus();
                 } else {
-                    this.message = result.error || 'Sync failed';
+                    this.message = result.error || 'Failed to start sync';
                     this.messageType = 'error';
+                    this.loading = false;
                 }
             } catch (e) {
                 this.message = 'Request failed: ' + e.message;
                 this.messageType = 'error';
+                this.loading = false;
             }
+        },
 
-            this.loading = false;
-            setTimeout(() => this.message = '', 8000);
+        async pollTaskStatus() {
+            if (!this.taskId) return;
+
+            try {
+                const response = await fetch(`/ops/admin/task/${this.taskId}/status/`);
+                const result = await response.json();
+
+                this.message = result.message;
+
+                if (result.status === 'completed') {
+                    this.messageType = 'success';
+                    this.loading = false;
+                    setTimeout(() => this.message = '', 8000);
+                } else if (result.status === 'failed') {
+                    this.messageType = 'error';
+                    this.loading = false;
+                    setTimeout(() => this.message = '', 8000);
+                } else {
+                    setTimeout(() => this.pollTaskStatus(), 1000);
+                }
+            } catch (e) {
+                this.message = 'Failed to check status';
+                this.messageType = 'error';
+                this.loading = false;
+            }
         }
     };
 }
