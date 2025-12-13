@@ -1,19 +1,16 @@
-{% extends "scoring/base.html" %}
+{% extends "scoring/red_base.html" %}
 {% load cotton %}
 
-{% block title %}Review Red Team Findings - WCComps{% endblock %}
+{% block title %}All Findings - Red Team{% endblock %}
 
-{% block scoring_title %}Review Red Team Findings{% endblock %}
-
-{% block scoring_content %}
-<div id="content-main">
-<c-page_header title="Review Red Team Findings" />
+{% block red_content %}
+<c-page_header title="All Findings" />
     <c-module filtered="true" id="changelist">
         <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
             <form
                 id="changelist-filter"
                 method="GET"
-                hx-get="{% url 'scoring:red_team_portal' %}"
+                hx-get="{% url 'scoring:red_team_findings' %}"
                 hx-target="#red-findings-content"
                 hx-swap="outerHTML"
                 hx-push-url="true"
@@ -74,5 +71,4 @@
 
         <c-red_findings_table :findings="findings" :page_obj="page_obj" :status_filter="status_filter" :selected_team="selected_team" :selected_attack_type="selected_attack_type" :selected_submitter="selected_submitter" :sort_by="sort_by" :is_gold_team="is_gold_team" />
     </c-module>
-</div>
-{% endblock %}
+{% endblock red_content %}

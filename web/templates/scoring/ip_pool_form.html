@@ -1,11 +1,9 @@
-{% extends "base.html" %}
-
+{% extends "scoring/red_base.html" %}
 {% block title %}{{ action }} IP Pool{% endblock %}
 
-{% block content %}
+{% block red_content %}
 {% load cotton %}
-<div class="max-w-600">
-    <c-page_header title="{{ action }} IP Pool" subtitle="{% if action == 'Edit' %}Update pool '{{ pool.name }}'{% else %}Create a new IP pool for rotating source IPs{% endif %}" />
+<c-page_header title="{{ action }} IP Pool" subtitle="{% if action == 'Edit' %}Update pool '{{ pool.name }}'{% else %}Create a new IP pool for rotating source IPs{% endif %}" />
     <c-module>
         <form method="post">
             {% csrf_token %}
@@ -34,7 +32,6 @@
             </c-button_row>
         </form>
     </c-module>
-</div>
 
 <script>
 function updateIpCount() {
@@ -54,4 +51,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %}
+{% endblock red_content %}
