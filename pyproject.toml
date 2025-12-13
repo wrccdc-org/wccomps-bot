@@ -2,7 +2,7 @@
 name = "wccomps-bot"
 version = "1.0.0"
 description = "Discord bot and web interface for WCComps team management"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     # Discord bot
     "discord.py>=2.4.0",

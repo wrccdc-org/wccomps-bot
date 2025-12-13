@@ -8,8 +8,8 @@
         <c-detail_grid class="mb-15">
             <dt>Team</dt>
             <dd>{{ incident.team.team_name }}</dd>
-            <dt>Affected Box</dt>
-            <dd>{{ incident.affected_box }}</dd>
+            <dt>Affected Boxes</dt>
+            <dd>{{ incident.affected_boxes_display|default:"—" }}</dd>
             <dt>Affected Service</dt>
             <dd>{{ incident.affected_service }}</dd>
             <dt>Source IP</dt>
@@ -68,7 +68,7 @@
                         {% endif %}
                         <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
                         <br><small class="text-muted">
-                            {{ finding.affected_box }} / {{ finding.affected_service }}
+                            {{ finding.affected_boxes_display|default:"—" }} / {{ finding.affected_service }}
                         </small>
                         <br><small class="{% if finding.source_ip == incident.source_ip %}text-success font-bold{% else %}text-muted{% endif %}">
                             Source IP: <code>{{ finding.source_ip }}</code>

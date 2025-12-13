@@ -125,7 +125,7 @@ class TestFindingQueries:
             attack_vector="Complex attack vector",
             source_ip="10.0.0.5",
             destination_ip_template="10.100.1X.22",
-            affected_box="web-server",
+            affected_boxes=["web-server"],
             affected_service="HTTP",
             universally_attempted=True,
             persistence_established=True,

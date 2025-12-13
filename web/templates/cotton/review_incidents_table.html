@@ -33,7 +33,7 @@
             </th>
             <td class="field-team">{{ incident.team.team_name }}</td>
             <td class="field-box">
-                {{ incident.affected_box }}
+                {{ incident.affected_boxes_display|default:"—" }}
                 <div class="text-sm text-muted">{{ incident.affected_service }}</div>
             </td>
             <td class="field-attack_description">{{ incident.attack_description|truncatechars:50 }}</td>

@@ -231,8 +231,9 @@ class TokenEditViewTestCase(TestCase):
 
     def test_edit_locked_after_token_expired(self):
         """Test edit page shows locked message after token expired."""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         self.registration.edit_token_expires = timezone.now() - timedelta(hours=1)
         self.registration.save()
@@ -242,8 +243,9 @@ class TokenEditViewTestCase(TestCase):
 
     def test_edit_allowed_when_token_not_expired(self):
         """Test edit page loads when token has not expired."""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         self.registration.edit_token_expires = timezone.now() + timedelta(hours=1)
         self.registration.save()

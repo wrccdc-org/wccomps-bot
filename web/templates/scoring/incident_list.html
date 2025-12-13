@@ -29,7 +29,7 @@
                 <td><strong>#{{ incident.id }}</strong></td>
                 <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
                 <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ incident.affected_box|default:"N/A" }}</td>
+                <td>{{ incident.affected_boxes_display|default:"N/A" }}</td>
                 <td>{{ incident.attack_description|truncatewords:10 }}</td>
                 <td>
                     {% if incident.gold_team_reviewed %}

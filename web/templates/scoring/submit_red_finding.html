@@ -12,9 +12,8 @@
 
                     <!-- Attack Details Section -->
                     <c-fieldset legend="Attack Details">
-                        <c-form_field label="{{ form.attack_vector.label }}" required="true" :id="form.attack_vector.id_for_label" help_text="{{ form.attack_vector.help_text }}" error="{{ form.attack_vector.errors|join:', ' }}">
-                            {{ form.attack_vector }}
-                            <datalist id="attackSuggestions"></datalist>
+                        <c-form_field label="{{ form.attack_type.label }}" required="true" :id="form.attack_type.id_for_label" help_text="{{ form.attack_type.help_text }}" error="{{ form.attack_type.errors|join:', ' }}">
+                            {{ form.attack_type }}
                         </c-form_field>
 
                         <!-- Source IP Selection -->
@@ -59,17 +58,31 @@
 
                     <!-- Target Information Section -->
                     <c-fieldset legend="Target Information">
-                        <div class="grid-2">
-                            <c-form_field label="{{ form.affected_box.label }}" :id="form.affected_box.id_for_label" error="{{ form.affected_box.errors|join:', ' }}">
-                                {{ form.affected_box }}
-                            </c-form_field>
-
-                            <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
-                                {{ form.affected_service }}
-                            </c-form_field>
+                        <div class="mb-15">
+                            <label class="form-label">{{ form.affected_boxes.label }}</label>
+                            {% if form.affected_boxes.help_text %}
+                                <div class="form-text mb-10">{{ form.affected_boxes.help_text }}</div>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-10">
+                                {% for checkbox in form.affected_boxes %}
+                                <div class="form-check">
+                                    {{ checkbox.tag }}
+                                    <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                                </div>
+                                {% empty %}
+                                <span class="text-muted">No boxes available - sync Quotient metadata first</span>
+                                {% endfor %}
+                            </div>
+                            {% if form.affected_boxes.errors %}
+                                <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
+                            {% endif %}
                         </div>
 
-                        <c-form_field label="{{ form.destination_ip_template.label }}" :id="form.destination_ip_template.id_for_label" help_text="This field auto-populates based on the selected box" error="{{ form.destination_ip_template.errors|join:', ' }}">
+                        <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
+                            {{ form.affected_service }}
+                        </c-form_field>
+
+                        <c-form_field label="{{ form.destination_ip_template.label }}" :id="form.destination_ip_template.id_for_label" help_text="Auto-populated based on selected boxes" error="{{ form.destination_ip_template.errors|join:', ' }}">
                             {{ form.destination_ip_template }}
                         </c-form_field>
                     </c-fieldset>
@@ -94,6 +107,77 @@
                             {% if form.persistence_established.help_text %}
                                 <div class="form-text">{{ form.persistence_established.help_text }}</div>
                             {% endif %}
+                        </div>
+                    </c-fieldset>
+
+                    <!-- Attack Outcomes Section (CCDC Scoring) -->
+                    <c-fieldset legend="Attack Outcomes (for scoring)">
+                        <div class="form-text mb-15">Check all outcomes achieved. Points are calculated automatically based on CCDC National Scoring Guidelines.</div>
+
+                        <div class="mb-15">
+                            <label class="form-label">Access Level</label>
+                            <div class="form-check mb-2">
+                                {{ form.root_access }}
+                                <label class="form-check-label" for="{{ form.root_access.id_for_label }}">
+                                    Root/Administrator access (-100 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.user_access }}
+                                <label class="form-check-label" for="{{ form.user_access.id_for_label }}">
+                                    User level access (-25 pts, not scored if root)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.privilege_escalation }}
+                                <label class="form-check-label" for="{{ form.privilege_escalation.id_for_label }}">
+                                    User escalated to Root/Admin (-100 pts additional)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-15">
+                            <label class="form-label">Data Recovery</label>
+                            <div class="form-check mb-2">
+                                {{ form.credentials_recovered }}
+                                <label class="form-check-label" for="{{ form.credentials_recovered.id_for_label }}">
+                                    User IDs and passwords recovered (-50 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.sensitive_files_recovered }}
+                                <label class="form-check-label" for="{{ form.sensitive_files_recovered.id_for_label }}">
+                                    Config files, corporate data recovered (-25 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.credit_cards_recovered }}
+                                <label class="form-check-label" for="{{ form.credit_cards_recovered.id_for_label }}">
+                                    Customer credit card numbers recovered (-50 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.pii_recovered }}
+                                <label class="form-check-label" for="{{ form.pii_recovered.id_for_label }}">
+                                    PII recovered: name, address, CC# (-200 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.encrypted_db_recovered }}
+                                <label class="form-check-label" for="{{ form.encrypted_db_recovered.id_for_label }}">
+                                    Encrypted customer data/database recovered (-25 pts)
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form.db_decrypted }}
+                                <label class="form-check-label" for="{{ form.db_decrypted.id_for_label }}">
+                                    Database was decrypted (-25 pts additional)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="calculatedPoints" class="text-lg font-semibold">
+                            Calculated points: <span id="pointsValue">0</span> per team
                         </div>
                     </c-fieldset>
 
@@ -336,99 +420,6 @@ function previewScreenshots(input) {
     }
 }
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Load attack type suggestions
-async function loadAttackSuggestions() {
-    try {
-        const response = await fetch('{% url "scoring:api_attack_types" %}');
-        const data = await response.json();
-        const datalist = document.getElementById('attackSuggestions');
-
-        datalist.innerHTML = '';
-        data.suggestions.forEach(suggestion => {
-            const option = document.createElement('option');
-            option.value = suggestion;
-            datalist.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Failed to load attack suggestions:', error);
-    }
-}
-
-// Setup autocomplete for attack type input
-function setupAttackAutocomplete() {
-    const input = document.getElementById('{{ form.attack_vector.id_for_label }}');
-    const datalist = document.getElementById('attackSuggestions');
-
-    if (!input || !datalist) return;
-
-    // Link input to datalist for native autocomplete
-    input.setAttribute('list', 'attackSuggestions');
-
-    // Create a dropdown container for custom suggestions
-    const dropdown = document.createElement('div');
-    dropdown.className = 'autocomplete-dropdown autocomplete-dropdown--hidden';
-    input.parentNode.style.position = 'relative';
-    input.parentNode.appendChild(dropdown);
-
-    let suggestions = [];
-
-    // Update suggestions list when loaded
-    const observer = new MutationObserver(() => {
-        suggestions = Array.from(datalist.querySelectorAll('option')).map(opt => opt.value);
-    });
-    observer.observe(datalist, { childList: true });
-
-    // Show dropdown on input
-    input.addEventListener('input', function(e) {
-        const value = this.value.toLowerCase().trim();
-
-        if (value.length < 2) {
-            dropdown.classList.add('autocomplete-dropdown--hidden');
-            return;
-        }
-
-        const matches = suggestions.filter(s => s.toLowerCase().includes(value));
-
-        if (matches.length === 0) {
-            dropdown.classList.add('autocomplete-dropdown--hidden');
-            return;
-        }
-
-        // Build dropdown with escaped HTML
-        dropdown.innerHTML = '';
-        matches.slice(0, 10).forEach(match => {
-            const item = document.createElement('div');
-            item.className = 'autocomplete-item';
-            item.textContent = match;  // Safe: uses textContent, not innerHTML
-            item.addEventListener('click', function() {
-                input.value = this.textContent;
-                dropdown.classList.add('autocomplete-dropdown--hidden');
-                input.focus();
-            });
-            dropdown.appendChild(item);
-        });
-
-        dropdown.classList.remove('autocomplete-dropdown--hidden');
-        dropdown.style.width = input.offsetWidth + 'px';
-        dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
-        dropdown.style.left = input.offsetLeft + 'px';
-    });
-
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (e.target !== input && !dropdown.contains(e.target)) {
-            dropdown.classList.add('autocomplete-dropdown--hidden');
-        }
-    });
-}
-
 // Team selection functions
 function getTeamCheckboxes() {
     return document.querySelectorAll('input[name="affected_teams"]');
@@ -479,45 +470,90 @@ function deselectAllTeams() {
     updateSelectedCount();
 }
 
-// Auto-populate destination IP template and services based on selected box
+// Get selected boxes from checkboxes
+function getSelectedBoxes() {
+    const checkboxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Auto-populate destination IP template and services based on selected boxes
 function updateIPAndServices() {
-    const boxSelect = document.getElementById('{{ form.affected_box.id_for_label }}');
+    const selectedBoxes = getSelectedBoxes();
     const serviceSelect = document.getElementById('{{ form.affected_service.id_for_label }}');
     const ipTemplate = document.getElementById('{{ form.destination_ip_template.id_for_label }}');
 
-    if (!boxSelect) return;
+    // Collect all unique IPs and services from selected boxes
+    const ipTemplates = [];
+    const allServices = new Set();
 
-    const boxName = boxSelect.value;
-    const boxData = boxMetadata[boxName];
+    selectedBoxes.forEach(boxName => {
+        const boxData = boxMetadata[boxName];
+        if (boxData) {
+            if (boxData.ip) {
+                ipTemplates.push(boxData.ip);
+            }
+            if (boxData.services) {
+                boxData.services.forEach(svc => allServices.add(svc));
+            }
+        }
+    });
 
-    // Update IP template field
-    if (boxData && ipTemplate) {
-        ipTemplate.value = boxData.ip;
-    } else if (ipTemplate) {
-        ipTemplate.value = '';
+    // Update IP template field (show first selected box's IP, or comma-separated if multiple)
+    if (ipTemplate) {
+        ipTemplate.value = ipTemplates.length > 0 ? ipTemplates[0] : '';
     }
 
-    // Update service dropdown
+    // Update service dropdown with combined services from all selected boxes
     if (serviceSelect) {
         const currentService = serviceSelect.value;
         serviceSelect.innerHTML = '<option value="">Select a service...</option>';
-        if (boxData && boxData.services) {
-            boxData.services.forEach(function(svc) {
-                const option = document.createElement('option');
-                option.value = svc;
-                option.textContent = svc;
-                if (svc === currentService) {
-                    option.selected = true;
-                }
-                serviceSelect.appendChild(option);
-            });
-        }
+        Array.from(allServices).sort().forEach(function(svc) {
+            const option = document.createElement('option');
+            option.value = svc;
+            option.textContent = svc;
+            if (svc === currentService) {
+                option.selected = true;
+            }
+            serviceSelect.appendChild(option);
+        });
     }
 }
 
+// Calculate points based on outcome checkboxes (mirrors server-side logic)
+function calculatePoints() {
+    let total = 0;
+    const rootAccess = document.getElementById('{{ form.root_access.id_for_label }}')?.checked;
+    const userAccess = document.getElementById('{{ form.user_access.id_for_label }}')?.checked;
+    const privEsc = document.getElementById('{{ form.privilege_escalation.id_for_label }}')?.checked;
+    const credentials = document.getElementById('{{ form.credentials_recovered.id_for_label }}')?.checked;
+    const sensitiveFiles = document.getElementById('{{ form.sensitive_files_recovered.id_for_label }}')?.checked;
+    const creditCards = document.getElementById('{{ form.credit_cards_recovered.id_for_label }}')?.checked;
+    const pii = document.getElementById('{{ form.pii_recovered.id_for_label }}')?.checked;
+    const encryptedDb = document.getElementById('{{ form.encrypted_db_recovered.id_for_label }}')?.checked;
+    const dbDecrypted = document.getElementById('{{ form.db_decrypted.id_for_label }}')?.checked;
+
+    // Access level (only highest scored)
+    if (rootAccess) {
+        total += 100;
+    } else if (userAccess) {
+        total += 25;
+    }
+
+    // Privilege escalation is additional
+    if (privEsc) total += 100;
+
+    // Data recovery outcomes (cumulative)
+    if (credentials) total += 50;
+    if (sensitiveFiles) total += 25;
+    if (creditCards) total += 50;
+    if (pii) total += 200;
+    if (encryptedDb) total += 25;
+    if (dbDecrypted) total += 25;
+
+    document.getElementById('pointsValue').textContent = total;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    loadAttackSuggestions();
-    setupAttackAutocomplete();
     toggleSourceIpType();
 
     // Setup IP count for pool modal
@@ -525,6 +561,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (poolIpsTextarea) {
         poolIpsTextarea.addEventListener('input', updateIpCount);
     }
+
+    // Setup outcome checkbox handlers for live points calculation
+    const outcomeCheckboxes = [
+        '{{ form.root_access.id_for_label }}',
+        '{{ form.user_access.id_for_label }}',
+        '{{ form.privilege_escalation.id_for_label }}',
+        '{{ form.credentials_recovered.id_for_label }}',
+        '{{ form.sensitive_files_recovered.id_for_label }}',
+        '{{ form.credit_cards_recovered.id_for_label }}',
+        '{{ form.pii_recovered.id_for_label }}',
+        '{{ form.encrypted_db_recovered.id_for_label }}',
+        '{{ form.db_decrypted.id_for_label }}',
+    ];
+    outcomeCheckboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            checkbox.addEventListener('change', calculatePoints);
+        }
+    });
+    // Calculate initial points on load
+    calculatePoints();
 
     // Set team button labels and sync with checkbox state
     const teamButtons = getTeamButtons();
@@ -552,14 +609,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update selected count on page load
     updateSelectedCount();
 
-    // Setup box change handler for auto-populating IP and services
-    const boxSelect = document.getElementById('{{ form.affected_box.id_for_label }}');
-    if (boxSelect) {
-        boxSelect.addEventListener('change', updateIPAndServices);
-        // Initialize on page load if box already selected
-        if (boxSelect.value) {
-            updateIPAndServices();
-        }
+    // Setup box checkbox handlers for auto-populating IP and services
+    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]');
+    boxCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateIPAndServices);
+    });
+    // Initialize on page load if any boxes already selected
+    if (getSelectedBoxes().length > 0) {
+        updateIPAndServices();
     }
 });
 </script>
