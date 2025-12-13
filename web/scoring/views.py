@@ -164,12 +164,11 @@ def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpRe
 
 @login_required
 @require_role(
-    "WCComps_RedTeam",
     "gold_team",
-    "Only Red Team or Gold Team members can access this page",
+    "Only Gold Team members can review findings",
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
-    """Red team portal - list and review findings."""
+    """Gold team review page for red team findings."""
     from django.core.paginator import Paginator
 
     # Get filter parameters
@@ -248,6 +247,84 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "sort_by": sort_by,
         "is_gold_team": is_gold_team,
         "current_user": user,
+    }
+
+    # Return partial for htmx requests
+    if request.headers.get("HX-Request"):
+        return render(request, "cotton/red_findings_table.html", context)
+
+    return render(request, "scoring/review_red_findings.html", context)
+
+
+@login_required
+@require_role(
+    "WCComps_RedTeam",
+    "Only Red Team members can view findings",
+)
+def red_team_findings(request: HttpRequest) -> HttpResponse:
+    """Red team view of all findings (read-only, can delete/leave own)."""
+    from django.core.paginator import Paginator
+
+    # Get filter parameters
+    status_filter = request.GET.get("status", "all") or "all"
+    team_filter = request.GET.get("team", "")
+    attack_type_filter = request.GET.get("attack_type", "")
+    submitter_filter = request.GET.get("submitter", "")
+    sort_by = request.GET.get("sort", "-created_at")
+    page = request.GET.get("page", "1")
+
+    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
+
+    # Apply status filter
+    if status_filter == "pending":
+        base_query = base_query.filter(is_approved=False)
+    elif status_filter == "reviewed":
+        base_query = base_query.filter(is_approved=True)
+    # "all" shows everything
+
+    # Apply team filter
+    if team_filter:
+        base_query = base_query.filter(affected_teams__id=team_filter)
+
+    # Apply attack type filter
+    if attack_type_filter:
+        base_query = base_query.filter(attack_type_id=int(attack_type_filter))
+
+    # Apply submitter filter
+    if submitter_filter:
+        base_query = base_query.filter(submitted_by_id=int(submitter_filter))
+
+    # Apply sorting
+    if sort_by.lstrip("-") in ["created_at", "points_per_team"]:
+        base_query = base_query.order_by(sort_by)
+    else:
+        base_query = base_query.order_by("-created_at")
+
+    # Paginate
+    paginator = Paginator(base_query.distinct(), 25)
+    try:
+        page_num = int(page)
+    except ValueError:
+        page_num = 1
+    page_obj = paginator.get_page(page_num)
+
+    # Get available teams, attack types, and submitters for filter dropdowns
+    available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
+    available_attack_types = AttackType.objects.filter(findings__isnull=False).distinct().order_by("name")
+    available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
+
+    context = {
+        "findings": page_obj,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+        "selected_team": team_filter,
+        "selected_attack_type": attack_type_filter,
+        "selected_submitter": submitter_filter,
+        "sort_by": sort_by,
+        "available_teams": available_teams,
+        "available_attack_types": available_attack_types,
+        "available_submitters": available_submitters,
+        "is_gold_team": False,  # Red team view - no approval actions
     }
 
     # Return partial for htmx requests
@@ -399,7 +476,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
             elif result.status in ("merged", "partial_merge"):
                 messages.info(request, result.message)
 
-            return redirect("scoring:red_team_portal")
+            return redirect("scoring:red_team_findings")
     else:
         form = RedTeamFindingForm(team_count=team_count, user=user)
 
@@ -433,17 +510,17 @@ def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     # Only the submitter can delete their own finding
     if finding.submitted_by != user:
         messages.error(request, "You can only delete your own findings")
-        return redirect("scoring:red_team_portal")
+        return redirect("scoring:red_team_findings")
 
     # Cannot delete if already approved
     if finding.is_approved:
         messages.error(request, "Cannot delete a finding that has already been approved")
-        return redirect("scoring:red_team_portal")
+        return redirect("scoring:red_team_findings")
 
     finding_num = finding.id
     finding.delete()
     messages.success(request, f"Red team finding #{finding_num} deleted")
-    return redirect("scoring:red_team_portal")
+    return redirect("scoring:red_team_findings")
 
 
 @login_required
@@ -458,16 +535,16 @@ def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     # Cannot leave if already approved
     if finding.is_approved:
         messages.error(request, "Cannot leave a finding that has already been approved")
-        return redirect("scoring:red_team_portal")
+        return redirect("scoring:red_team_findings")
 
     # Check if user is a contributor (but not the original submitter)
     if finding.submitted_by == user:
         messages.error(request, "You are the original submitter. Use delete instead.")
-        return redirect("scoring:red_team_portal")
+        return redirect("scoring:red_team_findings")
 
     if user not in finding.contributors.all():
         messages.error(request, "You are not a contributor to this finding")
-        return redirect("scoring:red_team_portal")
+        return redirect("scoring:red_team_findings")
 
     # Remove user from contributors
     finding.contributors.remove(user)
@@ -480,7 +557,7 @@ def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     finding.save()
 
     messages.success(request, f"You have been removed from finding #{finding.id}")
-    return redirect("scoring:red_team_portal")
+    return redirect("scoring:red_team_findings")
 
 
 # IP Pool Management Views

@@ -90,11 +90,18 @@ class TestRedTeamPortalPermissions:
         assert response.status_code == 302
         assert "/scoring/" in response.url
 
-    def test_red_team_allowed(self, red_team_user):
-        """Red Team should access Red Team Portal."""
+    def test_red_team_denied(self, red_team_user):
+        """Red Team should not access Gold Team review portal."""
         client = Client()
         client.force_login(red_team_user)
         response = client.get(reverse("scoring:red_team_portal"))
+        assert response.status_code == 302
+
+    def test_red_team_uses_findings_view(self, red_team_user):
+        """Red Team should access their own findings view."""
+        client = Client()
+        client.force_login(red_team_user)
+        response = client.get(reverse("scoring:red_team_findings"))
         assert response.status_code == 200
 
     def test_gold_team_allowed(self, gold_team_user):
