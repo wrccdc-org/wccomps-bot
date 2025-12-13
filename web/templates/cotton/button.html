@@ -10,6 +10,7 @@
     {% if name %}name="{{ name }}"{% endif %}
     {% if value %}value="{{ value }}"{% endif %}
     {% if onclick %}onclick="{{ onclick }}"{% endif %}
+    {{ attrs }}
     class="button {{ class }}
     {% if variant == 'primary' %}default
     {% elif variant == 'danger' %}deletelink btn-danger
