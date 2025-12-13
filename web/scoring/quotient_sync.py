@@ -157,11 +157,18 @@ def get_box_choices() -> list[tuple[str, str]]:
     Get box choices for dropdowns from cached metadata.
 
     Returns:
-        List of (value, label) tuples for box dropdown
+        List of (value, label) tuples for box dropdown (includes last IP octet)
     """
     metadata = QuotientMetadataCache.objects.first()
     if metadata:
-        return [(box["name"], box["name"]) for box in metadata.boxes]
+        choices = []
+        for box in metadata.boxes:
+            # Include last octet of IP for easier identification
+            ip = box.get("ip", "")
+            last_octet = ip.split(".")[-1] if ip else ""
+            label = f".{last_octet} {box['name']}" if last_octet else box["name"]
+            choices.append((box["name"], label))
+        return choices
     return []
 
 

@@ -111,73 +111,73 @@
                     </c-fieldset>
 
                     <!-- Attack Outcomes Section (CCDC Scoring) -->
-                    <c-fieldset legend="Attack Outcomes (for scoring)">
-                        <div class="form-text mb-15">Check all outcomes achieved. Points are calculated automatically based on CCDC National Scoring Guidelines.</div>
+                    <c-fieldset legend="Attack Outcomes">
+                        <div class="d-flex flex-wrap gap-15 mb-15">
+                            <div>
+                                <label class="form-label">Access Level</label>
+                                <div class="form-check mb-2">
+                                    {{ form.root_access }}
+                                    <label class="form-check-label" for="{{ form.root_access.id_for_label }}" title="Root/Administrator level access obtained">
+                                        Root access <span class="text-muted">-100</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.user_access }}
+                                    <label class="form-check-label" for="{{ form.user_access.id_for_label }}" title="User level access obtained (not scored if root access)">
+                                        User access <span class="text-muted">-25</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.privilege_escalation }}
+                                    <label class="form-check-label" for="{{ form.privilege_escalation.id_for_label }}" title="User escalated to Root/Admin (additional penalty)">
+                                        Priv esc <span class="text-muted">-100</span>
+                                    </label>
+                                </div>
+                            </div>
 
-                        <div class="mb-15">
-                            <label class="form-label">Access Level</label>
-                            <div class="form-check mb-2">
-                                {{ form.root_access }}
-                                <label class="form-check-label" for="{{ form.root_access.id_for_label }}">
-                                    Root/Administrator access (-100 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.user_access }}
-                                <label class="form-check-label" for="{{ form.user_access.id_for_label }}">
-                                    User level access (-25 pts, not scored if root)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.privilege_escalation }}
-                                <label class="form-check-label" for="{{ form.privilege_escalation.id_for_label }}">
-                                    User escalated to Root/Admin (-100 pts additional)
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="mb-15">
-                            <label class="form-label">Data Recovery</label>
-                            <div class="form-check mb-2">
-                                {{ form.credentials_recovered }}
-                                <label class="form-check-label" for="{{ form.credentials_recovered.id_for_label }}">
-                                    User IDs and passwords recovered (-50 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.sensitive_files_recovered }}
-                                <label class="form-check-label" for="{{ form.sensitive_files_recovered.id_for_label }}">
-                                    Config files, corporate data recovered (-25 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.credit_cards_recovered }}
-                                <label class="form-check-label" for="{{ form.credit_cards_recovered.id_for_label }}">
-                                    Customer credit card numbers recovered (-50 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.pii_recovered }}
-                                <label class="form-check-label" for="{{ form.pii_recovered.id_for_label }}">
-                                    PII recovered: name, address, CC# (-200 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.encrypted_db_recovered }}
-                                <label class="form-check-label" for="{{ form.encrypted_db_recovered.id_for_label }}">
-                                    Encrypted customer data/database recovered (-25 pts)
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                {{ form.db_decrypted }}
-                                <label class="form-check-label" for="{{ form.db_decrypted.id_for_label }}">
-                                    Database was decrypted (-25 pts additional)
-                                </label>
+                            <div>
+                                <label class="form-label">Data Recovery</label>
+                                <div class="form-check mb-2">
+                                    {{ form.credentials_recovered }}
+                                    <label class="form-check-label" for="{{ form.credentials_recovered.id_for_label }}" title="User IDs and passwords recovered">
+                                        Credentials <span class="text-muted">-50</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.sensitive_files_recovered }}
+                                    <label class="form-check-label" for="{{ form.sensitive_files_recovered.id_for_label }}" title="Config files, corporate data recovered">
+                                        Sensitive files <span class="text-muted">-25</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.credit_cards_recovered }}
+                                    <label class="form-check-label" for="{{ form.credit_cards_recovered.id_for_label }}" title="Customer credit card numbers recovered">
+                                        Credit cards <span class="text-muted">-50</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.pii_recovered }}
+                                    <label class="form-check-label" for="{{ form.pii_recovered.id_for_label }}" title="PII recovered: name, address, credit card number">
+                                        PII <span class="text-muted">-200</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.encrypted_db_recovered }}
+                                    <label class="form-check-label" for="{{ form.encrypted_db_recovered.id_for_label }}" title="Encrypted customer data/database recovered">
+                                        Encrypted DB <span class="text-muted">-25</span>
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    {{ form.db_decrypted }}
+                                    <label class="form-check-label" for="{{ form.db_decrypted.id_for_label }}" title="Database was decrypted (additional penalty)">
+                                        DB decrypted <span class="text-muted">-25</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
                         <div id="calculatedPoints" class="text-lg font-semibold">
-                            Calculated points: <span id="pointsValue">0</span> per team
+                            Total: <span id="pointsValue">0</span> pts per team
                         </div>
                     </c-fieldset>
 
