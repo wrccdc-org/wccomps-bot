@@ -55,20 +55,20 @@
                 <td class="field-members">{{ item.member_count }}/{{ item.team.max_members }}</td>
                 <td class="field-status">
                     {% if item.team.is_active %}
-                        <span class="text-green-600">Active</span>
+                        <c-badge variant="success">Active</c-badge>
                     {% else %}
-                        <span class="text-red-600">Inactive</span>
+                        <c-badge variant="danger">Inactive</c-badge>
                     {% endif %}
                 </td>
                 <td class="field-discord">
                     {% if item.team.discord_role_id %}
-                        <span class="text-green-600">Configured</span>
+                        <c-badge variant="success">Configured</c-badge>
                     {% else %}
-                        <span class="text-gray-400">Not set</span>
+                        <c-badge variant="neutral">Not set</c-badge>
                     {% endif %}
                 </td>
                 <td class="field-actions">
-                    <a href="{% url 'admin_team_detail' item.team.team_number %}" class="changelink">View</a>
+                    <c-link href="{% url 'admin_team_detail' item.team.team_number %}" variant="change">View</c-link>
                 </td>
             </tr>
             {% endfor %}
@@ -77,9 +77,13 @@
         <p class="paginator">{{ teams|length }} team(s)</p>
     </c-module>
 
-    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        <span x-text="message"></span>
-    </div>
+    <template x-if="message">
+        <div x-transition class="fixed bottom-4 right-4 z-50">
+            <c-alert :variant="messageType">
+                <span x-text="message"></span>
+            </c-alert>
+        </div>
+    </template>
 </div>
 
 <script>

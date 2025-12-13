@@ -901,26 +901,24 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
-    # Role sync needs to be done by the bot since it requires Discord API access
-    # Create a task for the bot to handle
-    msg = f"Role sync requested by {authentik_username} via web. Run /admin sync-roles to complete."
-    DiscordTask.objects.create(
-        task_type="log_to_channel",
-        payload={"message": msg},
+    # Create a task for the bot to perform the sync
+    task = DiscordTask.objects.create(
+        task_type="sync_roles",
+        payload={"requested_by": authentik_username},
         status="pending",
     )
 
     AuditLog.objects.create(
-        action="role_sync_requested",
+        action="role_sync_started",
         admin_user=authentik_username,
         target_entity="guilds",
         target_id=0,
-        details={"source": "web"},
+        details={"source": "web", "task_id": task.id},
     )
 
     return JsonResponse(
         {
             "success": True,
-            "message": "Role sync requires Discord bot access. A notification has been sent to ops channel.",
+            "message": "Role sync started. Results will be posted to the ops channel when complete.",
         }
     )

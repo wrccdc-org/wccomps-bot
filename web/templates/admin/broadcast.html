@@ -28,18 +28,17 @@
                 <textarea name="message" x-model="message" class="vTextField" rows="6" placeholder="Enter your message here..."></textarea>
             </c-filter_field>
 
-            <div class="flex items-center gap-2">
+            <div class="form-check">
                 <input type="checkbox" id="mention_team" x-model="mentionTeam">
-                <label for="mention_team">Mention @Blueteam role</label>
+                <label for="mention_team" class="form-check-label">Mention @Blueteam role</label>
             </div>
 
             <c-button type="submit" variant="success" :disabled="loading || !message.trim()">Send Broadcast</c-button>
         </form>
 
-        <div class="mt-4 p-4 bg-gray-100 rounded">
-            <p class="font-bold mb-2">Preview:</p>
+        <c-action_box heading="Preview" class="mt-20">
             <div class="whitespace-pre-wrap" x-text="message || '(No message entered)'"></div>
-        </div>
+        </c-action_box>
     </c-module>
 
     <c-module class="mt-6">
@@ -53,9 +52,13 @@
         </div>
     </c-module>
 
-    <div x-show="message_alert" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        <span x-text="message_alert"></span>
-    </div>
+    <template x-if="message_alert">
+        <div x-transition class="fixed bottom-4 right-4 z-50">
+            <c-alert :variant="messageType">
+                <span x-text="message_alert"></span>
+            </c-alert>
+        </div>
+    </template>
 </div>
 
 <script>

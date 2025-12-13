@@ -115,6 +115,8 @@ class DiscordQueueProcessor:
                 await self._handle_post_comment(task)
             elif task.task_type == "add_user_to_thread":
                 await self._handle_add_user_to_thread(task)
+            elif task.task_type == "sync_roles":
+                await self._handle_sync_roles(task)
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
@@ -533,3 +535,33 @@ class DiscordQueueProcessor:
         await thread.add_user(user)
 
         logger.info(f"Added user {discord_id} to thread {thread_id}")
+
+    async def _handle_sync_roles(self, task: DiscordTask) -> None:
+        """Handle role synchronization between guilds."""
+        from bot.role_sync import RoleSyncManager
+        from bot.utils import log_to_ops_channel
+
+        sync_manager = RoleSyncManager(self.bot)
+        stats = await sync_manager.sync_roles()
+
+        # Store results in task payload for retrieval
+        @sync_to_async
+        def store_results() -> None:
+            task.payload["result"] = {
+                "roles_added": stats["roles_added"],
+                "roles_removed": stats["roles_removed"],
+                "errors": stats["errors"],
+                "changes_count": len(stats["changes"]),
+            }
+            task.save()
+
+        await store_results()
+
+        # Log results to ops channel
+        summary = (
+            f"Role sync complete: {stats['roles_added']} added, "
+            f"{stats['roles_removed']} removed, {stats['errors']} errors"
+        )
+        await log_to_ops_channel(self.bot, summary)
+
+        logger.info(f"Role sync completed: {summary}")
