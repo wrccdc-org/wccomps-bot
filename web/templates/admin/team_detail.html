@@ -7,7 +7,7 @@
 <div x-data="teamDetail()">
     <c-page_header title="Team {{ team.team_number }}: {{ team.team_name }}">
         <c-slot name="actions">
-            <a href="{% url 'admin_teams' %}" class="button">&larr; Back to Teams</a>
+            <c-link href="{% url 'admin_teams' %}" variant="history">&larr; Back to Teams</c-link>
         </c-slot>
     </c-page_header>
 
@@ -19,9 +19,9 @@
                 <c-detail_row label="Team Name">{{ team.team_name }}</c-detail_row>
                 <c-detail_row label="Status">
                     {% if team.is_active %}
-                        <span class="text-green-600">Active</span>
+                        <c-badge variant="success">Active</c-badge>
                     {% else %}
-                        <span class="text-red-600">Inactive</span>
+                        <c-badge variant="danger">Inactive</c-badge>
                     {% endif %}
                 </c-detail_row>
                 <c-detail_row label="Max Members">{{ team.max_members }}</c-detail_row>
@@ -53,10 +53,9 @@
             </div>
 
             <template x-if="newPassword">
-                <div class="mt-4 p-4 bg-yellow-100 rounded">
-                    <p class="font-bold mb-2">New Password:</p>
+                <c-action_box heading="New Password" variant="warning" class="mt-20">
                     <code class="text-lg" x-text="newPassword"></code>
-                </div>
+                </c-action_box>
             </template>
         </c-module>
     </div>
@@ -96,13 +95,17 @@
             {% endfor %}
         </c-table>
         {% else %}
-        <p class="text-gray-500">No members linked to this team.</p>
+        <c-empty_state title="No members linked" description="Members will appear here when they link their Discord accounts." />
         {% endif %}
     </c-module>
 
-    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        <span x-text="message"></span>
-    </div>
+    <template x-if="message">
+        <div x-transition class="fixed bottom-4 right-4 z-50">
+            <c-alert :variant="messageType">
+                <span x-text="message"></span>
+            </c-alert>
+        </div>
+    </template>
 </div>
 
 <script>

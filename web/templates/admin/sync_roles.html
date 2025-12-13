@@ -10,34 +10,35 @@
     <c-module>
         <c-slot name="title">Role Synchronization</c-slot>
         <div class="space-y-4">
-            <p>This will synchronize team roles from the volunteer guild to the competition guild.</p>
-            <ul class="list-disc list-inside text-gray-600">
+            <p>Synchronize team roles from the volunteer guild to the competition guild.</p>
+            <ul class="list-disc list-inside text-muted">
                 <li>Users with team roles in volunteer guild will get them in competition guild</li>
                 <li>Users without roles in volunteer guild will lose them in competition guild</li>
                 <li>This is a one-way sync from volunteer to competition</li>
             </ul>
 
-            <div class="p-4 bg-yellow-100 rounded">
-                <p class="font-bold text-yellow-800">Note:</p>
-                <p class="text-yellow-700">Role synchronization requires Discord bot access. Clicking the button below will notify the ops channel to run the sync command via the Discord bot.</p>
-            </div>
-
-            <c-button variant="success" @click="requestSync()" :disabled="loading">
-                Request Role Sync
-            </c-button>
+            <c-button_row class="mt-15">
+                <c-button variant="success" @click="requestSync()" :disabled="loading">
+                    <span x-show="!loading">Sync Roles Now</span>
+                    <span x-show="loading">Syncing...</span>
+                </c-button>
+            </c-button_row>
         </div>
     </c-module>
 
-    <c-module class="mt-6">
-        <c-slot name="title">Manual Sync via Discord</c-slot>
-        <p>For immediate role synchronization, use the Discord bot command:</p>
-        <code class="block mt-2 p-2 bg-gray-100 rounded">/admin sync-roles</code>
-        <p class="mt-2 text-gray-600">This command must be run by an admin in the Discord server.</p>
+    <c-module class="mt-20">
+        <c-slot name="title">Alternative: Discord Command</c-slot>
+        <p>You can also sync roles via Discord:</p>
+        <code class="code-block">/admin sync-roles</code>
     </c-module>
 
-    <div x-show="message" x-transition class="fixed bottom-4 right-4 p-4 rounded shadow-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        <span x-text="message"></span>
-    </div>
+    <template x-if="message">
+        <div x-transition class="fixed bottom-4 right-4 z-50">
+            <c-alert :variant="messageType">
+                <span x-text="message"></span>
+            </c-alert>
+        </div>
+    </template>
 </div>
 
 <script>
@@ -48,7 +49,7 @@ function syncRolesAdmin() {
         messageType: 'success',
 
         async requestSync() {
-            if (!confirm('Request role synchronization? A notification will be sent to the ops channel.')) {
+            if (!confirm('Start role synchronization? This may take a moment.')) {
                 return;
             }
 
@@ -69,7 +70,7 @@ function syncRolesAdmin() {
                     this.message = result.message;
                     this.messageType = 'success';
                 } else {
-                    this.message = result.error || 'Request failed';
+                    this.message = result.error || 'Sync failed';
                     this.messageType = 'error';
                 }
             } catch (e) {
@@ -78,7 +79,7 @@ function syncRolesAdmin() {
             }
 
             this.loading = false;
-            setTimeout(() => this.message = '', 5000);
+            setTimeout(() => this.message = '', 8000);
         }
     };
 }
