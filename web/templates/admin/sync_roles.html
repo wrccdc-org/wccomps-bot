@@ -17,12 +17,12 @@
                 <li>This is a one-way sync from volunteer to competition</li>
             </ul>
 
-            <c-button_row class="mt-15">
-                <c-button variant="success" @click="requestSync()" :disabled="loading">
+            <div class="mt-15">
+                <button type="button" class="button default btn-success" @click="requestSync()" :disabled="loading">
                     <span x-show="!loading">Sync Roles Now</span>
                     <span x-show="loading">Syncing...</span>
-                </c-button>
-            </c-button_row>
+                </button>
+            </div>
         </div>
     </c-module>
 
