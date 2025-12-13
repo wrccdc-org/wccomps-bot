@@ -76,15 +76,17 @@
                             {% if form.affected_boxes.errors %}
                                 <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
                             {% endif %}
+                            <div id="selectedIps" class="text-muted mt-10" style="display: none;">
+                                Target IPs: <span id="ipList"></span>
+                            </div>
                         </div>
 
                         <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
                             {{ form.affected_service }}
                         </c-form_field>
 
-                        <c-form_field label="{{ form.destination_ip_template.label }}" :id="form.destination_ip_template.id_for_label" help_text="Auto-populated based on selected boxes" error="{{ form.destination_ip_template.errors|join:', ' }}">
-                            {{ form.destination_ip_template }}
-                        </c-form_field>
+                        <!-- Hidden field to store destination IPs for form submission -->
+                        <input type="hidden" name="destination_ip_template" id="id_destination_ip_template" value="">
                     </c-fieldset>
 
                     <!-- Attack Characteristics Section -->
@@ -476,11 +478,13 @@ function getSelectedBoxes() {
     return Array.from(checkboxes).map(cb => cb.value);
 }
 
-// Auto-populate destination IP template and services based on selected boxes
+// Auto-populate destination IP display and services based on selected boxes
 function updateIPAndServices() {
     const selectedBoxes = getSelectedBoxes();
     const serviceSelect = document.getElementById('{{ form.affected_service.id_for_label }}');
-    const ipTemplate = document.getElementById('{{ form.destination_ip_template.id_for_label }}');
+    const ipTemplate = document.getElementById('id_destination_ip_template');
+    const selectedIpsDiv = document.getElementById('selectedIps');
+    const ipListSpan = document.getElementById('ipList');
 
     // Collect all unique IPs and services from selected boxes
     const ipTemplates = [];
@@ -498,9 +502,17 @@ function updateIPAndServices() {
         }
     });
 
-    // Update IP template field (show first selected box's IP, or comma-separated if multiple)
+    // Update hidden field and display IPs
     if (ipTemplate) {
-        ipTemplate.value = ipTemplates.length > 0 ? ipTemplates[0] : '';
+        ipTemplate.value = ipTemplates.join(', ');
+    }
+    if (selectedIpsDiv && ipListSpan) {
+        if (ipTemplates.length > 0) {
+            ipListSpan.textContent = ipTemplates.join(', ');
+            selectedIpsDiv.style.display = 'block';
+        } else {
+            selectedIpsDiv.style.display = 'none';
+        }
     }
 
     // Update service dropdown with combined services from all selected boxes
