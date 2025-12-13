@@ -79,9 +79,9 @@
 
     <template x-if="message">
         <div x-transition class="fixed bottom-4 right-4 z-50">
-            <c-alert :variant="messageType">
+            <div class="alert" :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
                 <span x-text="message"></span>
-            </c-alert>
+            </div>
         </div>
     </template>
 </div>
