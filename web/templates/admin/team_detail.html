@@ -36,18 +36,18 @@
             <c-slot name="title">Actions</c-slot>
             <div class="space-y-3">
                 {% if team.is_active %}
-                <c-button variant="default" class="w-full" @click="teamAction('deactivate')" :disabled="loading">
+                <c-button variant="default" class="w-full" @click="teamAction('deactivate')" ::disabled="loading">
                     Deactivate Team
                 </c-button>
                 {% else %}
-                <c-button variant="success" class="w-full" @click="teamAction('activate')" :disabled="loading">
+                <c-button variant="success" class="w-full" @click="teamAction('activate')" ::disabled="loading">
                     Activate Team
                 </c-button>
                 {% endif %}
-                <c-button variant="danger" class="w-full" @click="resetTeam()" :disabled="loading">
+                <c-button variant="danger" class="w-full" @click="resetTeam()" ::disabled="loading">
                     Reset Team (Unlink All + New Password)
                 </c-button>
-                <c-button variant="default" class="w-full" @click="teamAction('recreate_channels')" :disabled="loading">
+                <c-button variant="default" class="w-full" @click="teamAction('recreate_channels')" ::disabled="loading">
                     Recreate Discord Channels
                 </c-button>
             </div>

@@ -33,7 +33,7 @@
                 <label for="mention_team" class="form-check-label">Mention @Blueteam role</label>
             </div>
 
-            <c-button type="submit" variant="success" :disabled="loading || !message.trim()">Send Broadcast</c-button>
+            <c-button type="submit" variant="success" ::disabled="loading || !message.trim()">Send Broadcast</c-button>
         </form>
 
         <c-action_box heading="Preview" class="mt-20">
