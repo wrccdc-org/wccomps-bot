@@ -71,7 +71,7 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
         "linked_users": linked_users,
         "timezone_choices": TIMEZONE_CHOICES,
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/competition.html", context)
@@ -435,7 +435,7 @@ def admin_teams(request: HttpRequest) -> HttpResponse:
     context = {
         "teams": teams_with_info,
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/teams.html", context)
@@ -466,7 +466,7 @@ def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
         "team": team,
         "members": members,
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/team_detail.html", context)
@@ -698,7 +698,7 @@ def admin_helpers(request: HttpRequest) -> HttpResponse:
     context = {
         "helpers": helpers,
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/helpers.html", context)
@@ -820,7 +820,7 @@ def admin_broadcast(request: HttpRequest) -> HttpResponse:
     context = {
         "teams": teams,
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/broadcast.html", context)
@@ -883,7 +883,7 @@ def admin_sync_roles(request: HttpRequest) -> HttpResponse:
 
     context = {
         "show_ops_nav": True,
-        "nav_active": "admin",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "admin/sync_roles.html", context)
