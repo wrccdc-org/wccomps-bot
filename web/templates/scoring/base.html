@@ -10,12 +10,9 @@
     <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
     {% if is_gold_team or is_admin %}
     <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Review Red Team</c-nav_item>
-    {% endif %}
-    {% if is_gold_team or is_admin %}
-    <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incident Reports</c-nav_item>
-    {% endif %}
-    {% if is_gold_team or is_admin %}
-    <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Review Inject Grades</c-nav_item>
+    <c-nav_item name="orange_team" href="{% url 'scoring:orange_team_portal' %}">Review Orange Team</c-nav_item>
+    <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incidents</c-nav_item>
+    <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Review Injects</c-nav_item>
     {% endif %}
     {% if is_ticketing_admin or is_admin %}
     <c-nav_item name="review_tickets" href="{% url 'ops_review_tickets' %}">Review Tickets</c-nav_item>
