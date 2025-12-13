@@ -919,6 +919,43 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     return JsonResponse(
         {
             "success": True,
-            "message": "Role sync started. Results will be posted to the ops channel when complete.",
+            "task_id": task.id,
+            "message": "Role sync started...",
         }
     )
+
+
+@login_required
+def admin_task_status(request: HttpRequest, task_id: int) -> HttpResponse:
+    """Check status of an async task."""
+    user = cast(User, request.user)
+
+    if not _check_admin(user):
+        return JsonResponse({"error": "Access denied"}, status=403)
+
+    try:
+        task = DiscordTask.objects.get(id=task_id)
+    except DiscordTask.DoesNotExist:
+        return JsonResponse({"error": "Task not found"}, status=404)
+
+    response: dict[str, object] = {
+        "status": task.status,
+        "task_type": task.task_type,
+    }
+
+    if task.status == "completed":
+        result = task.payload.get("result", {})
+        if task.task_type == "sync_roles":
+            response["message"] = (
+                f"Sync complete: {result.get('roles_added', 0)} added, "
+                f"{result.get('roles_removed', 0)} removed, "
+                f"{result.get('errors', 0)} errors"
+            )
+        else:
+            response["message"] = "Task completed"
+    elif task.status == "failed":
+        response["message"] = task.error_message or "Task failed"
+    else:
+        response["message"] = "Processing..."
+
+    return JsonResponse(response)
