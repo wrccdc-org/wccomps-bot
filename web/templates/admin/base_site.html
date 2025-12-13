@@ -34,6 +34,9 @@
     {% if user.is_staff %}
     <a href="{% url 'admin:index' %}" {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
     {% endif %}
+    {% if is_gold_team or is_admin %}
+    <a href="{% url 'admin_competition' %}" {% if nav_active == 'ops_admin' %}class="current"{% endif %}>Comp Mgmt</a>
+    {% endif %}
     <span class="nav-spacer"></span>
     <span class="nav-user">{{ authentik_username|default:user.username }}</span>
     <a href="{% url 'oauth_logout' %}">Log out</a>
