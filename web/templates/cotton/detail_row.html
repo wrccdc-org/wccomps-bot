@@ -1,0 +1,9 @@
+{# Detail Row component - label/value pair for detail displays #}
+{# Usage: <c-detail_row label="Field Name">Value here</c-detail_row> #}
+
+<c-vars label="" />
+
+<div class="flex py-2 border-b border-gray-200 last:border-b-0">
+    <dt class="w-1/3 text-sm font-medium text-gray-500">{{ label }}</dt>
+    <dd class="w-2/3 text-sm text-gray-900">{{ slot }}</dd>
+</div>
