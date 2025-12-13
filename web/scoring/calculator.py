@@ -215,15 +215,13 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
         # Match exact source_ip
         filters |= Q(source_ip=incident.source_ip)
         # Also match any IP pools that contain this IP
-        # Find pools containing this IP
-        pool_ids = []
-        for pool in RedTeamIPPool.objects.all():
-            if pool.contains_ip(str(incident.source_ip)):
-                pool_ids.append(pool.id)
+        pool_ids = [pool.id for pool in RedTeamIPPool.objects.all() if pool.contains_ip(str(incident.source_ip))]
         if pool_ids:
             filters |= Q(source_ip_pool_id__in=pool_ids)
-    if incident.affected_box:
-        filters |= Q(affected_box=incident.affected_box)
+    if incident.affected_boxes:
+        # Match if any of the incident's boxes is in the finding's list of affected boxes
+        for box in incident.affected_boxes:
+            filters |= Q(affected_boxes__contains=[box])
     if incident.affected_service:
         filters |= Q(affected_service=incident.affected_service)
 

@@ -37,6 +37,7 @@ from .forms import (
     ScoringTemplateForm,
 )
 from .models import (
+    AttackType,
     IncidentReport,
     IncidentScreenshot,
     InjectGrade,
@@ -192,7 +193,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         base_query = base_query.filter(affected_teams__id=team_filter)
 
     if attack_type_filter:
-        base_query = base_query.filter(attack_vector__icontains=attack_type_filter)
+        base_query = base_query.filter(attack_type_id=int(attack_type_filter))
 
     if submitter_filter:
         base_query = base_query.filter(submitted_by__id=submitter_filter)
@@ -201,7 +202,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     base_query = base_query.distinct()
 
     # Validate and apply sort
-    valid_sort_fields = ["created_at", "-created_at", "attack_vector", "-attack_vector"]
+    valid_sort_fields = ["created_at", "-created_at", "attack_type__name", "-attack_type__name"]
     if sort_by not in valid_sort_fields:
         sort_by = "-created_at"
     base_query = base_query.order_by(sort_by)
@@ -219,8 +220,9 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     pending_count = RedTeamFinding.objects.filter(is_approved=False).count()
     reviewed_count = total_findings - pending_count
 
-    # Get available teams and submitters for filter dropdowns
+    # Get available teams, attack types, and submitters for filter dropdowns
     available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
+    available_attack_types = AttackType.objects.filter(findings__isnull=False).distinct().order_by("name")
     available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
 
     user = cast(User, request.user)
@@ -237,6 +239,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "pending_count": pending_count,
         "reviewed_count": reviewed_count,
         "available_teams": available_teams,
+        "available_attack_types": available_attack_types,
         "available_submitters": available_submitters,
         "selected_team": team_filter,
         "selected_attack_type": attack_type_filter,
@@ -309,7 +312,8 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 @require_role("WCComps_RedTeam", error_message="Only Red Team members can submit findings")
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
-    """Submit red team finding."""
+    """Submit red team finding with deduplication."""
+    from .deduplication import OutcomeData, process_red_team_submission
     from .models import RedTeamIPPool
 
     user = cast(User, request.user)
@@ -322,38 +326,79 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
         form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count, user=user)
 
         if form.is_valid():
-            finding = form.save(commit=False)
-            finding.submitted_by = user
-            finding.points_per_team = 0  # Gold team will assign points during review
-            finding.save()
+            # Extract form data for deduplication
+            attack_type = form.cleaned_data["attack_type"]
+            affected_boxes = form.cleaned_data.get("affected_boxes", [])
+            affected_teams = form.cleaned_data["affected_teams"]
+            source_ip = form.cleaned_data.get("source_ip")
+            source_ip_pool = form.cleaned_data.get("source_ip_pool")
+            notes = form.cleaned_data.get("notes", "")
+            affected_service = form.cleaned_data.get("affected_service", "")
+            destination_ip_template = form.cleaned_data.get("destination_ip_template", "")
+            universally_attempted = form.cleaned_data.get("universally_attempted", False)
+            persistence_established = form.cleaned_data.get("persistence_established", False)
 
-            # Save M2M relationship for affected_teams
-            form.save_m2m()
+            # Extract outcome checkboxes
+            outcomes = OutcomeData(
+                root_access=form.cleaned_data.get("root_access", False),
+                user_access=form.cleaned_data.get("user_access", False),
+                privilege_escalation=form.cleaned_data.get("privilege_escalation", False),
+                credentials_recovered=form.cleaned_data.get("credentials_recovered", False),
+                sensitive_files_recovered=form.cleaned_data.get("sensitive_files_recovered", False),
+                credit_cards_recovered=form.cleaned_data.get("credit_cards_recovered", False),
+                pii_recovered=form.cleaned_data.get("pii_recovered", False),
+                encrypted_db_recovered=form.cleaned_data.get("encrypted_db_recovered", False),
+                db_decrypted=form.cleaned_data.get("db_decrypted", False),
+            )
 
-            # Handle screenshot uploads with validation
-            screenshots = request.FILES.getlist("screenshots")
-            max_screenshots = 20
+            # Process with deduplication
+            result = process_red_team_submission(
+                attack_type=attack_type,
+                boxes=affected_boxes,
+                teams=affected_teams,
+                source_ip=source_ip,
+                source_ip_pool=source_ip_pool,
+                submitter=user,
+                notes=notes,
+                affected_service=affected_service,
+                destination_ip_template=destination_ip_template,
+                universally_attempted=universally_attempted,
+                persistence_established=persistence_established,
+                outcomes=outcomes,
+            )
 
-            if len(screenshots) > max_screenshots:
-                messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
-                finding.delete()
-                return redirect("scoring:submit_red_finding")
+            finding = result.finding
 
-            try:
-                for screenshot in screenshots:
-                    file_data = screenshot.read()
-                    RedTeamScreenshot.objects.create(
-                        finding=finding,
-                        file_data=file_data,
-                        filename=screenshot.name or "screenshot.png",
-                        mime_type=screenshot.content_type or "image/png",
-                    )
-            except Exception as e:
-                messages.error(request, f"File upload failed: {str(e)}")
-                finding.delete()
-                return redirect("scoring:submit_red_finding")
+            # Handle screenshot uploads for new findings only
+            if result.status == "created":
+                screenshots = request.FILES.getlist("screenshots")
+                max_screenshots = 20
 
-            messages.success(request, f"Red team finding #{finding.id} submitted successfully")
+                if len(screenshots) > max_screenshots:
+                    messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
+                    finding.delete()
+                    return redirect("scoring:submit_red_finding")
+
+                try:
+                    for screenshot in screenshots:
+                        file_data = screenshot.read()
+                        RedTeamScreenshot.objects.create(
+                            finding=finding,
+                            file_data=file_data,
+                            filename=screenshot.name or "screenshot.png",
+                            mime_type=screenshot.content_type or "image/png",
+                        )
+                except Exception as e:
+                    messages.error(request, f"File upload failed: {str(e)}")
+                    finding.delete()
+                    return redirect("scoring:submit_red_finding")
+
+            # Show appropriate message based on result
+            if result.status == "created":
+                messages.success(request, f"Finding #{finding.id} created successfully.")
+            elif result.status in ("merged", "partial_merge"):
+                messages.info(request, result.message)
+
             return redirect("scoring:red_team_portal")
     else:
         form = RedTeamFindingForm(team_count=team_count, user=user)
@@ -401,6 +446,43 @@ def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     return redirect("scoring:red_team_portal")
 
 
+@login_required
+@require_role("WCComps_RedTeam", error_message="Only Red Team members can leave findings")
+@transaction.atomic
+@require_http_methods(["POST"])
+def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+    """Remove yourself as a contributor from a merged finding."""
+    finding = get_object_or_404(RedTeamFinding, id=finding_id)
+    user = cast(User, request.user)
+
+    # Cannot leave if already approved
+    if finding.is_approved:
+        messages.error(request, "Cannot leave a finding that has already been approved")
+        return redirect("scoring:red_team_portal")
+
+    # Check if user is a contributor (but not the original submitter)
+    if finding.submitted_by == user:
+        messages.error(request, "You are the original submitter. Use delete instead.")
+        return redirect("scoring:red_team_portal")
+
+    if user not in finding.contributors.all():
+        messages.error(request, "You are not a contributor to this finding")
+        return redirect("scoring:red_team_portal")
+
+    # Remove user from contributors
+    finding.contributors.remove(user)
+
+    # Append note about removal
+    if finding.notes:
+        finding.notes += f"\n\n[System]: {user.username} removed themselves from this finding."
+    else:
+        finding.notes = f"[System]: {user.username} removed themselves from this finding."
+    finding.save()
+
+    messages.success(request, f"You have been removed from finding #{finding.id}")
+    return redirect("scoring:red_team_portal")
+
+
 # IP Pool Management Views
 @login_required
 @require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
@@ -423,7 +505,6 @@ def ip_pool_list(request: HttpRequest) -> HttpResponse:
 def ip_pool_create(request: HttpRequest) -> HttpResponse:
     """Create a new IP pool."""
     from .forms import RedTeamIPPoolForm
-    from .models import RedTeamIPPool
 
     user = cast(User, request.user)
 
@@ -436,14 +517,16 @@ def ip_pool_create(request: HttpRequest) -> HttpResponse:
             messages.success(request, f"IP pool '{pool.name}' created with {pool.ip_count} IPs")
             # If this was an AJAX request (from modal), return JSON
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return JsonResponse({
-                    "success": True,
-                    "pool": {
-                        "id": pool.id,
-                        "name": pool.name,
-                        "ip_count": pool.ip_count,
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "pool": {
+                            "id": pool.id,
+                            "name": pool.name,
+                            "ip_count": pool.ip_count,
+                        },
                     }
-                })
+                )
             return redirect("scoring:ip_pool_list")
         else:
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -517,16 +600,18 @@ def api_user_ip_pools(request: HttpRequest) -> JsonResponse:
     user = cast(User, request.user)
     pools = RedTeamIPPool.objects.filter(created_by=user)
 
-    return JsonResponse({
-        "pools": [
-            {
-                "id": pool.id,
-                "name": pool.name,
-                "ip_count": pool.ip_count,
-            }
-            for pool in pools
-        ]
-    })
+    return JsonResponse(
+        {
+            "pools": [
+                {
+                    "id": pool.id,
+                    "name": pool.name,
+                    "ip_count": pool.ip_count,
+                }
+                for pool in pools
+            ]
+        }
+    )
 
 
 @login_required
@@ -906,7 +991,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
         base_query = base_query.filter(team__id=team_filter)
 
     if box_filter:
-        base_query = base_query.filter(affected_box__icontains=box_filter)
+        base_query = base_query.filter(affected_boxes__contains=[box_filter])
 
     # Validate and apply sort
     valid_sort_fields = [

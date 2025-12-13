@@ -71,7 +71,7 @@ def red_team_findings(test_teams, admin_user):
         attack_vector="SQL Injection in login form",
         source_ip="10.0.0.1",
         destination_ip_template="10.100.1X.22",
-        affected_box="WebServer",
+        affected_boxes=["WebServer"],
         affected_service="HTTP",
         universally_attempted=True,
         persistence_established=False,
@@ -90,7 +90,7 @@ def red_team_findings(test_teams, admin_user):
         attack_vector="XSS in comments",
         source_ip="10.0.0.2",
         destination_ip_template="10.100.1X.80",
-        affected_box="AppServer",
+        affected_boxes=["AppServer"],
         affected_service="HTTPS",
         universally_attempted=False,
         persistence_established=True,
@@ -116,7 +116,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         attack_description="Detected SQL injection attempt on login page",
         source_ip="10.0.0.1",
         destination_ip="10.100.11.22",
-        affected_box="WebServer",
+        affected_boxes=["WebServer"],
         affected_service="HTTP",
         attack_detected_at=timezone.now(),
         attack_mitigated=True,
@@ -135,7 +135,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         team=test_teams[1],
         attack_description="Suspicious network traffic detected",
         source_ip="10.0.0.5",
-        affected_box="Database",
+        affected_boxes=["Database"],
         affected_service="PostgreSQL",
         attack_detected_at=timezone.now(),
         attack_mitigated=False,
@@ -348,7 +348,7 @@ class TestRedFindingsExport:
             "Attack Vector",
             "Source IP",
             "Destination IP Template",
-            "Affected Box",
+            "Affected Boxes",
             "Affected Service",
             "Affected Teams",
             "Points Per Team",
@@ -380,7 +380,7 @@ class TestRedFindingsExport:
         sql_finding = next((r for r in rows if "SQL Injection" in r["Attack Vector"]), None)
         assert sql_finding is not None, "SQL Injection finding not found"
         assert sql_finding["Source IP"] == "10.0.0.1"
-        assert sql_finding["Affected Box"] == "WebServer"
+        assert sql_finding["Affected Boxes"] == "WebServer"
         assert sql_finding["Approved"] == "True"
         assert "Team 1" in sql_finding["Affected Teams"]
         assert "Team 2" in sql_finding["Affected Teams"]
@@ -441,7 +441,7 @@ class TestRedFindingsExport:
             "attack_vector",
             "source_ip",
             "destination_ip_template",
-            "affected_box",
+            "affected_boxes",
             "affected_service",
             "affected_teams",
             "points_per_team",
@@ -470,7 +470,7 @@ class TestRedFindingsExport:
         sql_finding = next((f for f in findings if "SQL Injection" in f["attack_vector"]), None)
         assert sql_finding is not None, "SQL Injection finding not found"
         assert sql_finding["source_ip"] == "10.0.0.1"
-        assert sql_finding["affected_box"] == "WebServer"
+        assert sql_finding["affected_boxes"] == ["WebServer"]
         assert sql_finding["is_approved"] is True
         assert len(sql_finding["affected_teams"]) == 2
 
@@ -502,7 +502,7 @@ class TestIncidentsExport:
             "Attack Description",
             "Source IP",
             "Destination IP",
-            "Affected Box",
+            "Affected Boxes",
             "Affected Service",
             "Attack Detected At",
             "Attack Mitigated",
@@ -555,7 +555,7 @@ class TestIncidentsExport:
             "attack_description",
             "source_ip",
             "destination_ip",
-            "affected_box",
+            "affected_boxes",
             "affected_service",
             "attack_detected_at",
             "attack_mitigated",

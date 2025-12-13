@@ -32,8 +32,8 @@
         <div>
             <h3>Attack Information</h3>
             <c-detail_grid>
-                <dt>Affected Box</dt>
-                <dd>{{ incident.affected_box|default:"—" }}</dd>
+                <dt>Affected Boxes</dt>
+                <dd>{{ incident.affected_boxes_display|default:"—" }}</dd>
                 <dt>Affected Service</dt>
                 <dd>{{ incident.affected_service|default:"—" }}</dd>
                 <dt>Source IP</dt>

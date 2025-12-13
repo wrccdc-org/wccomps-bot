@@ -122,9 +122,7 @@ class RedTeamIPPool(models.Model):
     """Reusable pool of source IP addresses for red team members."""
 
     name = models.CharField(max_length=100)
-    ip_addresses = models.TextField(
-        help_text="Newline or comma-separated IP addresses used for rotating attacks"
-    )
+    ip_addresses = models.TextField(help_text="Newline or comma-separated IP addresses used for rotating attacks")
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -165,6 +163,24 @@ class RedTeamIPPool(models.Model):
         return ip.strip() in self.get_ip_list()
 
 
+class AttackType(models.Model):
+    """Predefined attack types for red team findings."""
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, help_text="Help text for red teamers")
+    is_active = models.BooleanField(default=True, help_text="Can be selected for new findings")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "attack_type"
+        verbose_name = "Attack Type"
+        verbose_name_plural = "Attack Types"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class RedTeamFinding(models.Model):
     """Red team vulnerability finding affecting one or more teams."""
 
@@ -181,9 +197,25 @@ class RedTeamFinding(models.Model):
         null=True,
         related_name="red_findings_submitted",
     )
+    contributors = models.ManyToManyField(
+        User,
+        related_name="contributed_findings",
+        blank=True,
+        help_text="All red teamers who submitted matching findings",
+    )
 
     # Attack details
-    attack_vector = models.TextField(help_text="Description of the attack/exploit")
+    attack_type = models.ForeignKey(
+        AttackType,
+        on_delete=models.PROTECT,
+        related_name="findings",
+        null=True,  # Temporarily nullable for migration
+        blank=True,
+    )
+    attack_vector = models.TextField(
+        blank=True,
+        help_text="Additional details about the attack (legacy field, use notes instead)",
+    )
     source_ip = models.GenericIPAddressField(
         null=True,
         blank=True,
@@ -204,7 +236,11 @@ class RedTeamFinding(models.Model):
     )
 
     # Affected infrastructure (from Quotient metadata)
-    affected_box = models.CharField(max_length=100, blank=True)
+    affected_boxes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of affected box names",
+    )
     affected_service = models.CharField(max_length=100, blank=True)
 
     # Flags
@@ -217,6 +253,47 @@ class RedTeamFinding(models.Model):
         help_text="Persistence was established on target",
     )
 
+    # Outcome checkboxes - cumulative deductions per CCDC scoring guidelines
+    # Access levels (only highest scored per attack)
+    root_access = models.BooleanField(
+        default=False,
+        help_text="Root/Administrator level access obtained (-100 pts)",
+    )
+    user_access = models.BooleanField(
+        default=False,
+        help_text="User level access obtained (-25 pts, not scored if root_access)",
+    )
+    privilege_escalation = models.BooleanField(
+        default=False,
+        help_text="User escalated to Root/Admin (-100 pts additional)",
+    )
+
+    # Data recovery outcomes (cumulative)
+    credentials_recovered = models.BooleanField(
+        default=False,
+        help_text="User IDs and passwords recovered (-50 pts)",
+    )
+    sensitive_files_recovered = models.BooleanField(
+        default=False,
+        help_text="Config files, corporate data recovered (-25 pts)",
+    )
+    credit_cards_recovered = models.BooleanField(
+        default=False,
+        help_text="Customer credit card numbers recovered (-50 pts)",
+    )
+    pii_recovered = models.BooleanField(
+        default=False,
+        help_text="PII recovered: name, address, CC# (-200 pts)",
+    )
+    encrypted_db_recovered = models.BooleanField(
+        default=False,
+        help_text="Encrypted customer data/database recovered (-25 pts)",
+    )
+    db_decrypted = models.BooleanField(
+        default=False,
+        help_text="Database was decrypted (-25 pts additional)",
+    )
+
     # Affected teams and scoring
     affected_teams = models.ManyToManyField(
         "team.Team",
@@ -226,7 +303,7 @@ class RedTeamFinding(models.Model):
     points_per_team = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text="Points deducted per affected team (assigned by Gold Team)",
+        help_text="Points deducted per affected team (auto-calculated from outcomes)",
     )
 
     # Approval tracking
@@ -262,7 +339,9 @@ class RedTeamFinding(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"RF-{self.pk}: {self.attack_vector[:50]}"
+        if self.attack_type:
+            return f"RF-{self.pk}: {self.attack_type.name}"
+        return f"RF-{self.pk}: {self.attack_vector[:50] if self.attack_vector else 'Unknown'}"
 
     @property
     def source_ip_display(self) -> str:
@@ -273,13 +352,84 @@ class RedTeamFinding(models.Model):
             return f"Pool: {self.source_ip_pool.name} ({self.source_ip_pool.ip_count} IPs)"
         return "No source IP"
 
+    @property
+    def affected_boxes_display(self) -> str:
+        """Return display string for affected boxes."""
+        if self.affected_boxes:
+            return ", ".join(self.affected_boxes)
+        return ""
+
     def matches_source_ip(self, ip: str) -> bool:
         """Check if the given IP matches this finding's source (single or pool)."""
         if self.source_ip and self.source_ip == ip:
             return True
-        if self.source_ip_pool and self.source_ip_pool.contains_ip(ip):
-            return True
-        return False
+        return bool(self.source_ip_pool and self.source_ip_pool.contains_ip(ip))
+
+    def calculate_points(self) -> Decimal:
+        """Calculate total points based on outcome checkboxes per CCDC guidelines.
+
+        Point values from National Scoring Guidelines:
+        - Root/Admin access: -100
+        - User access: -25 (only if no root access)
+        - Privilege escalation: -100 (additional)
+        - Credentials recovered: -50
+        - Sensitive files recovered: -25
+        - Credit cards recovered: -50
+        - PII recovered: -200
+        - Encrypted DB recovered: -25
+        - DB decrypted: -25 (additional)
+        """
+        total = Decimal("0")
+
+        # Access level (only highest scored)
+        if self.root_access:
+            total += Decimal("100")
+        elif self.user_access:
+            total += Decimal("25")
+
+        # Privilege escalation is additional
+        if self.privilege_escalation:
+            total += Decimal("100")
+
+        # Data recovery outcomes (cumulative)
+        if self.credentials_recovered:
+            total += Decimal("50")
+        if self.sensitive_files_recovered:
+            total += Decimal("25")
+        if self.credit_cards_recovered:
+            total += Decimal("50")
+        if self.pii_recovered:
+            total += Decimal("200")
+        if self.encrypted_db_recovered:
+            total += Decimal("25")
+        if self.db_decrypted:
+            total += Decimal("25")
+
+        return total
+
+    @property
+    def outcomes_display(self) -> list[str]:
+        """Return list of outcome labels for display."""
+        outcomes = []
+        if self.root_access:
+            outcomes.append("Root Access (-100)")
+        elif self.user_access:
+            outcomes.append("User Access (-25)")
+        if self.privilege_escalation:
+            outcomes.append("Privilege Escalation (-100)")
+        if self.credentials_recovered:
+            outcomes.append("Credentials (-50)")
+        if self.sensitive_files_recovered:
+            outcomes.append("Sensitive Files (-25)")
+        if self.credit_cards_recovered:
+            outcomes.append("Credit Cards (-50)")
+        if self.pii_recovered:
+            outcomes.append("PII (-200)")
+        if self.encrypted_db_recovered:
+            outcomes.append("Encrypted DB (-25)")
+        if self.db_decrypted:
+            outcomes.append("DB Decrypted (-25)")
+        return outcomes
 
 
 class RedTeamScreenshot(models.Model):
@@ -338,7 +488,11 @@ class IncidentReport(models.Model):
     destination_ip = models.GenericIPAddressField(null=True, blank=True)
 
     # Affected infrastructure
-    affected_box = models.CharField(max_length=100, blank=True)
+    affected_boxes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of affected box names",
+    )
     affected_service = models.CharField(max_length=100, blank=True)
 
     # Timeline
@@ -393,6 +547,13 @@ class IncidentReport(models.Model):
 
     def __str__(self) -> str:
         return f"IR-{self.pk}: {self.team.team_name} - {self.attack_description[:50]}"
+
+    @property
+    def affected_boxes_display(self) -> str:
+        """Return display string for affected boxes."""
+        if self.affected_boxes:
+            return ", ".join(self.affected_boxes)
+        return ""
 
 
 class IncidentScreenshot(models.Model):

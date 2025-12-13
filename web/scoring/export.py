@@ -26,7 +26,7 @@ def export_red_findings_csv() -> HttpResponse:
             "Attack Vector",
             "Source IP",
             "Destination IP Template",
-            "Affected Box",
+            "Affected Boxes",
             "Affected Service",
             "Affected Teams",
             "Points Per Team",
@@ -46,13 +46,14 @@ def export_red_findings_csv() -> HttpResponse:
 
     for finding in findings:
         affected_teams = ", ".join(team.team_name for team in finding.affected_teams.all())
+        affected_boxes = ", ".join(finding.affected_boxes) if finding.affected_boxes else ""
         writer.writerow(
             [
                 finding.id,
                 finding.attack_vector,
                 finding.source_ip,
                 finding.destination_ip_template,
-                finding.affected_box,
+                affected_boxes,
                 finding.affected_service,
                 affected_teams,
                 finding.points_per_team,
@@ -86,7 +87,7 @@ def export_red_findings_json() -> HttpResponse:
                 "attack_vector": finding.attack_vector,
                 "source_ip": finding.source_ip,
                 "destination_ip_template": finding.destination_ip_template,
-                "affected_box": finding.affected_box,
+                "affected_boxes": finding.affected_boxes,
                 "affected_service": finding.affected_service,
                 "affected_teams": affected_teams,
                 "points_per_team": str(finding.points_per_team),
@@ -120,7 +121,7 @@ def export_incidents_csv() -> HttpResponse:
             "Attack Description",
             "Source IP",
             "Destination IP",
-            "Affected Box",
+            "Affected Boxes",
             "Affected Service",
             "Attack Detected At",
             "Attack Mitigated",
@@ -146,7 +147,7 @@ def export_incidents_csv() -> HttpResponse:
                 incident.attack_description,
                 incident.source_ip,
                 incident.destination_ip or "",
-                incident.affected_box,
+                ", ".join(incident.affected_boxes) if incident.affected_boxes else "",
                 incident.affected_service,
                 incident.attack_detected_at.isoformat(),
                 incident.attack_mitigated,
@@ -179,7 +180,7 @@ def export_incidents_json() -> HttpResponse:
             "attack_description": incident.attack_description,
             "source_ip": incident.source_ip,
             "destination_ip": incident.destination_ip,
-            "affected_box": incident.affected_box,
+            "affected_boxes": incident.affected_boxes,
             "affected_service": incident.affected_service,
             "attack_detected_at": incident.attack_detected_at.isoformat(),
             "attack_mitigated": incident.attack_mitigated,

@@ -577,7 +577,7 @@ class TestIncidentFindingMatching:
         matching_finding = RedTeamFinding.objects.create(
             attack_vector="Web Exploit",
             source_ip="10.0.0.5",
-            affected_box="web-server",
+            affected_boxes=["web-server"],
             affected_service="HTTP",
             points_per_team=Decimal("50.00"),
             submitted_by=user,
@@ -590,7 +590,7 @@ class TestIncidentFindingMatching:
             attack_description="Web server compromised",
             source_ip="10.0.0.7",
             destination_ip="10.100.11.22",
-            affected_box="web-server",
+            affected_boxes=["web-server"],
             affected_service="HTTP",
             attack_detected_at="2025-01-01T12:00:00Z",
         )
@@ -737,7 +737,7 @@ class TestIncidentListView:
             submitted_by=user,
             attack_description="SQL Injection detected",
             source_ip="10.0.0.5",
-            affected_box="web-server",
+            affected_boxes=["web-server"],
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
@@ -1005,7 +1005,7 @@ class TestDataExport:
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             destination_ip_template="10.100.1X.22",
-            affected_box="web-server",
+            affected_boxes=["web-server"],
             affected_service="HTTP",
             points_per_team=Decimal("50.00"),
             submitted_by=admin,

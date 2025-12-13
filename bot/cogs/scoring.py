@@ -75,7 +75,7 @@ class ScoringCog(commands.Cog):
         try:
             incident = await IncidentReport.objects.acreate(
                 team=team,
-                affected_box=affected_box,
+                affected_boxes=[affected_box] if affected_box else [],
                 affected_service=affected_service,
                 source_ip=source_ip,
                 destination_ip="",  # Will be filled in from web interface

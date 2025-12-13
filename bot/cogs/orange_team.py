@@ -87,9 +87,7 @@ class OrangeTeamCog(commands.Cog):
 
         # Resolve Discord user to Django user for attribution
         discord_link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True)
-            .select_related("user")
-            .afirst()
+            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("user").afirst()
         )
         submitted_by_user = discord_link.user if discord_link else None
 

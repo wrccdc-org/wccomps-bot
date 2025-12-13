@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
+    AttackType,
     BlackTeamAdjustment,
     FinalScore,
     IncidentReport,
@@ -20,6 +21,23 @@ from .models import (
 )
 
 
+@admin.register(AttackType)
+class AttackTypeAdmin(admin.ModelAdmin[AttackType]):
+    list_display = ["name", "description_short", "is_active", "findings_count", "created_at"]
+    list_filter = ["is_active"]
+    search_fields = ["name", "description"]
+    readonly_fields = ["created_at"]
+    ordering = ["name"]
+
+    @admin.display(description="Description")
+    def description_short(self, obj: AttackType) -> str:
+        return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
+
+    @admin.display(description="Findings")
+    def findings_count(self, obj: AttackType) -> int:
+        return obj.findings.count()
+
+
 class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamFinding]):
     model = RedTeamScreenshot
     extra = 1
@@ -30,31 +48,43 @@ class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamFind
 class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     list_display = [
         "id",
-        "attack_vector_short",
-        "affected_box",
+        "attack_type",
+        "affected_boxes_display",
         "affected_service",
         "team_count",
+        "contributors_count",
         "points_per_team",
         "submitted_by",
         "created_at",
     ]
-    list_filter = ["affected_box", "universally_attempted", "created_at"]
-    search_fields = ["attack_vector", "affected_box", "affected_service"]
-    filter_horizontal = ["affected_teams"]
+    list_filter = ["attack_type", "universally_attempted", "is_approved", "created_at"]
+    search_fields = ["attack_type__name", "affected_service", "notes"]
+    autocomplete_fields = ["attack_type"]
+
+    @admin.display(description="Boxes")
+    def affected_boxes_display(self, obj: RedTeamFinding) -> str:
+        if obj.affected_boxes:
+            boxes = obj.affected_boxes[:3]
+            suffix = "..." if len(obj.affected_boxes) > 3 else ""
+            return ", ".join(boxes) + suffix
+        return "—"
+
+    filter_horizontal = ["affected_teams", "contributors"]
     inlines = [RedTeamScreenshotInline]
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = [
-        ("Submitted By", {"fields": ["submitted_by"]}),
+        ("Submitted By", {"fields": ["submitted_by", "contributors"]}),
         (
             "Attack Details",
             {
                 "fields": [
+                    "attack_type",
                     "attack_vector",
                     "source_ip",
                     "source_ip_pool",
                     "destination_ip_template",
-                    "affected_box",
+                    "affected_boxes",
                     "affected_service",
                 ]
             },
@@ -65,19 +95,19 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
         ),
         (
             "Scoring",
-            {"fields": ["affected_teams", "points_per_team"]},
+            {"fields": ["affected_teams", "points_per_team", "is_approved", "approved_by", "approved_at"]},
         ),
         ("Evidence", {"fields": ["notes"]}),
         ("Audit", {"fields": ["created_at", "updated_at"]}),
     ]
 
-    @admin.display(description="Attack")
-    def attack_vector_short(self, obj: RedTeamFinding) -> str:
-        return obj.attack_vector[:50] + "..." if len(obj.attack_vector) > 50 else obj.attack_vector
-
     @admin.display(description="Teams")
     def team_count(self, obj: RedTeamFinding) -> int:
         return obj.affected_teams.count()
+
+    @admin.display(description="Contributors")
+    def contributors_count(self, obj: RedTeamFinding) -> int:
+        return obj.contributors.count()
 
 
 class IncidentScreenshotInline(admin.TabularInline[IncidentScreenshot, IncidentReport]):
@@ -92,7 +122,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
         "id",
         "team",
         "attack_description_short",
-        "affected_box",
+        "affected_boxes_display",
         "affected_service",
         "attack_detected_at",
         "reviewed_status",
@@ -105,7 +135,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
         "attack_mitigated",
         "attack_detected_at",
     ]
-    search_fields = ["attack_description", "affected_box", "affected_service", "team__team_name"]
+    search_fields = ["attack_description", "affected_service", "team__team_name"]
     readonly_fields = ["created_at", "updated_at"]
     inlines = [IncidentScreenshotInline]
 
@@ -118,7 +148,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
                     "attack_description",
                     "source_ip",
                     "destination_ip",
-                    "affected_box",
+                    "affected_boxes",
                     "affected_service",
                 ]
             },
@@ -147,6 +177,14 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
     @admin.display(description="Description")
     def attack_description_short(self, obj: IncidentReport) -> str:
         return obj.attack_description[:50] + "..." if len(obj.attack_description) > 50 else obj.attack_description
+
+    @admin.display(description="Affected Boxes")
+    def affected_boxes_display(self, obj: IncidentReport) -> str:
+        if obj.affected_boxes:
+            boxes = obj.affected_boxes[:3]
+            suffix = "..." if len(obj.affected_boxes) > 3 else ""
+            return ", ".join(boxes) + suffix
+        return "—"
 
     @admin.display(description="Status")
     def reviewed_status(self, obj: IncidentReport) -> str:

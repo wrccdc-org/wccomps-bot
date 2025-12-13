@@ -17,6 +17,7 @@ urlpatterns = [
     path("red-team/", views.red_team_portal, name="red_team_portal"),
     path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),
     path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
+    path("red-team/<int:finding_id>/leave/", views.leave_red_finding, name="leave_red_finding"),
     path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),
     path("red-team/screenshot/<int:screenshot_id>/", views.red_screenshot_download, name="red_screenshot"),
     # IP Pools (Red Team)

@@ -57,7 +57,7 @@
                         </th>
                         {% endif %}
                         <c-table_header sortable="false">ID</c-table_header>
-                        <c-table_header sort_field="attack_vector" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Attack Vector</c-table_header>
+                        <c-table_header sort_field="attack_type__name" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Attack Type</c-table_header>
                         <c-table_header sortable="false">Box</c-table_header>
                         <c-table_header sortable="false">Service</c-table_header>
                         <c-table_header sortable="false">Teams</c-table_header>
@@ -87,8 +87,8 @@
                         <th class="field-id">
                             <c-link href="{% url 'admin:scoring_redteamfinding_change' finding.id %}">#{{ finding.id }}</c-link>
                         </th>
-                        <td class="field-attack_vector">{{ finding.attack_vector|truncatechars:50 }}</td>
-                        <td class="field-box">{{ finding.affected_box }}</td>
+                        <td class="field-attack_type">{{ finding.attack_type.name|default:"—" }}</td>
+                        <td class="field-box">{{ finding.affected_boxes_display|default:"—" }}</td>
                         <td class="field-service">{{ finding.affected_service }}</td>
                         <td class="field-teams">
                             <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
@@ -112,7 +112,12 @@
                         </td>
                         {% if is_gold_team %}
                         <td class="field-points">
-                            {% if finding.is_approved %}<span class="score-negative">-{{ finding.points_per_team }}</span>{% else %}—{% endif %}
+                            <span class="score-negative">-{{ finding.points_per_team }}</span>
+                            {% if finding.outcomes_display %}
+                            <div class="text-xs text-muted" title="{{ finding.outcomes_display|join:', ' }}">
+                                {{ finding.outcomes_display|length }} outcomes
+                            </div>
+                            {% endif %}
                         </td>
                         {% endif %}
                         <td class="field-status">
@@ -127,6 +132,11 @@
                                 <form method="post" action="{% url 'scoring:delete_red_finding' finding.id %}" style="display: inline;" onsubmit="return confirm('Delete this finding?');">
                                     {% csrf_token %}
                                     <button type="submit" class="deletelink" title="Delete">Delete</button>
+                                </form>
+                            {% elif current_user in finding.contributors.all and finding.submitted_by != current_user and not finding.is_approved %}
+                                <form method="post" action="{% url 'scoring:leave_red_finding' finding.id %}" style="display: inline;" onsubmit="return confirm('Remove yourself from this finding?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="deletelink" title="Leave">Leave</button>
                                 </form>
                             {% else %}
                                 <span class="text-muted">—</span>

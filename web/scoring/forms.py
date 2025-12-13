@@ -10,6 +10,7 @@ from django.db.models import QuerySet
 from team.models import Team
 
 from .models import (
+    AttackType,
     IncidentReport,
     OrangeCheckType,
     OrangeTeamBonus,
@@ -109,28 +110,41 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         label="Source IP Type",
     )
 
+    # Multi-select for affected boxes (stored as JSON list)
+    affected_boxes = forms.MultipleChoiceField(
+        choices=[],
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        label="Affected Boxes",
+        help_text="Select all boxes affected by this attack",
+    )
+
     class Meta:
         model = RedTeamFinding
         fields = [
-            "attack_vector",
+            "attack_type",
             "source_ip",
             "source_ip_pool",
-            "affected_box",
             "affected_service",
             "destination_ip_template",
             "universally_attempted",
             "persistence_established",
+            # Outcome checkboxes for scoring
+            "root_access",
+            "user_access",
+            "privilege_escalation",
+            "credentials_recovered",
+            "sensitive_files_recovered",
+            "credit_cards_recovered",
+            "pii_recovered",
+            "encrypted_db_recovered",
+            "db_decrypted",
+            # Teams and notes
             "affected_teams",
             "notes",
         ]
         widgets = {
-            "attack_vector": forms.TextInput(
-                attrs={
-                    "placeholder": "e.g., Default Credentials, RCE, SQL Injection",
-                    "class": "form-control",
-                    "autocomplete": "off",
-                }
-            ),
+            "attack_type": forms.Select(attrs={"class": "form-select"}),
             "affected_teams": forms.CheckboxSelectMultiple(),
             "notes": forms.Textarea(
                 attrs={
@@ -144,10 +158,9 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "source_ip_pool": forms.Select(attrs={"class": "form-select"}),
         }
         labels = {
-            "attack_vector": "Attack Type",
+            "attack_type": "Attack Type",
             "source_ip": "Red Team Source IP",
             "source_ip_pool": "IP Pool",
-            "affected_box": "Affected Box",
             "affected_service": "Affected Service",
             "destination_ip_template": "Target IP Template (auto-populated)",
             "universally_attempted": "Attempted against all teams",
@@ -156,7 +169,7 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             "notes": "Description",
         }
         help_texts = {
-            "attack_vector": "Short name for this attack (1-2 words). Start typing to see suggestions.",
+            "attack_type": "Select the type of attack performed.",
             "source_ip": "The IP address you attacked from.",
             "source_ip_pool": "Select a pool of rotating IPs.",
             "universally_attempted": "Check if this attack was attempted against all teams.",
@@ -170,6 +183,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
     ) -> None:
         self.user = user
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+
+        # Configure attack_type field - only show active types
+        attack_type_field = cast("forms.ModelChoiceField[AttackType]", self.fields["attack_type"])
+        attack_type_field.queryset = AttackType.objects.filter(is_active=True)
+        attack_type_field.empty_label = "Select attack type..."
+        attack_type_field.required = True
 
         # Make source_ip and source_ip_pool not required at form level (validated in clean)
         self.fields["source_ip"].required = False
@@ -187,17 +206,17 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         box_choices = get_box_choices()
         service_choices = get_service_choices()
 
-        # If Quotient metadata is available, use dropdowns; otherwise use text inputs
+        # Populate affected_boxes multi-select
+        affected_boxes_field = cast("forms.MultipleChoiceField", self.fields["affected_boxes"])
         if box_choices:
-            self.fields["affected_box"].widget = forms.Select(
-                choices=[("", "Select a box...")] + box_choices, attrs={"class": "form-select"}
-            )
+            affected_boxes_field.choices = box_choices
         else:
-            # Fallback to text input if Quotient metadata not available
-            self.fields["affected_box"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., web-server, mail-server"}
-            )
-            self.fields["affected_box"].help_text = "Quotient metadata not synced - enter box name manually"
+            # No metadata - hide the field or show message
+            affected_boxes_field.help_text = "Quotient metadata not synced - no boxes available"
+
+        # Set initial value for affected_boxes if editing
+        if self.instance and self.instance.pk and self.instance.affected_boxes:
+            self.initial["affected_boxes"] = self.instance.affected_boxes
 
         if service_choices:
             self.fields["affected_service"].widget = forms.Select(
@@ -237,6 +256,18 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
 
         return cleaned_data
 
+    def save(self, commit: bool = True) -> RedTeamFinding:
+        """Save the form, including the affected_boxes field and auto-calculated points."""
+        instance = super().save(commit=False)
+        # Set affected_boxes from the multi-select field
+        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
+        # Auto-calculate points from outcome checkboxes
+        instance.points_per_team = instance.calculate_points()
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
 
 class IncidentReportForm(forms.ModelForm[IncidentReport]):
     """Form for blue teams to submit incident reports."""
@@ -247,10 +278,18 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         label="Team",
     )
 
+    # Multi-select for affected boxes (stored as JSON list)
+    affected_boxes = forms.MultipleChoiceField(
+        choices=[],
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        label="Affected Boxes",
+        help_text="Select all boxes affected by this incident",
+    )
+
     class Meta:
         model = IncidentReport
         fields = [
-            "affected_box",
             "destination_ip",
             "affected_service",
             "source_ip",
@@ -259,7 +298,6 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             "attack_mitigated",
         ]
         labels = {
-            "affected_box": "Affected Box",
             "destination_ip": "Affected IP",
             "affected_service": "Affected Service (optional)",
             "source_ip": "Attacker IP",
@@ -268,7 +306,6 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             "attack_mitigated": "Attack Mitigated",
         }
         help_texts = {
-            "affected_box": "",
             "destination_ip": "",
             "affected_service": "",
             "source_ip": "",
@@ -297,7 +334,7 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             self.order_fields(
                 [
                     "team",
-                    "affected_box",
+                    "affected_boxes",
                     "destination_ip",
                     "affected_service",
                     "source_ip",
@@ -316,24 +353,34 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         # Service is optional
         self.fields["affected_service"].required = False
 
-        # If Quotient metadata is available, use dropdowns; otherwise use text inputs
+        # Populate affected_boxes multi-select
+        affected_boxes_field = cast("forms.MultipleChoiceField", self.fields["affected_boxes"])
         if box_choices:
-            self.fields["affected_box"].widget = forms.Select(
-                choices=[("", "---")] + box_choices,
-                attrs={"class": "form-select", "id": "id_affected_box"},
-            )
+            affected_boxes_field.choices = box_choices
             # Service starts empty, populated by JavaScript based on box selection
             self.fields["affected_service"].widget = forms.Select(
                 choices=[("", "(select box first)")],
                 attrs={"class": "form-select", "id": "id_affected_service"},
             )
         else:
-            self.fields["affected_box"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., web-server"}
-            )
+            # No metadata - show message
+            affected_boxes_field.help_text = "Quotient metadata not synced - no boxes available"
             self.fields["affected_service"].widget = forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP"}
             )
+
+        # Set initial value for affected_boxes if editing
+        if self.instance and self.instance.pk and self.instance.affected_boxes:
+            self.initial["affected_boxes"] = self.instance.affected_boxes
+
+    def save(self, commit: bool = True) -> IncidentReport:
+        """Save the form, including the affected_boxes field."""
+        instance = super().save(commit=False)
+        # Set affected_boxes from the multi-select field
+        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
+        if commit:
+            instance.save()
+        return instance
 
 
 class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):

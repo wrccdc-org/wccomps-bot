@@ -19,19 +19,35 @@
                 </c-form_field>
                 {% endif %}
 
-                <div class="grid-2">
-                    <c-form_field label="{{ form.affected_box.label }}" required="true" :id="form.affected_box.id_for_label" help_text="{{ form.affected_box.help_text }}" error="{{ form.affected_box.errors|join:', ' }}">
-                        {{ form.affected_box }}
-                    </c-form_field>
+                <div class="mb-15">
+                    <label class="form-label">{{ form.affected_boxes.label }}</label>
+                    {% if form.affected_boxes.help_text %}
+                        <div class="form-text mb-10">{{ form.affected_boxes.help_text }}</div>
+                    {% endif %}
+                    <div class="d-flex flex-wrap gap-10">
+                        {% for checkbox in form.affected_boxes %}
+                            <div class="form-check">
+                                {{ checkbox.tag }}
+                                <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                            </div>
+                        {% empty %}
+                            <span class="text-muted">No boxes available - sync Quotient metadata first</span>
+                        {% endfor %}
+                    </div>
+                    {% if form.affected_boxes.errors %}
+                        <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
+                    {% endif %}
+                </div>
 
+                <div class="grid-2">
                     <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" help_text="{{ form.affected_service.help_text }}" error="{{ form.affected_service.errors|join:', ' }}">
                         {{ form.affected_service }}
                     </c-form_field>
-                </div>
 
-                <c-form_field label="{{ form.destination_ip.label }}" required="true" :id="form.destination_ip.id_for_label" help_text="Auto-populated based on selected box" error="{{ form.destination_ip.errors|join:', ' }}">
-                    {{ form.destination_ip }}
-                </c-form_field>
+                    <c-form_field label="{{ form.destination_ip.label }}" required="true" :id="form.destination_ip.id_for_label" help_text="Auto-populated based on selected boxes" error="{{ form.destination_ip.errors|join:', ' }}">
+                        {{ form.destination_ip }}
+                    </c-form_field>
+                </div>
             </c-fieldset>
 
             <!-- Attack Details Section -->
@@ -116,39 +132,49 @@ function getSelectedTeamNumber() {
 }
 
 function updateIPAndServices() {
-    const boxSelect = document.getElementById('id_affected_box');
+    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
     const serviceSelect = document.getElementById('id_affected_service');
     const ipField = document.getElementById('id_destination_ip');
-
-    if (!boxSelect) return;
-
-    const boxName = boxSelect.value;
-    const boxData = boxMetadata[boxName];
     const currentTeam = getSelectedTeamNumber();
 
-    // Update IP field
-    if (boxData && ipField && currentTeam) {
+    // Get first selected box for IP field (since destination_ip is a single value)
+    let firstBoxData = null;
+    if (boxCheckboxes.length > 0) {
+        const firstBoxName = boxCheckboxes[0].value;
+        firstBoxData = boxMetadata[firstBoxName];
+    }
+
+    // Update IP field based on first selected box
+    if (firstBoxData && ipField && currentTeam) {
         const teamStr = currentTeam.toString().padStart(2, '0');
-        ipField.value = boxData.ip.replace('_', teamStr);
+        ipField.value = firstBoxData.ip.replace('_', teamStr);
     } else if (ipField) {
         ipField.value = '';
     }
 
-    // Update service dropdown
+    // Update service dropdown - combine services from all selected boxes
     if (serviceSelect) {
         const currentService = serviceSelect.value;
+        const allServices = new Set();
+        boxCheckboxes.forEach(function(checkbox) {
+            const boxData = boxMetadata[checkbox.value];
+            if (boxData && boxData.services) {
+                boxData.services.forEach(function(svc) {
+                    allServices.add(svc);
+                });
+            }
+        });
+
         serviceSelect.innerHTML = '<option value="">-- None --</option>';
-        if (boxData && boxData.services) {
-            boxData.services.forEach(function(svc) {
-                const option = document.createElement('option');
-                option.value = svc;
-                option.textContent = svc;
-                if (svc === currentService) {
-                    option.selected = true;
-                }
-                serviceSelect.appendChild(option);
-            });
-        }
+        Array.from(allServices).sort().forEach(function(svc) {
+            const option = document.createElement('option');
+            option.value = svc;
+            option.textContent = svc;
+            if (svc === currentService) {
+                option.selected = true;
+            }
+            serviceSelect.appendChild(option);
+        });
     }
 }
 
@@ -177,15 +203,19 @@ function previewScreenshots(input) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const boxSelect = document.getElementById('id_affected_box');
+    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]');
     const teamSelect = document.getElementById('id_team');
 
-    if (boxSelect) {
-        boxSelect.addEventListener('change', updateIPAndServices);
-        if (boxSelect.value) {
-            updateIPAndServices();
-        }
+    boxCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateIPAndServices);
+    });
+
+    // Initial update if any boxes are pre-selected
+    const checkedBoxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
+    if (checkedBoxes.length > 0) {
+        updateIPAndServices();
     }
+
     if (teamSelect) {
         teamSelect.addEventListener('change', updateIPAndServices);
     }
