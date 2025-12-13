@@ -14,8 +14,9 @@ urlpatterns = [
     path("event/<int:event_id>/send-scorecards/", views.send_scorecards_batch_view, name="send_scorecards_batch"),
     path("scorecard/<int:event_score_id>/send/", views.send_scorecard_single_view, name="send_scorecard_single"),
     # Red Team
-    path("red-team/", views.red_team_portal, name="red_team_portal"),
-    path("red-team/submit/", views.submit_red_finding, name="submit_red_finding"),
+    path("red-team/", views.submit_red_finding, name="submit_red_finding"),
+    path("red-team/findings/", views.red_team_portal, name="red_team_findings"),
+    path("red-team/portal/", views.red_team_portal, name="red_team_portal"),  # Legacy alias
     path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
     path("red-team/<int:finding_id>/leave/", views.leave_red_finding, name="leave_red_finding"),
     path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),

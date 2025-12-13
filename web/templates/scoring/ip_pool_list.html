@@ -1,11 +1,9 @@
-{% extends "base.html" %}
-
+{% extends "scoring/red_base.html" %}
 {% block title %}IP Pools{% endblock %}
 
-{% block content %}
+{% block red_content %}
 {% load cotton %}
-<div class="max-w-800">
-    <c-page_header title="IP Pools" subtitle="Manage your rotating source IP pools" />
+<c-page_header title="IP Pools" subtitle="Manage your rotating source IP pools" />
     <c-module>
         <div class="d-flex justify-between items-center mb-20">
             <div>
@@ -59,9 +57,5 @@
         </c-alert>
         {% endif %}
 
-        <c-button_row class="justify-start mt-20">
-            <c-link href="{% url 'scoring:red_team_portal' %}">Back to Red Team Portal</c-link>
-        </c-button_row>
     </c-module>
-</div>
-{% endblock %}
+{% endblock red_content %}

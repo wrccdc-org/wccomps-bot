@@ -1,11 +1,9 @@
-{% extends "base.html" %}
+{% extends "scoring/red_base.html" %}
+{% block title %}Submit Finding{% endblock %}
 
-{% block title %}Submit Red Team Finding{% endblock %}
-
-{% block content %}
+{% block red_content %}
 {% load cotton %}
-<div class="max-w-1200">
-    <c-page_header title="Submit Red Team Finding" subtitle="Document successful attacks for scoring" />
+<c-page_header title="Submit Finding" subtitle="Document successful attacks for scoring" />
     <c-module>
         <form method="post" enctype="multipart/form-data" id="findingForm">
                     {% csrf_token %}
@@ -262,12 +260,11 @@
                     </c-alert>
 
                     <c-button_row class="justify-end">
-                        <c-link href="{% url 'scoring:red_team_portal' %}">Cancel</c-link>
+                        <c-link href="{% url 'scoring:red_team_findings' %}">Cancel</c-link>
                         <c-button type="submit" variant="primary">Submit Finding</c-button>
                     </c-button_row>
                 </form>
     </c-module>
-</div>
 
 <!-- Create IP Pool Modal -->
 <div id="createPoolModal" class="modal" style="display: none;">
@@ -632,5 +629,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-{% endblock %}
+{% endblock red_content %}
