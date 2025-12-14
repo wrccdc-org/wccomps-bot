@@ -77,35 +77,67 @@ class WCCompsBot(commands.Bot):
             else:
                 logger.info(f"  - {cmd.name} (Command)")
 
-        # Sync commands to guild
-        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
-        if guild_id:
-            guild = discord.Object(id=guild_id)
+        # Sync commands to guilds
+        # Competition guild gets all commands
+        competition_guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        # Volunteer guild gets only the /link command so staff can link their accounts there
+        volunteer_guild_id = int(os.environ.get("VOLUNTEER_GUILD_ID", "0"))
+
+        # Sync all commands to competition guild
+        if competition_guild_id:
+            guild = discord.Object(id=competition_guild_id)
 
             # Strategy: Fetch existing commands from Discord, delete them, then sync fresh
-            # Step 1: Fetch what Discord currently has
             try:
                 existing_commands = await self.tree.fetch_commands(guild=guild)
-                logger.info(f"Found {len(existing_commands)} existing commands on Discord")
+                logger.info(
+                    f"Found {len(existing_commands)} existing commands on competition guild ({competition_guild_id})"
+                )
 
-                # Delete each command individually
                 for existing_cmd in existing_commands:
-                    logger.info(f"Deleting command: {existing_cmd.name}")
+                    logger.info(f"Deleting command from competition: {existing_cmd.name}")
                     await existing_cmd.delete()
-                logger.info("Deleted all existing commands from Discord")
+                logger.info("Deleted all existing commands from competition guild")
             except Exception as e:
-                logger.warning(f"Could not fetch/delete existing commands: {e}")
+                logger.warning(f"Could not fetch/delete existing commands from competition: {e}")
 
-            # Step 2: Clear local tree and sync empty to ensure clean slate
             self.tree.clear_commands(guild=guild)
             await self.tree.sync(guild=guild)
-            logger.info(f"Synced empty command tree to guild {guild_id}")
+            logger.info(f"Synced empty command tree to competition guild ({competition_guild_id})")
 
-            # Step 3: Re-register our commands and sync
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
-            logger.info(f"Command tree synced to guild {guild_id}")
-        else:
+            logger.info(f"Command tree synced to competition guild ({competition_guild_id})")
+
+        # Sync only /link command to volunteer guild
+        if volunteer_guild_id and volunteer_guild_id != competition_guild_id:
+            volunteer_guild = discord.Object(id=volunteer_guild_id)
+
+            # Clear existing commands from volunteer guild
+            try:
+                existing_commands = await self.tree.fetch_commands(guild=volunteer_guild)
+                logger.info(
+                    f"Found {len(existing_commands)} existing commands on volunteer guild ({volunteer_guild_id})"
+                )
+
+                for existing_cmd in existing_commands:
+                    logger.info(f"Deleting command from volunteer: {existing_cmd.name}")
+                    await existing_cmd.delete()
+                logger.info("Deleted all existing commands from volunteer guild")
+            except Exception as e:
+                logger.warning(f"Could not fetch/delete existing commands from volunteer: {e}")
+
+            # Only add the /link command to volunteer guild
+            self.tree.clear_commands(guild=volunteer_guild)
+            link_command = self.tree.get_command("link")
+            if link_command:
+                self.tree.add_command(link_command, guild=volunteer_guild)
+                await self.tree.sync(guild=volunteer_guild)
+                logger.info(f"Synced /link command to volunteer guild ({volunteer_guild_id})")
+            else:
+                logger.warning("Could not find /link command to sync to volunteer guild")
+
+        if not competition_guild_id:
             await self.tree.sync()
             logger.info("Command tree synced globally")
 
