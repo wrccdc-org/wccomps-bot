@@ -51,7 +51,7 @@ services:
       - "8000"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.wccomps.rule=Host(`bot.wccomps.org`) || Host(`team.wccomps.org`)
+      - traefik.http.routers.wccomps.rule=Host(`bot.wccomps.org`) || Host(`team.wccomps.org`) || Host(`teams.wccomps.org`) || Host(`ticket.wccomps.org`) || Host(`tickets.wccomps.org`) || Host(`portal.wccomps.org`)
       - traefik.http.routers.wccomps.entrypoints=web
       - traefik.http.services.wccomps.loadbalancer.server.port=8000
       # Cloudflare terminates HTTPS and forwards to Traefik on HTTP

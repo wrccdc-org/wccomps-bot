@@ -117,6 +117,8 @@ class DiscordQueueProcessor:
                 await self._handle_add_user_to_thread(task)
             elif task.task_type == "sync_roles":
                 await self._handle_sync_roles(task)
+            elif task.task_type == "assign_role_by_username":
+                await self._handle_assign_role_by_username(task)
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
@@ -537,12 +539,40 @@ class DiscordQueueProcessor:
         logger.info(f"Added user {discord_id} to thread {thread_id}")
 
     async def _handle_sync_roles(self, task: DiscordTask) -> None:
-        """Handle role synchronization between guilds."""
-        from bot.role_sync import RoleSyncManager
+        """Handle role synchronization from Authentik to Discord.
+
+        Uses AuthentikRoleSyncManager by default (syncs based on Authentik groups).
+        Supports dry_run mode to preview changes without applying them.
+        """
+        import asyncio
+
+        from bot.role_sync import AuthentikRoleSyncManager
         from bot.utils import log_to_ops_channel
 
-        sync_manager = RoleSyncManager(self.bot)
-        stats = await sync_manager.sync_roles()
+        dry_run = task.payload.get("dry_run", False)
+        sync_manager = AuthentikRoleSyncManager(self.bot)
+
+        # Callback to save progress to database
+        async def save_progress(current: int, total: int, role_name: str) -> None:
+            @sync_to_async
+            def update_payload() -> None:
+                task.payload["progress"] = {
+                    "current": current,
+                    "total": total,
+                    "current_role": role_name,
+                }
+                task.save()
+
+            await update_payload()
+
+        try:
+            stats = await asyncio.wait_for(
+                sync_manager.sync_roles(dry_run=dry_run, progress_callback=save_progress),
+                timeout=300.0,
+            )
+        except TimeoutError:
+            logger.error("Role sync timed out after 5 minutes")
+            raise RuntimeError("Role sync timed out after 5 minutes") from None
 
         # Store results in task payload for retrieval
         @sync_to_async
@@ -552,16 +582,75 @@ class DiscordQueueProcessor:
                 "roles_removed": stats["roles_removed"],
                 "errors": stats["errors"],
                 "changes_count": len(stats["changes"]),
+                "changes": stats["changes"],
+                "dry_run": dry_run,
             }
+            # Clear progress now that we're done
+            task.payload.pop("progress", None)
             task.save()
 
         await store_results()
 
         # Log results to ops channel
+        mode = "[DRY RUN] " if dry_run else ""
         summary = (
-            f"Role sync complete: {stats['roles_added']} added, "
+            f"{mode}Role sync complete: {stats['roles_added']} would be added, "
+            f"{stats['roles_removed']} would be removed, {stats['errors']} errors"
+            if dry_run
+            else f"Role sync complete: {stats['roles_added']} added, "
             f"{stats['roles_removed']} removed, {stats['errors']} errors"
         )
         await log_to_ops_channel(self.bot, summary)
 
         logger.info(f"Role sync completed: {summary}")
+
+    async def _handle_assign_role_by_username(self, task: DiscordTask) -> None:
+        """Assign a role to users by their Discord username."""
+        import os
+
+        guild_id = task.payload.get("guild_id") or int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        role_id = task.payload.get("role_id")
+        usernames = task.payload.get("usernames", [])
+
+        if not role_id or not usernames:
+            raise ValueError("Missing role_id or usernames in payload")
+
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            raise RuntimeError(f"Guild {guild_id} not found")
+
+        # Ensure members are cached with timeout
+        if not guild.chunked:
+            try:
+                await asyncio.wait_for(guild.chunk(), timeout=30.0)
+            except TimeoutError:
+                logger.warning(f"Guild chunk timed out, using {len(guild.members)} cached members")
+
+        role = guild.get_role(role_id)
+        if not role:
+            raise RuntimeError(f"Role {role_id} not found in guild {guild.name}")
+
+        results = []
+        for username in usernames:
+            member = discord.utils.get(guild.members, name=username)
+            if not member:
+                member = discord.utils.get(guild.members, display_name=username)
+
+            if member:
+                if role in member.roles:
+                    results.append(f"{username}: already has role")
+                else:
+                    await member.add_roles(role, reason="Assigned via admin task")
+                    results.append(f"{username}: role added")
+                    logger.info(f"Added role {role.name} to {member} in {guild.name}")
+            else:
+                results.append(f"{username}: not found in guild")
+                logger.warning(f"User {username} not found in guild {guild.name}")
+
+        @sync_to_async
+        def store_results() -> None:
+            task.payload["result"] = {"results": results}
+            task.save()
+
+        await store_results()
+        logger.info(f"Role assignment complete: {results}")

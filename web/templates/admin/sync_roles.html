@@ -8,19 +8,23 @@
     <c-page_header title="Sync Roles" />
 
     <c-module>
-        <c-slot name="title">Role Synchronization</c-slot>
+        <c-slot name="title">Authentik Role Synchronization</c-slot>
         <div class="space-y-4">
-            <p>Synchronize team roles from the volunteer guild to the competition guild.</p>
+            <p>Synchronize Discord roles based on Authentik group membership.</p>
             <ul class="list-disc list-inside text-muted">
-                <li>Users with team roles in volunteer guild will get them in competition guild</li>
-                <li>Users without roles in volunteer guild will lose them in competition guild</li>
-                <li>This is a one-way sync from volunteer to competition</li>
+                <li>Users in Authentik groups (e.g., WCComps_GoldTeam) will get corresponding Discord roles</li>
+                <li>Users must have linked their Discord account to be synced</li>
+                <li>Users removed from Authentik groups will lose Discord roles</li>
             </ul>
 
             <c-button_row class="mt-15">
-                <c-button variant="success" @click="requestSync()" ::disabled="loading">
+                <c-button variant="default" @click="requestSync(true)" ::disabled="loading">
+                    <span x-show="!loading">Preview Changes (Dry Run)</span>
+                    <span x-show="loading && isDryRun">Previewing...</span>
+                </c-button>
+                <c-button variant="success" @click="requestSync(false)" ::disabled="loading">
                     <span x-show="!loading">Sync Roles Now</span>
-                    <span x-show="loading">Syncing...</span>
+                    <span x-show="loading && !isDryRun">Syncing...</span>
                 </c-button>
             </c-button_row>
         </div>
@@ -39,6 +43,17 @@
             </div>
         </div>
     </template>
+
+    <template x-if="changes.length > 0">
+        <c-module class="mt-20">
+            <c-slot name="title">Changes Made</c-slot>
+            <ul class="list-none space-y-1">
+                <template x-for="change in changes" :key="change">
+                    <li x-text="change" class="font-mono text-sm"></li>
+                </template>
+            </ul>
+        </c-module>
+    </template>
 </div>
 
 <script>
@@ -48,22 +63,34 @@ function syncRolesAdmin() {
         message: '',
         messageType: 'success',
         taskId: null,
+        changes: [],
+        isDryRun: false,
 
-        async requestSync() {
-            if (!confirm('Start role synchronization? This may take a moment.')) {
+        async requestSync(dryRun) {
+            const confirmMsg = dryRun
+                ? 'Preview role changes? No changes will be made.'
+                : 'Start role synchronization? This will modify Discord roles.';
+
+            if (!confirm(confirmMsg)) {
                 return;
             }
 
             this.loading = true;
-            this.message = 'Starting sync...';
+            this.isDryRun = dryRun;
+            this.message = dryRun ? 'Starting preview...' : 'Starting sync...';
             this.messageType = 'success';
+            this.changes = [];
 
             try {
+                const formData = new FormData();
+                formData.append('dry_run', dryRun ? 'true' : 'false');
+
                 const response = await fetch('{% url "admin_sync_roles_action" %}', {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': '{{ csrf_token }}'
-                    }
+                    },
+                    body: formData
                 });
 
                 const result = await response.json();
@@ -96,6 +123,9 @@ function syncRolesAdmin() {
                 if (result.status === 'completed') {
                     this.messageType = 'success';
                     this.loading = false;
+                    if (result.changes) {
+                        this.changes = result.changes;
+                    }
                     setTimeout(() => this.message = '', 8000);
                 } else if (result.status === 'failed') {
                     this.messageType = 'error';

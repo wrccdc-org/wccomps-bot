@@ -71,8 +71,11 @@ Blue Team members are competition participants defending their assigned network 
 **Permissions**:
 - Submit incident reports for their team
 - View their team's incident reports
+- Delete own incident reports before review
 - Create and manage support tickets
+- Cancel own open tickets (before claimed)
 - View and download team packets
+- Link Discord account to team
 
 **Restrictions**:
 - Cannot view leaderboard (use Quotient during competition)
@@ -89,6 +92,8 @@ Red Team members simulate adversaries attacking Blue Team infrastructure.
 **Permissions**:
 - Submit red team findings (attack reports)
 - View ALL red team findings (all members' submissions for coordination)
+- Manage IP pools (create, edit, delete pools of source IPs for findings)
+- Delete/leave own findings before approval
 
 **Restrictions**:
 - Cannot view leaderboard
@@ -108,12 +113,19 @@ Gold Team members verify incidents, review findings, and ensure fair competition
 - Review and match ALL incident reports to red findings
 - Spot-check and bulk approve red team findings
 - Spot-check and bulk approve orange team adjustments
-- Spot-check and bulk approve inject grades
+- Submit and approve inject grades
 - Manage school information
+- Competition management (start/end competition, manage teams, sync roles)
+- Registration management (review, approve, reject, mark paid)
+- Season and event management (create, edit, delete)
+- Team assignment for events
+- Upload and distribute team packets
+- View team mappings (Discord ↔ Authentik)
+- Manage student helpers
+- Broadcast messages to teams
 
 **Restrictions**:
 - Cannot submit orange adjustments (can only review)
-- Cannot submit inject grades (can only review)
 
 ---
 
@@ -127,9 +139,11 @@ White Team members grade scenario-based inject submissions. Inject problems and 
 - View leaderboard
 - Submit inject grades (per-inject, per-team)
 - View inject submission details (synced from Quotient)
+- Review and match incident reports to red findings
 
 **Restrictions**:
-- Cannot review incidents or red team findings
+- Cannot approve inject grades (Gold Team reviews)
+- Cannot approve red team findings
 - Cannot submit orange adjustments
 
 ---
@@ -225,39 +239,69 @@ System administrators have full access to system configuration.
 | View Own Incident Reports | ✓ | | ✓ | | | | | ✓ |
 | Submit Red Finding | | ✓ | | | | | | ✓ |
 | View All Red Findings | | ✓ | ✓ | | | | | ✓ |
-| Review/Match Incident Reports | | | ✓ | | | | | ✓ |
+| Review/Match Incident Reports | | | ✓ | ✓ | | | | ✓ |
 | Approve Red Findings | | | ✓ | | | | | ✓ |
-| Submit Inject Grade | | | | ✓ | | | | ✓ |
+| Submit Inject Grade | | | ✓ | ✓ | | | | ✓ |
 | Approve Inject Grades | | | ✓ | | | | | ✓ |
 | Submit Orange Adjustment | | | | | ✓ | | | ✓ |
 | Approve Orange Adjust | | | ✓ | | | | | ✓ |
 | View Team Mappings | | | ✓ | | | | | ✓ |
 | Manage School Info | | | ✓ | | | | | ✓ |
-| Create Tickets | ✓ | | | | | | | |
+| Manage IP Pools | | ✓ | | | | | | ✓ |
+| Create Tickets | ✓ | | ✓ | | | | | ✓ |
+| Cancel Own Tickets | ✓ | | | | | | | |
 | View All Tickets | | | | | | ✓ | ✓ | ✓ |
 | Claim/Resolve Tickets | | | | | | ✓ | ✓ | ✓ |
-| Bulk Ticket Operations | | | | | | | ✓ | ✓ |
+| Bulk Ticket Operations | | | | | | ✓ | ✓ | ✓ |
 | Approve Ticket Points | | | | | | | ✓ | ✓ |
-| View Team Packets | ✓ | | | | | | | ✓ |
+| View Team Packets | ✓ | | ✓ | | | | | ✓ |
+| Upload/Distribute Packets | | | ✓ | | | | | ✓ |
+| Link Discord Account | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Comp Mgmt | | | ✓ | | | | | ✓ |
+| Team Mgmt | | | ✓ | | | | | ✓ |
+| Manage Helpers | | | ✓ | | | | | ✓ |
+| Broadcast Messages | | | ✓ | | | | | ✓ |
+| Sync Discord Roles | | | ✓ | | | | | ✓ |
+| Review Registrations | | | ✓ | | | | | ✓ |
+| Manage Seasons/Events | | | ✓ | | | | | ✓ |
+| Assign Teams to Events | | | ✓ | | | | | ✓ |
 | Export Data | | | | | | | | ✓ |
+| Black Team Adjustments | | | | | | | | ✓ |
 | Django Admin | | | | | | | | ✓ |
 
 ### View-Level Permissions (URL Access)
 
 | View                    | Blue | Red | Gold | White | Orange | Ticket Supp | Ticket Admin | Admin |
 |-------------------------|------|-----|------|-------|--------|-------------|--------------|-------|
+| Public Registration     | ✓**  | ✓** | ✓**  | ✓**   | ✓**    | ✓**         | ✓**          | ✓**   |
+| Registration Review     |      |     | ✓    |       |        |             |              | ✓     |
+| Season/Event Mgmt       |      |     | ✓    |       |        |             |              | ✓     |
+| Discord Link            | ✓    | ✓   | ✓    | ✓     | ✓      | ✓           | ✓            | ✓     |
 | Leaderboard             |      |     | ✓    | ✓     |        |             | ✓            | ✓     |
 | Red Team Portal         |      | ✓   | ✓    |       |        |             |              | ✓     |
 | Incident Submission     | ✓*   |     |      |       |        |             |              | ✓     |
+| Review Incidents        |      |     | ✓    | ✓     |        |             |              | ✓     |
 | Orange Team Portal      |      |     | ✓    |       | ✓      |             |              | ✓     |
 | Inject Grading          |      |     | ✓    | ✓     |        |             |              | ✓     |
 | Review Inject Grades    |      |     | ✓    |       |        |             |              | ✓     |
+| Team Tickets            | ✓    |     |      |       |        |             |              |       |
+| Create Ticket           | ✓    |     | ✓    |       |        |             |              | ✓     |
 | Review Tickets          |      |     |      |       |        |             | ✓            | ✓     |
 | Ops Tickets             |      |     |      |       |        | ✓           | ✓            | ✓     |
+| Team Packets            | ✓    |     |      |       |        |             |              |       |
+| Ops Packets             |      |     | ✓    |       |        |             |              | ✓     |
+| Team Mappings           |      |     | ✓    |       |        |             |              | ✓     |
 | Ops School Info         |      |     | ✓    |       |        |             |              | ✓     |
+| Comp Mgmt               |      |     | ✓    |       |        |             |              | ✓     |
+| Team Mgmt               |      |     | ✓    |       |        |             |              | ✓     |
+| Helpers Mgmt            |      |     | ✓    |       |        |             |              | ✓     |
+| Broadcast               |      |     | ✓    |       |        |             |              | ✓     |
+| Sync Roles              |      |     | ✓    |       |        |             |              | ✓     |
 | Export Views            |      |     |      |       |        |             |              | ✓     |
 
 \* Blue Team can submit incidents only if they have a team assigned
+
+\*\* Public registration is accessible without authentication
 
 ---
 
@@ -269,28 +313,59 @@ System administrators have full access to system configuration.
 > As a **coach or team captain**, I want to **register my team for the competition** so that I can **secure a spot and receive account credentials**.
 
 **Acceptance Criteria**:
-- Registration form captures school name, contact email, phone
-- Check for registration deadline (reject if past)
-- Check for capacity limit (reject if full)
+- Public registration form (no authentication required)
+- Form captures school name, contact details (captain, coach)
+- Select events to enroll in from active season
 - Confirmation shown with next steps
-- Admin notified of new registration
+- Edit link with secure token sent via email
 
-#### REG-2: Review Team Registration
-> As a **System Admin**, I want to **review and approve team registrations** so that I can **verify eligibility and manage capacity**.
+#### REG-2: Edit Registration
+> As a **registrant**, I want to **edit my registration** so that I can **update contact info or event selections**.
 
 **Acceptance Criteria**:
-- List of pending registrations
-- View registration details
+- Access via secure token link (sent in confirmation email)
+- Can update school name, contacts, event enrollments
+- Cannot edit after credentials are sent
+- Token can have expiration date
+
+#### REG-3: Review Team Registrations
+> As a **Gold Team member**, I want to **review and manage team registrations** so that I can **verify eligibility and track payment**.
+
+**Acceptance Criteria**:
+- List of all registrations with status filter
+- View registration details and contacts
 - Approve or reject with reason
-- Approved teams receive invoice information
-- After payment confirmed, account credentials emailed
+- Mark registration as paid
+- Status workflow: `pending` → `approved` → `paid` → `credentials_sent` (or `rejected`)
 
-#### REG-3: Track Registration Status
-> As a **registrant**, I want to **check my registration status** so that I can **know if I'm approved and what's next**.
+#### REG-4: Manage Seasons
+> As a **Gold Team member**, I want to **manage competition seasons** so that I can **organize events by year**.
 
 **Acceptance Criteria**:
-- Status workflow: `pending` → `approved` → `paid` → `credentials_sent` (or `rejected`)
-- Contact information if questions
+- Create, edit, delete seasons
+- Set active season
+- View events within each season
+
+#### REG-5: Manage Events
+> As a **Gold Team member**, I want to **manage events within a season** so that I can **set up competition dates and registration limits**.
+
+**Acceptance Criteria**:
+- Create, edit, delete events
+- Set event type (invitational, qualifier, regional, state)
+- Set date, start/end times
+- Set max teams and registration deadline
+- Open/close registration
+- View enrollment counts
+
+#### REG-6: Assign Teams to Event
+> As a **Gold Team member**, I want to **assign team numbers to registrations** so that I can **prepare for competition day**.
+
+**Acceptance Criteria**:
+- View event details with enrolled registrations
+- Randomly assign team numbers to paid registrations
+- Only assign to registrations with "paid" status
+- Unassign teams before credentials are sent
+- Track which registrations have received credentials
 
 ---
 
@@ -302,6 +377,7 @@ System administrators have full access to system configuration.
 **Acceptance Criteria**:
 - Form captures: target box, source IP, services affected, attack type, description
 - Box selection auto-populates destination IP and available services
+- Upload screenshot evidence (multiple files supported)
 - Can only submit for my team's infrastructure
 - Confirmation shown after submission
 
@@ -314,21 +390,38 @@ System administrators have full access to system configuration.
 - Detail view for each incident
 - Status NOT shown (Blue doesn't see match status)
 
+#### BT-2a: Delete Incident Report
+> As a **Blue Team member**, I want to **delete my own incident report** so that I can **correct mistakes before review**.
+
+**Acceptance Criteria**:
+- Can delete own reports before Gold Team review
+- Cannot delete after review
+- Confirmation required before deletion
+
 #### BT-3: Request Support
 > As a **Blue Team member**, I want to **create a support ticket** so that I can **get help with technical issues**.
 
 **Acceptance Criteria**:
 - Ticket creation with category selection
-- File attachment support
-- View ticket status and staff responses
-- Can cancel own unresolved tickets
+- Can cancel open tickets before they are claimed
 
-#### BT-4: Download Team Packets
-> As a **Blue Team member**, I want to **download team packets** so that I can **access competition materials**.
+#### BT-4: Link Discord Account
+> As a **Blue Team member**, I want to **link my Discord account** so that I can **receive team role and access Discord channels**.
+
+**Acceptance Criteria**:
+- Use /link command in Discord to get secure link
+- Authenticate via Authentik OAuth
+- Discord role assigned automatically
+- Team membership tracked
+- Team size limits enforced
+
+#### BT-5: View Team Packets
+> As a **Blue Team member**, I want to **view and download team packets** so that I can **access competition materials**.
 
 **Acceptance Criteria**:
 - List of available packets for my team
-- Secure download links
+- Download packet files
+- Only see packets enabled for web access
 - Shows upload date and description
 
 ---
@@ -342,6 +435,8 @@ System administrators have full access to system configuration.
 - Form captures: target team, target box, source IP, attack type, description
 - Box selection auto-populates destination IP and services
 - Attack type autocomplete from previous submissions (XSS-safe)
+- Upload screenshot evidence (multiple files supported)
+- Select outcome checkboxes (root access, credentials recovered, etc.)
 - Confirmation shown after submission
 
 #### RT-2: View All Findings
@@ -352,6 +447,23 @@ System administrators have full access to system configuration.
 - Filter by team targeted, attack type, submitter
 - Shows submission time, target, attack type
 - Approval status NOT shown
+
+#### RT-3: Manage IP Pools
+> As a **Red Team member**, I want to **manage IP pools** so that I can **group source IPs and associate findings with them**.
+
+**Acceptance Criteria**:
+- Create IP pools with name and list of IPs
+- Edit existing pools
+- Delete pools (if not in use by findings)
+- Select pool when submitting findings
+
+#### RT-4: Delete/Leave Finding
+> As a **Red Team member**, I want to **delete my own findings or leave merged findings** so that I can **correct mistakes before approval**.
+
+**Acceptance Criteria**:
+- Delete own findings before approval
+- Leave merged findings (remove self as contributor)
+- Cannot modify after approval
 
 ---
 
@@ -418,6 +530,52 @@ System administrators have full access to system configuration.
 - Import from CSV
 - Track last updated
 
+#### GT-8: Competition Management
+> As a **Gold Team member**, I want to **manage competition settings** so that I can **control competition flow**.
+
+**Acceptance Criteria**:
+- Set competition start/end times (with timezone support)
+- Configure controlled applications (Authentik apps)
+- Set max team members
+- Start competition (enables apps + blue team accounts)
+- End competition (deactivates links, disables accounts, clears helpers)
+- Enable/disable all blue team accounts
+- Reset team passwords (generates CSV download)
+- Sync Discord roles from Authentik
+- Broadcast messages to teams
+
+#### GT-8a: Team Management
+> As a **Gold Team member**, I want to **manage individual teams** so that I can **handle team-specific issues**.
+
+**Acceptance Criteria**:
+- View team details and member list
+- Activate/deactivate individual teams
+- Unlink individual users from team
+- Reset team (unlinks all users, resets password, revokes sessions)
+- Recreate Discord channels for team
+- Bulk activate/deactivate teams
+- Bulk recreate channels for multiple teams
+
+#### GT-9: Upload and Distribute Packets
+> As a **Gold Team member**, I want to **upload and distribute team packets** so that I can **share competition materials with all teams**.
+
+**Acceptance Criteria**:
+- Upload packet files (max 25 MB)
+- Set title and notes for packet
+- Choose email/web distribution methods
+- Trigger distribution to all teams
+- View distribution status per team
+- Track download counts
+- Cancel packet distribution
+
+#### GT-10: Manage Helpers
+> As a **Gold Team member**, I want to **manage student helpers** so that I can **grant temporary Discord roles**.
+
+**Acceptance Criteria**:
+- Add helpers by Discord ID
+- Remove helpers
+- Assign helper roles in Discord
+
 ---
 
 ### White Team Stories
@@ -437,6 +595,15 @@ System administrators have full access to system configuration.
 **Acceptance Criteria**:
 - Access to leaderboard
 - Can see overall rankings
+
+#### WT-3: Review and Match Incidents
+> As a **White Team member**, I want to **review and match incident reports** so that I can **help verify defensive detections**.
+
+**Acceptance Criteria**:
+- View all incident reports
+- See suggested red finding matches
+- Match incident to specific red finding
+- Award recovery points
 
 ---
 
@@ -474,6 +641,8 @@ System administrators have full access to system configuration.
 - Add comments visible to participant
 - Add attachments
 - Unclaim if needed
+- Reassign to another support member
+- Change ticket category
 - Resolve (points auto-assigned by category)
 
 #### TA-1: Bulk Operations
@@ -482,6 +651,8 @@ System administrators have full access to system configuration.
 **Acceptance Criteria**:
 - Select multiple tickets
 - Bulk claim or resolve
+- Reopen resolved tickets
+- Clear all tickets and reset counters
 - Confirmation of results
 
 #### TA-2: Approve Ticket Points
@@ -532,6 +703,15 @@ System administrators have full access to system configuration.
 - Trigger aggregation
 - Combine Quotient base + WCComps adjustments
 - Generate final leaderboard
+
+#### AD-5: Black Team Adjustments
+> As a **System Admin**, I want to **make manual point adjustments** so that I can **handle special cases and corrections**.
+
+**Acceptance Criteria**:
+- Create point adjustments (positive or negative) via Django Admin
+- Specify team, reason, and point value
+- Adjustments included in final score calculation
+- Full audit trail of who made adjustment and when
 
 ---
 
@@ -631,9 +811,10 @@ Defined in `templates/admin/base_site.html`:
 | Incident Report | `is_blue_team` or `is_admin` | `/scoring/incident/submit/` |
 | Red Team Findings | `is_red_team` or `is_admin` | `/scoring/red-team/submit/` |
 | Orange Team | `is_orange_team` or `is_admin` | `/scoring/orange-team/` |
-| Scoring | `is_gold_team` or `is_white_team` or `is_ticketing_admin` or `is_admin` | `/scoring/` |
+| Scoring | `is_gold_team` or `is_white_team` or `is_ticketing_admin` or `is_admin` | `/scoring/leaderboard/` |
 | School Info | `is_gold_team` or `is_admin` | `/ops/school-info/` |
 | Admin | `is_staff` | `/admin/` |
+| Comp Mgmt | `is_gold_team` or `is_admin` | `/ops/admin/competition/` |
 
 ### Scoring Sub-Navigation
 
@@ -643,10 +824,11 @@ Defined in `templates/scoring/base.html`:
 |------|-----------|
 | Leaderboard | Always (if can access scoring) |
 | Review Red Team | `is_gold_team` or `is_admin` |
-| Review Incident Reports | `is_gold_team` or `is_admin` |
-| Review Inject Grades | `is_gold_team` or `is_admin` |
+| Review Orange Team | `is_gold_team` or `is_admin` |
+| Review Incidents | `is_gold_team` or `is_admin` |
+| Review Injects | `is_gold_team` or `is_admin` |
 | Review Tickets | `is_ticketing_admin` or `is_admin` |
-| Inject Grading | `is_white_team` or `is_admin` |
+| Inject Grading | `is_white_team` or `is_gold_team` or `is_admin` |
 | Configuration | `is_admin` |
 | Export Data | `is_admin` |
 
@@ -689,11 +871,36 @@ Note: Ticket resolutions export not implemented as a separate endpoint.
 ### Implemented Features
 - Leaderboard restricted to Gold/White Team, Ticketing Admin, and System Admin
 - Navigation shows only accessible links based on user permissions
-- Team registration flow exists (`registration` app with status workflow)
+- Team registration flow with status workflow (`pending` → `approved` → `paid` → `credentials_sent`)
+- Public registration form (no authentication required)
+- Token-based self-service registration editing
+- Season and event management (Gold Team)
+- Per-event team number assignment with random shuffle
 - Data export functionality (CSV/JSON for red findings, incidents, orange adjustments, inject grades, final scores)
 - Orange Team check types managed via `OrangeCheckType` model
-- White Team inject grading UI at `/scoring/inject-grading/`
+- Inject grading UI at `/scoring/inject-grading/` (White and Gold Team)
 - Batch approval workflows for inject grades and red findings
+- Competition management UI at `/ops/admin/competition/` (Gold Team and Admin)
+- Red Team IP pool management
+- Red Team finding deduplication and merging
+- Incident review accessible by White Team (in addition to Gold Team)
+- Discord role sync from Authentik groups
+- Discord account linking via OAuth (team accounts with membership limits)
+- Team packets upload, distribution, and download
+- Team mappings view showing Discord ↔ Authentik links
+- Helper management for temporary Discord roles
+- Broadcast messaging to teams
+- School info CSV import
+- Ticket points verification workflow
+- Ticket category change by support staff
+- Team management (activate/deactivate, unlink users, reset, recreate channels)
+- Bulk team operations (activate/deactivate/recreate for multiple teams)
+- Session revocation on team reset
+- Password reset with CSV export
+- Screenshot/evidence uploads for incidents and red findings
+- Black team adjustments via Django Admin
+- Red team finding outcome checkboxes (auto-calculated points)
+- Finding deduplication and contributor merging
 
 ---
 
