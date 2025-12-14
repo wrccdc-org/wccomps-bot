@@ -1760,6 +1760,9 @@ def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpRes
 def api_submit_red_finding(request: HttpRequest) -> JsonResponse:
     """API endpoint for submitting red team findings.
 
+    STABLE API: This endpoint is used by external scripts. Do not make breaking
+    changes to the request/response format without versioning or migration path.
+
     Accepts JSON body:
     {
         "attack_type": "SQL Injection" or 1,  // name or ID
@@ -1909,3 +1912,85 @@ def api_submit_red_finding(request: HttpRequest) -> JsonResponse:
                 "points_per_team": str(finding.points_per_team),
             }
         )
+
+
+@login_required
+@require_role("red_team", error_message="Only Red Team members can upload screenshots")
+@transaction.atomic
+@require_http_methods(["POST"])
+def api_upload_red_screenshots(request: HttpRequest, finding_id: int) -> JsonResponse:
+    """API endpoint for uploading screenshots to a red team finding.
+
+    STABLE API: This endpoint is used by external scripts. Do not make breaking
+    changes to the request/response format without versioning or migration path.
+
+    Accepts multipart/form-data with one or more files:
+    - file: Screenshot file(s) to upload (can be repeated for multiple files)
+
+    Returns JSON:
+    - Success: {"status": "success", "uploaded": 2, "message": "..."}
+    - Error: {"error": "...", "details": {...}}
+    """
+    user = cast(User, request.user)
+
+    # Get the finding
+    finding = RedTeamFinding.objects.filter(id=finding_id).first()
+    if not finding:
+        return JsonResponse({"error": f"Finding #{finding_id} not found"}, status=404)
+
+    # Check permission - must be submitter or contributor
+    is_owner = finding.submitted_by == user
+    is_contributor = finding.contributors.filter(id=user.id).exists()
+    if not is_owner and not is_contributor:
+        return JsonResponse(
+            {"error": "You can only upload screenshots to your own findings"},
+            status=403,
+        )
+
+    # Check if finding is already approved
+    if finding.is_approved:
+        return JsonResponse(
+            {"error": "Cannot upload screenshots to an approved finding"},
+            status=400,
+        )
+
+    # Get uploaded files
+    files = request.FILES.getlist("file")
+    if not files:
+        return JsonResponse(
+            {"error": "No files provided", "details": "Use 'file' field for uploads"},
+            status=400,
+        )
+
+    # Limit number of screenshots
+    max_screenshots = 20
+    existing_count = finding.screenshots.count()
+    if existing_count + len(files) > max_screenshots:
+        return JsonResponse(
+            {
+                "error": "Too many screenshots",
+                "details": f"Max {max_screenshots} per finding (current: {existing_count}, adding: {len(files)})",
+            },
+            status=400,
+        )
+
+    # Upload each file
+    uploaded = []
+    for file in files:
+        file_data = file.read()
+        screenshot = RedTeamScreenshot.objects.create(
+            finding=finding,
+            file_data=file_data,
+            filename=file.name or "screenshot.png",
+            mime_type=file.content_type or "image/png",
+        )
+        uploaded.append({"id": screenshot.id, "filename": screenshot.filename})
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "uploaded": len(uploaded),
+            "files": uploaded,
+            "message": f"Uploaded {len(uploaded)} screenshot(s) to finding #{finding_id}",
+        }
+    )

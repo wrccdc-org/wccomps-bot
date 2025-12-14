@@ -64,7 +64,13 @@ urlpatterns = [
     path("api/team/<int:team_number>/", views.api_team_detail, name="api_team_detail"),
     path("api/attack-types/", views.api_attack_types, name="api_attack_types"),
     path("api/orange-check-types/", views.api_orange_check_types, name="api_orange_check_types"),
+    # STABLE API - used by external scripts, do not break without versioning
     path("api/red-findings/", views.api_submit_red_finding, name="api_submit_red_finding"),
+    path(
+        "api/red-findings/<int:finding_id>/screenshots/",
+        views.api_upload_red_screenshots,
+        name="api_upload_red_screenshots",
+    ),
     # Export endpoints
     path("export/", views.export_index, name="export_index"),
     path("export/all/", views.export_all, name="export_all"),
