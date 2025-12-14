@@ -26,13 +26,13 @@
             <p><strong>Type:</strong> {{ event.get_event_type_display }}</p>
             <p><strong>Status:</strong>
                 {% if event.is_finalized %}
-                    <span class="badge badge-secondary">Finalized</span>
+                    <c-badge status="neutral">Finalized</c-badge>
                 {% elif event.is_active %}
-                    <span class="badge badge-success">Active</span>
+                    <c-badge status="success">Active</c-badge>
                 {% elif event.registration_open %}
-                    <span class="badge badge-info">Registration Open</span>
+                    <c-badge status="info">Registration Open</c-badge>
                 {% else %}
-                    <span class="badge badge-warning">Registration Closed</span>
+                    <c-badge status="warning">Registration Closed</c-badge>
                 {% endif %}
             </p>
         </div>
@@ -68,15 +68,15 @@
                     <td>{{ item.registration.school_name }}</td>
                     <td>
                         {% if item.registration.status == "pending" %}
-                            <span class="badge badge-warning">Pending</span>
+                            <c-badge status="warning">Pending</c-badge>
                         {% elif item.registration.status == "approved" %}
-                            <span class="badge badge-info">Approved</span>
+                            <c-badge status="info">Approved</c-badge>
                         {% elif item.registration.status == "paid" %}
-                            <span class="badge badge-success">Paid</span>
+                            <c-badge status="success">Paid</c-badge>
                         {% elif item.registration.status == "credentials_sent" %}
-                            <span class="badge badge-secondary">Credentials Sent</span>
+                            <c-badge status="neutral">Credentials Sent</c-badge>
                         {% elif item.registration.status == "rejected" %}
-                            <span class="badge badge-danger">Rejected</span>
+                            <c-badge status="danger">Rejected</c-badge>
                         {% endif %}
                     </td>
                     <td>

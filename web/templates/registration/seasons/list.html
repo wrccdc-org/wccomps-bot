@@ -35,9 +35,9 @@
                     <td>{{ season.year }}</td>
                     <td>
                         {% if season.is_active %}
-                            <span class="badge badge-success">Active</span>
+                            <c-badge status="success">Active</c-badge>
                         {% else %}
-                            <span class="badge badge-secondary">Inactive</span>
+                            <c-badge status="neutral">Inactive</c-badge>
                         {% endif %}
                     </td>
                     <td>{{ season.events.count }}</td>

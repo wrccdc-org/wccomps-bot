@@ -74,7 +74,7 @@
                             {% if form.affected_boxes.errors %}
                                 <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
                             {% endif %}
-                            <div id="selectedIps" class="text-muted mt-10" style="display: none;">
+                            <div id="selectedIps" class="text-muted mt-10 d-none">
                                 Target IPs: <span id="ipList"></span>
                             </div>
                         </div>
@@ -267,7 +267,7 @@
     </c-module>
 
 <!-- Create IP Pool Modal -->
-<div id="createPoolModal" class="modal" style="display: none;">
+<div id="createPoolModal" class="modal">
     <div class="modal-backdrop" onclick="closeCreatePoolModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
@@ -289,7 +289,7 @@
 10.0.0.3" required></textarea>
                     <div class="form-text">Enter one IP per line or comma-separated. <span id="ipCount">0</span> IPs entered.</div>
                 </div>
-                <div id="poolFormError" class="text-danger mb-10" style="display: none;"></div>
+                <div id="poolFormError" class="text-danger mb-10 d-none"></div>
             </form>
         </div>
         <div class="modal-footer">
@@ -305,14 +305,14 @@ const boxMetadata = JSON.parse(document.getElementById('box-metadata').textConte
 
 // IP Pool Modal Functions
 function openCreatePoolModal() {
-    document.getElementById('createPoolModal').style.display = 'flex';
+    document.getElementById('createPoolModal').classList.add('modal--open');
     document.getElementById('poolName').focus();
 }
 
 function closeCreatePoolModal() {
-    document.getElementById('createPoolModal').style.display = 'none';
+    document.getElementById('createPoolModal').classList.remove('modal--open');
     document.getElementById('createPoolForm').reset();
-    document.getElementById('poolFormError').style.display = 'none';
+    document.getElementById('poolFormError').classList.add('d-none');
     document.getElementById('ipCount').textContent = '0';
 }
 
@@ -356,11 +356,11 @@ async function submitCreatePool() {
                 errorMsg += `${field}: ${errors.join(', ')}\n`;
             }
             errorDiv.textContent = errorMsg;
-            errorDiv.style.display = 'block';
+            errorDiv.classList.remove('d-none');
         }
     } catch (error) {
         errorDiv.textContent = 'Failed to create pool. Please try again.';
-        errorDiv.style.display = 'block';
+        errorDiv.classList.remove('d-none');
     }
 }
 
@@ -506,9 +506,9 @@ function updateIPAndServices() {
     if (selectedIpsDiv && ipListSpan) {
         if (ipTemplates.length > 0) {
             ipListSpan.textContent = ipTemplates.join(', ');
-            selectedIpsDiv.style.display = 'block';
+            selectedIpsDiv.classList.remove('d-none');
         } else {
-            selectedIpsDiv.style.display = 'none';
+            selectedIpsDiv.classList.add('d-none');
         }
     }
 

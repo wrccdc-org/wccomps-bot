@@ -5,7 +5,7 @@
 
 <c-vars form_id="changelist-filter" method="GET" action="" class="" aria_label="Filter results" hx_get="" hx_target="" hx_swap="" hx_push_url="" />
 
-<div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+<div class="toolbar d-flex justify-between items-start gap-15">
     <form
         id="{{ form_id }}"
         method="{{ method }}"
@@ -17,16 +17,15 @@
         {% if hx_get %}hx-trigger="change from:find select, change from:find input[type=checkbox], input changed delay:500ms from:find input[type=text], input changed delay:500ms from:find input[type=search], change from:find input[type=number], keyup[key=='Enter'] from:find input"{% endif %}
         role="search"
         aria-label="{{ aria_label }}"
-        class="{{ class }}"
-        style="flex: 1;">
+        class="{{ class }} flex-1">
         <div id="filter-content">
-            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+            <div class="d-flex gap-10 flex-wrap items-end">
                 {{ slot }}
             </div>
         </div>
     </form>
     {% if actions %}
-    <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
+    <div class="filter-actions d-flex gap-10 items-end">
         {{ actions }}
     </div>
     {% endif %}

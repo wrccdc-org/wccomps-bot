@@ -14,7 +14,7 @@
             <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
 
-        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+        <div class="toolbar d-flex justify-between items-start gap-15">
             <form
                 id="filter-form"
                 method="GET"
@@ -24,9 +24,9 @@
                 hx-push-url="true"
                 role="search"
                 aria-label="Filter results"
-                style="flex: 1;">
+                class="flex-1">
                 <div id="filter-content">
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="d-flex gap-10 flex-wrap items-end">
                         <c-filter_field label="Status" id="id_status">
                             <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
                                 <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
