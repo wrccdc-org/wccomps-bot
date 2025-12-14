@@ -911,8 +911,12 @@ def ticket_attachment_download(
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
 
+    # Support inline preview for images and PDFs
+    as_attachment = request.GET.get("inline") != "1"
     response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
-    response["Content-Disposition"] = str(content_disposition_header(as_attachment=True, filename=attachment.filename))
+    response["Content-Disposition"] = str(
+        content_disposition_header(as_attachment=as_attachment, filename=attachment.filename)
+    )
     return response
 
 

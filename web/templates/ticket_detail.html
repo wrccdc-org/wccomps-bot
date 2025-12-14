@@ -87,28 +87,30 @@
         <!-- Attachments -->
         <c-fieldset heading="Attachments">
             {% if attachments %}
-            <c-table aria_label="Ticket attachments">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Filename</c-table_header>
-                        <c-table_header sortable="false">Uploaded By</c-table_header>
-                        <c-table_header sortable="false">Uploaded</c-table_header>
-                        <c-table_header sortable="false">Action</c-table_header>
-                    </tr>
-                </c-slot>
+            <div class="attachment-grid">
                 {% for attachment in attachments %}
-                <tr class="{% cycle 'row1' 'row2' %}">
-                    <td>{{ attachment.filename }}</td>
-                    <td>{{ attachment.uploaded_by }}</td>
-                    <td>{{ attachment.uploaded_at|timesince }} ago</td>
-                    <td>
-                        <c-link href="{% url 'ticket_attachment_download' ticket.id attachment.id %}" variant="change">
-                            Download
-                        </c-link>
-                    </td>
-                </tr>
+                <div class="attachment-item">
+                    {% if attachment.mime_type|slice:":6" == "image/" %}
+                    <a href="{% url 'ticket_attachment_download' ticket.id attachment.id %}?inline=1" target="_blank" class="attachment-preview">
+                        <img src="{% url 'ticket_attachment_download' ticket.id attachment.id %}?inline=1" alt="{{ attachment.filename }}" class="attachment-thumbnail">
+                    </a>
+                    {% elif attachment.mime_type == "application/pdf" %}
+                    <a href="{% url 'ticket_attachment_download' ticket.id attachment.id %}?inline=1" target="_blank" class="attachment-preview attachment-pdf">
+                        <span class="pdf-icon">PDF</span>
+                    </a>
+                    {% else %}
+                    <div class="attachment-preview attachment-file">
+                        <span class="file-icon">📄</span>
+                    </div>
+                    {% endif %}
+                    <div class="attachment-info">
+                        <span class="attachment-name" title="{{ attachment.filename }}">{{ attachment.filename|truncatechars:25 }}</span>
+                        <span class="attachment-meta">{{ attachment.uploaded_by }} · {{ attachment.uploaded_at|timesince }} ago</span>
+                        <c-link href="{% url 'ticket_attachment_download' ticket.id attachment.id %}" variant="change">Download</c-link>
+                    </div>
+                </div>
                 {% endfor %}
-            </c-table>
+            </div>
             {% else %}
             <c-empty_state title="No attachments yet" description="Upload files to attach to this ticket" />
             {% endif %}
