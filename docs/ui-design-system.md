@@ -25,9 +25,9 @@ Colors are defined as CSS variables in `base.html` with fallback values. Use var
 |------|----------|----------|-------|
 | **Primary** | `--primary` | `#417690` | Links, headers, primary actions, info states |
 | **Success** | `--success-fg` | `#28a745` | Success messages, positive scores, approved states |
-| **Warning** | (none) | `#f57c00` | Warnings, pending states, claimed tickets |
+| **Warning** | `--warning-fg` | `#f57c00` | Warnings, pending states, claimed tickets |
 | **Danger** | `--error-fg` | `#ba2121` | Errors, deletions, negative scores, rejected states |
-| **Info** | (none) | `#1976d2` | Open tickets, informational badges |
+| **Info** | `--info-fg` | `#1976d2` | Open tickets, informational badges |
 
 ### Background Colors
 
@@ -108,7 +108,7 @@ Margin and padding utilities defined in `base.html`:
 | `.mt-15`, `.mb-15` | `.p-15` | 15px |
 | `.mt-20`, `.mb-20`, `.my-20` | `.p-20` | 20px |
 
-Layout utilities: `.d-flex`, `.d-none`, `.d-block`, `.items-center`, `.justify-between`, `.gap-10`, `.gap-15`, `.gap-20`
+Layout utilities: `.d-flex`, `.d-none`, `.d-block`, `.flex-1`, `.items-center`, `.items-start`, `.items-end`, `.justify-between`, `.gap-5`, `.gap-10`, `.gap-15`, `.gap-20`
 
 ---
 
@@ -1012,6 +1012,26 @@ All colors use CSS custom properties with fallbacks for dark mode support. Varia
 | `--success-fg` | `#28a745` | Success |
 | `--header-link-color` | `#fff` | Navigation links |
 
+#### Semantic Color Variables
+
+Custom properties for semantic colors with dark mode support:
+
+| Variable | Light Mode | Dark Mode | Usage |
+|----------|------------|-----------|-------|
+| `--info-bg` | `#e3f2fd` | `rgba(25, 118, 210, 0.15)` | Info backgrounds |
+| `--info-fg` | `#1976d2` | — | Info text |
+| `--info-border` | `#90caf9` | — | Info borders |
+| `--warning-bg` | `#fff3e0` | `rgba(245, 124, 0, 0.15)` | Warning backgrounds |
+| `--warning-fg` | `#f57c00` | — | Warning text |
+| `--warning-border` | `#ffb74d` | — | Warning borders |
+| `--success-bg` | `#e8f5e9` | `rgba(56, 142, 60, 0.15)` | Success backgrounds |
+| `--success-border` | `#81c784` | — | Success borders |
+| `--danger-bg` | `#ffebee` | `rgba(198, 40, 40, 0.15)` | Danger backgrounds |
+| `--danger-border` | `#ef9a9a` | — | Danger borders |
+| `--neutral-bg` | `#f5f5f5` | `rgba(117, 117, 117, 0.15)` | Neutral backgrounds |
+| `--neutral-fg` | `#757575` | — | Neutral text |
+| `--neutral-border` | `#bdbdbd` | — | Neutral borders |
+
 #### Usage Pattern
 
 ```css
@@ -1039,6 +1059,140 @@ Cotton components use CSS classes defined in `base.html` instead of inline style
 | Stats Card | `.stats-card`, `.stats-card-value`, `.stats-card-label` |
 | Navigation | `.nav-item`, `.nav-item--current` |
 | Team Button | `.team-btn`, `.team-btn--selected` |
+| Modal | `.modal`, `.modal--open`, `.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-close` |
+| Visibility | `.d-none` (hide elements), `.d-block`, `.d-flex` |
+| Filter | `.filter-actions` (toolbar button container) |
+
+---
+
+## Template Linting
+
+Automated tests in `web/core/tests/test_template_lint.py` enforce these rules:
+
+### Cotton Import Rule
+
+All templates using Cotton components (`<c-*>` tags) must include the load statement:
+
+```django
+{% load cotton %}
+```
+
+Or combined with other tags:
+
+```django
+{% load static cotton %}
+```
+
+This is enforced by `TestCottonImports.test_cotton_components_have_load_statement`.
+
+### No Inline Display Styles
+
+Inline `display` styles are prohibited:
+
+```html
+<!-- Bad -->
+<div style="display: none;">...</div>
+<div style="display: flex; justify-content: space-between;">...</div>
+
+<!-- Good -->
+<div class="d-none">...</div>
+<div class="d-flex justify-between">...</div>
+```
+
+JavaScript should use class toggling instead of `.style.display`:
+
+```javascript
+// Bad
+element.style.display = 'none';
+element.style.display = 'block';
+
+// Good
+element.classList.add('d-none');
+element.classList.remove('d-none');
+element.classList.add('modal--open');
+```
+
+**Exceptions:**
+- Email templates (`templates/emails/`) - inline styles required for email clients
+- PDF templates (`*_pdf.html`) - inline styles required for WeasyPrint
+- Cotton component definitions (`templates/cotton/`) - may need inline styles for component implementation
+
+This is enforced by `TestInlineStyles.test_no_inline_display_styles_in_html`.
+
+### Cotton Component Rule
+
+Use Cotton components instead of raw HTML for common patterns:
+
+```html
+<!-- Bad -->
+<span class="badge badge-success">Active</span>
+<span class="badge badge-warning">Pending</span>
+
+<!-- Good -->
+<c-badge status="success">Active</c-badge>
+<c-badge status="warning">Pending</c-badge>
+```
+
+**Detected patterns:**
+- `<span class="badge ...">` → use `<c-badge>`
+- `<div class="stats-card ...">` → use `<c-stats_card>`
+- `<div class="empty-state ...">` → use `<c-empty_state>`
+
+**Exceptions:**
+- Templates extending Django's `admin/base_site.html` (don't use Cotton)
+- Email templates
+- PDF templates
+- Cotton component definitions
+
+This is enforced by `TestCottonComponentUsage.test_no_raw_html_patterns`.
+
+### Alpine.js Dynamic Bindings
+
+When content requires Alpine.js reactivity (e.g., toast notifications), use raw HTML with Alpine's `:class` binding instead of Cotton components:
+
+```html
+<!-- Static status (known at server render) - use Cotton -->
+<c-badge status="success">Active</c-badge>
+<c-alert variant="error">Error message</c-alert>
+
+<!-- Dynamic status (Alpine-controlled) - use raw HTML with CSS classes -->
+<template x-if="message">
+    <div class="alert" :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+        <span x-text="message"></span>
+    </div>
+</template>
+```
+
+**When to use each approach:**
+
+| Scenario | Approach |
+|----------|----------|
+| Status known at server render | Cotton component: `<c-badge status="success">` |
+| Alpine-controlled dynamic state | Raw HTML with `:class` binding |
+| Toast/notification with Alpine | Raw HTML inside `<template x-if>` |
+
+**Why?** Cotton components render at server time, so they can't react to Alpine state changes. For reactive UI, use the CSS classes directly with Alpine's `:class` directive.
+
+### Double Colon Syntax for Alpine Attributes
+
+When passing Alpine dynamic attributes to Cotton components, use double colons (`::`) to prevent Cotton from interpreting them as component props:
+
+```html
+<!-- Single colon - Cotton interprets as prop (won't work for Alpine) -->
+<c-button :disabled="loading">Save</c-button>
+
+<!-- Double colon - passes through to rendered HTML for Alpine -->
+<c-button ::disabled="loading">Save</c-button>
+```
+
+The double colon tells Cotton to pass the attribute through unchanged, resulting in:
+```html
+<button :disabled="loading">Save</button>
+```
+
+This allows Alpine.js to bind the `disabled` attribute reactively.
+
+Reference: [Django Cotton - Alpine.js](https://django-cotton.com/docs/alpine-js)
 
 ---
 
@@ -1052,3 +1206,5 @@ When updating existing templates:
 4. Replace pipe-separated nav with `<c-nav>` and `<c-nav_item>`
 5. Use `<c-stats_card_grid>` with `<c-stats_card>` for dashboards
 6. Use `<c-button_row>` for form action buttons instead of `<div class="submit-row">`
+7. Replace inline `style="display: ..."` with CSS classes (`.d-none`, `.d-flex`, etc.)
+8. Replace JavaScript `.style.display` with `.classList.add()`/`.remove()`

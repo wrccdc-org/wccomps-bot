@@ -6,7 +6,7 @@
 {% block scoring_content %}
 <c-page_header title="Review Red Team Findings" />
     <c-module filtered="true" id="changelist">
-        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+        <div class="toolbar d-flex justify-between items-start gap-15">
             <form
                 id="changelist-filter"
                 method="GET"
@@ -16,9 +16,9 @@
                 hx-push-url="true"
                 role="search"
                 aria-label="Filter results"
-                style="flex: 1;">
+                class="flex-1">
                 <div id="filter-content">
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="d-flex gap-10 flex-wrap items-end">
                         <c-filter_field label="Status" id="id_status">
                             <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
                                 <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
@@ -63,7 +63,7 @@
                 </div>
             </form>
             {% if pending_findings %}
-            <div class="filter-actions" style="display: flex; gap: 10px; align-items: flex-end; padding-top: 22px;">
+            <div class="filter-actions d-flex gap-10 items-end">
                 <c-button type="button" id="bulk-approve-btn" onclick="document.dispatchEvent(new CustomEvent('bulk-approve'))" variant="success">Approve Selected</c-button>
             </div>
             {% endif %}
