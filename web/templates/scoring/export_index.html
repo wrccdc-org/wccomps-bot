@@ -8,7 +8,11 @@
 <c-module>
     <p>Download scoring data in CSV or JSON format for analysis and archival purposes.</p>
 
-    <h2 class="mt-20">Available Exports</h2>
+    <div class="mt-20 mb-20">
+        <c-button type="button" variant="primary" onclick="window.location='{% url 'scoring:export_all' %}'">Download All Data (ZIP)</c-button>
+    </div>
+
+    <h2 class="mt-20">Individual Exports</h2>
 
     <c-table aria_label="Available exports">
         <c-slot name="headers">

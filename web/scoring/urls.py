@@ -65,6 +65,7 @@ urlpatterns = [
     path("api/orange-check-types/", views.api_orange_check_types, name="api_orange_check_types"),
     # Export endpoints
     path("export/", views.export_index, name="export_index"),
+    path("export/all/", views.export_all, name="export_all"),
     path("export/red-findings/", views.export_red_findings, name="export_red_findings"),
     path("export/incidents/", views.export_incidents, name="export_incidents"),
     path("export/orange-adjustments/", views.export_orange_adjustments, name="export_orange_adjustments"),
