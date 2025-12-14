@@ -57,7 +57,7 @@ class TestFileUploadConstraints:
         request.user.is_authenticated = True
 
         with (
-            patch("core.views.get_authentik_data", return_value=("testuser", ["WCComps_BlueTeam01"], None)),
+            patch("core.views.get_authentik_groups", return_value=["WCComps_BlueTeam01"]),
             patch("core.views.get_team_from_groups", return_value=(team, 1, True)),
             patch("core.views.has_permission", return_value=False),
         ):
@@ -118,7 +118,7 @@ class TestFileUploadAuthorizationBypass:
         request.user.is_authenticated = True
 
         with (
-            patch("core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
+            patch("core.views.get_authentik_groups", return_value=["WCComps_BlueTeam02"]),
             patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
             patch("core.views.has_permission", return_value=False),
         ):
@@ -141,7 +141,7 @@ class TestFileUploadAuthorizationBypass:
         request.user.is_authenticated = True
 
         with (
-            patch("core.views.get_authentik_data", return_value=("team2user", ["WCComps_BlueTeam02"], None)),
+            patch("core.views.get_authentik_groups", return_value=["WCComps_BlueTeam02"]),
             patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
             patch("core.views.has_permission", return_value=False),
         ):

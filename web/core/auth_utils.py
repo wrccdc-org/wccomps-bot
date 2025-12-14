@@ -28,6 +28,14 @@ def get_authentik_groups(user: User | AnonymousUser) -> list[str]:
         return []
 
 
+def get_authentik_id(user: User) -> str | None:
+    """Get user's Authentik user ID from UserGroups model."""
+    try:
+        return user.usergroups.authentik_id
+    except UserGroups.DoesNotExist:
+        return None
+
+
 def get_permissions_context(user: User) -> dict[str, bool]:
     """
     Get permissions dict for template context.

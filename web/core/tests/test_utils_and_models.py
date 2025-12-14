@@ -9,36 +9,41 @@ from hypothesis import given
 from hypothesis import settings as hypothesis_settings
 from hypothesis import strategies as st
 
+from core.auth_utils import get_authentik_groups, get_authentik_id
 from core.models import AuditLog, CompetitionConfig, DiscordTask
-from core.utils import (
-    get_authentik_data,
-    get_team_from_groups,
-)
+from core.utils import get_team_from_groups
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
 
 
-class TestGetAuthentikData:
-    """Tests for get_authentik_data function."""
+class TestGetAuthentikGroups:
+    """Tests for get_authentik_groups function."""
 
-    def test_returns_username_from_userinfo(self, blue_team_user):
-        """Should extract username from userinfo.preferred_username."""
-        username, groups, user_id = get_authentik_data(blue_team_user)
-        assert username == "blueteam01"
-        assert user_id is not None
-
-    def test_returns_groups_from_userinfo(self, blue_team_user):
-        """Should extract groups from userinfo.groups."""
-        username, groups, user_id = get_authentik_data(blue_team_user)
+    def test_returns_groups_from_usergroups(self, blue_team_user):
+        """Should extract groups from UserGroups model."""
+        groups = get_authentik_groups(blue_team_user)
         assert "WCComps_BlueTeam01" in groups
 
-    def test_returns_django_username_as_fallback(self):
-        """Should return Django username when no social account exists."""
+    def test_returns_empty_list_without_usergroups(self):
+        """Should return empty list when no UserGroups exists."""
         user = User.objects.create_user(username="regular_user", password="test")
-        username, groups, user_id = get_authentik_data(user)
-        assert username == "regular_user"
+        groups = get_authentik_groups(user)
         assert groups == []
+
+
+class TestGetAuthentikId:
+    """Tests for get_authentik_id function."""
+
+    def test_returns_id_from_usergroups(self, blue_team_user):
+        """Should extract authentik_id from UserGroups model."""
+        user_id = get_authentik_id(blue_team_user)
+        assert user_id is not None
+
+    def test_returns_none_without_usergroups(self):
+        """Should return None when no UserGroups exists."""
+        user = User.objects.create_user(username="regular_user", password="test")
+        user_id = get_authentik_id(user)
         assert user_id is None
 
 

@@ -104,8 +104,8 @@ class Command(BaseCommand):
             from core import auth_utils, utils, views
 
             # Verify key functions exist
-            if not callable(utils.get_authentik_data):
-                raise RuntimeError("utils.get_authentik_data is not callable")
+            if not callable(auth_utils.get_authentik_groups):
+                raise RuntimeError("auth_utils.get_authentik_groups is not callable")
             if not callable(utils.get_team_from_groups):
                 raise RuntimeError("utils.get_team_from_groups is not callable")
             if not callable(auth_utils.has_permission):
