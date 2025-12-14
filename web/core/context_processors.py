@@ -52,6 +52,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "ops_school_info_import": ("school", ""),
     # Scoring pages
     "leaderboard": ("scoring", "leaderboard"),
+    "event_leaderboard": ("scoring", "leaderboard"),
     "red_team_portal": ("scoring", "red_team"),
     "bulk_approve_red_findings": ("scoring", "red_team"),
     "review_orange": ("scoring", "orange_team"),
