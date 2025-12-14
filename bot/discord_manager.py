@@ -2,7 +2,6 @@
 
 import logging
 import re
-from typing import Union
 
 import discord
 from django.conf import settings
@@ -18,7 +17,7 @@ class DiscordManager:
     def __init__(
         self,
         guild: discord.Guild,
-        bot: Union[discord.Client, "discord.ext.commands.Bot"] | None = None,
+        bot: discord.Client | discord.ext.commands.Bot | None = None,
     ):
         self.guild = guild
         self.bot = bot

@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from decimal import Decimal
 from functools import wraps
-from typing import Concatenate, ParamSpec, TypeAlias, cast
+from typing import Concatenate, ParamSpec, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -51,7 +51,7 @@ from .models import (
 from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
 P = ParamSpec("P")
-ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
+type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
 
 
 def require_role(
@@ -87,7 +87,7 @@ def _get_user_team(user: User) -> Team | None:
     return Team.objects.filter(team_number=team_number).first()
 
 
-def require_leaderboard_access(
+def require_leaderboard_access[**P](
     view_func: Callable[Concatenate[HttpRequest, P], HttpResponse],
 ) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
     """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin."""
