@@ -179,6 +179,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = str(BASE_DIR / "staticfiles")
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Media files (user uploads)
 MEDIA_URL = "/media/"
