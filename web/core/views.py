@@ -1052,7 +1052,6 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
         "page_size": page_size,
         "categories": TICKET_CATEGORIES,
         "show_ops_nav": True,
-        "nav_active": "tickets",
         "authentik_username": authentik_username,
         "is_ticketing_admin": is_ticketing_admin,
     }
@@ -1138,7 +1137,6 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
             "page_filter": page_filter,
             "page_size": page_size,
             "show_ops_nav": True,
-            "nav_active": "tickets",
         },
     )
 
@@ -1699,7 +1697,6 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
         {
             "teams": teams_with_info,
             "show_ops_nav": True,
-            "nav_active": "school",
         },
     )
 
@@ -1799,7 +1796,6 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
             "team": team,
             "school_info": school_info,
             "show_ops_nav": True,
-            "nav_active": "school",
         },
     )
 
@@ -1921,7 +1917,6 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
             "preview_data": preview_data,
             "import_results": import_results,
             "show_ops_nav": True,
-            "nav_active": "school",
             **permissions,
         },
     )
@@ -2085,7 +2080,6 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         "page_size": page_size,
         "categories": TICKET_CATEGORIES,
         "show_ops_nav": True,
-        "nav_active": "review_tickets",
     }
 
     # Return partial for htmx requests
