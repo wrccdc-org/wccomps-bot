@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -52,6 +52,32 @@ from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_s
 
 P = ParamSpec("P")
 type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
+
+
+def _normalize_red_finding_post(post_data: QueryDict) -> QueryDict:
+    """Normalize legacy field names in red team finding POST data.
+
+    Supports backwards compatibility for scripted submissions using old field names:
+    - attack_vector → attack_type
+    - affected_box → affected_boxes
+    - target_teams → affected_teams
+    """
+    field_mappings = {
+        "attack_vector": "attack_type",
+        "affected_box": "affected_boxes",
+        "target_teams": "affected_teams",
+    }
+
+    needs_normalization = any(old in post_data for old in field_mappings)
+    if not needs_normalization:
+        return post_data
+
+    normalized = QueryDict(mutable=True)
+    for key in post_data:
+        new_key = field_mappings.get(key, key)
+        for value in post_data.getlist(key):
+            normalized.appendlist(new_key, value)
+    return normalized
 
 
 def require_role(
@@ -400,7 +426,8 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
     user_pools = RedTeamIPPool.objects.filter(created_by=user)
 
     if request.method == "POST":
-        form = RedTeamFindingForm(request.POST, request.FILES, team_count=team_count, user=user)
+        post_data = _normalize_red_finding_post(request.POST)
+        form = RedTeamFindingForm(post_data, request.FILES, team_count=team_count, user=user)
 
         if form.is_valid():
             # Extract form data for deduplication
@@ -1317,70 +1344,6 @@ def api_orange_check_types(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@require_role("red_team", error_message="Only Red Team members can access this")
-def api_red_team_options(request: HttpRequest) -> JsonResponse:
-    """API endpoint returning all available options for red team finding submissions.
-
-    STABLE API: This endpoint is used by external scripts. Do not make breaking
-    changes to the response format without versioning or migration path.
-
-    Returns all options needed to construct a valid red team finding submission.
-    """
-    from team.models import Team
-
-    from .models import RedTeamIPPool
-
-    user = cast(User, request.user)
-
-    # Attack types
-    attack_types = [
-        {"id": at.id, "name": at.name, "description": at.description}
-        for at in AttackType.objects.all().order_by("name")
-    ]
-
-    # Teams
-    teams = [
-        {"id": t.id, "team_number": t.team_number, "team_name": t.team_name}
-        for t in Team.objects.all().order_by("team_number")
-    ]
-
-    # User's IP pools
-    ip_pools = [
-        {"id": p.id, "name": p.name, "ip_count": p.ip_count}
-        for p in RedTeamIPPool.objects.filter(created_by=user).order_by("name")
-    ]
-
-    # Boxes and services from Quotient metadata cache
-    metadata = QuotientMetadataCache.objects.first()
-    boxes = metadata.boxes if metadata else []
-    services = metadata.services if metadata else []
-
-    # Outcome options with point values
-    outcomes = [
-        {"field": "root_access", "label": "Root/Admin Access", "points": -100},
-        {"field": "user_access", "label": "User Access", "points": -25, "note": "Not scored if root_access"},
-        {"field": "privilege_escalation", "label": "Privilege Escalation", "points": -100},
-        {"field": "credentials_recovered", "label": "Credentials Recovered", "points": -50},
-        {"field": "sensitive_files_recovered", "label": "Sensitive Files Recovered", "points": -25},
-        {"field": "credit_cards_recovered", "label": "Credit Cards Recovered", "points": -50},
-        {"field": "pii_recovered", "label": "PII Recovered", "points": -200},
-        {"field": "encrypted_db_recovered", "label": "Encrypted DB Recovered", "points": -25},
-        {"field": "db_decrypted", "label": "DB Decrypted", "points": -25},
-    ]
-
-    return JsonResponse(
-        {
-            "attack_types": attack_types,
-            "teams": teams,
-            "ip_pools": ip_pools,
-            "boxes": boxes,
-            "services": services,
-            "outcomes": outcomes,
-        }
-    )
-
-
-@login_required
 @require_role("gold_team", error_message="Only Gold Team members can review inject grades")
 def inject_grades_review(request: HttpRequest) -> HttpResponse:
     """Review and approve inject grades (Gold Team)."""
@@ -1815,246 +1778,3 @@ def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpRes
     response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
     response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
     return response
-
-
-@login_required
-@require_role("red_team", error_message="Only Red Team members can submit findings")
-@transaction.atomic
-@require_http_methods(["POST"])
-def api_submit_red_finding(request: HttpRequest) -> JsonResponse:
-    """API endpoint for submitting red team findings.
-
-    STABLE API: This endpoint is used by external scripts. Do not make breaking
-    changes to the request/response format without versioning or migration path.
-
-    Accepts JSON body:
-    {
-        "attack_type": "SQL Injection" or 1,  // name or ID
-        "source_ip": "10.0.0.5",              // required if no source_ip_pool
-        "source_ip_pool": 1,                  // ID, alternative to source_ip
-        "affected_boxes": ["web-server"],     // list of box names
-        "affected_service": "HTTP",
-        "destination_ip_template": "10.X.1.10",
-        "universally_attempted": false,
-        "persistence_established": false,
-        "affected_teams": [1, 2, 3],          // team IDs, required
-        "notes": "Full description",
-        "outcomes": {                         // scoring outcomes
-            "root_access": true,
-            "user_access": false,
-            "privilege_escalation": false,
-            "credentials_recovered": true,
-            "sensitive_files_recovered": false,
-            "credit_cards_recovered": false,
-            "pii_recovered": false,
-            "encrypted_db_recovered": false,
-            "db_decrypted": false
-        }
-    }
-
-    Returns JSON:
-    - Success: {"status": "created|merged", "finding_id": 123, "message": "..."}
-    - Error: {"error": "...", "details": {...}}
-    """
-    import json
-
-    from team.models import Team
-
-    from .deduplication import OutcomeData, process_red_team_submission
-    from .models import RedTeamIPPool
-
-    user = cast(User, request.user)
-
-    # Parse JSON body
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError as e:
-        return JsonResponse({"error": "Invalid JSON", "details": str(e)}, status=400)
-
-    # Validate required fields
-    errors: dict[str, str] = {}
-
-    # Attack type - accept name or ID
-    attack_type_input = data.get("attack_type")
-    attack_type = None
-    if not attack_type_input:
-        errors["attack_type"] = "Required field"
-    elif isinstance(attack_type_input, int):
-        attack_type = AttackType.objects.filter(id=attack_type_input).first()
-        if not attack_type:
-            errors["attack_type"] = f"Attack type ID {attack_type_input} not found"
-    elif isinstance(attack_type_input, str):
-        attack_type = AttackType.objects.filter(name__iexact=attack_type_input).first()
-        if not attack_type:
-            errors["attack_type"] = f"Attack type '{attack_type_input}' not found"
-    else:
-        errors["attack_type"] = "Must be string (name) or integer (ID)"
-
-    # Source IP - either source_ip or source_ip_pool required
-    source_ip = data.get("source_ip")
-    source_ip_pool = None
-    source_ip_pool_id = data.get("source_ip_pool")
-    if source_ip_pool_id:
-        source_ip_pool = RedTeamIPPool.objects.filter(id=source_ip_pool_id, created_by=user).first()
-        if not source_ip_pool:
-            errors["source_ip_pool"] = f"IP pool {source_ip_pool_id} not found or not owned by you"
-    elif not source_ip:
-        errors["source_ip"] = "Either source_ip or source_ip_pool required"
-
-    # Affected teams - required
-    affected_team_ids = data.get("affected_teams", [])
-    if not affected_team_ids:
-        errors["affected_teams"] = "At least one team required"
-    else:
-        affected_teams = list(Team.objects.filter(id__in=affected_team_ids))
-        if len(affected_teams) != len(affected_team_ids):
-            found_ids = {t.id for t in affected_teams}
-            missing = [tid for tid in affected_team_ids if tid not in found_ids]
-            errors["affected_teams"] = f"Team IDs not found: {missing}"
-
-    if errors or attack_type is None:
-        return JsonResponse({"error": "Validation failed", "details": errors}, status=400)
-
-    # Extract optional fields
-    affected_boxes = data.get("affected_boxes", [])
-    if isinstance(affected_boxes, str):
-        affected_boxes = [affected_boxes]
-
-    affected_service = data.get("affected_service", "")
-    destination_ip_template = data.get("destination_ip_template", "")
-    universally_attempted = bool(data.get("universally_attempted", False))
-    persistence_established = bool(data.get("persistence_established", False))
-    notes = data.get("notes", "")
-
-    # Extract outcomes
-    outcomes_data = data.get("outcomes", {})
-    outcomes = OutcomeData(
-        root_access=bool(outcomes_data.get("root_access", False)),
-        user_access=bool(outcomes_data.get("user_access", False)),
-        privilege_escalation=bool(outcomes_data.get("privilege_escalation", False)),
-        credentials_recovered=bool(outcomes_data.get("credentials_recovered", False)),
-        sensitive_files_recovered=bool(outcomes_data.get("sensitive_files_recovered", False)),
-        credit_cards_recovered=bool(outcomes_data.get("credit_cards_recovered", False)),
-        pii_recovered=bool(outcomes_data.get("pii_recovered", False)),
-        encrypted_db_recovered=bool(outcomes_data.get("encrypted_db_recovered", False)),
-        db_decrypted=bool(outcomes_data.get("db_decrypted", False)),
-    )
-
-    # Process with deduplication
-    result = process_red_team_submission(
-        attack_type=attack_type,
-        boxes=affected_boxes,
-        teams=affected_teams,
-        source_ip=source_ip,
-        source_ip_pool=source_ip_pool,
-        submitter=user,
-        notes=notes,
-        affected_service=affected_service,
-        destination_ip_template=destination_ip_template,
-        universally_attempted=universally_attempted,
-        persistence_established=persistence_established,
-        outcomes=outcomes,
-    )
-
-    finding = result.finding
-
-    if result.status == "created":
-        return JsonResponse(
-            {
-                "status": "created",
-                "finding_id": finding.id,
-                "message": f"Finding #{finding.id} created successfully",
-                "points_per_team": str(finding.points_per_team),
-            }
-        )
-    else:
-        return JsonResponse(
-            {
-                "status": "merged",
-                "finding_id": finding.id,
-                "message": f"Your submission was merged with existing finding #{finding.id}",
-                "points_per_team": str(finding.points_per_team),
-            }
-        )
-
-
-@login_required
-@require_role("red_team", error_message="Only Red Team members can upload screenshots")
-@transaction.atomic
-@require_http_methods(["POST"])
-def api_upload_red_screenshots(request: HttpRequest, finding_id: int) -> JsonResponse:
-    """API endpoint for uploading screenshots to a red team finding.
-
-    STABLE API: This endpoint is used by external scripts. Do not make breaking
-    changes to the request/response format without versioning or migration path.
-
-    Accepts multipart/form-data with one or more files:
-    - file: Screenshot file(s) to upload (can be repeated for multiple files)
-
-    Returns JSON:
-    - Success: {"status": "success", "uploaded": 2, "message": "..."}
-    - Error: {"error": "...", "details": {...}}
-    """
-    user = cast(User, request.user)
-
-    # Get the finding
-    finding = RedTeamFinding.objects.filter(id=finding_id).first()
-    if not finding:
-        return JsonResponse({"error": f"Finding #{finding_id} not found"}, status=404)
-
-    # Check permission - must be submitter or contributor
-    is_owner = finding.submitted_by == user
-    is_contributor = finding.contributors.filter(id=user.id).exists()
-    if not is_owner and not is_contributor:
-        return JsonResponse(
-            {"error": "You can only upload screenshots to your own findings"},
-            status=403,
-        )
-
-    # Check if finding is already approved
-    if finding.is_approved:
-        return JsonResponse(
-            {"error": "Cannot upload screenshots to an approved finding"},
-            status=400,
-        )
-
-    # Get uploaded files
-    files = request.FILES.getlist("file")
-    if not files:
-        return JsonResponse(
-            {"error": "No files provided", "details": "Use 'file' field for uploads"},
-            status=400,
-        )
-
-    # Limit number of screenshots
-    max_screenshots = 20
-    existing_count = finding.screenshots.count()
-    if existing_count + len(files) > max_screenshots:
-        return JsonResponse(
-            {
-                "error": "Too many screenshots",
-                "details": f"Max {max_screenshots} per finding (current: {existing_count}, adding: {len(files)})",
-            },
-            status=400,
-        )
-
-    # Upload each file
-    uploaded = []
-    for file in files:
-        file_data = file.read()
-        screenshot = RedTeamScreenshot.objects.create(
-            finding=finding,
-            file_data=file_data,
-            filename=file.name or "screenshot.png",
-            mime_type=file.content_type or "image/png",
-        )
-        uploaded.append({"id": screenshot.id, "filename": screenshot.filename})
-
-    return JsonResponse(
-        {
-            "status": "success",
-            "uploaded": len(uploaded),
-            "files": uploaded,
-            "message": f"Uploaded {len(uploaded)} screenshot(s) to finding #{finding_id}",
-        }
-    )
