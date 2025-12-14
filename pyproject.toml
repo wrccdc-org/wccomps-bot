@@ -60,7 +60,7 @@ dev = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 mypy_path = "web"
 files = ["bot", "web/core", "web/team", "web/ticketing", "web/person", "web/competition", "web/quotient", "web/wccomps", "web/scoring", "web/packets", "web/registration"]
@@ -143,7 +143,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py313"
 line-length = 120
 exclude = [
     ".git",

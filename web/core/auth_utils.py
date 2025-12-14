@@ -3,7 +3,7 @@ Simplified Authentik-only authorization utilities.
 """
 
 from collections.abc import Callable
-from typing import Concatenate, ParamSpec, TypeAlias
+from typing import Concatenate, ParamSpec
 
 from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpRequest, HttpResponse
@@ -11,7 +11,7 @@ from django.http import HttpRequest, HttpResponse
 from .models import UserGroups
 
 P = ParamSpec("P")
-ViewFunc: TypeAlias = Callable[Concatenate[HttpRequest, P], HttpResponse]
+type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
 
 
 def get_authentik_groups(user: User | AnonymousUser) -> list[str]:

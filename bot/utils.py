@@ -1,7 +1,6 @@
 """Utility functions for the bot."""
 
 import logging
-from typing import Optional
 
 import discord
 from asgiref.sync import sync_to_async
@@ -40,7 +39,7 @@ async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.E
 
 async def get_team_or_respond(
     interaction: discord.Interaction, team_number: int, validate_range: bool = True
-) -> Optional["Team"]:
+) -> Team | None:
     """
     Get team by number or respond with error message.
 

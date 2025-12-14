@@ -63,7 +63,7 @@ class RoleSyncManager:
 
     async def sync_roles(
         self,
-        progress_callback: "Callable[[int, int, str], Awaitable[None]] | None" = None,
+        progress_callback: Callable[[int, int, str], Awaitable[None]] | None = None,
     ) -> RoleSyncStats:
         """Synchronize roles from volunteer guild to competition guild.
 
@@ -301,7 +301,7 @@ class AuthentikRoleSyncManager:
     async def sync_roles(
         self,
         dry_run: bool = False,
-        progress_callback: "Callable[[int, int, str], Awaitable[None]] | None" = None,
+        progress_callback: Callable[[int, int, str], Awaitable[None]] | None = None,
     ) -> RoleSyncStats:
         """Synchronize roles from Authentik groups to competition Discord guild.
 

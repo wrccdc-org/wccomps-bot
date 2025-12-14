@@ -99,7 +99,7 @@ class EventManager(models.Manager["Event"]):
     def get_queryset(self) -> EventQuerySet:
         return EventQuerySet(self.model, using=self._db)
 
-    def annotate_enrollment_count(self) -> EventQuerySet:
+    def annotate_enrollment_count(self) -> "EventQuerySet":
         return self.get_queryset().annotate_enrollment_count()
 
 
