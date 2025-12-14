@@ -1751,3 +1751,161 @@ def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpRes
     response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
     response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
     return response
+
+
+@login_required
+@require_role("red_team", error_message="Only Red Team members can submit findings")
+@transaction.atomic
+@require_http_methods(["POST"])
+def api_submit_red_finding(request: HttpRequest) -> JsonResponse:
+    """API endpoint for submitting red team findings.
+
+    Accepts JSON body:
+    {
+        "attack_type": "SQL Injection" or 1,  // name or ID
+        "source_ip": "10.0.0.5",              // required if no source_ip_pool
+        "source_ip_pool": 1,                  // ID, alternative to source_ip
+        "affected_boxes": ["web-server"],     // list of box names
+        "affected_service": "HTTP",
+        "destination_ip_template": "10.X.1.10",
+        "universally_attempted": false,
+        "persistence_established": false,
+        "affected_teams": [1, 2, 3],          // team IDs, required
+        "notes": "Full description",
+        "outcomes": {                         // scoring outcomes
+            "root_access": true,
+            "user_access": false,
+            "privilege_escalation": false,
+            "credentials_recovered": true,
+            "sensitive_files_recovered": false,
+            "credit_cards_recovered": false,
+            "pii_recovered": false,
+            "encrypted_db_recovered": false,
+            "db_decrypted": false
+        }
+    }
+
+    Returns JSON:
+    - Success: {"status": "created|merged", "finding_id": 123, "message": "..."}
+    - Error: {"error": "...", "details": {...}}
+    """
+    import json
+
+    from team.models import Team
+
+    from .deduplication import OutcomeData, process_red_team_submission
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+
+    # Parse JSON body
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError as e:
+        return JsonResponse({"error": "Invalid JSON", "details": str(e)}, status=400)
+
+    # Validate required fields
+    errors: dict[str, str] = {}
+
+    # Attack type - accept name or ID
+    attack_type_input = data.get("attack_type")
+    attack_type = None
+    if not attack_type_input:
+        errors["attack_type"] = "Required field"
+    elif isinstance(attack_type_input, int):
+        attack_type = AttackType.objects.filter(id=attack_type_input).first()
+        if not attack_type:
+            errors["attack_type"] = f"Attack type ID {attack_type_input} not found"
+    elif isinstance(attack_type_input, str):
+        attack_type = AttackType.objects.filter(name__iexact=attack_type_input).first()
+        if not attack_type:
+            errors["attack_type"] = f"Attack type '{attack_type_input}' not found"
+    else:
+        errors["attack_type"] = "Must be string (name) or integer (ID)"
+
+    # Source IP - either source_ip or source_ip_pool required
+    source_ip = data.get("source_ip")
+    source_ip_pool = None
+    source_ip_pool_id = data.get("source_ip_pool")
+    if source_ip_pool_id:
+        source_ip_pool = RedTeamIPPool.objects.filter(id=source_ip_pool_id, created_by=user).first()
+        if not source_ip_pool:
+            errors["source_ip_pool"] = f"IP pool {source_ip_pool_id} not found or not owned by you"
+    elif not source_ip:
+        errors["source_ip"] = "Either source_ip or source_ip_pool required"
+
+    # Affected teams - required
+    affected_team_ids = data.get("affected_teams", [])
+    if not affected_team_ids:
+        errors["affected_teams"] = "At least one team required"
+    else:
+        affected_teams = list(Team.objects.filter(id__in=affected_team_ids))
+        if len(affected_teams) != len(affected_team_ids):
+            found_ids = {t.id for t in affected_teams}
+            missing = [tid for tid in affected_team_ids if tid not in found_ids]
+            errors["affected_teams"] = f"Team IDs not found: {missing}"
+
+    if errors or attack_type is None:
+        return JsonResponse({"error": "Validation failed", "details": errors}, status=400)
+
+    # Extract optional fields
+    affected_boxes = data.get("affected_boxes", [])
+    if isinstance(affected_boxes, str):
+        affected_boxes = [affected_boxes]
+
+    affected_service = data.get("affected_service", "")
+    destination_ip_template = data.get("destination_ip_template", "")
+    universally_attempted = bool(data.get("universally_attempted", False))
+    persistence_established = bool(data.get("persistence_established", False))
+    notes = data.get("notes", "")
+
+    # Extract outcomes
+    outcomes_data = data.get("outcomes", {})
+    outcomes = OutcomeData(
+        root_access=bool(outcomes_data.get("root_access", False)),
+        user_access=bool(outcomes_data.get("user_access", False)),
+        privilege_escalation=bool(outcomes_data.get("privilege_escalation", False)),
+        credentials_recovered=bool(outcomes_data.get("credentials_recovered", False)),
+        sensitive_files_recovered=bool(outcomes_data.get("sensitive_files_recovered", False)),
+        credit_cards_recovered=bool(outcomes_data.get("credit_cards_recovered", False)),
+        pii_recovered=bool(outcomes_data.get("pii_recovered", False)),
+        encrypted_db_recovered=bool(outcomes_data.get("encrypted_db_recovered", False)),
+        db_decrypted=bool(outcomes_data.get("db_decrypted", False)),
+    )
+
+    # Process with deduplication
+    result = process_red_team_submission(
+        attack_type=attack_type,
+        boxes=affected_boxes,
+        teams=affected_teams,
+        source_ip=source_ip,
+        source_ip_pool=source_ip_pool,
+        submitter=user,
+        notes=notes,
+        affected_service=affected_service,
+        destination_ip_template=destination_ip_template,
+        universally_attempted=universally_attempted,
+        persistence_established=persistence_established,
+        outcomes=outcomes,
+    )
+
+    finding = result.finding
+
+    if result.status == "created":
+        return JsonResponse(
+            {
+                "status": "created",
+                "finding_id": finding.id,
+                "message": f"Finding #{finding.id} created successfully",
+                "points_per_team": str(finding.points_per_team),
+            }
+        )
+    else:
+        return JsonResponse(
+            {
+                "status": "merged",
+                "finding_id": finding.id,
+                "message": f"Your submission was merged with existing finding #{finding.id}",
+                "points_per_team": str(finding.points_per_team),
+            }
+        )
