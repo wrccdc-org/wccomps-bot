@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest
 
 from .auth_utils import get_permissions_context, has_permission
-from .utils import get_authentik_data
 
 NAV_MAPPING: dict[str, tuple[str, str]] = {
     # Tickets - ops team ticket management
@@ -111,8 +110,6 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
         }
 
     user: User = request.user
-
-    authentik_username, _groups, _ = get_authentik_data(user)
     perms = get_permissions_context(user)
 
     nav_context = _get_nav_active(request)
@@ -120,7 +117,7 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
         **perms,
         "is_blue_team": has_permission(user, "blue_team"),
         "is_red_team": has_permission(user, "red_team"),
-        "authentik_username": authentik_username,
+        "authentik_username": user.username,
         "nav_active": nav_context["nav"],
         "subnav_active": nav_context["subnav"],
     }

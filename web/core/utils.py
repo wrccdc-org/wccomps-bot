@@ -2,30 +2,7 @@
 
 import re
 
-from django.contrib.auth.models import User
-
-from core.models import UserGroups
 from team.models import Team
-
-
-def get_authentik_data(user: User) -> tuple[str, list[str], str | None]:
-    """
-    Extract Authentik username, groups, and user ID from a Django user.
-
-    Args:
-        user: Django User instance
-
-    Returns:
-        tuple: (username, groups, authentik_user_id)
-            - username: Django username (synced from Authentik on login)
-            - groups: List of Authentik group names from UserGroups
-            - authentik_user_id: Authentik UID from UserGroups or None
-    """
-    try:
-        user_groups = user.usergroups
-        return user.username, user_groups.groups, user_groups.authentik_id
-    except UserGroups.DoesNotExist:
-        return user.username, [], None
 
 
 def get_team_from_groups(

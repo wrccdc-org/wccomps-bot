@@ -19,9 +19,9 @@ from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
-from .auth_utils import get_permissions_context, has_permission
+from .auth_utils import get_authentik_groups, get_authentik_id, get_permissions_context, has_permission
 from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
-from .utils import get_authentik_data, get_team_from_groups
+from .utils import get_team_from_groups
 
 
 class ModelWithObjects(Protocol):
@@ -62,7 +62,7 @@ def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploade
 def home(request: HttpRequest) -> HttpResponse:
     """Home page - redirect to appropriate dashboard based on user role."""
     user = cast(User, request.user)
-    _authentik_username, groups, _ = get_authentik_data(user)
+    groups = get_authentik_groups(user)
     _team, _, is_team = get_team_from_groups(groups)
 
     if is_team:
@@ -119,7 +119,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     try:
         # Get Authentik user info first
-        authentik_username, groups, authentik_user_id = get_authentik_data(user)
+        authentik_username = user.username
+        groups = get_authentik_groups(user)
+        authentik_user_id = get_authentik_id(user)
     except Exception as e:
         logger.error(f"link_callback: Error getting Authentik data: {e}", exc_info=True)
         raise
@@ -403,7 +405,7 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
     """View all tickets for user's team."""
     # Get user's team from Authentik groups
     user = cast(User, request.user)
-    _authentik_username, groups, _ = get_authentik_data(user)
+    groups = get_authentik_groups(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
     # Admins without a team go straight to create ticket
@@ -458,7 +460,7 @@ def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """View details of a specific ticket."""
     # Get user's team from Authentik groups
     user = cast(User, request.user)
-    _authentik_username, groups, _ = get_authentik_data(user)
+    groups = get_authentik_groups(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
@@ -515,7 +517,9 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     # Get user's team
     user = cast(User, request.user)
-    authentik_username, groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
+    get_authentik_id(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
@@ -567,7 +571,8 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     """Create a new support ticket (web form alternative to Discord command)."""
     # Get user's team
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
     team, team_number, is_team = get_team_from_groups(groups)
 
     # Allow admins to create tickets for any team
@@ -773,7 +778,8 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     # Get user's team from Authentik groups
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
     team, _team_number, is_team = get_team_from_groups(groups)
 
     if not is_team or not team:
@@ -838,7 +844,8 @@ def ticket_attachment_upload(
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, groups, _ = get_authentik_data(user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
     team, _, is_team = get_team_from_groups(groups)
     is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
@@ -881,7 +888,7 @@ def ticket_attachment_download(
 ) -> HttpResponse:
     """Download an attachment from a ticket."""
     user = cast(User, request.user)
-    _, groups, _ = get_authentik_data(user)
+    groups = get_authentik_groups(user)
     team, _, is_team = get_team_from_groups(groups)
     is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
@@ -927,7 +934,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
 
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     # Check permissions
     if not (
@@ -1072,7 +1079,6 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """View detailed ticket information for operations team."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check permissions
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
@@ -1152,7 +1158,8 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    get_authentik_id(user)
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1203,7 +1210,8 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    get_authentik_id(user)
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1254,7 +1262,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1298,7 +1306,7 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1359,7 +1367,8 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    get_authentik_id(user)
 
     is_ticketing_admin = has_permission(user, "ticketing_admin")
 
@@ -1419,7 +1428,7 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
 
     if not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied - requires ticketing admin role", status=403)
@@ -1469,7 +1478,7 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
 
     if not has_permission(user, "ticketing_support"):
         return HttpResponse("Access denied", status=403)
@@ -1533,7 +1542,8 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    get_authentik_id(user)
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1575,7 +1585,8 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, authentik_user_id = get_authentik_data(user)
+    authentik_username = user.username
+    get_authentik_id(user)
 
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
@@ -1618,7 +1629,7 @@ def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied - admin only", status=403)
@@ -1667,7 +1678,6 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
     """View and edit school information (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is GoldTeam
     if not has_permission(user, "gold_team"):
@@ -1710,7 +1720,7 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
     """Edit school information for a team (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     # Check if user is GoldTeam
     if not has_permission(user, "gold_team"):
@@ -1811,7 +1821,7 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
 
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     # Check if user is GoldTeam
     if not has_permission(user, "gold_team"):
@@ -1931,7 +1941,6 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     """View team membership status and linked users (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is GoldTeam
     if not has_permission(user, "gold_team"):
@@ -1989,7 +1998,6 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
 
     # Get user's permissions
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     # Check if user is ticketing admin
     if not has_permission(user, "ticketing_admin"):
@@ -2100,7 +2108,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied - requires ticketing admin role", status=403)
@@ -2160,7 +2168,7 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied - requires ticketing admin role", status=403)

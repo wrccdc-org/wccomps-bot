@@ -23,7 +23,6 @@ from core.models import AuditLog, CompetitionConfig, DiscordTask
 from team.models import DiscordLink, Team
 
 from .auth_utils import has_permission
-from .utils import get_authentik_data
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,6 @@ def _check_admin(user: User) -> bool:
 def admin_competition(request: HttpRequest) -> HttpResponse:
     """Competition management dashboard."""
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     if not _check_admin(user):
         return render(
@@ -84,7 +82,7 @@ def admin_competition_action(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
@@ -408,7 +406,6 @@ def admin_competition_action(request: HttpRequest) -> HttpResponse:
 def admin_teams(request: HttpRequest) -> HttpResponse:
     """Teams management dashboard."""
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
 
     if not _check_admin(user):
         return render(
@@ -479,7 +476,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
@@ -618,7 +615,7 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
@@ -711,7 +708,7 @@ def admin_helper_action(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
@@ -833,7 +830,7 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
@@ -896,7 +893,7 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username, _groups, _ = get_authentik_data(user)
+    authentik_username = user.username
 
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
