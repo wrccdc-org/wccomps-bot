@@ -14,7 +14,7 @@
         {% if hx_target %}hx-target="{{ hx_target }}"{% endif %}
         {% if hx_swap %}hx-swap="{{ hx_swap }}"{% endif %}
         {% if hx_push_url %}hx-push-url="{{ hx_push_url }}"{% endif %}
-        {% if hx_get %}hx-trigger="change from:find select, change from:find input[type=checkbox], input changed delay:500ms from:find input[type=text], input changed delay:500ms from:find input[type=search], change from:find input[type=number], keyup[key=='Enter'] from:find input"{% endif %}
+        {% if hx_get %}hx-trigger="change, input changed delay:500ms from:find input[type=text], input changed delay:500ms from:find input[type=search], keyup[key=='Enter'] from:find input"{% endif %}
         role="search"
         aria-label="{{ aria_label }}"
         class="{{ class }} flex-1">

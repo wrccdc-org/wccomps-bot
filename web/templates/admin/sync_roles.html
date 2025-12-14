@@ -18,15 +18,12 @@
             </ul>
 
             <c-button_row class="mt-15">
-                <c-button variant="default" @click="requestSync(true)" ::disabled="loading">
+                <c-button variant="primary" @click="requestSync(true)" ::disabled="loading">
                     <span x-show="!loading">Preview Changes (Dry Run)</span>
-                    <span x-show="loading && isDryRun">Previewing...</span>
-                </c-button>
-                <c-button variant="success" @click="requestSync(false)" ::disabled="loading">
-                    <span x-show="!loading">Sync Roles Now</span>
-                    <span x-show="loading && !isDryRun">Syncing...</span>
+                    <span x-show="loading">Previewing...</span>
                 </c-button>
             </c-button_row>
+            <p class="help-text mt-10">Live sync is temporarily disabled. Only dry run preview is available.</p>
         </div>
     </c-module>
 

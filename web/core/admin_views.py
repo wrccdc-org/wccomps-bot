@@ -901,10 +901,13 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
+    # For now, force dry_run=True until we're confident the sync is working correctly
+    dry_run = True  # request.POST.get("dry_run", "true") == "true"
+
     # Create a task for the bot to perform the sync
     task = DiscordTask.objects.create(
         task_type="sync_roles",
-        payload={"requested_by": authentik_username},
+        payload={"requested_by": authentik_username, "dry_run": dry_run},
         status="pending",
     )
 
