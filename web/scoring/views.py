@@ -499,6 +499,28 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can view findings")
+def view_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+    """View red team finding details with screenshot previews."""
+    finding = get_object_or_404(
+        RedTeamFinding.objects.select_related(
+            "attack_type", "submitted_by", "approved_by", "source_ip_pool"
+        ).prefetch_related("affected_teams", "contributors", "screenshots"),
+        id=finding_id,
+    )
+    user = cast(User, request.user)
+    is_gold_team = has_permission(user, "gold_team")
+    can_delete = finding.submitted_by == user and not finding.is_approved
+
+    context = {
+        "finding": finding,
+        "is_gold_team": is_gold_team,
+        "can_delete": can_delete,
+    }
+    return render(request, "scoring/view_red_finding.html", context)
+
+
+@login_required
 @require_role("red_team", error_message="Only Red Team members can delete findings")
 @transaction.atomic
 @require_http_methods(["POST"])
