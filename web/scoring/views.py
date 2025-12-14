@@ -258,8 +258,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @require_role(
-    "WCComps_RedTeam",
-    "Only Red Team members can view findings",
+    "red_team",
+    error_message="Only Red Team members can view findings",
 )
 def red_team_findings(request: HttpRequest) -> HttpResponse:
     """Red team view of all findings (read-only, can delete/leave own)."""
@@ -386,7 +386,7 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can submit findings")
+@require_role("red_team", error_message="Only Red Team members can submit findings")
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding with deduplication."""
@@ -499,7 +499,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can delete findings")
+@require_role("red_team", error_message="Only Red Team members can delete findings")
 @transaction.atomic
 @require_http_methods(["POST"])
 def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
@@ -524,7 +524,7 @@ def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can leave findings")
+@require_role("red_team", error_message="Only Red Team members can leave findings")
 @transaction.atomic
 @require_http_methods(["POST"])
 def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
@@ -562,7 +562,7 @@ def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
 
 # IP Pool Management Views
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@require_role("red_team", error_message="Only Red Team members can manage IP pools")
 def ip_pool_list(request: HttpRequest) -> HttpResponse:
     """List user's IP pools."""
     from .models import RedTeamIPPool
@@ -577,7 +577,7 @@ def ip_pool_list(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@require_role("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 def ip_pool_create(request: HttpRequest) -> HttpResponse:
     """Create a new IP pool."""
@@ -619,7 +619,7 @@ def ip_pool_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@require_role("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 def ip_pool_edit(request: HttpRequest, pool_id: int) -> HttpResponse:
     """Edit an IP pool."""
@@ -647,7 +647,7 @@ def ip_pool_edit(request: HttpRequest, pool_id: int) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can manage IP pools")
+@require_role("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 @require_http_methods(["POST"])
 def ip_pool_delete(request: HttpRequest, pool_id: int) -> HttpResponse:
@@ -669,7 +669,7 @@ def ip_pool_delete(request: HttpRequest, pool_id: int) -> HttpResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", error_message="Only Red Team members can view IP pools")
+@require_role("red_team", error_message="Only Red Team members can view IP pools")
 def api_user_ip_pools(request: HttpRequest) -> JsonResponse:
     """API endpoint to get user's IP pools for dropdown."""
     from .models import RedTeamIPPool
@@ -1264,7 +1264,7 @@ def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
 
 
 @login_required
-@require_role("WCComps_RedTeam", "gold_team", error_message="Only Red Team or Gold Team can access attack suggestions")
+@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can access attack suggestions")
 def api_attack_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for attack type suggestions."""
     # Get distinct attack vectors from previous findings
@@ -1536,6 +1536,15 @@ def export_final_scores(request: HttpRequest) -> HttpResponse:
     if export_format == "json":
         return export_final_scores_json()
     return export_final_scores_csv()
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def export_all(request: HttpRequest) -> HttpResponse:
+    """Export all scoring data as a zip file (admin only)."""
+    from .export import export_all_zip
+
+    return export_all_zip()
 
 
 @login_required

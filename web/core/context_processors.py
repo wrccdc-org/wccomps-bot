@@ -118,7 +118,7 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
     return {
         **perms,
         "is_blue_team": has_permission(user, "blue_team"),
-        "is_red_team": has_permission(user, "WCComps_RedTeam"),
+        "is_red_team": has_permission(user, "red_team"),
         "authentik_username": authentik_username,
         "nav_active": nav_context["nav"],
         "subnav_active": nav_context["subnav"],
