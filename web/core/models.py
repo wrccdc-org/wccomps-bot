@@ -118,6 +118,23 @@ class DashboardUpdate(models.Model):
         return f"Dashboard (needs_update={self.needs_update})"
 
 
+class QueuedAnnouncement(models.Model):
+    """Announcements queued for teams that don't have channels yet."""
+
+    team = models.ForeignKey("team.Team", on_delete=models.CASCADE, related_name="queued_announcements")
+    message = models.TextField()
+    sender_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self) -> str:
+        status = "delivered" if self.delivered_at else "pending"
+        return f"Announcement for Team {self.team.team_number} ({status})"
+
+
 class CompetitionConfig(models.Model):
     """Competition configuration and timing."""
 

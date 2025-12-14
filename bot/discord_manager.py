@@ -211,29 +211,33 @@ class DiscordManager:
             )
             await category.create_voice_channel(f"team{team_number:02d}-voice", reason="WCComps team voice channel")
 
-            # Position category after the closest lower-numbered team category
-            team_categories = []
+            # Position category relative to other team categories (excluding the one we just created)
+            other_team_categories = []
             for cat in self.guild.categories:
+                if cat.id == category.id:
+                    continue
                 match = re.match(r"^team (\d+)$", cat.name, re.IGNORECASE)
                 if match:
-                    team_categories.append((int(match.group(1)), cat))
+                    other_team_categories.append((int(match.group(1)), cat))
 
-            team_categories.sort(key=lambda x: x[0], reverse=True)
+            if other_team_categories:
+                # Sort by team number ascending to find correct insertion point
+                other_team_categories.sort(key=lambda x: x[0])
 
-            positioned = False
-            for num, cat in team_categories:
-                if num < team_number:
-                    await category.edit(position=cat.position + 1)
-                    logger.info(f"Positioned after team {num}")
-                    positioned = True
-                    break
+                # Find position: after the closest lower-numbered team, or before the first higher-numbered team
+                positioned = False
+                for num, cat in reversed(other_team_categories):
+                    if num < team_number:
+                        await category.edit(position=cat.position + 1)
+                        logger.info(f"Positioned after team {num}")
+                        positioned = True
+                        break
 
-            if not positioned and team_categories:
-                # No lower-numbered team exists, so position before the lowest-numbered team
-                # team_categories is sorted reverse, so last item is lowest number
-                lowest_team_cat = team_categories[-1][1]
-                await category.edit(position=lowest_team_cat.position)
-                logger.info(f"Positioned before team {team_categories[-1][0]} (no lower-numbered team)")
+                if not positioned:
+                    # No lower-numbered team exists, position before the lowest-numbered team
+                    first_team_cat = other_team_categories[0][1]
+                    await category.edit(position=first_team_cat.position)
+                    logger.info(f"Positioned before team {other_team_categories[0][0]} (no lower-numbered team)")
 
             logger.info(f"Created code-defined category for Team {team_number}")
 
@@ -248,6 +252,9 @@ class DiscordManager:
                         logger.info(f"Posted ticket panel to team {team_number} channel")
                 except Exception as e:
                     logger.warning(f"Could not post ticket panel to team channel: {e}")
+
+            # Deliver any queued announcements for this team
+            await self._deliver_queued_announcements(team_number, text_channel)
 
             return category
 
@@ -389,3 +396,36 @@ class DiscordManager:
             logger.info(f"Removed Blueteam from {blueteam_count} members")
 
         return removed_count
+
+    async def _deliver_queued_announcements(self, team_number: int, channel: discord.TextChannel) -> int:
+        """Deliver any queued announcements for a team and mark them as delivered."""
+        from django.utils import timezone
+
+        from core.models import QueuedAnnouncement
+
+        team = await Team.objects.filter(team_number=team_number).afirst()
+        if not team:
+            return 0
+
+        # Get undelivered announcements for this team, ordered by creation time
+        announcements = [
+            a
+            async for a in QueuedAnnouncement.objects.filter(team=team, delivered_at__isnull=True).order_by(
+                "created_at"
+            )
+        ]
+
+        delivered_count = 0
+        for announcement in announcements:
+            try:
+                await channel.send(f"**Announcement from {announcement.sender_name}:**\n\n{announcement.message}")
+                announcement.delivered_at = timezone.now()
+                await announcement.asave()
+                delivered_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to deliver queued announcement {announcement.id}: {e}")
+
+        if delivered_count > 0:
+            logger.info(f"Delivered {delivered_count} queued announcement(s) to team {team_number}")
+
+        return delivered_count

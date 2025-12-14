@@ -853,7 +853,11 @@ class AdminCompetitionCog(commands.Cog):
                 )
                 return
 
-        # Send to team channels
+        from core.models import QueuedAnnouncement
+
+        queued_count = 0
+
+        # Send to team channels (or queue if channel doesn't exist yet)
         for team_number in team_numbers:
             try:
                 team = await Team.objects.filter(team_number=team_number).afirst()
@@ -861,30 +865,28 @@ class AdminCompetitionCog(commands.Cog):
                     failed_channels.append(f"Team {team_number:02d} (not found)")
                     continue
 
-                # Find team chat channel
-                if not team.discord_category_id:
-                    failed_channels.append(f"Team {team_number:02d} (no category)")
-                    continue
-
-                category = guild.get_channel(team.discord_category_id)
-                if not category or not isinstance(category, discord.CategoryChannel):
-                    failed_channels.append(f"Team {team_number:02d} (category not found)")
-                    continue
-
-                # Find chat channel in category
+                # Try to find team chat channel
                 chat_channel = None
-                for channel in category.channels:
-                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
-                        chat_channel = channel
-                        break
+                if team.discord_category_id:
+                    category = guild.get_channel(team.discord_category_id)
+                    if category and isinstance(category, discord.CategoryChannel):
+                        for channel in category.channels:
+                            if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                                chat_channel = channel
+                                break
 
-                if not chat_channel:
-                    failed_channels.append(f"Team {team_number:02d} (chat channel not found)")
-                    continue
-
-                # Send message
-                await chat_channel.send(f"**Announcement from {interaction.user.name}:**\n\n{message}")
-                sent_count += 1
+                if chat_channel:
+                    # Send message directly
+                    await chat_channel.send(f"**Announcement from {interaction.user.name}:**\n\n{message}")
+                    sent_count += 1
+                else:
+                    # Queue announcement for later delivery when channel is created
+                    await QueuedAnnouncement.objects.acreate(
+                        team=team,
+                        message=message,
+                        sender_name=interaction.user.name,
+                    )
+                    queued_count += 1
 
             except Exception as e:
                 logger.exception(f"Failed to broadcast to team {team_number}: {e}")
@@ -901,6 +903,7 @@ class AdminCompetitionCog(commands.Cog):
                 "target": target,
                 "message_preview": message[:200],
                 "sent_count": sent_count,
+                "queued_count": queued_count,
                 "failed_count": len(failed_channels),
             },
         )
@@ -911,6 +914,8 @@ class AdminCompetitionCog(commands.Cog):
             f"• Target: {target}",
             f"• Sent: {sent_count} channels",
         ]
+        if queued_count > 0:
+            ops_msg_parts.append(f"• Queued: {queued_count} (pending channel creation)")
         if failed_channels:
             ops_msg_parts.append(f"• Failed: {len(failed_channels)}")
         ops_msg_parts.append(f"Message: {message[:100]}...")
@@ -919,14 +924,14 @@ class AdminCompetitionCog(commands.Cog):
 
         # Build response
         result_msg = f"Broadcast complete\n• Sent: {sent_count} channels"
+        if queued_count > 0:
+            result_msg += f"\n• Queued: {queued_count} (will deliver when team channels are created)"
         if failed_channels:
             result_msg += f"\n• Failed: {len(failed_channels)}"
             if len(failed_channels) <= 10:
-                result_msg += "\n\nFailed channels:\n" + "\n".join([f"• {fc}" for fc in failed_channels])
+                result_msg += "\n\nFailed:\n" + "\n".join([f"• {fc}" for fc in failed_channels])
             else:
-                result_msg += "\n\nFailed channels (first 10):\n" + "\n".join(
-                    [f"• {fc}" for fc in failed_channels[:10]]
-                )
+                result_msg += "\n\nFailed (first 10):\n" + "\n".join([f"• {fc}" for fc in failed_channels[:10]])
 
         await interaction.followup.send(result_msg, ephemeral=True)
 
