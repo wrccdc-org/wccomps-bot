@@ -809,3 +809,69 @@ label.required::after {
     font-size: 11px;
     color: var(--body-quiet-color, #666);
 }
+
+/* ============================================
+   ATTACHMENT GRID (ticket attachments preview)
+   ============================================ */
+.attachment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+}
+.attachment-item {
+    border: 1px solid var(--hairline-color, #ddd);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--darkened-bg, #f8f8f8);
+}
+.attachment-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    background: var(--body-bg, #fff);
+    border-bottom: 1px solid var(--hairline-color, #ddd);
+}
+.attachment-thumbnail {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.attachment-pdf {
+    text-decoration: none;
+}
+.pdf-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: #dc3545;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 4px;
+}
+.attachment-file {
+    background: var(--darkened-bg, #f8f8f8);
+}
+.file-icon {
+    font-size: 40px;
+}
+.attachment-info {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.attachment-name {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.attachment-meta {
+    font-size: 11px;
+    color: var(--body-quiet-color, #666);
+}
