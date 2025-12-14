@@ -847,28 +847,20 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
 
 
 @login_required
-@require_role(
-    "orange_team",
-    "gold_team",
-    "Only Orange Team or Gold Team members can access this page",
-)
+@require_role("orange_team", error_message="Only Orange Team members can access this page")
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
-    """Orange team portal - list existing bonuses."""
+    """Orange team portal - list user's own submitted bonuses."""
     user = cast(User, request.user)
+    bonuses = OrangeTeamBonus.objects.filter(submitted_by=user).select_related("team")
+    return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses})
 
-    base_query = OrangeTeamBonus.objects.all()
-    can_see_all = user.is_staff or has_permission(user, "gold_team")
 
-    if can_see_all:
-        bonuses = base_query.select_related("team")
-    else:
-        bonuses = base_query.filter(submitted_by=user).select_related("team")
-
-    context = {
-        "bonuses": bonuses,
-        "can_approve": can_see_all,
-    }
-    return render(request, "scoring/orange_team_portal.html", context)
+@login_required
+@require_role("gold_team", error_message="Only Gold Team members can review orange team")
+def review_orange(request: HttpRequest) -> HttpResponse:
+    """Gold team review page for orange team."""
+    bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+    return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
 @login_required

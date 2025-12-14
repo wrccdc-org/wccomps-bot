@@ -3,95 +3,54 @@
 
 {% block orange_content %}
 {% load cotton %}
-<c-page_header title="Orange Team Adjustments" subtitle="Customer service bonuses and penalties" />
+<c-page_header title="My Adjustments" subtitle="View submitted customer service bonuses and penalties" />
 <c-module>
-    {% if can_approve and bonuses %}
     <c-slot name="toolbar">
-        <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
+        <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="add">Submit Adjustment</c-link>
     </c-slot>
-    {% endif %}
 
     {% if bonuses %}
-    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
-          x-data="{
-              selected: [],
-              selectableIds: [{% for bonus in bonuses %}'{{ bonus.id }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-              get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 },
-              get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length },
-              toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; }
-          }">
-        {% csrf_token %}
-        <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
-            <c-slot name="headers">
-                <tr>
-                    {% if can_approve %}
-                    <th scope="col" style="width: 40px;">
-                        <input type="checkbox" :checked="allSelected" :indeterminate="someSelected" @click="toggleAll()" aria-label="Select all adjustments">
-                    </th>
-                    {% endif %}
-                    <c-table_header sortable="false">ID</c-table_header>
-                    <c-table_header sortable="false">Team</c-table_header>
-                    <c-table_header sortable="false">Category</c-table_header>
-                    <c-table_header sortable="false">Description</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                    <c-table_header sortable="false">Status</c-table_header>
-                    <c-table_header sortable="false">Submitted</c-table_header>
-                    {% if can_approve %}
-                    <c-table_header sortable="false">Actions</c-table_header>
-                    {% endif %}
-                </tr>
-            </c-slot>
-
-            {% for bonus in bonuses %}
+    <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
+        <c-slot name="headers">
             <tr>
-                {% if can_approve %}
-                <td>
-                    <input type="checkbox" name="adjustment_ids" value="{{ bonus.id }}" x-model="selected" aria-label="Select adjustment {{ bonus.id }}">
-                </td>
-                {% endif %}
-                <td><strong>#{{ bonus.id }}</strong></td>
-                <td>{{ bonus.team.team_name }}</td>
-                <td>
-                    {% if bonus.check_type %}
-                        <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
-                    {% else %}
-                        <c-badge status="cancelled">Uncategorized</c-badge>
-                    {% endif %}
-                </td>
-                <td>{{ bonus.description|truncatechars:60 }}</td>
-                <td style="text-align: right;">
-                    <c-score_value :value="bonus.points_awarded" format="signed" />
-                </td>
-                <td>
-                    {% if bonus.is_approved %}
-                        <c-badge status="resolved">Approved</c-badge>
-                        {% if bonus.approved_by %}
-                        <br><small class="text-muted">by {{ bonus.approved_by.username }}</small>
-                        {% endif %}
-                    {% else %}
-                        <c-badge status="claimed">Pending</c-badge>
-                    {% endif %}
-                </td>
-                <td>
-                    <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
-                    <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
-                </td>
-                {% if can_approve %}
-                <td>
-                    <form method="post" action="{% url 'scoring:approve_orange_adjustment' bonus.id %}" class="d-inline">
-                        {% csrf_token %}
-                        <c-button type="submit" variant="success" size="sm">Approve</c-button>
-                    </form>
-                    <form method="post" action="{% url 'scoring:reject_orange_adjustment' bonus.id %}" class="d-inline">
-                        {% csrf_token %}
-                        <c-button type="submit" variant="danger" size="sm">Reject</c-button>
-                    </form>
-                </td>
-                {% endif %}
+                <c-table_header sortable="false">ID</c-table_header>
+                <c-table_header sortable="false">Team</c-table_header>
+                <c-table_header sortable="false">Category</c-table_header>
+                <c-table_header sortable="false">Description</c-table_header>
+                <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Submitted</c-table_header>
             </tr>
-            {% endfor %}
-        </c-table>
-    </form>
+        </c-slot>
+
+        {% for bonus in bonuses %}
+        <tr>
+            <td><strong>#{{ bonus.id }}</strong></td>
+            <td>{{ bonus.team.team_name }}</td>
+            <td>
+                {% if bonus.check_type %}
+                    <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
+                {% else %}
+                    <c-badge status="cancelled">Uncategorized</c-badge>
+                {% endif %}
+            </td>
+            <td>{{ bonus.description|truncatechars:60 }}</td>
+            <td style="text-align: right;">
+                <c-score_value :value="bonus.points_awarded" format="signed" />
+            </td>
+            <td>
+                {% if bonus.is_approved %}
+                    <c-badge status="resolved">Approved</c-badge>
+                {% else %}
+                    <c-badge status="claimed">Pending</c-badge>
+                {% endif %}
+            </td>
+            <td>
+                <small>{{ bonus.created_at|date:"m/d H:i" }}</small>
+            </td>
+        </tr>
+        {% endfor %}
+    </c-table>
     {% else %}
     <c-empty_state title="No adjustments submitted yet" description="Submit an orange team adjustment to track customer service bonuses/penalties" />
     {% endif %}

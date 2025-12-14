@@ -51,6 +51,8 @@ urlpatterns = [
     # Gold Team - Incident Review
     path("gold-team/incidents/", views.review_incidents, name="review_incidents"),
     path("gold-team/incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
+    # Gold Team - Orange Review
+    path("gold-team/orange/", views.review_orange, name="review_orange"),
     # Admin/Configuration
     path("admin/config/", views.scoring_config, name="scoring_config"),
     path("admin/sync-metadata/", views.sync_metadata, name="sync_metadata"),
