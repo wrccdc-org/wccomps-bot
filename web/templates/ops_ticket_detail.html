@@ -84,11 +84,11 @@
                 {% csrf_token %}
                 <div class="d-flex gap-20 flex-wrap items-end mb-15">
                     <div style="flex: 1; min-width: 200px;">
-                        <label for="resolution_notes" class="required" style="display: block; margin-bottom: 5px; font-weight: 600;">Resolution Notes:</label>
+                        <label for="resolution_notes" class="form-label required">Resolution Notes:</label>
                         <textarea name="resolution_notes" id="resolution_notes" rows="3" placeholder="Describe what was done to resolve this ticket..." required style="width: 100%;"></textarea>
                     </div>
                     <div style="min-width: 150px;">
-                        <label for="points_override" style="display: block; margin-bottom: 5px; font-weight: 600;">Points Override:</label>
+                        <label for="points_override" class="form-label">Points Override:</label>
                         <input type="number" name="points_override" id="points_override" placeholder="{{ ticket.points_charged }}pt default" style="width: 100%;">
                     </div>
                 </div>
@@ -123,7 +123,7 @@
             <form method="POST" action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
                 <div class="mb-15">
-                    <label for="reopen_reason" style="display: block; margin-bottom: 5px; font-weight: 600;">Reopen Reason (Optional):</label>
+                    <label for="reopen_reason" class="form-label">Reopen Reason (Optional):</label>
                     <textarea name="reopen_reason" id="reopen_reason" rows="2" placeholder="Optionally explain why this ticket is being reopened..." style="width: 100%; max-width: 500px;"></textarea>
                 </div>
                 <c-button type="submit" variant="warning">Reopen Ticket</c-button>
