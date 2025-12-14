@@ -30,6 +30,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     # Red Team Findings
     "submit_red_finding": ("red_findings", "submit"),
     "red_team_findings": ("red_findings", "findings"),
+    "view_red_finding": ("red_findings", "findings"),
     "delete_red_finding": ("red_findings", "findings"),
     "leave_red_finding": ("red_findings", "findings"),
     "ip_pool_list": ("red_findings", "pools"),
