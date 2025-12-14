@@ -16,6 +16,7 @@ urlpatterns = [
     # Red Team
     path("red-team/", views.submit_red_finding, name="submit_red_finding"),
     path("red-team/findings/", views.red_team_findings, name="red_team_findings"),
+    path("red-team/finding/<int:finding_id>/", views.view_red_finding, name="view_red_finding"),
     # Gold Team Review
     path("gold-team/red-findings/", views.red_team_portal, name="red_team_portal"),
     path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
