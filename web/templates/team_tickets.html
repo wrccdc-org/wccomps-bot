@@ -14,32 +14,17 @@
             <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
 
-        <div class="toolbar d-flex justify-between items-start gap-15">
-            <form
-                id="filter-form"
-                method="GET"
-                hx-get="{% url 'team_tickets' %}"
-                hx-target="#ticket-list-content"
-                hx-swap="outerHTML"
-                hx-push-url="true"
-                role="search"
-                aria-label="Filter results"
-                class="flex-1">
-                <div id="filter-content">
-                    <div class="d-flex gap-10 flex-wrap items-end">
-                        <c-filter_field label="Status" id="id_status">
-                            <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
-                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-                                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                                <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
-                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                            </select>
-                        </c-filter_field>
-                    </div>
-                </div>
-            </form>
-        </div>
+        <c-filter_toolbar form_id="filter-form" hx_get="{% url 'team_tickets' %}" hx_target="#ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
+            <c-filter_field label="Status" id="id_status">
+                <select name="status" id="id_status" aria-label="Filter by status">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                    <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </c-filter_field>
+        </c-filter_toolbar>
 
         <c-ticket_list :tickets="tickets" :status_filter="status_filter" />
     </c-module>

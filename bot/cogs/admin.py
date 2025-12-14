@@ -24,35 +24,37 @@ class AdminCog(commands.Cog):
 
     @admin_group.command(
         name="sync-roles",
-        description="[ADMIN] Synchronize team roles from volunteer guild to competition guild",
+        description="[ADMIN] Preview role synchronization (dry run only)",
     )
     @app_commands.check(check_admin)
     async def admin_sync_roles(self, interaction: discord.Interaction) -> None:
-        """Sync roles from volunteer guild to competition guild.
+        """Preview role sync from volunteer guild to competition guild (dry run only).
 
-        This performs one-way sync:
-        - Users with team roles in volunteer guild get them in competition guild
-        - Users without roles in volunteer guild lose them in competition guild
+        Live sync is temporarily disabled. This only shows what would change.
         """
-        from bot.role_sync import RoleSyncManager
+        from bot.role_sync import AuthentikRoleSyncManager
 
         await interaction.response.defer(ephemeral=True)
 
         try:
-            # Create role sync manager
-            role_sync = RoleSyncManager(self.bot)
+            # Create Authentik role sync manager for dry run preview
+            role_sync = AuthentikRoleSyncManager(self.bot)
 
-            # Perform sync
-            await interaction.followup.send("Starting role synchronization...", ephemeral=True)
+            # Perform dry run only
+            await interaction.followup.send(
+                "Starting role synchronization preview (dry run)...\n"
+                "⚠️ Live sync is temporarily disabled. No changes will be made.",
+                ephemeral=True,
+            )
 
-            stats = await role_sync.sync_roles()
+            stats = await role_sync.sync_roles(dry_run=True)
 
             # Build result message with detailed changes (only show non-zero metrics)
-            result_parts = ["Role sync complete"]
+            result_parts = ["**Role sync preview complete (dry run)**"]
             if stats["roles_added"]:
-                result_parts.append(f"• Roles added: {stats['roles_added']}")
+                result_parts.append(f"• Would add roles: {stats['roles_added']}")
             if stats["roles_removed"]:
-                result_parts.append(f"• Roles removed: {stats['roles_removed']}")
+                result_parts.append(f"• Would remove roles: {stats['roles_removed']}")
             if stats["errors"]:
                 result_parts.append(f"• Errors: {stats['errors']}")
 

@@ -11,7 +11,7 @@
     <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:review_incidents' %}" hx_target="#review-incidents-content" hx_swap="outerHTML" hx_push_url="true">
             <c-filter_field label="Status" id="id_status">
-                <select name="status" id="id_status" aria-label="Filter by status" hx-trigger="change">
+                <select name="status" id="id_status" aria-label="Filter by status">
                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
                     <option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
@@ -19,7 +19,7 @@
             </c-filter_field>
 
             <c-filter_field label="Team" id="id_team">
-                <select name="team" id="id_team" aria-label="Filter by team" hx-trigger="change">
+                <select name="team" id="id_team" aria-label="Filter by team">
                     <option value="">All Teams</option>
                     {% for team in available_teams %}
                         <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
@@ -30,7 +30,7 @@
             </c-filter_field>
 
             <c-filter_field label="Box" id="id_box" min_width="120px">
-                <input type="text" name="box" id="id_box" value="{{ selected_box|default:'' }}" placeholder="Box name..." aria-label="Filter by box" hx-trigger="input changed delay:500ms">
+                <input type="text" name="box" id="id_box" value="{{ selected_box|default:'' }}" placeholder="Box name..." aria-label="Filter by box">
             </c-filter_field>
         </c-filter_toolbar>
 
