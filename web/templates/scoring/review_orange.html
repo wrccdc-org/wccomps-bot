@@ -1,0 +1,89 @@
+{% extends "scoring/base.html" %}
+{% block title %}Review Orange Team{% endblock %}
+
+{% block scoring_content %}
+{% load cotton %}
+<c-page_header title="Review Orange Team Adjustments" subtitle="Approve or reject customer service bonuses and penalties" />
+<c-module>
+    {% if bonuses %}
+    <c-slot name="toolbar">
+        <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
+    </c-slot>
+
+    <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
+          x-data="{
+              selected: [],
+              selectableIds: [{% for bonus in bonuses %}'{{ bonus.id }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+              get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 },
+              get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length },
+              toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; }
+          }">
+        {% csrf_token %}
+        <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
+            <c-slot name="headers">
+                <tr>
+                    <th scope="col" style="width: 40px;">
+                        <input type="checkbox" :checked="allSelected" :indeterminate="someSelected" @click="toggleAll()" aria-label="Select all adjustments">
+                    </th>
+                    <c-table_header sortable="false">ID</c-table_header>
+                    <c-table_header sortable="false">Team</c-table_header>
+                    <c-table_header sortable="false">Category</c-table_header>
+                    <c-table_header sortable="false">Description</c-table_header>
+                    <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                    <c-table_header sortable="false">Status</c-table_header>
+                    <c-table_header sortable="false">Submitted</c-table_header>
+                    <c-table_header sortable="false">Actions</c-table_header>
+                </tr>
+            </c-slot>
+
+            {% for bonus in bonuses %}
+            <tr>
+                <td>
+                    <input type="checkbox" name="adjustment_ids" value="{{ bonus.id }}" x-model="selected" aria-label="Select adjustment {{ bonus.id }}">
+                </td>
+                <td><strong>#{{ bonus.id }}</strong></td>
+                <td>{{ bonus.team.team_name }}</td>
+                <td>
+                    {% if bonus.check_type %}
+                        <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
+                    {% else %}
+                        <c-badge status="cancelled">Uncategorized</c-badge>
+                    {% endif %}
+                </td>
+                <td>{{ bonus.description|truncatechars:60 }}</td>
+                <td style="text-align: right;">
+                    <c-score_value :value="bonus.points_awarded" format="signed" />
+                </td>
+                <td>
+                    {% if bonus.is_approved %}
+                        <c-badge status="resolved">Approved</c-badge>
+                        {% if bonus.approved_by %}
+                        <br><small class="text-muted">by {{ bonus.approved_by.username }}</small>
+                        {% endif %}
+                    {% else %}
+                        <c-badge status="claimed">Pending</c-badge>
+                    {% endif %}
+                </td>
+                <td>
+                    <small>{{ bonus.created_at|date:"m/d H:i" }}</small><br>
+                    <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
+                </td>
+                <td>
+                    <form method="post" action="{% url 'scoring:approve_orange_adjustment' bonus.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="success" size="sm">Approve</c-button>
+                    </form>
+                    <form method="post" action="{% url 'scoring:reject_orange_adjustment' bonus.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="danger" size="sm">Reject</c-button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </c-table>
+    </form>
+    {% else %}
+    <c-empty_state title="No adjustments to review" description="No orange team adjustments have been submitted yet" />
+    {% endif %}
+</c-module>
+{% endblock scoring_content %}
