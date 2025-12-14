@@ -954,8 +954,8 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     from django.db.models import Count, Max
 
     query = Ticket.objects.select_related("team").annotate(
-        comment_count=Count("comments"),
-        attachment_count=Count("attachments"),
+        comment_count=Count("comments", distinct=True),
+        attachment_count=Count("attachments", distinct=True),
         last_activity=Max("history__timestamp"),
     )
 
