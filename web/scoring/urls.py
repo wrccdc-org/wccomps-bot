@@ -71,6 +71,7 @@ urlpatterns = [
         views.api_upload_red_screenshots,
         name="api_upload_red_screenshots",
     ),
+    path("api/red-team/options/", views.api_red_team_options, name="api_red_team_options"),
     # Export endpoints
     path("export/", views.export_index, name="export_index"),
     path("export/all/", views.export_all, name="export_all"),

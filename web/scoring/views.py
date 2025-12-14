@@ -1317,6 +1317,70 @@ def api_orange_check_types(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
+@require_role("red_team", error_message="Only Red Team members can access this")
+def api_red_team_options(request: HttpRequest) -> JsonResponse:
+    """API endpoint returning all available options for red team finding submissions.
+
+    STABLE API: This endpoint is used by external scripts. Do not make breaking
+    changes to the response format without versioning or migration path.
+
+    Returns all options needed to construct a valid red team finding submission.
+    """
+    from team.models import Team
+
+    from .models import RedTeamIPPool
+
+    user = cast(User, request.user)
+
+    # Attack types
+    attack_types = [
+        {"id": at.id, "name": at.name, "description": at.description}
+        for at in AttackType.objects.all().order_by("name")
+    ]
+
+    # Teams
+    teams = [
+        {"id": t.id, "team_number": t.team_number, "team_name": t.team_name}
+        for t in Team.objects.all().order_by("team_number")
+    ]
+
+    # User's IP pools
+    ip_pools = [
+        {"id": p.id, "name": p.name, "ip_count": p.ip_count}
+        for p in RedTeamIPPool.objects.filter(created_by=user).order_by("name")
+    ]
+
+    # Boxes and services from Quotient metadata cache
+    metadata = QuotientMetadataCache.objects.first()
+    boxes = metadata.boxes if metadata else []
+    services = metadata.services if metadata else []
+
+    # Outcome options with point values
+    outcomes = [
+        {"field": "root_access", "label": "Root/Admin Access", "points": -100},
+        {"field": "user_access", "label": "User Access", "points": -25, "note": "Not scored if root_access"},
+        {"field": "privilege_escalation", "label": "Privilege Escalation", "points": -100},
+        {"field": "credentials_recovered", "label": "Credentials Recovered", "points": -50},
+        {"field": "sensitive_files_recovered", "label": "Sensitive Files Recovered", "points": -25},
+        {"field": "credit_cards_recovered", "label": "Credit Cards Recovered", "points": -50},
+        {"field": "pii_recovered", "label": "PII Recovered", "points": -200},
+        {"field": "encrypted_db_recovered", "label": "Encrypted DB Recovered", "points": -25},
+        {"field": "db_decrypted", "label": "DB Decrypted", "points": -25},
+    ]
+
+    return JsonResponse(
+        {
+            "attack_types": attack_types,
+            "teams": teams,
+            "ip_pools": ip_pools,
+            "boxes": boxes,
+            "services": services,
+            "outcomes": outcomes,
+        }
+    )
+
+
+@login_required
 @require_role("gold_team", error_message="Only Gold Team members can review inject grades")
 def inject_grades_review(request: HttpRequest) -> HttpResponse:
     """Review and approve inject grades (Gold Team)."""
