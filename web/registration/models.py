@@ -23,7 +23,20 @@ class TeamRegistration(models.Model):
         ("rejected", "Rejected"),
     ]
 
+    REGION_CHOICES = [
+        ("wrccdc", "Western Regional (WRCCDC)"),
+        ("prccdc", "Pacific Rim (PRCCDC)"),
+        ("mwccdc", "Midwest (MWCCDC)"),
+        ("rmccdc", "Rocky Mountain (RMCCDC)"),
+        ("swccdc", "Southwest (SWCCDC)"),
+        ("neccdc", "Northeast (NECCDC)"),
+        ("maccdc", "Mid-Atlantic (MACCDC)"),
+        ("seccdc", "Southeast (SECCDC)"),
+        ("at_large", "At-Large"),
+    ]
+
     school_name = models.CharField(max_length=255)
+    region = models.CharField(max_length=20, choices=REGION_CHOICES, default="wrccdc")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 
     # Token for self-service editing

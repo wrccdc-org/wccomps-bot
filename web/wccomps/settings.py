@@ -47,6 +47,18 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 CSRF_TRUSTED_ORIGINS = [
     "https://bot.wccomps.org",
     "http://bot.wccomps.org",
+    "https://register.wccomps.org",
+    "http://register.wccomps.org",
+    "https://team.wccomps.org",
+    "http://team.wccomps.org",
+    "https://teams.wccomps.org",
+    "http://teams.wccomps.org",
+    "https://ticket.wccomps.org",
+    "http://ticket.wccomps.org",
+    "https://tickets.wccomps.org",
+    "http://tickets.wccomps.org",
+    "https://portal.wccomps.org",
+    "http://portal.wccomps.org",
 ]
 
 
@@ -79,6 +91,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.SubdomainRedirectMiddleware",
     "core.middleware.AuthentikRequiredMiddleware",
 ]
 
