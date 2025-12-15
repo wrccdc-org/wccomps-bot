@@ -92,32 +92,99 @@ class EventSelectionForm(forms.Form):
 
 
 class RegistrationForm(forms.ModelForm[TeamRegistration]):
-    """Combined form for simple registration."""
+    """Combined form for registration with captain, coach, events, and rules."""
 
-    contact_name = forms.CharField(max_length=255, label="Contact Name")
-    contact_email = forms.EmailField(label="Contact Email")
-    phone = forms.CharField(max_length=50, label="Phone Number")
+    # Team Captain fields
+    captain_name = forms.CharField(max_length=255, label="Full Name")
+    captain_email = forms.EmailField(label="Email Address")
+    captain_phone = forms.CharField(max_length=50, label="Phone Number")
+
+    # Coach/Faculty Advisor fields
+    coach_name = forms.CharField(max_length=255, label="Full Name")
+    coach_email = forms.EmailField(label="Email Address")
+    coach_phone = forms.CharField(max_length=50, label="Phone Number", required=False)
+
+    # Event selection
+    events = forms.ModelMultipleChoiceField(
+        queryset=Event.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        label="Select Events",
+    )
+
+    # Rules agreement
+    agree_to_rules = forms.BooleanField(
+        required=True,
+        label="I agree to the competition rules",
+    )
 
     class Meta:
         model = TeamRegistration
-        fields = ["school_name"]
+        fields = ["school_name", "region"]
         labels = {
             "school_name": "School Name",
+            "region": "CCDC Region",
         }
 
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        # Populate events from active season with open registration
+        events_field = self.fields["events"]
+        if isinstance(events_field, forms.ModelMultipleChoiceField):
+            events_field.queryset = Event.objects.filter(
+                season__is_active=True,
+                registration_open=True,
+            ).order_by("date")
+
+    def clean(self) -> dict[str, object]:
+        """Validate that non-WRCCDC teams only register for invitationals."""
+        cleaned_data = super().clean() or {}
+        region = cleaned_data.get("region")
+        events = cleaned_data.get("events")
+
+        if region and region != "wrccdc" and events:
+            restricted_events = [e for e in events if e.event_type in ("qualifier", "regional")]
+            if restricted_events:
+                event_names = ", ".join(e.name for e in restricted_events)
+                raise forms.ValidationError(
+                    f"Only Western Regional (WRCCDC) teams can register for Qualifiers and Regionals. "
+                    f"Please remove: {event_names}"
+                )
+
+        return cleaned_data
+
     def save(self, commit: bool = True) -> TeamRegistration:
-        """Save registration and create captain contact."""
+        """Save registration, contacts, and event enrollments."""
+        from .models import RegistrationEventEnrollment
+
         registration = super().save(commit=commit)
         if commit:
+            # Create captain contact
             RegistrationContact.objects.update_or_create(
                 registration=registration,
                 role="captain",
                 defaults={
-                    "name": self.cleaned_data["contact_name"],
-                    "email": self.cleaned_data["contact_email"],
-                    "phone": self.cleaned_data["phone"],
+                    "name": self.cleaned_data["captain_name"],
+                    "email": self.cleaned_data["captain_email"],
+                    "phone": self.cleaned_data["captain_phone"],
                 },
             )
+            # Create coach contact
+            RegistrationContact.objects.update_or_create(
+                registration=registration,
+                role="coach",
+                defaults={
+                    "name": self.cleaned_data["coach_name"],
+                    "email": self.cleaned_data["coach_email"],
+                    "phone": self.cleaned_data.get("coach_phone", ""),
+                },
+            )
+            # Create event enrollments
+            for event in self.cleaned_data["events"]:
+                RegistrationEventEnrollment.objects.get_or_create(
+                    registration=registration,
+                    event=event,
+                )
         return registration
 
 

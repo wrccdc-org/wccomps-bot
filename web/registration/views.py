@@ -59,13 +59,25 @@ def registration_edit(request: HttpRequest, token: str) -> HttpResponse:
     else:
         # Pre-populate form with existing data
         captain = registration.contacts.filter(role="captain").first()
-        initial = {}
+        coach = registration.contacts.filter(role="coach").first()
+        enrolled_events = list(registration.event_enrollments.values_list("event_id", flat=True))
+        initial = {"events": enrolled_events, "agree_to_rules": True}
         if captain:
-            initial = {
-                "contact_name": captain.name,
-                "contact_email": captain.email,
-                "phone": captain.phone,
-            }
+            initial.update(
+                {
+                    "captain_name": captain.name,
+                    "captain_email": captain.email,
+                    "captain_phone": captain.phone,
+                }
+            )
+        if coach:
+            initial.update(
+                {
+                    "coach_name": coach.name,
+                    "coach_email": coach.email,
+                    "coach_phone": coach.phone,
+                }
+            )
         form = RegistrationForm(instance=registration, initial=initial)
 
     return render(request, "registration/edit.html", {"form": form, "registration": registration})

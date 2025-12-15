@@ -8,6 +8,22 @@ from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 
 
+class SubdomainRedirectMiddleware:
+    """Redirect subdomain root paths to their corresponding app paths."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+        self.subdomain_redirects = {
+            "register.wccomps.org": "/register/",
+        }
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        host = request.get_host().split(":")[0]
+        if request.path == "/" and host in self.subdomain_redirects:
+            return redirect(self.subdomain_redirects[host])
+        return self.get_response(request)
+
+
 class AuthentikRequiredMiddleware:
     """Require Authentik login for all pages except OAuth flow and Discord linking."""
 

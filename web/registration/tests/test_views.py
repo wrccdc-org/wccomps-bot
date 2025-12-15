@@ -6,15 +6,24 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import RegistrationContact, TeamRegistration
+from ..models import Event, RegistrationContact, Season, TeamRegistration
 
 
 class RegistrationViewTestCase(TestCase):
     """Test public registration view."""
 
     def setUp(self):
-        """Set up test client."""
+        """Set up test client and create an active season with event."""
         self.client = Client()
+        self.season = Season.objects.create(name="2026 Season", year=2026, is_active=True)
+        self.event = Event.objects.create(
+            season=self.season,
+            name="Invitational 1",
+            event_type="invitational",
+            event_number=1,
+            date="2026-01-15",
+            registration_open=True,
+        )
 
     def test_registration_page_loads(self):
         """Test registration page loads without authentication."""
@@ -26,35 +35,46 @@ class RegistrationViewTestCase(TestCase):
         """Test registration page contains form."""
         response = self.client.get(reverse("registration_register"))
         self.assertContains(response, "school_name")
-        self.assertContains(response, "contact_name")
-        self.assertContains(response, "contact_email")
-        self.assertContains(response, "phone")
+        self.assertContains(response, "captain_name")
+        self.assertContains(response, "captain_email")
+        self.assertContains(response, "coach_name")
+        self.assertContains(response, "agree_to_rules")
 
     def test_submit_valid_registration(self):
         """Test submitting valid registration."""
         form_data = {
             "school_name": "Test High School",
-            "contact_name": "John Doe",
-            "contact_email": "test@example.com",
-            "phone": "555-1234",
+            "region": "wrccdc",
+            "captain_name": "John Doe",
+            "captain_email": "captain@example.com",
+            "captain_phone": "555-1234",
+            "coach_name": "Dr. Smith",
+            "coach_email": "coach@example.com",
+            "coach_phone": "",
+            "events": [self.event.id],
+            "agree_to_rules": True,
         }
         response = self.client.post(reverse("registration_register"), data=form_data)
         self.assertEqual(response.status_code, 302)
 
         registration = TeamRegistration.objects.get(school_name="Test High School")
         self.assertEqual(registration.status, "pending")
+        self.assertEqual(registration.region, "wrccdc")
 
         captain = registration.contacts.get(role="captain")
         self.assertEqual(captain.name, "John Doe")
-        self.assertEqual(captain.email, "test@example.com")
+        self.assertEqual(captain.email, "captain@example.com")
+
+        coach = registration.contacts.get(role="coach")
+        self.assertEqual(coach.name, "Dr. Smith")
 
     def test_submit_invalid_registration(self):
         """Test submitting invalid registration shows errors."""
         form_data = {
             "school_name": "",
-            "contact_name": "",
-            "contact_email": "invalid-email",
-            "phone": "",
+            "captain_name": "",
+            "captain_email": "invalid-email",
+            "captain_phone": "",
         }
         response = self.client.post(reverse("registration_register"), data=form_data)
         self.assertEqual(response.status_code, 200)
@@ -201,6 +221,15 @@ class TokenEditViewTestCase(TestCase):
     def setUp(self):
         """Set up test data."""
         self.client = Client()
+        self.season = Season.objects.create(name="2026 Season", year=2026, is_active=True)
+        self.event = Event.objects.create(
+            season=self.season,
+            name="Invitational 1",
+            event_type="invitational",
+            event_number=1,
+            date="2026-01-15",
+            registration_open=True,
+        )
         self.registration = TeamRegistration.objects.create(school_name="Test School")
         RegistrationContact.objects.create(
             registration=self.registration,
@@ -208,6 +237,13 @@ class TokenEditViewTestCase(TestCase):
             name="John Doe",
             email="john@example.com",
             phone="555-1234",
+        )
+        RegistrationContact.objects.create(
+            registration=self.registration,
+            role="coach",
+            name="Dr. Coach",
+            email="coach@example.com",
+            phone="555-9999",
         )
 
     def test_edit_page_loads_with_valid_token(self):
@@ -257,9 +293,15 @@ class TokenEditViewTestCase(TestCase):
         """Test edit form updates registration."""
         form_data = {
             "school_name": "Updated School",
-            "contact_name": "Jane Doe",
-            "contact_email": "jane@example.com",
-            "phone": "555-5678",
+            "region": "mwccdc",
+            "captain_name": "Jane Doe",
+            "captain_email": "jane@example.com",
+            "captain_phone": "555-5678",
+            "coach_name": "Dr. Updated",
+            "coach_email": "updated@example.com",
+            "coach_phone": "",
+            "events": [self.event.id],
+            "agree_to_rules": True,
         }
         response = self.client.post(
             reverse("registration_edit", args=[self.registration.edit_token]),
@@ -269,6 +311,7 @@ class TokenEditViewTestCase(TestCase):
 
         self.registration.refresh_from_db()
         self.assertEqual(self.registration.school_name, "Updated School")
+        self.assertEqual(self.registration.region, "mwccdc")
 
         captain = self.registration.contacts.get(role="captain")
         self.assertEqual(captain.name, "Jane Doe")
