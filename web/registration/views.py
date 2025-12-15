@@ -97,6 +97,7 @@ def review_list(request: HttpRequest) -> HttpResponse:
         "registrations": registrations,
         "status_filter": status_filter,
         "status_choices": TeamRegistration.STATUS_CHOICES,
+        "subnav_active": "registrations",
     }
 
     if request.headers.get("HX-Request"):
@@ -126,21 +127,19 @@ def reject_registration(request: HttpRequest, registration_id: int) -> HttpRespo
     """Reject a registration (Gold Team and Admin only)."""
     registration = get_object_or_404(TeamRegistration, id=registration_id)
 
+    context = {"registration": registration, "subnav_active": "registrations"}
+
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
         if not reason:
             messages.error(request, "Please provide a reason for rejection.")
-            return render(
-                request,
-                "registration/reject_confirm.html",
-                {"registration": registration},
-            )
+            return render(request, "registration/reject_confirm.html", context)
 
         registration.reject(reason)
         messages.success(request, f"Registration for {registration.school_name} has been rejected.")
         return redirect("registration_review_list")
 
-    return render(request, "registration/reject_confirm.html", {"registration": registration})
+    return render(request, "registration/reject_confirm.html", context)
 
 
 @login_required
@@ -165,7 +164,7 @@ def mark_paid(request: HttpRequest, registration_id: int) -> HttpResponse:
 def season_list(request: HttpRequest) -> HttpResponse:
     """List all seasons (Gold Team only)."""
     seasons = Season.objects.prefetch_related("events").all()
-    return render(request, "registration/seasons/list.html", {"seasons": seasons})
+    return render(request, "registration/seasons/list.html", {"seasons": seasons, "subnav_active": "seasons"})
 
 
 @login_required
@@ -181,7 +180,9 @@ def season_create(request: HttpRequest) -> HttpResponse:
     else:
         form = SeasonForm()
 
-    return render(request, "registration/seasons/form.html", {"form": form, "title": "Create Season"})
+    return render(
+        request, "registration/seasons/form.html", {"form": form, "title": "Create Season", "subnav_active": "seasons"}
+    )
 
 
 @login_required
@@ -199,7 +200,11 @@ def season_edit(request: HttpRequest, season_id: int) -> HttpResponse:
     else:
         form = SeasonForm(instance=season)
 
-    return render(request, "registration/seasons/form.html", {"form": form, "title": "Edit Season", "season": season})
+    return render(
+        request,
+        "registration/seasons/form.html",
+        {"form": form, "title": "Edit Season", "season": season, "subnav_active": "seasons"},
+    )
 
 
 @login_required
@@ -214,7 +219,7 @@ def season_delete(request: HttpRequest, season_id: int) -> HttpResponse:
         messages.success(request, f"Season '{name}' deleted.")
         return redirect("registration_season_list")
 
-    return render(request, "registration/seasons/delete_confirm.html", {"season": season})
+    return render(request, "registration/seasons/delete_confirm.html", {"season": season, "subnav_active": "seasons"})
 
 
 # Event views
@@ -227,7 +232,9 @@ def event_list(request: HttpRequest, season_id: int) -> HttpResponse:
     season = get_object_or_404(Season, id=season_id)
     events = season.events.annotate_enrollment_count()
 
-    return render(request, "registration/events/list.html", {"season": season, "events": events})
+    return render(
+        request, "registration/events/list.html", {"season": season, "events": events, "subnav_active": "seasons"}
+    )
 
 
 @login_required
@@ -247,7 +254,11 @@ def event_create(request: HttpRequest, season_id: int) -> HttpResponse:
     else:
         form = EventForm()
 
-    return render(request, "registration/events/form.html", {"form": form, "season": season, "title": "Create Event"})
+    return render(
+        request,
+        "registration/events/form.html",
+        {"form": form, "season": season, "title": "Create Event", "subnav_active": "seasons"},
+    )
 
 
 @login_required
@@ -268,7 +279,7 @@ def event_edit(request: HttpRequest, event_id: int) -> HttpResponse:
     return render(
         request,
         "registration/events/form.html",
-        {"form": form, "season": event.season, "event": event, "title": "Edit Event"},
+        {"form": form, "season": event.season, "event": event, "title": "Edit Event", "subnav_active": "seasons"},
     )
 
 
@@ -285,7 +296,7 @@ def event_delete(request: HttpRequest, event_id: int) -> HttpResponse:
         messages.success(request, f"Event '{name}' deleted.")
         return redirect("registration_event_list", season_id=season_id)
 
-    return render(request, "registration/events/delete_confirm.html", {"event": event})
+    return render(request, "registration/events/delete_confirm.html", {"event": event, "subnav_active": "seasons"})
 
 
 @login_required
@@ -322,6 +333,7 @@ def event_detail(request: HttpRequest, event_id: int) -> HttpResponse:
         "total_enrolled": enrollments.count(),
         "total_assigned": assignments.count(),
         "assignable_count": sum(1 for e in enrollment_data if e["can_assign"]),
+        "subnav_active": "seasons",
     }
 
     return render(request, "registration/events/detail.html", context)
