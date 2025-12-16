@@ -9,9 +9,12 @@
 
         :root {
             --primary: #135bec;
+            --primary-rgb: 19, 91, 236;
             --primary-hover: #1d4ed8;
             --bg: #101622;
+            --bg-rgb: 16, 22, 34;
             --bg-card: #1c2333;
+            --bg-card-rgb: 28, 35, 51;
             --bg-card-header: #232a3b;
             --border: #334155;
             --border-light: #475569;
@@ -20,8 +23,11 @@
             --text-dim: #64748b;
             --input-bg: #101622;
             --error: #f87171;
+            --error-rgb: 248, 113, 113;
             --success: #4ade80;
+            --success-rgb: 74, 222, 128;
             --info: #60a5fa;
+            --info-rgb: 96, 165, 250;
         }
 
         body {
@@ -43,7 +49,7 @@
             top: 0;
             z-index: 50;
             border-bottom: 1px solid var(--border);
-            background: rgba(16, 22, 34, 0.8);
+            background: rgba(var(--bg-rgb), 0.8);
             backdrop-filter: blur(12px);
         }
         .header-inner {
@@ -127,9 +133,9 @@
             margin-bottom: 1.5rem;
         }
         .alert svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
-        .alert-error { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.3); color: var(--error); }
-        .alert-success { background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); color: var(--success); }
-        .alert-info { background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); color: var(--info); }
+        .alert-error { background: rgba(var(--error-rgb), 0.1); border-color: rgba(var(--error-rgb), 0.3); color: var(--error); }
+        .alert-success { background: rgba(var(--success-rgb), 0.1); border-color: rgba(var(--success-rgb), 0.3); color: var(--success); }
+        .alert-info { background: rgba(var(--info-rgb), 0.1); border-color: rgba(var(--info-rgb), 0.3); color: var(--info); }
 
         /* Form sections */
         form { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -149,7 +155,7 @@
             border-bottom: 1px solid var(--border);
         }
         .card-icon {
-            background: rgba(19, 91, 236, 0.1);
+            background: rgba(var(--primary-rgb), 0.1);
             color: var(--primary);
             padding: 0.5rem;
             border-radius: 0.5rem;
@@ -230,7 +236,7 @@
         select:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(19, 91, 236, 0.2);
+            box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
         }
         input.has-icon { padding-left: 2.5rem; }
         input.error, select.error { border-color: var(--error); }
@@ -269,7 +275,7 @@
         }
         .checkbox-item.selected {
             border-color: var(--primary);
-            background: rgba(19, 91, 236, 0.1);
+            background: rgba(var(--primary-rgb), 0.1);
         }
         .checkbox-item input[type="checkbox"] {
             width: 1.25rem;
@@ -324,7 +330,7 @@
         .action-bar {
             position: sticky;
             bottom: 1rem;
-            background: rgba(28, 35, 51, 0.9);
+            background: rgba(var(--bg-card-rgb), 0.9);
             backdrop-filter: blur(12px);
             border: 1px solid var(--border);
             border-radius: 0.75rem;
@@ -350,7 +356,7 @@
         .btn-primary {
             background: var(--primary);
             color: white;
-            box-shadow: 0 10px 15px -3px rgba(19, 91, 236, 0.3);
+            box-shadow: 0 10px 15px -3px rgba(var(--primary-rgb), 0.3);
         }
         .btn-primary:hover {
             background: var(--primary-hover);
