@@ -124,29 +124,34 @@ class WCCompsBot(commands.Bot):
         if not await self._should_sync_commands():
             return
 
-        # Sync all commands to competition guild
-        # Note: sync() updates existing commands (no rate limit) and only creates new ones
+        # Try global sync first (different rate limit bucket from guild sync)
+        try:
+            await self.tree.sync()
+            logger.info("Command tree synced globally (commands available in ~1 hour)")
+        except discord.HTTPException as e:
+            logger.error(f"Global sync failed: {e}")
+
+        # Also sync to guilds for instant availability
         if competition_guild_id:
             guild = discord.Object(id=competition_guild_id)
             self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            logger.info(f"Command tree synced to competition guild ({competition_guild_id})")
+            try:
+                await self.tree.sync(guild=guild)
+                logger.info(f"Command tree synced to competition guild ({competition_guild_id})")
+            except discord.HTTPException as e:
+                logger.warning(f"Guild sync failed (global commands will work in ~1 hour): {e}")
 
-        # Sync only /link command to volunteer guild
         if volunteer_guild_id and volunteer_guild_id != competition_guild_id:
             volunteer_guild = discord.Object(id=volunteer_guild_id)
             self.tree.clear_commands(guild=volunteer_guild)
             link_command = self.tree.get_command("link")
             if link_command:
                 self.tree.add_command(link_command, guild=volunteer_guild)
-                await self.tree.sync(guild=volunteer_guild)
-                logger.info(f"Synced /link command to volunteer guild ({volunteer_guild_id})")
-            else:
-                logger.warning("Could not find /link command to sync to volunteer guild")
-
-        if not competition_guild_id:
-            await self.tree.sync()
-            logger.info("Command tree synced globally")
+                try:
+                    await self.tree.sync(guild=volunteer_guild)
+                    logger.info(f"Synced /link command to volunteer guild ({volunteer_guild_id})")
+                except discord.HTTPException as e:
+                    logger.warning(f"Volunteer guild sync failed: {e}")
 
     async def on_ready(self) -> None:
         """Called when bot is ready."""
