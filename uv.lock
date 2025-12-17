@@ -188,7 +188,7 @@ wheels = [
 
 [[package]]
 name = "authentik-client"
-version = "2025.10.2"
+version = "2025.10.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -196,9 +196,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d2/d0/b45283e4df179f1b9fe82d2e678ab5e4b4fa9793b43d6f3263a0d246a7e6/authentik_client-2025.10.2.tar.gz", hash = "sha256:5467a3060238277296902f12534cbb9003df8d0b211128287ff380d6f3531d1c", size = 729520, upload-time = "2025-11-19T15:25:06.99Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/a5/0b36bc2d8b3bb8fd7fbf76565d4e5cf1c0c6e9eed4dadc68609bd31b8fef/authentik_client-2025.10.3.tar.gz", hash = "sha256:69ee827717506a7e9b6f5eb92a9ea31258bd4c5a90b6c42765599a068e681558", size = 729586, upload-time = "2025-12-16T18:24:41.283Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/4a/38327fa9e4d9cf1fee1f592661f4fb3d108a891487db195561428971582a/authentik_client-2025.10.2-py3-none-any.whl", hash = "sha256:e57e0df86bb5da00a39285848853047cfbfe675347082ce72c574634fd5a2df1", size = 1562184, upload-time = "2025-11-19T15:25:04.151Z" },
+    { url = "https://files.pythonhosted.org/packages/60/bc/64109dcd560180507683331d32a6796b947c9e694b2f64aba02a0f49be59/authentik_client-2025.10.3-py3-none-any.whl", hash = "sha256:5049809c6c7b59334953b7609f272ee5173e8a801db6915f2d854681ff95c0b2", size = 1562515, upload-time = "2025-12-16T18:24:37.782Z" },
 ]
 
 [[package]]

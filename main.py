@@ -1,9 +1,9 @@
 """WCComps Discord Bot - Main entry point."""
 
+import hashlib
 import logging
 import os
 import sys
-from typing import Any
 
 import discord
 
@@ -44,6 +44,43 @@ class WCCompsBot(commands.Bot):
         self.competition_timer: CompetitionTimer | None = None
         self.unified_dashboard: UnifiedDashboard | None = None
 
+    def _get_command_hash(self) -> str:
+        """Hash cog source files to detect command changes."""
+        from pathlib import Path
+
+        cogs_dir = Path(__file__).parent / "bot" / "cogs"
+        hasher = hashlib.sha256()
+        for cog_file in sorted(cogs_dir.glob("*.py")):
+            hasher.update(cog_file.read_bytes())
+        return hasher.hexdigest()[:16]
+
+    async def _should_sync_commands(self) -> bool:
+        """Check if commands have changed and need syncing."""
+        from asgiref.sync import sync_to_async
+
+        from core.models import BotState
+
+        current_hash = self._get_command_hash()
+
+        # Force sync if explicitly requested
+        if os.environ.get("SYNC_COMMANDS", "").lower() in ("true", "1", "yes"):
+            logger.info(f"SYNC_COMMANDS=true, forcing sync (hash: {current_hash})")
+            await sync_to_async(BotState.objects.update_or_create)(key="command_hash", defaults={"value": current_hash})
+            return True
+
+        # Check stored hash
+        try:
+            stored = await sync_to_async(BotState.objects.get)(key="command_hash")
+            if stored.value == current_hash:
+                logger.info(f"Commands unchanged (hash: {current_hash}), skipping sync")
+                return False
+            logger.info(f"Commands changed ({stored.value} -> {current_hash}), will sync")
+        except BotState.DoesNotExist:
+            logger.info(f"No stored command hash, will sync (hash: {current_hash})")
+
+        await sync_to_async(BotState.objects.update_or_create)(key="command_hash", defaults={"value": current_hash})
+        return True
+
     async def setup_hook(self) -> None:
         """Setup hook called when bot is ready."""
         logger.info("Loading cogs...")
@@ -83,28 +120,14 @@ class WCCompsBot(commands.Bot):
         # Volunteer guild gets only the /link command so staff can link their accounts there
         volunteer_guild_id = int(os.environ.get("VOLUNTEER_GUILD_ID", "0"))
 
+        # Only sync if commands have changed (checked against database)
+        if not await self._should_sync_commands():
+            return
+
         # Sync all commands to competition guild
+        # Note: sync() updates existing commands (no rate limit) and only creates new ones
         if competition_guild_id:
             guild = discord.Object(id=competition_guild_id)
-
-            # Strategy: Fetch existing commands from Discord, delete them, then sync fresh
-            try:
-                existing_commands = await self.tree.fetch_commands(guild=guild)
-                logger.info(
-                    f"Found {len(existing_commands)} existing commands on competition guild ({competition_guild_id})"
-                )
-
-                for existing_cmd in existing_commands:
-                    logger.info(f"Deleting command from competition: {existing_cmd.name}")
-                    await existing_cmd.delete()
-                logger.info("Deleted all existing commands from competition guild")
-            except Exception as e:
-                logger.warning(f"Could not fetch/delete existing commands from competition: {e}")
-
-            self.tree.clear_commands(guild=guild)
-            await self.tree.sync(guild=guild)
-            logger.info(f"Synced empty command tree to competition guild ({competition_guild_id})")
-
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
             logger.info(f"Command tree synced to competition guild ({competition_guild_id})")
@@ -112,22 +135,6 @@ class WCCompsBot(commands.Bot):
         # Sync only /link command to volunteer guild
         if volunteer_guild_id and volunteer_guild_id != competition_guild_id:
             volunteer_guild = discord.Object(id=volunteer_guild_id)
-
-            # Clear existing commands from volunteer guild
-            try:
-                existing_commands = await self.tree.fetch_commands(guild=volunteer_guild)
-                logger.info(
-                    f"Found {len(existing_commands)} existing commands on volunteer guild ({volunteer_guild_id})"
-                )
-
-                for existing_cmd in existing_commands:
-                    logger.info(f"Deleting command from volunteer: {existing_cmd.name}")
-                    await existing_cmd.delete()
-                logger.info("Deleted all existing commands from volunteer guild")
-            except Exception as e:
-                logger.warning(f"Could not fetch/delete existing commands from volunteer: {e}")
-
-            # Only add the /link command to volunteer guild
             self.tree.clear_commands(guild=volunteer_guild)
             link_command = self.tree.get_command("link")
             if link_command:
@@ -241,10 +248,6 @@ class WCCompsBot(commands.Bot):
 
         except Exception as e:
             logger.exception(f"Error refreshing ticket buttons: {e}")
-
-    async def on_command_error(self, ctx: commands.Context[Any], error: Exception) -> None:
-        """Handle command errors."""
-        logger.error(f"Command error: {error}")
 
     async def close(self) -> None:
         """Cleanup on bot shutdown."""
