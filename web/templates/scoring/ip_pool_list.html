@@ -11,7 +11,7 @@
                 <span class="text-muted">{{ pools|length }} pool(s)</span>
                 {% endif %}
             </div>
-            <c-button href="{% url 'scoring:ip_pool_create' %}" variant="primary">Create Pool</c-button>
+            <c-link href="{% url 'scoring:ip_pool_create' %}" variant="primary">Create Pool</c-link>
         </div>
 
         {% if pools %}

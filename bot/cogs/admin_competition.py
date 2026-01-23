@@ -19,7 +19,7 @@ from bot.authentik_utils import (
     reset_blueteam_password,
     toggle_all_blueteam_accounts,
 )
-from bot.permissions import check_admin
+from bot.permissions import check_admin, check_gold_team
 from bot.utils import log_to_ops_channel
 from core.models import AuditLog, CompetitionConfig
 from team.models import DiscordLink, Team
@@ -217,9 +217,9 @@ class AdminCompetitionCog(commands.Cog):
 
     @competition_group.command(
         name="reset-blueteam-passwords",
-        description="[ADMIN] Reset passwords for blueteam accounts (optionally specify teams)",
+        description="Reset passwords for blueteam accounts (optionally specify teams)",
     )
-    @app_commands.check(check_admin)
+    @app_commands.check(check_gold_team)
     async def admin_reset_blueteam_passwords(
         self, interaction: discord.Interaction, team_numbers: str | None = None
     ) -> None:

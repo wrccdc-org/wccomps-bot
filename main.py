@@ -124,22 +124,24 @@ class WCCompsBot(commands.Bot):
         if not await self._should_sync_commands():
             return
 
-        # Try global sync first (different rate limit bucket from guild sync)
-        try:
-            await self.tree.sync()
-            logger.info("Command tree synced globally (commands available in ~1 hour)")
-        except discord.HTTPException as e:
-            logger.error(f"Global sync failed: {e}")
-
-        # Also sync to guilds for instant availability
+        # Sync to competition guild (instant availability)
         if competition_guild_id:
             guild = discord.Object(id=competition_guild_id)
+            # Copy commands from global tree to guild tree before syncing
             self.tree.copy_global_to(guild=guild)
             try:
                 await self.tree.sync(guild=guild)
                 logger.info(f"Command tree synced to competition guild ({competition_guild_id})")
             except discord.HTTPException as e:
-                logger.warning(f"Guild sync failed (global commands will work in ~1 hour): {e}")
+                logger.warning(f"Guild sync failed: {e}")
+
+        # Clear global commands to avoid duplicates with guild commands
+        self.tree.clear_commands(guild=None)
+        try:
+            await self.tree.sync()
+            logger.info("Cleared global commands")
+        except discord.HTTPException as e:
+            logger.warning(f"Failed to clear global commands: {e}")
 
         if volunteer_guild_id and volunteer_guild_id != competition_guild_id:
             volunteer_guild = discord.Object(id=volunteer_guild_id)

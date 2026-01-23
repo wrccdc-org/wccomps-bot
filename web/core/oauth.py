@@ -14,6 +14,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from .auth_utils import check_groups_for_permission
 from .models import UserGroups
 
 logger = logging.getLogger(__name__)
@@ -252,10 +253,33 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
     # Log user in
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
-    # Get next URL
+    # Get next URL - use role-based default if going to root
     next_url = request.session.pop("oauth_next", "/")
+    if next_url == "/":
+        next_url = _get_role_based_landing(groups)
 
     return redirect(next_url)
+
+
+def _get_role_based_landing(groups: list[str]) -> str:
+    """Determine landing page based on user's Authentik groups."""
+    from django.urls import reverse
+
+    # Check roles in priority order
+    if check_groups_for_permission(groups, "red_team"):
+        return reverse("scoring:submit_red_finding")
+    if check_groups_for_permission(groups, "orange_team"):
+        return reverse("scoring:orange_team_portal")
+    if check_groups_for_permission(groups, "blue_team"):
+        return reverse("scoring:submit_incident_report")
+    if check_groups_for_permission(groups, "ticketing_support") or check_groups_for_permission(
+        groups, "ticketing_admin"
+    ):
+        return reverse("ops_ticket_list")
+    if check_groups_for_permission(groups, "gold_team"):
+        return reverse("scoring:leaderboard")
+
+    return "/"
 
 
 def oauth_logout(request: HttpRequest) -> HttpResponse:

@@ -103,6 +103,60 @@ class TestInlineStyles:
             pytest.fail("Templates using inline styles (use CSS classes instead):\n" + "\n".join(issue_lines))
 
 
+class TestTemplateBlockNames:
+    """Tests to ensure templates use correct block names for their base templates."""
+
+    # Map of base template patterns to expected content block names
+    BASE_TEMPLATE_BLOCKS = {
+        "scoring/red_base.html": "red_content",
+        "scoring/orange_base.html": "orange_content",
+        "scoring/base.html": "scoring_content",
+        "admin/base.html": "admin_content",
+        "registration/admin_base.html": "registration_content",
+    }
+
+    # Templates that override standard Django blocks (not our custom content blocks)
+    EXCLUDED_TEMPLATES = {
+        "admin/base_site.html",  # Django admin override, uses standard admin blocks
+    }
+
+    def test_block_names_match_base_templates(self) -> None:
+        """Templates must use the correct block name for their base template."""
+        mismatches: list[tuple[str, str, str]] = []
+
+        for template_path in get_all_template_files():
+            content = template_path.read_text()
+            relative_path = template_path.relative_to(TEMPLATES_DIR)
+
+            # Skip excluded templates
+            if str(relative_path) in self.EXCLUDED_TEMPLATES:
+                continue
+
+            # Find what base template this extends
+            extends_match = re.search(r'{%\s*extends\s+["\']([^"\']+)["\']', content)
+            if not extends_match:
+                continue
+
+            base_template = extends_match.group(1)
+
+            # Check if this base template has a required block name
+            for base_pattern, expected_block in self.BASE_TEMPLATE_BLOCKS.items():
+                if base_pattern in base_template:
+                    # Find all block declarations (excluding title)
+                    blocks = re.findall(r"{%\s*block\s+(\w+)", content)
+                    content_blocks = [b for b in blocks if b != "title"]
+
+                    if content_blocks and expected_block not in content_blocks:
+                        mismatches.append((str(relative_path), expected_block, content_blocks[0]))
+                    break
+
+        if mismatches:
+            issue_lines = [
+                f"  - {path}: expected '{expected}', found '{actual}'" for path, expected, actual in sorted(mismatches)
+            ]
+            pytest.fail("Templates using wrong block name for their base:\n" + "\n".join(issue_lines))
+
+
 class TestCottonComponentUsage:
     """Tests to ensure Cotton components are used instead of raw HTML patterns."""
 
@@ -127,6 +181,38 @@ class TestCottonComponentUsage:
             "<c-empty_state>",
         ),
     ]
+
+    # Patterns that indicate incorrect component usage
+    INVALID_COMPONENT_PATTERNS = [
+        # c-button with href - should use c-link instead
+        (
+            r"<c-button[^>]*\bhref=",
+            "c-button with href (buttons don't navigate)",
+            "<c-link>",
+        ),
+    ]
+
+    def test_no_invalid_component_usage(self) -> None:
+        """Components should be used correctly (e.g., no href on c-button)."""
+        templates_with_issues: list[tuple[str, str, int, str]] = []
+
+        for template_path in get_all_template_files():
+            if is_cotton_component(template_path):
+                continue
+
+            content = template_path.read_text()
+            relative_path = template_path.relative_to(TEMPLATES_DIR)
+
+            for pattern, description, suggestion in self.INVALID_COMPONENT_PATTERNS:
+                for match in re.finditer(pattern, content, re.IGNORECASE):
+                    line_num = content[: match.start()].count("\n") + 1
+                    templates_with_issues.append((str(relative_path), description, line_num, suggestion))
+
+        if templates_with_issues:
+            issue_lines = [
+                f"  - {path}:{line} {desc} -> use {sug}" for path, desc, line, sug in sorted(templates_with_issues)
+            ]
+            pytest.fail("Templates with invalid component usage:\n" + "\n".join(issue_lines))
 
     def test_no_raw_html_patterns(self) -> None:
         """Templates should use Cotton components instead of raw HTML patterns."""
