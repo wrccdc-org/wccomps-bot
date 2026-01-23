@@ -36,7 +36,11 @@ class QuotientSyncCog(commands.Cog):
         """Wait for bot to be ready before starting task."""
         if self.bot.is_closed():
             return
-        await self.bot.wait_until_ready()
+        try:
+            await self.bot.wait_until_ready()
+        except RuntimeError:
+            # Bot was never logged in (e.g., during tests)
+            self.sync_quotient_task.cancel()
 
 
 async def setup(bot: commands.Bot) -> None:

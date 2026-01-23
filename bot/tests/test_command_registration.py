@@ -86,7 +86,9 @@ class TestCommandRegistration:
 
         yield bot
 
-        # Cleanup
+        # Cleanup: unload cogs first so cog_unload() cancels task loops
+        for extension in list(bot.extensions.keys()):
+            await bot.unload_extension(extension)
         await bot.close()
 
     @pytest.fixture(scope="class")
