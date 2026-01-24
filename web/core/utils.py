@@ -1,8 +1,28 @@
 """Utility functions for WCComps core functionality."""
 
 import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from team.models import Team
+
+
+def parse_datetime_to_utc(datetime_str: str, tz_name: str = "America/Los_Angeles") -> datetime:
+    """Parse ISO 8601 datetime string and convert to UTC.
+
+    Args:
+        datetime_str: Datetime in format YYYY-MM-DDTHH:MM (ISO 8601 without seconds)
+        tz_name: IANA timezone name (default: America/Los_Angeles)
+
+    Returns:
+        datetime object in UTC
+
+    Raises:
+        ValueError: If datetime_str is not in expected format
+    """
+    dt = datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M")
+    local_time = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, tzinfo=ZoneInfo(tz_name))
+    return local_time.astimezone(ZoneInfo("UTC"))
 
 
 def get_team_from_groups(

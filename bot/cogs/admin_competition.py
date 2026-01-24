@@ -21,7 +21,8 @@ from bot.authentik_utils import (
 )
 from bot.permissions import check_admin, check_gold_team
 from bot.utils import log_to_ops_channel
-from core.models import AuditLog, CompetitionConfig
+from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
+from core.utils import parse_datetime_to_utc
 from team.models import DiscordLink, Team
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,40 @@ class AdminCompetitionCog(commands.Cog):
                 if helpers_removed > 0:
                     await log_to_ops_channel(self.bot, f"Removed {helpers_removed} student helper role(s)")
 
+                # Remove helper roles from all members
+                helper_role_ids: set[int] = set()
+                async for role_id in DiscordLink.objects.filter(helper_role_id__isnull=False).values_list(
+                    "helper_role_id", flat=True
+                ):
+                    if role_id is not None:
+                        helper_role_ids.add(role_id)
+
+                helper_role_removals = 0
+                for role_id in helper_role_ids:
+                    role = guild.get_role(role_id)
+                    if role:
+                        for member in role.members:
+                            try:
+                                await member.remove_roles(role, reason="Competition ended")
+                                helper_role_removals += 1
+                            except Exception as e:
+                                logger.warning(f"Could not remove {role.name} from {member}: {e}")
+
+                # Remove WRCCDC Room Judge role from all members
+                room_judge_role = discord.utils.get(guild.roles, name="WRCCDC Room Judge")
+                if room_judge_role:
+                    for member in room_judge_role.members:
+                        try:
+                            await member.remove_roles(room_judge_role, reason="Competition ended")
+                            helper_role_removals += 1
+                        except Exception as e:
+                            logger.warning(f"Could not remove Room Judge from {member}: {e}")
+
+                if helper_role_removals > 0:
+                    await log_to_ops_channel(
+                        self.bot, f"Removed helper/judge roles from {helper_role_removals} members"
+                    )
+
                 # Clear competition config to prevent auto-start/end on restart
                 config = await CompetitionConfig.objects.afirst()
                 if config:
@@ -177,6 +212,11 @@ class AdminCompetitionCog(commands.Cog):
                     config.competition_end_time = None
                     config.applications_enabled = False
                     await config.asave()
+
+                # Clear queued announcements from previous competition
+                deleted_announcements = await QueuedAnnouncement.objects.all().adelete()
+                if deleted_announcements[0] > 0:
+                    await log_to_ops_channel(self.bot, f"Cleared {deleted_announcements[0]} queued announcements")
 
                 # Disable all team accounts in Authentik
                 if settings.AUTHENTIK_TOKEN:
@@ -470,7 +510,7 @@ class AdminCompetitionCog(commands.Cog):
         description="[ADMIN] Set competition start time (applications will be enabled automatically)",
     )
     @app_commands.describe(
-        datetime_str="Start time in format: YYYY-MM-DD HH:MM (e.g., 2025-01-15 09:00)",
+        datetime_str="Start time in format: YYYY-MM-DDTHH:MM (e.g., 2025-01-15T09:00)",
         timezone_name="Timezone (defaults to Pacific Time)",
     )
     @app_commands.choices(
@@ -490,30 +530,11 @@ class AdminCompetitionCog(commands.Cog):
         timezone_name: str = "America/Los_Angeles",
     ) -> None:
         """Set competition start time for automatic application enabling."""
-
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
         try:
-            # Parse and validate format
-            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
-
-            # Construct timezone-aware datetime from parsed components
-            local_time = datetime(
-                dt.year,
-                dt.month,
-                dt.day,
-                dt.hour,
-                dt.minute,
-                tzinfo=ZoneInfo(timezone_name),
-            )
-
-            # Convert to UTC for storage
-            start_time = local_time.astimezone(ZoneInfo("UTC"))
-
+            start_time = parse_datetime_to_utc(datetime_str, timezone_name)
         except ValueError:
             await interaction.response.send_message(
-                "Invalid datetime format. Use: YYYY-MM-DD HH:MM (e.g., 2025-01-15 09:00)",
+                "Invalid datetime format. Use: YYYY-MM-DDTHH:MM (e.g., 2025-01-15T09:00)",
                 ephemeral=True,
             )
             return
@@ -568,7 +589,7 @@ class AdminCompetitionCog(commands.Cog):
         description="[ADMIN] Set competition end time (applications will be disabled automatically)",
     )
     @app_commands.describe(
-        datetime_str="End time in format: YYYY-MM-DD HH:MM (e.g., 2025-01-15 17:00)",
+        datetime_str="End time in format: YYYY-MM-DDTHH:MM (e.g., 2025-01-15T17:00)",
         timezone_name="Timezone (defaults to Pacific Time)",
     )
     @app_commands.choices(
@@ -588,30 +609,11 @@ class AdminCompetitionCog(commands.Cog):
         timezone_name: str = "America/Los_Angeles",
     ) -> None:
         """Set competition end time for automatic application disabling."""
-
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
         try:
-            # Parse and validate format
-            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
-
-            # Construct timezone-aware datetime from parsed components
-            local_time = datetime(
-                dt.year,
-                dt.month,
-                dt.day,
-                dt.hour,
-                dt.minute,
-                tzinfo=ZoneInfo(timezone_name),
-            )
-
-            # Convert to UTC for storage
-            end_time = local_time.astimezone(ZoneInfo("UTC"))
-
+            end_time = parse_datetime_to_utc(datetime_str, timezone_name)
         except ValueError:
             await interaction.response.send_message(
-                "Invalid datetime format. Use: YYYY-MM-DD HH:MM (e.g., 2025-01-15 17:00)",
+                "Invalid datetime format. Use: YYYY-MM-DDTHH:MM (e.g., 2025-01-15T17:00)",
                 ephemeral=True,
             )
             return

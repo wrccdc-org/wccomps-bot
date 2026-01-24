@@ -13,14 +13,6 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-class RoleSyncProgress(TypedDict):
-    """Progress tracking for role synchronization."""
-
-    current: int
-    total: int
-    current_role: str
-
-
 class RoleSyncStats(TypedDict, total=False):
     """Statistics for role synchronization."""
 
@@ -28,7 +20,6 @@ class RoleSyncStats(TypedDict, total=False):
     roles_removed: int
     errors: int
     changes: list[str]
-    progress: RoleSyncProgress
 
 
 class RoleSyncManager:

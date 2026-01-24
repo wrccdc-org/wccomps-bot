@@ -4,7 +4,6 @@ import csv
 import io
 import logging
 from typing import cast
-from zoneinfo import ZoneInfo
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -23,6 +22,7 @@ from core.models import AuditLog, CompetitionConfig, DiscordTask
 from team.models import DiscordLink, Team
 
 from .auth_utils import has_permission
+from .utils import parse_datetime_to_utc
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,320 @@ TIMEZONE_CHOICES = [
 def _check_admin(user: User) -> bool:
     """Check if user has admin permission."""
     return has_permission(user, "admin") or has_permission(user, "gold_team")
+
+
+def _toggle_blueteam_accounts(enable: bool) -> tuple[int, int]:
+    """Toggle all 50 blueteam accounts. Returns (success_count, failed_count)."""
+    success_count = 0
+    failed_count = 0
+    for i in range(1, 51):
+        username = f"team{i:02d}"
+        success, _ = toggle_authentik_user(username, is_active=enable)
+        if success:
+            success_count += 1
+        else:
+            failed_count += 1
+    return success_count, failed_count
+
+
+def _action_set_max_members(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle set_max_members action."""
+    try:
+        max_members = int(request.POST.get("max_members", 10))
+        if max_members < 1 or max_members > 20:
+            return JsonResponse({"error": "Max members must be 1-20"}, status=400)
+
+        old_max = config.max_team_members
+        config.max_team_members = max_members
+        config.save()
+
+        Team.objects.update(max_members=max_members)
+
+        AuditLog.objects.create(
+            action="max_team_members_updated",
+            admin_user=authentik_username,
+            target_entity="competition_config",
+            target_id=config.pk,
+            details={"old_max": old_max, "new_max": max_members},
+        )
+
+        return JsonResponse({"success": True, "message": f"Max members set to {max_members}"})
+    except ValueError:
+        return JsonResponse({"error": "Invalid number"}, status=400)
+
+
+def _action_set_apps(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle set_apps action."""
+    app_slugs = request.POST.get("app_slugs", "").strip()
+    if not app_slugs:
+        return JsonResponse({"error": "Please provide at least one app slug"}, status=400)
+
+    slugs = [s.strip() for s in app_slugs.split(",") if s.strip()]
+    config.controlled_applications = slugs
+    config.save()
+
+    AuditLog.objects.create(
+        action="competition_apps_configured",
+        admin_user=authentik_username,
+        target_entity="competition_config",
+        target_id=config.pk,
+        details={"controlled_apps": slugs},
+    )
+
+    return JsonResponse({"success": True, "message": f"Apps set to: {', '.join(slugs)}"})
+
+
+def _action_set_start_time(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle set_start_time action."""
+    datetime_str = request.POST.get("datetime", "").strip()
+    tz_name = request.POST.get("timezone", "America/Los_Angeles")
+
+    if not datetime_str:
+        return JsonResponse({"error": "Please provide a datetime"}, status=400)
+
+    try:
+        start_time = parse_datetime_to_utc(datetime_str, tz_name)
+
+        if not config.controlled_applications:
+            config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
+
+        config.competition_start_time = start_time
+        config.applications_enabled = False
+        config.save()
+
+        AuditLog.objects.create(
+            action="competition_start_time_set",
+            admin_user=authentik_username,
+            target_entity="competition_config",
+            target_id=config.pk,
+            details={"start_time": start_time.isoformat(), "controlled_apps": config.controlled_applications},
+        )
+
+        return JsonResponse({"success": True, "message": f"Start time set to {start_time.isoformat()}"})
+    except ValueError:
+        return JsonResponse({"error": "Invalid datetime format"}, status=400)
+
+
+def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle set_end_time action."""
+    datetime_str = request.POST.get("datetime", "").strip()
+    tz_name = request.POST.get("timezone", "America/Los_Angeles")
+
+    if not datetime_str:
+        return JsonResponse({"error": "Please provide a datetime"}, status=400)
+
+    try:
+        end_time = parse_datetime_to_utc(datetime_str, tz_name)
+
+        if not config.controlled_applications:
+            config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
+
+        config.competition_end_time = end_time
+        config.save()
+
+        AuditLog.objects.create(
+            action="competition_end_time_set",
+            admin_user=authentik_username,
+            target_entity="competition_config",
+            target_id=config.pk,
+            details={"end_time": end_time.isoformat(), "controlled_apps": config.controlled_applications},
+        )
+
+        return JsonResponse({"success": True, "message": f"End time set to {end_time.isoformat()}"})
+    except ValueError:
+        return JsonResponse({"error": "Invalid datetime format"}, status=400)
+
+
+def _action_start_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle start_competition action."""
+    if not config.controlled_applications:
+        return JsonResponse({"error": "No controlled applications configured"}, status=400)
+
+    auth_manager = AuthentikManager()
+    app_results = auth_manager.enable_applications(config.controlled_applications)
+
+    success_count, failed_count = _toggle_blueteam_accounts(enable=True)
+
+    config.applications_enabled = True
+    config.competition_start_time = None
+    config.competition_end_time = None
+    config.save()
+
+    success_apps = [app for app, (success, _) in app_results.items() if success]
+    failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
+
+    AuditLog.objects.create(
+        action="competition_started",
+        admin_user=authentik_username,
+        target_entity="competition_config",
+        target_id=config.pk,
+        details={
+            "apps_success": len(success_apps),
+            "apps_failed": len(failed_apps),
+            "accounts_enabled": success_count,
+            "accounts_failed": failed_count,
+        },
+    )
+
+    app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
+    return JsonResponse({"success": True, "message": f"Competition started. {app_msg}, Accounts: {success_count}/50"})
+
+
+def _action_toggle_blueteams(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle toggle_blueteams action."""
+    enable = request.POST.get("enable") == "true"
+    action_word = "enabled" if enable else "disabled"
+
+    success_count, failed_count = _toggle_blueteam_accounts(enable=enable)
+
+    AuditLog.objects.create(
+        action=f"blueteam_accounts_{action_word}",
+        admin_user=authentik_username,
+        target_entity="authentik_users",
+        target_id=0,
+        details={"success_count": success_count, "failed_count": failed_count},
+    )
+
+    return JsonResponse({"success": True, "message": f"{action_word.capitalize()} {success_count}/50 accounts"})
+
+
+def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle reset_passwords action."""
+    team_numbers_str = request.POST.get("team_numbers", "").strip()
+
+    try:
+        team_numbers = parse_team_range(team_numbers_str) if team_numbers_str else list(range(1, 51))
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    password_list = []
+    failed_resets = []
+
+    for team_num in team_numbers:
+        username = f"team{team_num:02d}"
+        password = generate_blueteam_password()
+        success, error = reset_blueteam_password(team_num, password)
+        if success:
+            password_list.append((team_num, username, password))
+        else:
+            failed_resets.append((username, error))
+
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow(["Username", "Password"])
+    for _team_num, username, password in password_list:
+        writer.writerow([username, password])
+
+    csv_content = csv_buffer.getvalue()
+
+    AuditLog.objects.create(
+        action="blueteam_passwords_reset",
+        admin_user=authentik_username,
+        target_entity="authentik_users",
+        target_id=0,
+        details={
+            "total_users": len(team_numbers),
+            "success_count": len(password_list),
+            "failed_count": len(failed_resets),
+            "team_numbers": team_numbers_str or "all",
+        },
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Reset {len(password_list)}/{len(team_numbers)} passwords",
+            "csv": csv_content,
+        }
+    )
+
+
+def _action_end_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle end_competition action."""
+    results = []
+
+    # Deactivate team member links
+    links = DiscordLink.objects.filter(is_active=True, team__isnull=False)
+    deactivated = 0
+    for link in links:
+        link.is_active = False
+        link.unlinked_at = timezone.now()
+        link.save()
+        deactivated += 1
+
+        AuditLog.objects.create(
+            action="user_unlinked",
+            admin_user=authentik_username,
+            target_entity="discord_link",
+            target_id=link.discord_id,
+            details={
+                "discord_id": link.discord_id,
+                "team_name": link.team.team_name if link.team else "Unknown",
+                "reason": "competition_ended",
+            },
+        )
+
+    results.append(f"Deactivated {deactivated} links")
+
+    # Clear Discord IDs from teams
+    Team.objects.all().update(discord_category_id=None, discord_role_id=None)
+
+    # Deactivate helpers
+    helpers = DiscordLink.objects.filter(is_student_helper=True, is_active=True)
+    helpers_removed = 0
+    for discord_link in helpers:
+        discord_link.is_student_helper = False
+        discord_link.helper_removal_reason = "Competition ended"
+        discord_link.helper_deactivated_at = timezone.now()
+        discord_link.save()
+        helpers_removed += 1
+
+    if helpers_removed:
+        results.append(f"Deactivated {helpers_removed} helpers")
+
+    # Clear config
+    config.competition_start_time = None
+    config.competition_end_time = None
+    config.applications_enabled = False
+    config.save()
+
+    # Disable accounts
+    success_count, _ = _toggle_blueteam_accounts(enable=False)
+    results.append(f"Disabled {success_count}/50 accounts")
+
+    # Create task for bot to delete channels
+    msg = f"Competition ended by {authentik_username}. Run /competition end-competition to delete channels."
+    DiscordTask.objects.create(
+        task_type="broadcast_message",
+        payload={"message": msg},
+        status="pending",
+    )
+
+    AuditLog.objects.create(
+        action="competition_ended",
+        admin_user=authentik_username,
+        target_entity="competition",
+        target_id=0,
+        details={
+            "deactivated_links": deactivated,
+            "helpers_removed": helpers_removed,
+            "accounts_disabled": success_count,
+        },
+    )
+
+    return JsonResponse({"success": True, "message": ". ".join(results)})
+
+
+_COMPETITION_ACTION_HANDLERS = {
+    "set_max_members": _action_set_max_members,
+    "set_apps": _action_set_apps,
+    "set_start_time": _action_set_start_time,
+    "set_end_time": _action_set_end_time,
+    "start_competition": _action_start_competition,
+    "toggle_blueteams": _action_toggle_blueteams,
+    "reset_passwords": _action_reset_passwords,
+    "end_competition": _action_end_competition,
+}
 
 
 @login_required
@@ -77,329 +391,23 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def admin_competition_action(request: HttpRequest) -> HttpResponse:
-    """Handle competition management actions."""
+    """Handle competition management actions via dispatch."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    authentik_username = user.username
-
     if not _check_admin(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     action = request.POST.get("action")
+    if not action:
+        return JsonResponse({"error": "No action specified"}, status=400)
+    handler = _COMPETITION_ACTION_HANDLERS.get(action)
+    if not handler:
+        return JsonResponse({"error": "Unknown action"}, status=400)
+
     config = CompetitionConfig.get_config()
-
-    if action == "set_max_members":
-        try:
-            max_members = int(request.POST.get("max_members", 10))
-            if max_members < 1 or max_members > 20:
-                return JsonResponse({"error": "Max members must be 1-20"}, status=400)
-
-            old_max = config.max_team_members
-            config.max_team_members = max_members
-            config.save()
-
-            Team.objects.update(max_members=max_members)
-
-            AuditLog.objects.create(
-                action="max_team_members_updated",
-                admin_user=authentik_username,
-                target_entity="competition_config",
-                target_id=config.pk,
-                details={"old_max": old_max, "new_max": max_members},
-            )
-
-            return JsonResponse({"success": True, "message": f"Max members set to {max_members}"})
-        except ValueError:
-            return JsonResponse({"error": "Invalid number"}, status=400)
-
-    elif action == "set_apps":
-        app_slugs = request.POST.get("app_slugs", "").strip()
-        if not app_slugs:
-            return JsonResponse({"error": "Please provide at least one app slug"}, status=400)
-
-        slugs = [s.strip() for s in app_slugs.split(",") if s.strip()]
-        config.controlled_applications = slugs
-        config.save()
-
-        AuditLog.objects.create(
-            action="competition_apps_configured",
-            admin_user=authentik_username,
-            target_entity="competition_config",
-            target_id=config.pk,
-            details={"controlled_apps": slugs},
-        )
-
-        return JsonResponse({"success": True, "message": f"Apps set to: {', '.join(slugs)}"})
-
-    elif action == "set_start_time":
-        datetime_str = request.POST.get("datetime", "").strip()
-        tz_name = request.POST.get("timezone", "America/Los_Angeles")
-
-        if not datetime_str:
-            return JsonResponse({"error": "Please provide a datetime"}, status=400)
-
-        try:
-            from datetime import datetime
-
-            dt = datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M")
-            local_time = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, tzinfo=ZoneInfo(tz_name))
-            start_time = local_time.astimezone(ZoneInfo("UTC"))
-
-            if not config.controlled_applications:
-                config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
-
-            config.competition_start_time = start_time
-            config.applications_enabled = False
-            config.save()
-
-            AuditLog.objects.create(
-                action="competition_start_time_set",
-                admin_user=authentik_username,
-                target_entity="competition_config",
-                target_id=config.pk,
-                details={"start_time": start_time.isoformat(), "controlled_apps": config.controlled_applications},
-            )
-
-            return JsonResponse({"success": True, "message": f"Start time set to {start_time.isoformat()}"})
-        except ValueError:
-            return JsonResponse({"error": "Invalid datetime format"}, status=400)
-
-    elif action == "set_end_time":
-        datetime_str = request.POST.get("datetime", "").strip()
-        tz_name = request.POST.get("timezone", "America/Los_Angeles")
-
-        if not datetime_str:
-            return JsonResponse({"error": "Please provide a datetime"}, status=400)
-
-        try:
-            from datetime import datetime
-
-            dt = datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M")
-            local_time = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, tzinfo=ZoneInfo(tz_name))
-            end_time = local_time.astimezone(ZoneInfo("UTC"))
-
-            if not config.controlled_applications:
-                config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
-
-            config.competition_end_time = end_time
-            config.save()
-
-            AuditLog.objects.create(
-                action="competition_end_time_set",
-                admin_user=authentik_username,
-                target_entity="competition_config",
-                target_id=config.pk,
-                details={"end_time": end_time.isoformat(), "controlled_apps": config.controlled_applications},
-            )
-
-            return JsonResponse({"success": True, "message": f"End time set to {end_time.isoformat()}"})
-        except ValueError:
-            return JsonResponse({"error": "Invalid datetime format"}, status=400)
-
-    elif action == "start_competition":
-        if not config.controlled_applications:
-            return JsonResponse({"error": "No controlled applications configured"}, status=400)
-
-        auth_manager = AuthentikManager()
-        app_results = auth_manager.enable_applications(config.controlled_applications)
-
-        # Enable blueteam accounts
-        success_count = 0
-        failed_count = 0
-        for i in range(1, 51):
-            username = f"team{i:02d}"
-            success, _ = toggle_authentik_user(username, is_active=True)
-            if success:
-                success_count += 1
-            else:
-                failed_count += 1
-
-        config.applications_enabled = True
-        config.competition_start_time = None
-        config.competition_end_time = None
-        config.save()
-
-        success_apps = [app for app, (success, _) in app_results.items() if success]
-        failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
-
-        AuditLog.objects.create(
-            action="competition_started",
-            admin_user=authentik_username,
-            target_entity="competition_config",
-            target_id=config.pk,
-            details={
-                "apps_success": len(success_apps),
-                "apps_failed": len(failed_apps),
-                "accounts_enabled": success_count,
-                "accounts_failed": failed_count,
-            },
-        )
-
-        app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
-        return JsonResponse(
-            {"success": True, "message": f"Competition started. {app_msg}, Accounts: {success_count}/50"}
-        )
-
-    elif action == "toggle_blueteams":
-        enable = request.POST.get("enable") == "true"
-        action_word = "enabled" if enable else "disabled"
-
-        success_count = 0
-        failed_count = 0
-        for i in range(1, 51):
-            username = f"team{i:02d}"
-            success, _ = toggle_authentik_user(username, is_active=enable)
-            if success:
-                success_count += 1
-            else:
-                failed_count += 1
-
-        AuditLog.objects.create(
-            action=f"blueteam_accounts_{action_word}",
-            admin_user=authentik_username,
-            target_entity="authentik_users",
-            target_id=0,
-            details={"success_count": success_count, "failed_count": failed_count},
-        )
-
-        return JsonResponse({"success": True, "message": f"{action_word.capitalize()} {success_count}/50 accounts"})
-
-    elif action == "reset_passwords":
-        team_numbers_str = request.POST.get("team_numbers", "").strip()
-
-        try:
-            team_numbers = parse_team_range(team_numbers_str) if team_numbers_str else list(range(1, 51))
-        except ValueError as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-        password_list = []
-        failed_resets = []
-
-        for team_num in team_numbers:
-            username = f"team{team_num:02d}"
-            password = generate_blueteam_password()
-            success, error = reset_blueteam_password(team_num, password)
-            if success:
-                password_list.append((team_num, username, password))
-            else:
-                failed_resets.append((username, error))
-
-        # Generate CSV
-        csv_buffer = io.StringIO()
-        writer = csv.writer(csv_buffer)
-        writer.writerow(["Username", "Password"])
-        for _team_num, username, password in password_list:
-            writer.writerow([username, password])
-
-        csv_content = csv_buffer.getvalue()
-
-        AuditLog.objects.create(
-            action="blueteam_passwords_reset",
-            admin_user=authentik_username,
-            target_entity="authentik_users",
-            target_id=0,
-            details={
-                "total_users": len(team_numbers),
-                "success_count": len(password_list),
-                "failed_count": len(failed_resets),
-                "team_numbers": team_numbers_str or "all",
-            },
-        )
-
-        return JsonResponse(
-            {
-                "success": True,
-                "message": f"Reset {len(password_list)}/{len(team_numbers)} passwords",
-                "csv": csv_content,
-            }
-        )
-
-    elif action == "end_competition":
-        results = []
-
-        # Deactivate team member links
-        links = DiscordLink.objects.filter(is_active=True, team__isnull=False)
-        deactivated = 0
-        for link in links:
-            link.is_active = False
-            link.unlinked_at = timezone.now()
-            link.save()
-            deactivated += 1
-
-            AuditLog.objects.create(
-                action="user_unlinked",
-                admin_user=authentik_username,
-                target_entity="discord_link",
-                target_id=link.discord_id,
-                details={
-                    "discord_id": link.discord_id,
-                    "team_name": link.team.team_name if link.team else "Unknown",
-                    "reason": "competition_ended",
-                },
-            )
-
-        results.append(f"Deactivated {deactivated} links")
-
-        # Clear Discord IDs from teams (channels will need to be deleted via bot)
-        Team.objects.all().update(discord_category_id=None, discord_role_id=None)
-
-        # Deactivate helpers
-        helpers = DiscordLink.objects.filter(is_student_helper=True, is_active=True)
-        helpers_removed = 0
-        for discord_link in helpers:
-            discord_link.is_student_helper = False
-            discord_link.helper_removal_reason = "Competition ended"
-            discord_link.helper_deactivated_at = timezone.now()
-            discord_link.save()
-            helpers_removed += 1
-
-        if helpers_removed:
-            results.append(f"Deactivated {helpers_removed} helpers")
-
-        # Clear config
-        config.competition_start_time = None
-        config.competition_end_time = None
-        config.applications_enabled = False
-        config.save()
-
-        # Disable accounts
-        success_count = 0
-        failed_count = 0
-        for i in range(1, 51):
-            username = f"team{i:02d}"
-            success, _ = toggle_authentik_user(username, is_active=False)
-            if success:
-                success_count += 1
-            else:
-                failed_count += 1
-
-        results.append(f"Disabled {success_count}/50 accounts")
-
-        # Create task for bot to delete channels
-        msg = f"Competition ended by {authentik_username}. Run /competition end-competition to delete channels."
-        DiscordTask.objects.create(
-            task_type="broadcast_message",
-            payload={"message": msg},
-            status="pending",
-        )
-
-        AuditLog.objects.create(
-            action="competition_ended",
-            admin_user=authentik_username,
-            target_entity="competition",
-            target_id=0,
-            details={
-                "deactivated_links": deactivated,
-                "helpers_removed": helpers_removed,
-                "accounts_disabled": success_count,
-            },
-        )
-
-        return JsonResponse({"success": True, "message": ". ".join(results)})
-
-    return JsonResponse({"error": "Unknown action"}, status=400)
+    return handler(request, config, user.username)
 
 
 @login_required

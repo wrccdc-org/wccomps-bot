@@ -129,9 +129,7 @@ class TestOpsTicketPagination:
 
             # URL should contain the new page_size
             expect(authenticated_page).to_have_url(
-                pytest.approx(f"{live_server_url}/ops/tickets/", abs=100)
-                if False
-                else lambda url: "page_size=25" in url or authenticated_page.url == f"{live_server_url}/ops/tickets/"
+                lambda url: "page_size=25" in url or authenticated_page.url == f"{live_server_url}/ops/tickets/"
             )
 
     def test_pagination_navigation_changes_page(self, authenticated_page: Page, live_server_url):
