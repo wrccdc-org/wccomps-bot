@@ -3,15 +3,18 @@
 import logging
 
 import discord
+from asgiref.sync import sync_to_async
 from discord import app_commands
 from discord.ext import commands, tasks
 from django.utils import timezone
+from quotient.client import get_quotient_client
 
 from bot.permissions import check_blue_team
 from bot.ticket_dashboard import post_ticket_to_dashboard
 from core.tickets_config import TICKET_CATEGORIES
 from team.models import DiscordLink
-from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.models import CommentRateLimit, Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.utils import acreate_ticket_atomic, get_user_for_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +91,6 @@ class TicketingCog(commands.Cog):
     def _get_infrastructure_data(self) -> tuple[list[str], dict[str, str], list[dict[str, str]]]:
         """Get infrastructure data from Quotient (cached)."""
         try:
-            from quotient.client import get_quotient_client
-
             client = get_quotient_client()
             infrastructure = client.get_infrastructure()
             if not infrastructure:
@@ -201,8 +202,6 @@ class TicketingCog(commands.Cog):
                     break
 
         # Create ticket atomically to prevent race conditions
-        from ticketing.utils import acreate_ticket_atomic
-
         ticket = await acreate_ticket_atomic(
             team=link.team,
             category=category,
@@ -238,8 +237,6 @@ class TicketingCog(commands.Cog):
                     )
 
                     # Store thread ID
-                    from asgiref.sync import sync_to_async
-
                     @sync_to_async
                     def save_thread_id() -> None:
                         ticket.discord_thread_id = thread.id
@@ -327,10 +324,6 @@ class TicketingCog(commands.Cog):
             return
 
         # Check rate limit for comments
-        from asgiref.sync import sync_to_async
-
-        from ticketing.models import CommentRateLimit
-
         is_allowed, reason = await sync_to_async(CommentRateLimit.check_rate_limit)(ticket.id, message.author.id)
 
         if not is_allowed:
@@ -354,10 +347,6 @@ class TicketingCog(commands.Cog):
             existing = await TicketComment.objects.filter(discord_message_id=message.id).afirst()
 
             if not existing:
-                from asgiref.sync import sync_to_async
-
-                from ticketing.utils import get_user_for_ticket
-
                 author = await sync_to_async(get_user_for_ticket)(discord_id=message.author.id)
                 await TicketComment.objects.acreate(
                     ticket=ticket,
@@ -422,8 +411,6 @@ class TicketingCog(commands.Cog):
             return
 
         # Find comment by message ID
-        from ticketing.models import TicketComment
-
         comment = await TicketComment.objects.filter(ticket=ticket, discord_message_id=after.id).afirst()
 
         if comment:
@@ -450,8 +437,6 @@ class TicketingCog(commands.Cog):
             return
 
         # Find comment by message ID
-        from ticketing.models import TicketComment
-
         comment = await TicketComment.objects.filter(ticket=ticket, discord_message_id=message.id).afirst()
 
         if comment:

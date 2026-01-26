@@ -229,8 +229,17 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
         user = user_groups.user
         # Update username if changed in Authentik
         if user.username != username:
-            user.username = username
-            user.save(update_fields=["username"])
+            # Check if another user has this username
+            conflicting_user = User.objects.filter(username=username).exclude(pk=user.pk).first()
+            if conflicting_user:
+                logger.error(
+                    f"Username conflict: authentik_id={authentik_id} wants username '{username}' "
+                    f"but it's taken by user id={conflicting_user.pk}"
+                )
+                # Continue with old username rather than crash
+            else:
+                user.username = username
+                user.save(update_fields=["username"])
     except UserGroups.DoesNotExist:
         # Check if user exists with this username (edge case)
         user, created = User.objects.get_or_create(

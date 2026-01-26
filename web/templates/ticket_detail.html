@@ -9,6 +9,12 @@
 <div id="content-main">
     <c-page_header title="Ticket {{ ticket.ticket_number }}" subtitle="{{ team.team_name }}" />
 
+    {% if messages %}
+        {% for message in messages %}
+        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
+        {% endfor %}
+    {% endif %}
+
     <c-module>
         <c-slot name="toolbar">
             <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
@@ -31,8 +37,25 @@
                 <dd>{{ ticket.assigned_to }}</dd>
                 {% endif %}
 
+                {% if ticket.service_name %}
+                <dt>Service Name</dt>
+                <dd>{{ ticket.service_name }}</dd>
+                {% endif %}
+
+                {% if ticket.hostname %}
+                <dt>Hostname</dt>
+                <dd>{{ ticket.hostname }}</dd>
+                {% endif %}
+
+                {% if ticket.ip_address %}
+                <dt>IP Address</dt>
+                <dd>{{ ticket.ip_address }}</dd>
+                {% endif %}
+
+                {% if ticket.description %}
                 <dt>Description</dt>
                 <dd>{{ ticket.description }}</dd>
+                {% endif %}
 
                 <dt>Created</dt>
                 <dd>{{ ticket.created_at|date:"Y-m-d H:i:s" }} UTC</dd>
@@ -77,7 +100,7 @@
             <c-action_box heading="Add Comment">
                 <form method="POST" action="{% url 'ticket_comment' ticket.id %}">
                     {% csrf_token %}
-                    <textarea name="comment" rows="4" class="w-full p-8 border rounded" style="font-family: monospace;" placeholder="Type your comment here..."></textarea>
+                    <textarea name="comment" rows="4" class="w-full p-8 border rounded" style="font-family: monospace;" placeholder="Type your comment here..." required></textarea>
                     <c-button type="submit" variant="primary" class="mt-10">Post Comment</c-button>
                 </form>
             </c-action_box>

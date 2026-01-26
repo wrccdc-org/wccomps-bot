@@ -139,46 +139,6 @@ class TestAdminTeamDetailView:
         assert b"not found" in response.content.lower()
 
 
-class TestAdminHelpersView:
-    """Test admin helpers management view."""
-
-    def test_unauthenticated_redirects_to_login(self, unauthenticated_client):
-        """Unauthenticated users should be redirected to login."""
-        response = unauthenticated_client.get(reverse("admin_helpers"))
-        assert response.status_code == 302
-        assert "/accounts/" in response.url or "login" in response.url
-
-    @pytest.mark.parametrize(
-        "user_fixture",
-        [
-            "blue_team_user",
-            "red_team_user",
-            "white_team_user",
-            "orange_team_user",
-            "ticketing_support_user",
-            "ticketing_admin_user",
-        ],
-    )
-    def test_unauthorized_roles_denied(self, user_fixture, request):
-        """Non-gold/admin users should be denied access."""
-        user = request.getfixturevalue(user_fixture)
-        client = Client()
-        client.force_login(user)
-        response = client.get(reverse("admin_helpers"))
-        assert response.status_code == 200
-        assert _check_access_denied(response), f"{user_fixture} should be denied access"
-
-    @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
-    def test_authorized_roles_allowed(self, user_fixture, request):
-        """Gold team and admin users should access helpers management."""
-        user = request.getfixturevalue(user_fixture)
-        client = Client()
-        client.force_login(user)
-        response = client.get(reverse("admin_helpers"))
-        assert response.status_code == 200
-        assert not _check_access_denied(response), f"{user_fixture} should have access"
-
-
 class TestAdminBroadcastView:
     """Test admin broadcast view."""
 

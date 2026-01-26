@@ -44,6 +44,9 @@
                         Disable Accounts
                     </c-button>
                 </div>
+                <c-button variant="default" class="w-full mt-10" @click="syncQuotient()" ::disabled="loading">
+                    Sync Quotient Metadata
+                </c-button>
             </div>
         </c-module>
     </div>
@@ -203,6 +206,10 @@ function competitionAdmin() {
             if (confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} all 50 team accounts?`)) {
                 this.doAction('toggle_blueteams', { enable: enable.toString() });
             }
+        },
+
+        syncQuotient() {
+            this.doAction('sync_quotient');
         },
 
         setMaxMembers() {

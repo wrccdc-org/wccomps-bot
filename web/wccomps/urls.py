@@ -92,6 +92,11 @@ urlpatterns = [
         name="ops_ticket_detail",
     ),
     path(
+        "ops/ticket/<str:ticket_number>/dynamic/",
+        views.ops_ticket_detail_dynamic,
+        name="ops_ticket_detail_dynamic",
+    ),
+    path(
         "ops/ticket/<str:ticket_number>/comment/",
         views.ops_ticket_comment,
         name="ops_ticket_comment",
@@ -158,8 +163,6 @@ urlpatterns = [
     path("ops/admin/teams/bulk/", admin_views.admin_teams_bulk_action, name="admin_teams_bulk_action"),
     path("ops/admin/teams/<int:team_number>/", admin_views.admin_team_detail, name="admin_team_detail"),
     path("ops/admin/teams/<int:team_number>/action/", admin_views.admin_team_action, name="admin_team_action"),
-    path("ops/admin/helpers/", admin_views.admin_helpers, name="admin_helpers"),
-    path("ops/admin/helpers/action/", admin_views.admin_helper_action, name="admin_helper_action"),
     path("ops/admin/broadcast/", admin_views.admin_broadcast, name="admin_broadcast"),
     path("ops/admin/broadcast/action/", admin_views.admin_broadcast_action, name="admin_broadcast_action"),
     path("ops/admin/sync-roles/", admin_views.admin_sync_roles, name="admin_sync_roles"),

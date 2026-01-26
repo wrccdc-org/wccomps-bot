@@ -7,6 +7,12 @@
 <div id="content-main">
     <c-page_header title="Ticket {{ ticket.ticket_number }}" />
 
+    {% if messages %}
+        {% for message in messages %}
+        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
+        {% endfor %}
+    {% endif %}
+
     <c-module>
         <c-slot name="toolbar">
             <c-link href="/ops/tickets/?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page={{ page }}&page_size={{ page_size }}" variant="history">Back to Ticket List</c-link>
@@ -50,8 +56,25 @@
                 <dd>{{ ticket.assigned_to }}</dd>
                 {% endif %}
 
+                {% if ticket.service_name %}
+                <dt>Service Name</dt>
+                <dd>{{ ticket.service_name }}</dd>
+                {% endif %}
+
+                {% if ticket.hostname %}
+                <dt>Hostname</dt>
+                <dd>{{ ticket.hostname }}</dd>
+                {% endif %}
+
+                {% if ticket.ip_address %}
+                <dt>IP Address</dt>
+                <dd>{{ ticket.ip_address }}</dd>
+                {% endif %}
+
+                {% if ticket.description %}
                 <dt>Description</dt>
                 <dd>{{ ticket.description }}</dd>
+                {% endif %}
 
                 <dt>Created</dt>
                 <dd>{{ ticket.created_at|timesince }} ago</dd>
@@ -133,31 +156,37 @@
 
         <!-- Comments -->
         <c-fieldset heading="Comments">
-            {% if comments %}
-            <c-table aria_label="Ticket comments">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Author</c-table_header>
-                        <c-table_header sortable="false">Comment</c-table_header>
-                        <c-table_header sortable="false">Posted</c-table_header>
+            <div id="comments-list"
+                 hx-get="{% url 'ops_ticket_detail_dynamic' ticket.ticket_number %}"
+                 hx-trigger="every 30s"
+                 hx-select="#comments-list"
+                 hx-swap="outerHTML">
+                {% if comments %}
+                <c-table aria_label="Ticket comments">
+                    <c-slot name="headers">
+                        <tr>
+                            <c-table_header sortable="false">Author</c-table_header>
+                            <c-table_header sortable="false">Comment</c-table_header>
+                            <c-table_header sortable="false">Posted</c-table_header>
+                        </tr>
+                    </c-slot>
+                    {% for comment in comments %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
+                        <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
+                        <td>{{ comment.posted_at|timesince }} ago</td>
                     </tr>
-                </c-slot>
-                {% for comment in comments %}
-                <tr class="{% cycle 'row1' 'row2' %}">
-                    <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
-                    <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
-                    <td>{{ comment.posted_at|timesince }} ago</td>
-                </tr>
-                {% endfor %}
-            </c-table>
-            {% else %}
-            <p class="text-muted">No comments yet.</p>
-            {% endif %}
+                    {% endfor %}
+                </c-table>
+                {% else %}
+                <p class="text-muted">No comments yet.</p>
+                {% endif %}
+            </div>
 
             {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
             <form method="POST" action="{% url 'ops_ticket_comment' ticket.ticket_number %}" class="mt-15">
                 {% csrf_token %}
-                <textarea name="comment" rows="3" placeholder="Add a comment..." style="width: 100%; max-width: 600px;"></textarea>
+                <textarea name="comment" rows="3" placeholder="Add a comment..." required style="width: 100%; max-width: 600px;"></textarea>
                 <div class="mt-10">
                     <c-button type="submit" variant="primary">Post Comment</c-button>
                 </div>
@@ -207,28 +236,34 @@
 
         <!-- History -->
         <c-fieldset heading="History">
-            {% if history %}
-            <c-table aria_label="Ticket history">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Timestamp</c-table_header>
-                        <c-table_header sortable="false">Action</c-table_header>
-                        <c-table_header sortable="false">Actor</c-table_header>
-                        <c-table_header sortable="false">Details</c-table_header>
+            <div id="history-list"
+                 hx-get="{% url 'ops_ticket_detail_dynamic' ticket.ticket_number %}"
+                 hx-trigger="every 30s"
+                 hx-select="#history-list"
+                 hx-swap="outerHTML">
+                {% if history %}
+                <c-table aria_label="Ticket history">
+                    <c-slot name="headers">
+                        <tr>
+                            <c-table_header sortable="false">Timestamp</c-table_header>
+                            <c-table_header sortable="false">Action</c-table_header>
+                            <c-table_header sortable="false">Actor</c-table_header>
+                            <c-table_header sortable="false">Details</c-table_header>
+                        </tr>
+                    </c-slot>
+                    {% for event in history %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ event.timestamp|timesince }} ago</td>
+                        <td>{{ event.action }}</td>
+                        <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
+                        <td>{{ event.details }}</td>
                     </tr>
-                </c-slot>
-                {% for event in history %}
-                <tr class="{% cycle 'row1' 'row2' %}">
-                    <td>{{ event.timestamp|timesince }} ago</td>
-                    <td>{{ event.action }}</td>
-                    <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
-                    <td>{{ event.details }}</td>
-                </tr>
-                {% endfor %}
-            </c-table>
-            {% else %}
-            <p class="text-muted">No history available.</p>
-            {% endif %}
+                    {% endfor %}
+                </c-table>
+                {% else %}
+                <p class="text-muted">No history available.</p>
+                {% endif %}
+            </div>
         </c-fieldset>
     </c-module>
 </div>

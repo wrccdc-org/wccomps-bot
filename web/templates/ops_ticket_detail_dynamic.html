@@ -1,0 +1,53 @@
+{% load cotton %}
+<!-- Comments List -->
+<div id="comments-list">
+    {% if comments %}
+    <c-table aria_label="Ticket comments">
+        <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Author</c-table_header>
+                <c-table_header sortable="false">Comment</c-table_header>
+                <c-table_header sortable="false">Posted</c-table_header>
+            </tr>
+        </c-slot>
+        {% for comment in comments %}
+        <tr class="{% cycle 'row1' 'row2' %}">
+            <td>{% if comment.author %}{{ comment.author }}{% else %}Unknown{% endif %}</td>
+            <td style="white-space: pre-wrap;">{{ comment.comment_text }}</td>
+            <td>{{ comment.posted_at|timesince }} ago</td>
+        </tr>
+        {% endfor %}
+    </c-table>
+    {% else %}
+    <p class="text-muted">No comments yet.</p>
+    {% endif %}
+</div>
+
+<!-- History List -->
+<div id="history-list">
+    {% if history %}
+    <c-table aria_label="Ticket history">
+        <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Timestamp</c-table_header>
+                <c-table_header sortable="false">Action</c-table_header>
+                <c-table_header sortable="false">Actor</c-table_header>
+                <c-table_header sortable="false">Details</c-table_header>
+            </tr>
+        </c-slot>
+        {% for event in history %}
+        <tr class="{% cycle 'row1' 'row2' %}">
+            <td>{{ event.timestamp|timesince }} ago</td>
+            <td>{{ event.action }}</td>
+            <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
+            <td>{{ event.details }}</td>
+        </tr>
+        {% endfor %}
+    </c-table>
+    {% else %}
+    <p class="text-muted">No history available.</p>
+    {% endif %}
+</div>
+
+<!-- Ticket Status (for action button updates) -->
+<div id="ticket-status" data-status="{{ ticket.status }}" data-assigned-to="{{ ticket.assigned_to.username|default:'' }}"></div>

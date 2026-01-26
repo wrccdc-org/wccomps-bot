@@ -111,3 +111,45 @@ def get_team_member_discord_ids(team: Team) -> list[int]:
         List of Discord IDs as integers
     """
     return list(team.members.filter(is_active=True).values_list("discord_id", flat=True))
+
+
+class ConfirmView(discord.ui.View):
+    """Reusable confirmation dialog with confirm/cancel buttons."""
+
+    def __init__(
+        self,
+        confirm_label: str = "Confirm",
+        cancel_label: str = "Cancel",
+        timeout: float = 60,
+    ) -> None:
+        super().__init__(timeout=timeout)
+        self.confirmed: bool | None = None
+        self._confirm_label = confirm_label
+        self._cancel_label = cancel_label
+        self._setup_buttons()
+
+    def _setup_buttons(self) -> None:
+        confirm_btn = ConfirmButton(label=self._confirm_label, style=discord.ButtonStyle.danger)
+        cancel_btn = CancelButton(label=self._cancel_label, style=discord.ButtonStyle.secondary)
+        self.add_item(confirm_btn)
+        self.add_item(cancel_btn)
+
+
+class ConfirmButton(discord.ui.Button["ConfirmView"]):
+    """Confirm button for ConfirmView."""
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if self.view:
+            self.view.confirmed = True
+            self.view.stop()
+        await interaction.response.defer()
+
+
+class CancelButton(discord.ui.Button["ConfirmView"]):
+    """Cancel button for ConfirmView."""
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if self.view:
+            self.view.confirmed = False
+            self.view.stop()
+        await interaction.response.defer()

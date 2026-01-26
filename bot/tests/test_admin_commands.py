@@ -503,7 +503,7 @@ class TestAdminCommands:
             if "view" in kwargs:
                 captured_view = kwargs["view"]
                 # Mock the wait to immediately return with confirmation
-                captured_view.value = True
+                captured_view.confirmed = True
 
                 async def mock_wait():
                     return

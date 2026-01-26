@@ -20,7 +20,7 @@ from bot.authentik_utils import (
     toggle_all_blueteam_accounts,
 )
 from bot.permissions import check_admin, check_gold_team
-from bot.utils import log_to_ops_channel
+from bot.utils import ConfirmView, log_to_ops_channel
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import parse_datetime_to_utc
 from team.models import DiscordLink, Team
@@ -276,36 +276,7 @@ class AdminCompetitionCog(commands.Cog):
 
         # If resetting all 50 teams, require confirmation
         if not team_numbers:
-
-            class PasswordResetConfirmView(discord.ui.View):
-                def __init__(self) -> None:
-                    super().__init__(timeout=60)
-                    self.confirmed = False
-
-                @discord.ui.button(
-                    label="Confirm Reset All 50 Teams",
-                    style=discord.ButtonStyle.danger,
-                )
-                async def confirm_button(
-                    self,
-                    button_interaction: discord.Interaction,
-                    button: discord.ui.Button[PasswordResetConfirmView],
-                ) -> None:
-                    self.confirmed = True
-                    self.stop()
-                    await button_interaction.response.defer()
-
-                @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-                async def cancel_button(
-                    self,
-                    button_interaction: discord.Interaction,
-                    button: discord.ui.Button[PasswordResetConfirmView],
-                ) -> None:
-                    self.confirmed = False
-                    self.stop()
-                    await button_interaction.response.send_message("Password reset cancelled.", ephemeral=True)
-
-            view = PasswordResetConfirmView()
+            view = ConfirmView(confirm_label="Confirm Reset All 50 Teams")
             await interaction.response.send_message(
                 "⚠️ **WARNING: You are about to reset passwords for ALL 50 blue team accounts.**\n\n"
                 "This will:\n"
@@ -697,6 +668,17 @@ class AdminCompetitionCog(commands.Cog):
         config.competition_end_time = None
         await config.asave()
 
+        # Sync Quotient metadata for new competition
+        from asgiref.sync import sync_to_async
+        from scoring.quotient_sync import sync_quotient_metadata
+
+        try:
+            await sync_to_async(sync_quotient_metadata)()
+            quotient_synced = True
+        except Exception as e:
+            logger.warning(f"Failed to sync Quotient metadata: {e}")
+            quotient_synced = False
+
         # Build result message with detailed errors
         success_apps = [app for app, (success, _) in app_results.items() if success]
         failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
@@ -713,6 +695,7 @@ class AdminCompetitionCog(commands.Cog):
                 "apps_failed_count": len(failed_apps),
                 "accounts_enabled": enabled_count,
                 "accounts_failed": failed_count,
+                "quotient_synced": quotient_synced,
                 "errors": dict(failed_apps),
             },
         )
@@ -729,6 +712,8 @@ class AdminCompetitionCog(commands.Cog):
         result_msg += f"\nAccounts enabled: {enabled_count}"
         if failed_count > 0:
             result_msg += f" ({failed_count} failed)"
+
+        result_msg += f"\nQuotient metadata: {'✓ synced' if quotient_synced else '✗ sync failed'}"
 
         # Log to ops
         await log_to_ops_channel(

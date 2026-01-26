@@ -14,6 +14,79 @@ from team.models import DiscordLink
 logger = logging.getLogger(__name__)
 
 
+async def create_ticket(
+    interaction: discord.Interaction,
+    category_id: str,
+    service_name: str = "",
+    description: str = "",
+    hostname: str = "",
+    ip_address: str = "",
+) -> None:
+    """Create a ticket from a Discord modal submission."""
+    await interaction.response.defer(ephemeral=True)
+
+    link = await (
+        DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
+    )
+
+    if not link or not link.team:
+        await interaction.followup.send(
+            "You must be linked to a competition team to create tickets.\nClick the **🔗 Link Account** button first.",
+            ephemeral=True,
+        )
+        return
+
+    try:
+        cat_info = TICKET_CATEGORIES[category_id]
+
+        field_values = {
+            "service_name": service_name,
+            "description": description,
+            "hostname": hostname,
+            "ip_address": ip_address,
+        }
+        required_fields = cat_info.get("required_fields", [])
+        missing_fields = [f for f in required_fields if not field_values.get(f)]
+        if missing_fields:
+            await interaction.followup.send(
+                f"Missing required fields: {', '.join(missing_fields)}",
+                ephemeral=True,
+            )
+            return
+
+        from ticketing.utils import acreate_ticket_atomic
+
+        ticket = await acreate_ticket_atomic(
+            team=link.team,
+            category=category_id,
+            title=cat_info["display_name"],
+            description=description,
+            hostname=hostname,
+            ip_address=ip_address,
+            service_name=service_name,
+            actor_username=f"discord:{interaction.user.name}",
+        )
+
+        from core.models import DiscordTask
+
+        await DiscordTask.objects.acreate(
+            task_type="ticket_created_web",
+            payload={"ticket_id": ticket.id},
+        )
+
+        await interaction.followup.send(
+            f"✅ Ticket **{ticket.ticket_number}** created!\n"
+            f"Category: **{cat_info['display_name']}**\n"
+            f"Points: **{cat_info.get('points', 0)}**\n\n"
+            f"A volunteer will respond shortly.",
+            ephemeral=True,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to create ticket: {e}", exc_info=True)
+        await interaction.followup.send(f"Failed to create ticket: {e!s}", ephemeral=True)
+
+
 class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
     """Modal for service scoring validation tickets."""
 
@@ -32,79 +105,13 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
         max_length=1000,
     )
 
-    def __init__(self, bot: commands.Bot):
-        super().__init__()
-        self.bot = bot
-        self.category_id = "service-scoring-validation"
-
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Handle ticket creation from modal."""
-        await self._create_ticket(
+        await create_ticket(
             interaction,
+            category_id="service-scoring-validation",
             service_name=self.service_name.value,
             description=self.description.value,
         )
-
-    async def _create_ticket(
-        self,
-        interaction: discord.Interaction,
-        service_name: str = "",
-        description: str = "",
-        hostname: str = "",
-        ip_address: str = "",
-    ) -> None:
-        """Common ticket creation logic."""
-        await interaction.response.defer(ephemeral=True)
-
-        # Check if user is linked to a team
-        link = await (
-            DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True).select_related("team").afirst()
-        )
-
-        if not link or not link.team:
-            await interaction.followup.send(
-                "You must be linked to a competition team to create tickets.\n"
-                "Click the **🔗 Link Account** button first.",
-                ephemeral=True,
-            )
-            return
-
-        try:
-            cat_info = TICKET_CATEGORIES[self.category_id]
-
-            # Create ticket using shared atomic function
-            from ticketing.utils import acreate_ticket_atomic
-
-            ticket = await acreate_ticket_atomic(
-                team=link.team,
-                category=self.category_id,
-                title=cat_info["display_name"],
-                description=description,
-                hostname=hostname,
-                ip_address=ip_address,
-                service_name=service_name,
-                actor_username=f"discord:{interaction.user.name}",
-            )
-
-            # Queue Discord thread creation
-            from core.models import DiscordTask
-
-            await DiscordTask.objects.acreate(
-                task_type="ticket_created_web",
-                payload={"ticket_id": ticket.id},
-            )
-
-            await interaction.followup.send(
-                f"✅ Ticket **{ticket.ticket_number}** created!\n"
-                f"Category: **{cat_info['display_name']}**\n"
-                f"Points: **{cat_info.get('points', 0)}**\n\n"
-                f"A volunteer will respond shortly.",
-                ephemeral=True,
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to create ticket: {e}", exc_info=True)
-            await interaction.followup.send(f"Failed to create ticket: {e!s}", ephemeral=True)
 
 
 class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
@@ -124,17 +131,10 @@ class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
         max_length=50,
     )
 
-    def __init__(self, bot: commands.Bot):
-        super().__init__()
-        self.bot = bot
-        self.category_id = "box-reset"
-
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Handle ticket creation from modal."""
-        modal = ServiceScoringModal(self.bot)
-        modal.category_id = self.category_id
-        await modal._create_ticket(
+        await create_ticket(
             interaction,
+            category_id="box-reset",
             hostname=self.hostname.value,
             ip_address=self.ip_address.value,
         )
@@ -150,17 +150,10 @@ class ScoringServiceCheckModal(discord.ui.Modal, title="Scoring Service Check"):
         max_length=100,
     )
 
-    def __init__(self, bot: commands.Bot):
-        super().__init__()
-        self.bot = bot
-        self.category_id = "scoring-service-check"
-
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Handle ticket creation from modal."""
-        modal = ServiceScoringModal(self.bot)
-        modal.category_id = self.category_id
-        await modal._create_ticket(
+        await create_ticket(
             interaction,
+            category_id="scoring-service-check",
             service_name=self.service_name.value,
         )
 
@@ -183,20 +176,17 @@ class ConsultationModal(discord.ui.Modal, title="Consultation Request"):
         max_length=255,
     )
 
-    def __init__(self, bot: commands.Bot, category_id: str):
+    def __init__(self, category_id: str):
         super().__init__()
-        self.bot = bot
         self.category_id = category_id
         if category_id == "blackteam-phone-consultation":
             self.title = "Black Team Phone Consultation"
             self.remove_item(self.hostname)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Handle ticket creation from modal."""
-        modal = ServiceScoringModal(self.bot)
-        modal.category_id = self.category_id
-        await modal._create_ticket(
+        await create_ticket(
             interaction,
+            category_id=self.category_id,
             description=self.description.value,
             hostname=self.hostname.value if self.category_id == "blackteam-handson-consultation" else "",
         )
@@ -213,17 +203,10 @@ class OtherModal(discord.ui.Modal, title="Other / General Issue"):
         max_length=1000,
     )
 
-    def __init__(self, bot: commands.Bot):
-        super().__init__()
-        self.bot = bot
-        self.category_id = "other"
-
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        """Handle ticket creation from modal."""
-        modal = ServiceScoringModal(self.bot)
-        modal.category_id = self.category_id
-        await modal._create_ticket(
+        await create_ticket(
             interaction,
+            category_id="other",
             description=self.description.value,
         )
 
@@ -254,23 +237,21 @@ class CategorySelect(discord.ui.Select["TicketCategoryView"]):
     async def callback(self, interaction: discord.Interaction) -> None:
         """Handle category selection."""
         category_id = self.values[0]
-        bot = cast(TicketCategoryView, self.view).bot
 
-        # Show appropriate modal based on category
         modal: ServiceScoringModal | BoxResetModal | ScoringServiceCheckModal | ConsultationModal | OtherModal
         if category_id == "service-scoring-validation":
-            modal = ServiceScoringModal(bot)
+            modal = ServiceScoringModal()
         elif category_id == "box-reset":
-            modal = BoxResetModal(bot)
+            modal = BoxResetModal()
         elif category_id == "scoring-service-check":
-            modal = ScoringServiceCheckModal(bot)
+            modal = ScoringServiceCheckModal()
         elif category_id in [
             "blackteam-phone-consultation",
             "blackteam-handson-consultation",
         ]:
-            modal = ConsultationModal(bot, category_id)
+            modal = ConsultationModal(category_id)
         else:  # other
-            modal = OtherModal(bot)
+            modal = OtherModal()
 
         await interaction.response.send_modal(modal)
 
@@ -278,9 +259,8 @@ class CategorySelect(discord.ui.Select["TicketCategoryView"]):
 class TicketCategoryView(discord.ui.View):
     """View for selecting ticket category."""
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self) -> None:
         super().__init__(timeout=300)  # 5 minute timeout
-        self.bot = bot
         self.add_item(CategorySelect())
 
 
@@ -352,10 +332,9 @@ class TeamHelpView(discord.ui.View):
 
     async def create_ticket(self, interaction: discord.Interaction) -> None:
         """Handle create ticket button click - show category selection."""
-        view = TicketCategoryView(self.bot)
         await interaction.response.send_message(
             "Select a ticket category:",
-            view=view,
+            view=TicketCategoryView(),
             ephemeral=True,
         )
 

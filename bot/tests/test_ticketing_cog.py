@@ -618,7 +618,7 @@ class TestTicketCommand:
 
         with (
             patch("bot.cogs.ticketing.post_ticket_to_dashboard", new_callable=AsyncMock),
-            patch("quotient.client.get_quotient_client", return_value=mock_client),
+            patch("bot.cogs.ticketing.get_quotient_client", return_value=mock_client),
         ):
             await cog.create_ticket.callback(
                 cog,

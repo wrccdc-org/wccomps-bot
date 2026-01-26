@@ -534,7 +534,8 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     # Get comment text
     comment_text = request.POST.get("comment", "").strip()
     if not comment_text:
-        return HttpResponse("Comment cannot be empty", status=400)
+        messages.error(request, "Comment cannot be empty")
+        return redirect("ticket_detail", ticket_id=ticket.id)
 
     # Check rate limit
     from ticketing.models import CommentRateLimit
@@ -1130,7 +1131,6 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
         request,
         "ops_ticket_detail.html",
         {
-            "auto_refresh": True,
             "ticket": ticket,
             "category_name": cat_info.get("display_name", ticket.category),
             "categories": TICKET_CATEGORIES,
@@ -1147,6 +1147,33 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
             "page_filter": page_filter,
             "page_size": page_size,
             "show_ops_nav": True,
+        },
+    )
+
+
+@login_required
+def ops_ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Return dynamic ticket content (comments/history) for HTMX polling."""
+    user = cast(User, request.user)
+
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
+        return HttpResponse("Access denied", status=403)
+
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
+    history = TicketHistory.objects.filter(ticket=ticket).order_by("-timestamp")[:20]
+
+    return render(
+        request,
+        "ops_ticket_detail_dynamic.html",
+        {
+            "ticket": ticket,
+            "comments": comments,
+            "history": history,
         },
     )
 
@@ -1171,7 +1198,8 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     comment_text = request.POST.get("comment", "").strip()
     if not comment_text:
-        return HttpResponse("Comment cannot be empty", status=400)
+        messages.error(request, "Comment cannot be empty")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Check rate limit
     from ticketing.models import CommentRateLimit
@@ -1232,7 +1260,8 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     )
 
     if error or ticket is None:
-        return HttpResponse(error or "Failed to claim ticket", status=400)
+        messages.error(request, error or "Failed to claim ticket")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Add volunteer to thread if they have Discord linked and ticket has a thread
     if ticket.discord_thread_id:
@@ -1278,7 +1307,8 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     has_claimed = ticket_obj.assigned_to and ticket_obj.assigned_to.username == authentik_username
 
     if not is_admin and not has_claimed:
-        return HttpResponse("You can only unclaim tickets you have claimed", status=403)
+        messages.error(request, "You can only unclaim tickets you have claimed")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic unclaim function
     from ticketing.utils import unclaim_ticket_atomic
@@ -1290,7 +1320,8 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     )
 
     if error or ticket is None:
-        return HttpResponse(error or "Failed to unclaim ticket", status=400)
+        messages.error(request, error or "Failed to unclaim ticket")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     logger.info(f"Ticket {ticket_number} unclaimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1320,12 +1351,14 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     # Get the new assignee from POST data
     new_assignee_username = request.POST.get("new_assignee_username", "").strip()
     if not new_assignee_username:
-        return HttpResponse("New assignee username is required", status=400)
+        messages.error(request, "New assignee username is required")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Find the user to assign
     new_assignee_user = User.objects.filter(username=new_assignee_username).first()
     if not new_assignee_user:
-        return HttpResponse(f"User '{new_assignee_username}' not found", status=400)
+        messages.error(request, f"User '{new_assignee_username}' not found")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic reassign function
     from ticketing.utils import reassign_ticket_atomic
@@ -1337,7 +1370,8 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     )
 
     if error or ticket is None:
-        return HttpResponse(error or "Failed to reassign ticket", status=400)
+        messages.error(request, error or "Failed to reassign ticket")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Add new assignee to thread if they have Discord linked and ticket has a thread
     if ticket.discord_thread_id:
@@ -1398,7 +1432,8 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         try:
             points_override = int(points_override_str)
         except ValueError:
-            return HttpResponse("Invalid points value. Must be a number.", status=400)
+            messages.error(request, "Invalid points value. Must be a number.")
+            return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic resolve function
     from ticketing.utils import resolve_ticket_atomic
@@ -1412,7 +1447,8 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     )
 
     if error or ticket is None:
-        return HttpResponse(error or "Failed to resolve ticket", status=400)
+        messages.error(request, error or "Failed to resolve ticket")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     logger.info(f"Ticket {ticket_number} resolved by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1441,18 +1477,23 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Only allow reopening resolved tickets
     if ticket.status != "resolved":
-        return HttpResponse(f"Cannot reopen - ticket is {ticket.status}", status=400)
+        messages.error(request, f"Cannot reopen - ticket is {ticket.status}")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     reopen_reason = request.POST.get("reopen_reason", "").strip()
 
-    # Reopen ticket
+    # Reopen ticket - clear assignee so it goes back to queue
     old_status = ticket.status
+    old_assignee = ticket.assigned_to
     ticket.status = "open"
+    ticket.assigned_to = None
     ticket.resolved_at = None
     ticket.save()
 
     # Create history entry
     details = {"old_status": old_status, "reopened_by": authentik_username}
+    if old_assignee:
+        details["previous_assignee"] = old_assignee.username
     if reopen_reason:
         details["reason"] = reopen_reason
 
@@ -1494,12 +1535,14 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
     has_claimed = ticket.assigned_to and ticket.assigned_to.username == authentik_username
 
     if not is_admin and not has_claimed:
-        return HttpResponse("You must claim the ticket first", status=403)
+        messages.error(request, "You must claim the ticket first")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Get new category
     new_category = request.POST.get("new_category", "").strip()
     if not new_category or new_category not in TICKET_CATEGORIES:
-        return HttpResponse("Invalid category", status=400)
+        messages.error(request, "Invalid category")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     old_category = ticket.category
     if old_category == new_category:
@@ -2121,7 +2164,8 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Only allow verifying resolved tickets
     if ticket.status != "resolved":
-        return HttpResponse(f"Cannot verify - ticket is {ticket.status}, must be resolved", status=400)
+        messages.error(request, f"Cannot verify - ticket is {ticket.status}, must be resolved")
+        return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Get form data
     points_adjustment_str = request.POST.get("points_adjustment", "").strip()
@@ -2133,7 +2177,8 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
             adjusted_points = int(points_adjustment_str)
             ticket.points_charged = adjusted_points
         except ValueError:
-            return HttpResponse("Invalid points value. Must be a number.", status=400)
+            messages.error(request, "Invalid points value. Must be a number.")
+            return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
     # Mark as verified
     ticket.points_verified = True

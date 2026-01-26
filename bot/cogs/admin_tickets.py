@@ -2,7 +2,7 @@
 
 import logging
 from datetime import timedelta
-from typing import Self, cast
+from typing import cast
 
 import discord
 from discord import app_commands
@@ -17,6 +17,7 @@ from bot.ticket_dashboard import (
     update_ticket_dashboard,
 )
 from bot.utils import (
+    ConfirmView,
     get_team_member_discord_ids,
     get_team_or_respond,
     log_to_ops_channel,
@@ -684,23 +685,7 @@ class AdminTicketsCog(commands.Cog):
             await interaction.response.send_message("No tickets to clear", ephemeral=True)
             return
 
-        # Create confirmation view
-        class ConfirmView(discord.ui.View):
-            def __init__(self) -> None:
-                super().__init__(timeout=60)
-                self.value: bool | None = None
-
-            @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger)
-            async def confirm(self, button_interaction: discord.Interaction, button: discord.ui.Button[Self]) -> None:
-                self.value = True
-                self.stop()
-
-            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-            async def cancel(self, button_interaction: discord.Interaction, button: discord.ui.Button[Self]) -> None:
-                self.value = False
-                self.stop()
-
-        view = ConfirmView()
+        view = ConfirmView(confirm_label="Confirm Delete")
         await interaction.response.send_message(
             f"**WARNING: This will DELETE ALL TICKETS**\n\n"
             f"• Tickets: {ticket_count}\n"
@@ -715,11 +700,11 @@ class AdminTicketsCog(commands.Cog):
 
         await view.wait()
 
-        if view.value is None:
+        if view.confirmed is None:
             await interaction.edit_original_response(content="Timed out", view=None)
             return
 
-        if not view.value:
+        if not view.confirmed:
             await interaction.edit_original_response(content="Cancelled", view=None)
             return
 

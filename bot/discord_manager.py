@@ -147,6 +147,7 @@ class DiscordManager:
             observers = discord.utils.get(self.guild.roles, name="WRCCDC Observers")
             orange_team = discord.utils.get(self.guild.roles, name="Orange Team")
             orange_team_guest = discord.utils.get(self.guild.roles, name="Orange Team Guest")
+            black_team_guest = discord.utils.get(self.guild.roles, name="Black Team Guest")
             room_judge = discord.utils.get(self.guild.roles, name="WRCCDC Room Judge")
             operations_team = discord.utils.get(self.guild.roles, name="WRCCDC Operations Team")
             server_owners = discord.utils.get(self.guild.roles, name="WRCCDC Server Owners")
@@ -185,6 +186,12 @@ class DiscordManager:
             # Orange Team Guest: full access
             if orange_team_guest:
                 overwrites[orange_team_guest] = discord.PermissionOverwrite(
+                    read_messages=True, send_messages=True, connect=True, speak=True
+                )
+
+            # Black Team Guest: full access
+            if black_team_guest:
+                overwrites[black_team_guest] = discord.PermissionOverwrite(
                     read_messages=True, send_messages=True, connect=True, speak=True
                 )
 

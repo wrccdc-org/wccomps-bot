@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import cast
 
 import requests
 from django.conf import settings
@@ -87,9 +88,9 @@ class QuotientClient:
         self.cache_ttl = cache_ttl
         self.session: requests.Session | None = None
 
-    def _get_session(self) -> requests.Session:
+    def _get_session(self, force_reauth: bool = False) -> requests.Session:
         """Get or create authenticated session."""
-        if self.session is None:
+        if self.session is None or force_reauth:
             self.session = requests.Session()
 
             # Use hardcoded admin credentials from settings
@@ -118,6 +119,24 @@ class QuotientClient:
 
         return self.session
 
+    def _request(self, method: str, endpoint: str, **kwargs: object) -> requests.Response:
+        """Make an authenticated request, re-authenticating on 401."""
+        session = self._get_session()
+        url = f"{self.base_url}{endpoint}"
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 10
+
+        request_func = getattr(session, method)
+        response = cast(requests.Response, request_func(url, **kwargs))
+
+        if response.status_code == 401:
+            logger.info("Got 401, re-authenticating with Quotient")
+            session = self._get_session(force_reauth=True)
+            request_func = getattr(session, method)
+            response = cast(requests.Response, request_func(url, **kwargs))
+
+        return response
+
     def get_infrastructure(self, force_refresh: bool = False) -> QuotientInfrastructure | None:
         """
         Fetch infrastructure from Quotient API.
@@ -138,8 +157,7 @@ class QuotientClient:
                 return cached
 
         try:
-            session = self._get_session()
-            response = session.get(f"{self.base_url}/api/metadata", timeout=10)
+            response = self._request("get", "/api/metadata")
             response.raise_for_status()
 
             data = response.json()
@@ -204,8 +222,7 @@ class QuotientClient:
                 return cached
 
         try:
-            session = self._get_session()
-            response = session.get(f"{self.base_url}/api/graphs/scores", timeout=10)
+            response = self._request("get", "/api/graphs/scores")
             response.raise_for_status()
 
             data = response.json()
@@ -259,8 +276,7 @@ class QuotientClient:
                 return cached
 
         try:
-            session = self._get_session()
-            response = session.get(f"{self.base_url}/api/injects", timeout=10)
+            response = self._request("get", "/api/injects")
             response.raise_for_status()
 
             data = response.json()

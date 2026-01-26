@@ -1,4 +1,4 @@
-"""Admin views for competition, team, and helper management."""
+"""Admin views for competition and team management."""
 
 import csv
 import io
@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from scoring.quotient_sync import sync_quotient_metadata
 
 from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
@@ -177,6 +178,14 @@ def _action_start_competition(request: HttpRequest, config: CompetitionConfig, a
     config.competition_end_time = None
     config.save()
 
+    # Sync Quotient metadata for new competition
+    try:
+        sync_quotient_metadata()
+        quotient_synced = True
+    except Exception as e:
+        logger.warning(f"Failed to sync Quotient metadata: {e}")
+        quotient_synced = False
+
     success_apps = [app for app, (success, _) in app_results.items() if success]
     failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
 
@@ -190,11 +199,15 @@ def _action_start_competition(request: HttpRequest, config: CompetitionConfig, a
             "apps_failed": len(failed_apps),
             "accounts_enabled": success_count,
             "accounts_failed": failed_count,
+            "quotient_synced": quotient_synced,
         },
     )
 
     app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
-    return JsonResponse({"success": True, "message": f"Competition started. {app_msg}, Accounts: {success_count}/50"})
+    quotient_msg = ", Quotient synced" if quotient_synced else ", Quotient sync failed"
+    return JsonResponse(
+        {"success": True, "message": f"Competition started. {app_msg}, Accounts: {success_count}/50{quotient_msg}"}
+    )
 
 
 def _action_toggle_blueteams(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
@@ -342,6 +355,23 @@ def _action_end_competition(request: HttpRequest, config: CompetitionConfig, aut
     return JsonResponse({"success": True, "message": ". ".join(results)})
 
 
+def _action_sync_quotient(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle sync_quotient action."""
+    try:
+        sync_quotient_metadata()
+        AuditLog.objects.create(
+            action="quotient_metadata_synced",
+            admin_user=authentik_username,
+            target_entity="quotient",
+            target_id=0,
+            details={},
+        )
+        return JsonResponse({"success": True, "message": "Quotient metadata synced"})
+    except Exception as e:
+        logger.error(f"Failed to sync Quotient metadata: {e}")
+        return JsonResponse({"error": f"Sync failed: {e}"}, status=500)
+
+
 _COMPETITION_ACTION_HANDLERS = {
     "set_max_members": _action_set_max_members,
     "set_apps": _action_set_apps,
@@ -351,6 +381,7 @@ _COMPETITION_ACTION_HANDLERS = {
     "toggle_blueteams": _action_toggle_blueteams,
     "reset_passwords": _action_reset_passwords,
     "end_competition": _action_end_competition,
+    "sync_quotient": _action_sync_quotient,
 }
 
 
@@ -678,132 +709,6 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
         )
 
         return JsonResponse({"success": True, "message": f"Queued {len(team_numbers)} channel recreation tasks"})
-
-    return JsonResponse({"error": "Unknown action"}, status=400)
-
-
-@login_required
-def admin_helpers(request: HttpRequest) -> HttpResponse:
-    """Helpers management dashboard."""
-    user = cast(User, request.user)
-
-    if not _check_admin(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {"error": "Access denied", "message": "You do not have permission to manage helpers."},
-        )
-
-    helpers = (
-        DiscordLink.objects.filter(helper_role_name__isnull=False, is_active=True)
-        .exclude(helper_role_name="")
-        .order_by("-helper_activated_at")
-    )
-
-    context = {
-        "helpers": helpers,
-        "show_ops_nav": True,
-        "nav_active": "ops_admin",
-    }
-
-    return render(request, "admin/helpers.html", context)
-
-
-@login_required
-def admin_helper_action(request: HttpRequest) -> HttpResponse:
-    """Handle helper management actions."""
-    if request.method != "POST":
-        return HttpResponse("Method not allowed", status=405)
-
-    user = cast(User, request.user)
-    authentik_username = user.username
-
-    if not _check_admin(user):
-        return JsonResponse({"error": "Access denied"}, status=403)
-
-    action = request.POST.get("action")
-
-    if action == "add":
-        discord_id = request.POST.get("discord_id", "").strip()
-        role_name = request.POST.get("role_name", "").strip()
-
-        if not discord_id or not role_name:
-            return JsonResponse({"error": "Discord ID and role name required"}, status=400)
-
-        # Find DiscordLink by discord_id
-        try:
-            discord_link = DiscordLink.objects.select_related("user__usergroups").get(
-                discord_id=int(discord_id), is_active=True
-            )
-        except (DiscordLink.DoesNotExist, ValueError):
-            return JsonResponse({"error": "DiscordLink not found. User must link their account first."}, status=404)
-
-        if discord_link.is_student_helper:
-            return JsonResponse(
-                {"error": f"User is already a helper with role: {discord_link.helper_role_name}"}, status=400
-            )
-
-        from core.auth_utils import check_groups_for_permission
-
-        try:
-            groups = discord_link.user.usergroups.groups
-        except Exception:
-            groups = []
-
-        if not check_groups_for_permission(groups, "helper_eligible"):
-            return JsonResponse(
-                {"error": "User must have WCComps_Ticketing_Support or WCComps_Quotient_Injects group"}, status=400
-            )
-
-        # Role ID will be set later by Discord bot when it assigns the role
-        discord_link.set_helper(role_name)
-
-        AuditLog.objects.create(
-            action="helper_added",
-            admin_user=authentik_username,
-            target_entity="discordlink",
-            target_id=discord_link.id,
-            details={
-                "discord_id": discord_link.discord_id,
-                "discord_username": discord_link.discord_username,
-                "role_name": role_name,
-            },
-        )
-
-        return JsonResponse({"success": True, "message": f"Added {discord_link.discord_username} as helper"})
-
-    elif action == "remove":
-        discord_link_id = request.POST.get("discord_link_id")
-        reason = request.POST.get("reason", "Removed via web interface")
-
-        if not discord_link_id:
-            return JsonResponse({"error": "DiscordLink ID required"}, status=400)
-
-        try:
-            discord_link = DiscordLink.objects.get(pk=int(discord_link_id))
-        except (DiscordLink.DoesNotExist, ValueError):
-            return JsonResponse({"error": "DiscordLink not found"}, status=404)
-
-        if not discord_link.is_student_helper:
-            return JsonResponse({"error": "User is not currently a helper"}, status=400)
-
-        role_name = discord_link.helper_role_name
-        discord_link.remove_helper(reason)
-
-        AuditLog.objects.create(
-            action="helper_removed",
-            admin_user=authentik_username,
-            target_entity="discordlink",
-            target_id=discord_link.id,
-            details={
-                "discord_id": discord_link.discord_id,
-                "discord_username": discord_link.discord_username,
-                "role_name": role_name,
-                "reason": reason,
-            },
-        )
-
-        return JsonResponse({"success": True, "message": f"Removed {discord_link.discord_username} as helper"})
 
     return JsonResponse({"error": "Unknown action"}, status=400)
 
