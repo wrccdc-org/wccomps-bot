@@ -1,0 +1,437 @@
+"""Unit tests for core/views.py."""
+
+import pytest
+from django.test import Client
+from django.urls import reverse
+
+from team.models import Team
+from ticketing.models import Ticket
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def team1():
+    """Create team 1 (matches blue_team_user's group)."""
+    return Team.objects.create(team_number=1, team_name="Team 01", is_active=True)
+
+
+@pytest.fixture
+def team2():
+    """Create team 2 (matches blue_team_02_user's group)."""
+    return Team.objects.create(team_number=2, team_name="Team 02", is_active=True)
+
+
+class TestHomeView:
+    """Tests for home view redirect logic."""
+
+    def test_blue_team_user_redirected_to_team_tickets(self, blue_team_user, team1):
+        """Blue team users should be redirected to team tickets page."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("home"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("team_tickets")
+
+    def test_admin_user_redirected_to_ops_tickets(self, admin_user):
+        """Admin users without team should be redirected to ops ticket list."""
+        client = Client()
+        client.force_login(admin_user)
+
+        response = client.get(reverse("home"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("ops_ticket_list")
+
+    def test_ticketing_support_redirected_to_ops_tickets(self, ticketing_support_user):
+        """Ticketing support users should be redirected to ops ticket list."""
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("home"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("ops_ticket_list")
+
+
+class TestTeamTicketsView:
+    """Tests for team_tickets view."""
+
+    def test_blue_team_user_sees_their_tickets(self, blue_team_user, team1):
+        """Blue team user should see tickets for their team."""
+        Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket 1",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("team_tickets"))
+
+        assert response.status_code == 200
+        # Template shows ticket number, not title
+        assert b"T001" in response.content
+
+    def test_status_filter_works(self, blue_team_user, team1):
+        """Status filter should filter tickets."""
+        Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Open Ticket",
+            status="open",
+        )
+        Ticket.objects.create(
+            team=team1,
+            ticket_number="T002",
+            category="box-reset",
+            title="Resolved Ticket",
+            status="resolved",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("team_tickets") + "?status=resolved")
+
+        assert response.status_code == 200
+        # Template shows ticket numbers
+        assert b"T002" in response.content
+
+    def test_non_team_user_gets_error(self, ticketing_support_user):
+        """Non-team users should see an error or redirect."""
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("team_tickets"))
+
+        # Support users without a team see error page
+        assert response.status_code == 200
+        assert b"not associated with a team" in response.content or b"Invalid" in response.content
+
+    def test_admin_without_team_redirected_to_create_ticket(self, admin_user):
+        """Admins without a team should be redirected to create ticket page."""
+        client = Client()
+        client.force_login(admin_user)
+
+        response = client.get(reverse("team_tickets"))
+
+        assert response.status_code == 302
+        assert response.url == reverse("create_ticket")
+
+
+class TestTicketDetailView:
+    """Tests for ticket_detail view."""
+
+    def test_team_member_can_view_their_ticket(self, blue_team_user, team1):
+        """Team member should be able to view their team's ticket."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            description="Test description",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ticket_detail", args=[ticket.id]))
+
+        assert response.status_code == 200
+        # Template shows ticket number in title
+        assert b"T001" in response.content
+
+    def test_other_team_cannot_view_ticket(self, blue_team_02_user, team1, team2):
+        """Member of different team should not see the ticket."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_02_user)
+
+        response = client.get(reverse("ticket_detail", args=[ticket.id]))
+
+        assert response.status_code == 200
+        assert b"Ticket not found" in response.content or b"does not belong" in response.content
+
+    def test_nonexistent_ticket_shows_error(self, blue_team_user, team1):
+        """Accessing nonexistent ticket should show error."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ticket_detail", args=[99999]))
+
+        assert response.status_code == 200
+        assert b"Ticket not found" in response.content or b"does not exist" in response.content
+
+
+class TestTicketCommentView:
+    """Tests for ticket_comment view."""
+
+    def test_get_request_not_allowed(self, blue_team_user, team1):
+        """GET requests should return 405."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ticket_comment", args=[ticket.id]))
+
+        assert response.status_code == 405
+
+    def test_empty_comment_rejected(self, blue_team_user, team1):
+        """Empty comments should be rejected."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.post(reverse("ticket_comment", args=[ticket.id]), {"comment": ""})
+
+        assert response.status_code == 302  # Redirect back with error message
+
+    def test_valid_comment_created(self, blue_team_user, team1):
+        """Valid comments should be created."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.post(
+            reverse("ticket_comment", args=[ticket.id]),
+            {"comment": "This is a test comment"},
+        )
+
+        assert response.status_code == 302
+        assert ticket.comments.filter(comment_text="This is a test comment").exists()
+
+    def test_other_team_cannot_comment(self, blue_team_02_user, team1, team2):
+        """Member of different team should not be able to comment."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_02_user)
+
+        response = client.post(
+            reverse("ticket_comment", args=[ticket.id]),
+            {"comment": "Unauthorized comment"},
+        )
+
+        assert response.status_code in (403, 404)
+
+
+class TestCreateTicketView:
+    """Tests for create_ticket view."""
+
+    def test_team_member_sees_form(self, blue_team_user, team1):
+        """Team member should see the ticket creation form."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("create_ticket"))
+
+        assert response.status_code == 200
+        assert b"category" in response.content.lower()
+
+    def test_admin_sees_team_selector(self, admin_user, team1):
+        """Admin should see team selector in the form."""
+        client = Client()
+        client.force_login(admin_user)
+
+        response = client.get(reverse("create_ticket"))
+
+        assert response.status_code == 200
+
+    def test_invalid_category_rejected(self, blue_team_user, team1):
+        """Invalid category should be rejected."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.post(
+            reverse("create_ticket"),
+            {
+                "category": "invalid-category",
+                "title": "Test",
+                "description": "Test",
+            },
+        )
+
+        assert response.status_code == 200
+        assert b"Invalid" in response.content or b"invalid" in response.content
+
+
+class TestOpsTicketListView:
+    """Tests for ops_ticket_list view."""
+
+    def test_ticketing_support_can_access(self, ticketing_support_user):
+        """Ticketing support should be able to access ops ticket list."""
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_list"))
+
+        assert response.status_code == 200
+
+    def test_blue_team_gets_forbidden(self, blue_team_user, team1):
+        """Blue team members should get 403 Forbidden."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ops_ticket_list"))
+
+        assert response.status_code == 403
+
+
+class TestOpsTicketClaimView:
+    """Tests for ops_ticket_claim view."""
+
+    def test_support_can_claim_ticket(self, ticketing_support_user, team1):
+        """Ticketing support should be able to claim an open ticket."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.post(reverse("ops_ticket_claim", args=[ticket.ticket_number]))
+
+        assert response.status_code == 302
+        ticket.refresh_from_db()
+        assert ticket.status == "claimed"
+
+    def test_blue_team_gets_forbidden(self, blue_team_user, team1):
+        """Blue team should get 403 when trying to claim."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.post(reverse("ops_ticket_claim", args=[ticket.ticket_number]))
+
+        assert response.status_code == 403
+        ticket.refresh_from_db()
+        assert ticket.status == "open"
+
+
+class TestHealthCheckView:
+    """Tests for health_check view."""
+
+    def test_health_check_returns_200(self):
+        """Health check should return 200 when database is healthy."""
+        client = Client()
+
+        response = client.get("/health/")
+
+        assert response.status_code == 200
+
+    def test_health_check_returns_json(self):
+        """Health check should return JSON response."""
+        client = Client()
+
+        response = client.get("/health/")
+
+        assert response["Content-Type"] == "application/json"
+
+    def test_health_check_no_auth_required(self):
+        """Health check should not require authentication."""
+        client = Client()
+
+        response = client.get("/health/")
+
+        # Should not redirect to login
+        assert response.status_code == 200
+
+
+class TestLinkInitiateView:
+    """Tests for link_initiate view."""
+
+    def test_missing_token_returns_400(self):
+        """Missing token parameter should return 400."""
+        client = Client()
+
+        response = client.get("/auth/link")
+
+        assert response.status_code == 400
+
+    def test_invalid_token_shows_error(self):
+        """Invalid token should show error page."""
+        client = Client()
+
+        response = client.get("/auth/link?token=invalid-token-12345")
+
+        assert response.status_code == 200
+        assert b"Invalid" in response.content or b"expired" in response.content
+
+
+class TestAttachmentViews:
+    """Tests for attachment upload/download views."""
+
+    def test_upload_requires_file(self, blue_team_user, team1):
+        """Upload without file should fail."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.post(reverse("ticket_attachment_upload", args=[ticket.id]))
+
+        assert response.status_code == 400
+
+    def test_download_nonexistent_attachment_fails(self, blue_team_user, team1):
+        """Downloading nonexistent attachment should return 404."""
+        ticket = Ticket.objects.create(
+            team=team1,
+            ticket_number="T001",
+            category="other",
+            title="Test Ticket",
+            status="open",
+        )
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ticket_attachment_download", args=[ticket.id, 99999]))
+
+        assert response.status_code == 404

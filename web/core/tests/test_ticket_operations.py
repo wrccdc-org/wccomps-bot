@@ -235,13 +235,14 @@ class TestOpsTicketClaim:
         assert open_ticket.assigned_to is not None
 
     def test_cannot_claim_already_claimed_ticket(self, ticketing_support_user, team_with_tickets):
-        """Cannot claim a ticket that's already claimed."""
+        """Cannot claim a ticket that's already claimed - redirects with error message."""
         team, tickets = team_with_tickets
         claimed_ticket = tickets[1]
         client = Client()
         client.force_login(ticketing_support_user)
         response = client.post(reverse("ops_ticket_claim", args=[claimed_ticket.ticket_number]))
-        assert response.status_code == 400
+        # Now redirects with flash message instead of returning 400
+        assert response.status_code == 302
 
 
 class TestOpsTicketUnclaim:
@@ -385,13 +386,14 @@ class TestOpsTicketReopen:
         assert resolved_ticket.status == "open"
 
     def test_cannot_reopen_non_resolved_ticket(self, ticketing_admin_user, team_with_tickets):
-        """Cannot reopen a ticket that's not resolved."""
+        """Cannot reopen a ticket that's not resolved - redirects with error message."""
         team, tickets = team_with_tickets
         open_ticket = tickets[0]
         client = Client()
         client.force_login(ticketing_admin_user)
         response = client.post(reverse("ops_ticket_reopen", args=[open_ticket.ticket_number]))
-        assert response.status_code == 400
+        # Now redirects with flash message instead of returning 400
+        assert response.status_code == 302
 
 
 class TestTicketHistoryCreation:

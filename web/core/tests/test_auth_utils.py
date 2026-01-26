@@ -11,6 +11,7 @@ from core.auth_utils import (
     PERMISSION_MAP,
     check_groups_for_permission,
     get_authentik_groups,
+    get_authentik_id,
     get_permissions_context,
     get_user_team_number,
     has_permission,
@@ -44,6 +45,26 @@ class TestGetAuthentikGroups:
         """Groups should be extracted from userinfo.groups."""
         groups = get_authentik_groups(admin_user)
         assert "WCComps_Discord_Admin" in groups
+
+
+class TestGetAuthentikId:
+    """Tests for get_authentik_id function."""
+
+    def test_user_without_usergroups_returns_none(self):
+        """User without UserGroups should return None."""
+        user = User.objects.create_user(username="no_usergroups", password="test")
+        authentik_id = get_authentik_id(user)
+        assert authentik_id is None
+
+    def test_user_with_usergroups_returns_id(self, blue_team_user):
+        """User with UserGroups should return their authentik_id."""
+        authentik_id = get_authentik_id(blue_team_user)
+        assert authentik_id == "blueteam01-uid"
+
+    def test_admin_user_returns_id(self, admin_user):
+        """Admin user should return their authentik_id."""
+        authentik_id = get_authentik_id(admin_user)
+        assert authentik_id == "admin-uid"
 
 
 class TestHasPermission:
