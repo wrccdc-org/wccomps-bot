@@ -110,13 +110,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         label="Source IP Type",
     )
 
-    # Multi-select for affected boxes (stored as JSON list)
-    affected_boxes = forms.MultipleChoiceField(
-        choices=[],
+    # Text field for affected boxes (stored as JSON list)
+    affected_boxes = forms.CharField(
         required=False,
-        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., web01, db01"}),
         label="Affected Boxes",
-        help_text="Select all boxes affected by this attack",
+        help_text="Enter box names separated by commas",
     )
 
     class Meta:
@@ -202,32 +201,18 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             pool_field.queryset = RedTeamIPPool.objects.none()
         pool_field.empty_label = "Select a pool..."
 
-        # Populate dropdowns from Quotient metadata
-        box_choices = get_box_choices()
-        service_choices = get_service_choices()
+        # Store choices for template to display as suggestions
+        self.box_choices = get_box_choices()
+        self.service_choices = get_service_choices()
 
-        # Populate affected_boxes multi-select
-        affected_boxes_field = cast("forms.MultipleChoiceField", self.fields["affected_boxes"])
-        if box_choices:
-            affected_boxes_field.choices = box_choices
-        else:
-            # No metadata - hide the field or show message
-            affected_boxes_field.help_text = "Quotient metadata not synced - no boxes available"
-
-        # Set initial value for affected_boxes if editing
+        # Set initial value for affected_boxes if editing (convert list to comma-separated)
         if self.instance and self.instance.pk and self.instance.affected_boxes:
-            self.initial["affected_boxes"] = self.instance.affected_boxes
+            self.initial["affected_boxes"] = ", ".join(self.instance.affected_boxes)
 
-        if service_choices:
-            self.fields["affected_service"].widget = forms.Select(
-                choices=[("", "Select a service...")] + service_choices, attrs={"class": "form-select"}
-            )
-        else:
-            # Fallback to text input if Quotient metadata not available
-            self.fields["affected_service"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP, DNS"}
-            )
-            self.fields["affected_service"].help_text = "Quotient metadata not synced - enter service name manually"
+        # Service is optional - use text input for flexibility (suggestions shown in template)
+        self.fields["affected_service"].widget = forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP, DNS"}
+        )
 
         # Only show active teams, limited by Quotient team count if available
         affected_teams_field = cast("forms.ModelMultipleChoiceField[Team]", self.fields["affected_teams"])
@@ -259,8 +244,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
     def save(self, commit: bool = True) -> RedTeamFinding:
         """Save the form, including the affected_boxes field and auto-calculated points."""
         instance = super().save(commit=False)
-        # Set affected_boxes from the multi-select field
-        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
+        # Parse comma-separated box names into list
+        boxes_str = self.cleaned_data.get("affected_boxes", "")
+        if boxes_str:
+            instance.affected_boxes = [b.strip() for b in boxes_str.split(",") if b.strip()]
+        else:
+            instance.affected_boxes = []
         # Auto-calculate points from outcome checkboxes
         instance.points_per_team = instance.calculate_points()
         if commit:
@@ -278,13 +267,12 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         label="Team",
     )
 
-    # Multi-select for affected boxes (stored as JSON list)
-    affected_boxes = forms.MultipleChoiceField(
-        choices=[],
+    # Text field for affected boxes (stored as JSON list)
+    affected_boxes = forms.CharField(
         required=False,
-        widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., web01, db01"}),
         label="Affected Boxes",
-        help_text="Select all boxes affected by this incident",
+        help_text="Enter box names separated by commas",
     )
 
     class Meta:
@@ -347,37 +335,29 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             # Hide team field for regular users
             del self.fields["team"]
 
-        # Populate dropdowns from Quotient metadata
-        box_choices = get_box_choices()
-
-        # Service is optional
+        # Service is optional - use text input for flexibility
         self.fields["affected_service"].required = False
+        self.fields["affected_service"].widget = forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP", "id": "id_affected_service"}
+        )
 
-        # Populate affected_boxes multi-select
-        affected_boxes_field = cast("forms.MultipleChoiceField", self.fields["affected_boxes"])
-        if box_choices:
-            affected_boxes_field.choices = box_choices
-            # Service starts empty, populated by JavaScript based on box selection
-            self.fields["affected_service"].widget = forms.Select(
-                choices=[("", "(select box first)")],
-                attrs={"class": "form-select", "id": "id_affected_service"},
-            )
-        else:
-            # No metadata - show message
-            affected_boxes_field.help_text = "Quotient metadata not synced - no boxes available"
-            self.fields["affected_service"].widget = forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP"}
-            )
+        # Store choices for template to display as suggestions
+        self.box_choices = get_box_choices()
+        self.service_choices = get_service_choices()
 
-        # Set initial value for affected_boxes if editing
+        # Set initial value for affected_boxes if editing (convert list to comma-separated)
         if self.instance and self.instance.pk and self.instance.affected_boxes:
-            self.initial["affected_boxes"] = self.instance.affected_boxes
+            self.initial["affected_boxes"] = ", ".join(self.instance.affected_boxes)
 
     def save(self, commit: bool = True) -> IncidentReport:
         """Save the form, including the affected_boxes field."""
         instance = super().save(commit=False)
-        # Set affected_boxes from the multi-select field
-        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
+        # Parse comma-separated box names into list
+        boxes_str = self.cleaned_data.get("affected_boxes", "")
+        if boxes_str:
+            instance.affected_boxes = [b.strip() for b in boxes_str.split(",") if b.strip()]
+        else:
+            instance.affected_boxes = []
         if commit:
             instance.save()
         return instance

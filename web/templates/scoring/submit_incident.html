@@ -19,29 +19,31 @@
                 </c-form_field>
                 {% endif %}
 
-                <div class="mb-15">
-                    <label class="form-label">{{ form.affected_boxes.label }}</label>
-                    {% if form.affected_boxes.help_text %}
-                        <div class="form-text mb-10">{{ form.affected_boxes.help_text }}</div>
-                    {% endif %}
-                    <div class="d-flex flex-wrap gap-10">
-                        {% for checkbox in form.affected_boxes %}
-                            <div class="form-check">
-                                {{ checkbox.tag }}
-                                <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
-                            </div>
-                        {% empty %}
-                            <span class="text-muted">No boxes available - sync Quotient metadata first</span>
-                        {% endfor %}
+                <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
+                    {{ form.affected_boxes }}
+                    {% if form.box_choices %}
+                    <div class="mt-10">
+                        <small class="text-muted">Quick add:</small>
+                        <div class="d-flex flex-wrap gap-5 mt-5">
+                            {% for value, label in form.box_choices %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary box-suggestion" data-box="{{ value }}">{{ label }}</button>
+                            {% endfor %}
+                        </div>
                     </div>
-                    {% if form.affected_boxes.errors %}
-                        <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
                     {% endif %}
-                </div>
+                </c-form_field>
 
                 <div class="grid-2">
                     <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" help_text="{{ form.affected_service.help_text }}" error="{{ form.affected_service.errors|join:', ' }}">
                         {{ form.affected_service }}
+                        {% if form.service_choices %}
+                        <div class="mt-5">
+                            <small class="text-muted">Quick add:</small>
+                            {% for value, label in form.service_choices %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary service-suggestion ms-5" data-service="{{ value }}">{{ label }}</button>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </c-form_field>
 
                     <c-form_field label="{{ form.destination_ip.label }}" required="true" :id="form.destination_ip.id_for_label" help_text="Auto-populated based on selected boxes" error="{{ form.destination_ip.errors|join:', ' }}">
@@ -131,50 +133,40 @@ function getSelectedTeamNumber() {
     return teamNumber;
 }
 
-function updateIPAndServices() {
-    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
-    const serviceSelect = document.getElementById('id_affected_service');
+function getBoxNames() {
+    const input = document.getElementById('id_affected_boxes');
+    if (!input || !input.value.trim()) return [];
+    return input.value.split(',').map(b => b.trim()).filter(b => b);
+}
+
+function updateIP() {
     const ipField = document.getElementById('id_destination_ip');
     const currentTeam = getSelectedTeamNumber();
+    const boxes = getBoxNames();
 
-    // Get first selected box for IP field (since destination_ip is a single value)
-    let firstBoxData = null;
-    if (boxCheckboxes.length > 0) {
-        const firstBoxName = boxCheckboxes[0].value;
-        firstBoxData = boxMetadata[firstBoxName];
-    }
-
-    // Update IP field based on first selected box
-    if (firstBoxData && ipField && currentTeam) {
+    // Get first box for IP field
+    if (boxes.length > 0 && boxMetadata[boxes[0]] && ipField && currentTeam) {
         const teamStr = currentTeam.toString().padStart(2, '0');
-        ipField.value = firstBoxData.ip.replace('_', teamStr);
+        ipField.value = boxMetadata[boxes[0]].ip.replace('_', teamStr);
     } else if (ipField) {
         ipField.value = '';
     }
+}
 
-    // Update service dropdown - combine services from all selected boxes
-    if (serviceSelect) {
-        const currentService = serviceSelect.value;
-        const allServices = new Set();
-        boxCheckboxes.forEach(function(checkbox) {
-            const boxData = boxMetadata[checkbox.value];
-            if (boxData && boxData.services) {
-                boxData.services.forEach(function(svc) {
-                    allServices.add(svc);
-                });
-            }
-        });
+function addBox(boxName) {
+    const input = document.getElementById('id_affected_boxes');
+    const boxes = getBoxNames();
+    if (!boxes.includes(boxName)) {
+        boxes.push(boxName);
+        input.value = boxes.join(', ');
+        updateIP();
+    }
+}
 
-        serviceSelect.innerHTML = '<option value="">-- None --</option>';
-        Array.from(allServices).sort().forEach(function(svc) {
-            const option = document.createElement('option');
-            option.value = svc;
-            option.textContent = svc;
-            if (svc === currentService) {
-                option.selected = true;
-            }
-            serviceSelect.appendChild(option);
-        });
+function setService(serviceName) {
+    const input = document.getElementById('id_affected_service');
+    if (input) {
+        input.value = serviceName;
     }
 }
 
@@ -203,21 +195,33 @@ function previewScreenshots(input) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]');
+    const boxInput = document.getElementById('id_affected_boxes');
     const teamSelect = document.getElementById('id_team');
 
-    boxCheckboxes.forEach(function(checkbox) {
-        checkbox.addEventListener('change', updateIPAndServices);
-    });
-
-    // Initial update if any boxes are pre-selected
-    const checkedBoxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
-    if (checkedBoxes.length > 0) {
-        updateIPAndServices();
+    // Update IP when box input changes
+    if (boxInput) {
+        boxInput.addEventListener('input', updateIP);
     }
 
+    // Handle quick-add box buttons
+    document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            addBox(this.dataset.box);
+        });
+    });
+
+    // Handle quick-add service buttons
+    document.querySelectorAll('.service-suggestion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            setService(this.dataset.service);
+        });
+    });
+
+    // Initial update
+    updateIP();
+
     if (teamSelect) {
-        teamSelect.addEventListener('change', updateIPAndServices);
+        teamSelect.addEventListener('change', updateIP);
     }
 });
 </script>

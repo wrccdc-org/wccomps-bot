@@ -56,31 +56,33 @@
 
                     <!-- Target Information Section -->
                     <c-fieldset legend="Target Information">
-                        <div class="mb-15">
-                            <label class="form-label">{{ form.affected_boxes.label }}</label>
-                            {% if form.affected_boxes.help_text %}
-                                <div class="form-text mb-10">{{ form.affected_boxes.help_text }}</div>
-                            {% endif %}
-                            <div class="d-flex flex-wrap gap-10">
-                                {% for checkbox in form.affected_boxes %}
-                                <div class="form-check">
-                                    {{ checkbox.tag }}
-                                    <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                        <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
+                            {{ form.affected_boxes }}
+                            {% if form.box_choices %}
+                            <div class="mt-10">
+                                <small class="text-muted">Quick add:</small>
+                                <div class="d-flex flex-wrap gap-5 mt-5">
+                                    {% for value, label in form.box_choices %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary box-suggestion" data-box="{{ value }}">{{ label }}</button>
+                                    {% endfor %}
                                 </div>
-                                {% empty %}
-                                <span class="text-muted">No boxes available - sync Quotient metadata first</span>
-                                {% endfor %}
                             </div>
-                            {% if form.affected_boxes.errors %}
-                                <div class="text-danger mt-5">{{ form.affected_boxes.errors|join:', ' }}</div>
                             {% endif %}
                             <div id="selectedIps" class="text-muted mt-10 d-none">
                                 Target IPs: <span id="ipList"></span>
                             </div>
-                        </div>
+                        </c-form_field>
 
                         <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
                             {{ form.affected_service }}
+                            {% if form.service_choices %}
+                            <div class="mt-5">
+                                <small class="text-muted">Quick add:</small>
+                                {% for value, label in form.service_choices %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary service-suggestion ms-5" data-service="{{ value }}">{{ label }}</button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </c-form_field>
 
                         <!-- Hidden field to store destination IPs for form submission -->
@@ -469,33 +471,45 @@ function deselectAllTeams() {
     updateSelectedCount();
 }
 
-// Get selected boxes from checkboxes
-function getSelectedBoxes() {
-    const checkboxes = document.querySelectorAll('input[name="affected_boxes"]:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
+// Get box names from comma-separated text input
+function getBoxNames() {
+    const input = document.getElementById('id_affected_boxes');
+    if (!input || !input.value.trim()) return [];
+    return input.value.split(',').map(b => b.trim()).filter(b => b);
 }
 
-// Auto-populate destination IP display and services based on selected boxes
+// Add a box to the text input
+function addBox(boxName) {
+    const input = document.getElementById('id_affected_boxes');
+    const boxes = getBoxNames();
+    if (!boxes.includes(boxName)) {
+        boxes.push(boxName);
+        input.value = boxes.join(', ');
+        updateIPAndServices();
+    }
+}
+
+// Set the service field
+function setService(serviceName) {
+    const input = document.getElementById('{{ form.affected_service.id_for_label }}');
+    if (input) {
+        input.value = serviceName;
+    }
+}
+
+// Auto-populate destination IP display based on entered boxes
 function updateIPAndServices() {
-    const selectedBoxes = getSelectedBoxes();
-    const serviceSelect = document.getElementById('{{ form.affected_service.id_for_label }}');
+    const boxNames = getBoxNames();
     const ipTemplate = document.getElementById('id_destination_ip_template');
     const selectedIpsDiv = document.getElementById('selectedIps');
     const ipListSpan = document.getElementById('ipList');
 
-    // Collect all unique IPs and services from selected boxes
+    // Collect IPs from known boxes
     const ipTemplates = [];
-    const allServices = new Set();
-
-    selectedBoxes.forEach(boxName => {
+    boxNames.forEach(boxName => {
         const boxData = boxMetadata[boxName];
-        if (boxData) {
-            if (boxData.ip) {
-                ipTemplates.push(boxData.ip);
-            }
-            if (boxData.services) {
-                boxData.services.forEach(svc => allServices.add(svc));
-            }
+        if (boxData && boxData.ip) {
+            ipTemplates.push(boxData.ip);
         }
     });
 
@@ -510,21 +524,6 @@ function updateIPAndServices() {
         } else {
             selectedIpsDiv.classList.add('d-none');
         }
-    }
-
-    // Update service dropdown with combined services from all selected boxes
-    if (serviceSelect) {
-        const currentService = serviceSelect.value;
-        serviceSelect.innerHTML = '<option value="">Select a service...</option>';
-        Array.from(allServices).sort().forEach(function(svc) {
-            const option = document.createElement('option');
-            option.value = svc;
-            option.textContent = svc;
-            if (svc === currentService) {
-                option.selected = true;
-            }
-            serviceSelect.appendChild(option);
-        });
     }
 }
 
@@ -618,13 +617,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update selected count on page load
     updateSelectedCount();
 
-    // Setup box checkbox handlers for auto-populating IP and services
-    const boxCheckboxes = document.querySelectorAll('input[name="affected_boxes"]');
-    boxCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateIPAndServices);
+    // Setup box text input handler for auto-populating IP
+    const boxInput = document.getElementById('id_affected_boxes');
+    if (boxInput) {
+        boxInput.addEventListener('input', updateIPAndServices);
+    }
+
+    // Handle quick-add box buttons
+    document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            addBox(this.dataset.box);
+        });
     });
-    // Initialize on page load if any boxes already selected
-    if (getSelectedBoxes().length > 0) {
+
+    // Handle quick-add service buttons
+    document.querySelectorAll('.service-suggestion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            setService(this.dataset.service);
+        });
+    });
+
+    // Initialize on page load if any boxes already entered
+    if (getBoxNames().length > 0) {
         updateIPAndServices();
     }
 });
