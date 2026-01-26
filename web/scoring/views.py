@@ -896,7 +896,7 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
 
 
 @login_required
-@require_role("orange_team", error_message="Only Orange Team members can access this page")
+@require_role("orange_team", "gold_team", error_message="Only Orange Team or Gold Team members can access this page")
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
     """Orange team portal - list user's own submitted bonuses."""
     user = cast(User, request.user)
