@@ -25,7 +25,6 @@ dependencies = [
     "xkcdpass>=1.19.9",
     "django-smart-ratelimit>=0.8.11",
     "httpx>=0.28.1",
-    "pyotp>=2.9.0",
     "weasyprint>=67.0",
 ]
 
@@ -59,13 +58,14 @@ dev = [
     "pytest-cov>=7.0.0",
     "vulture>=2.14",
     "radon>=6.0.1",
+    "pyotp>=2.9.0",
 ]
 
 [tool.mypy]
 python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 mypy_path = "web"
-files = ["bot", "web/core", "web/team", "web/ticketing", "web/person", "web/competition", "web/quotient", "web/wccomps", "web/scoring", "web/packets", "web/registration"]
+files = ["bot", "web/core", "web/team", "web/ticketing", "web/quotient", "web/wccomps", "web/scoring", "web/packets", "web/registration"]
 exclude = "(/tests/|/test_|tests\\.py|integration_tests/|conftest\\.py)"
 
 # Strict type checking

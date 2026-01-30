@@ -395,7 +395,7 @@ class TicketingCog(commands.Cog):
                     )
 
     @commands.Cog.listener()
-    async def on_message_edit(self, before: discord.Message, after: discord.Message) -> None:
+    async def on_message_edit(self, _before: discord.Message, after: discord.Message) -> None:
         """Sync message edits to TicketComment."""
         # Ignore bot messages
         if after.author.bot:
