@@ -1,11 +1,15 @@
 """Middleware to enforce Authentik authentication on all pages."""
 
+import logging
+import time
 from collections.abc import Callable
 from urllib.parse import quote
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
+
+logger = logging.getLogger("wccomps.access")
 
 
 class SubdomainRedirectMiddleware:
@@ -54,3 +58,33 @@ class AuthentikRequiredMiddleware:
             return redirect(f"/auth/login/?next={safe_next}")
 
         return self.get_response(request)
+
+
+class AccessLoggingMiddleware:
+    """Log all requests with username and response status."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        # Skip static files
+        if request.path.startswith("/static/"):
+            return self.get_response(request)
+
+        start_time = time.time()
+        response = self.get_response(request)
+        duration_ms = (time.time() - start_time) * 1000
+
+        username = request.user.username if request.user.is_authenticated else "-"
+        logger.info(
+            '%s %s %s "%s %s" %d %.0fms',
+            request.META.get("REMOTE_ADDR", "-"),
+            username,
+            request.META.get("HTTP_HOST", "-"),
+            request.method,
+            request.path,
+            response.status_code,
+            duration_ms,
+        )
+
+        return response

@@ -93,6 +93,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SubdomainRedirectMiddleware",
     "core.middleware.AuthentikRequiredMiddleware",
+    "core.middleware.AccessLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "wccomps.urls"
@@ -343,6 +344,11 @@ LOGGING = {
         "django.request": {
             "handlers": ["console"],
             "level": "ERROR",
+            "propagate": False,
+        },
+        "wccomps.access": {
+            "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
         },
     },
