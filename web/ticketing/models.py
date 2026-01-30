@@ -1,6 +1,9 @@
 """Ticketing system models."""
 
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
 
 
 class Ticket(models.Model):
@@ -180,10 +183,6 @@ class CommentRateLimit(models.Model):
 
         Returns: (is_allowed, reason_if_blocked)
         """
-        from datetime import timedelta
-
-        from django.utils import timezone
-
         one_minute_ago = timezone.now() - timedelta(minutes=1)
 
         # Check ticket-level rate limit (5 comments per minute)
