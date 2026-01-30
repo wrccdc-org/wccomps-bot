@@ -832,6 +832,19 @@ Defined in `templates/scoring/base.html`:
 | Configuration | `is_admin` |
 | Export Data | `is_admin` |
 
+### Landing Pages (Home Redirect)
+
+When users access `/` or complete OAuth login, they are redirected based on role priority:
+
+| Priority | Role Check | Destination |
+|----------|------------|-------------|
+| 1 | Red Team | `/scoring/red-team/submit/` |
+| 2 | Orange Team | `/scoring/orange-team/` |
+| 3 | Blue Team | `/tickets/` (team ticket list) |
+| 4 | Ticketing Support, Ticketing Admin, or System Admin | `/ops/tickets/` |
+| 5 | Gold Team | `/scoring/leaderboard/` |
+| 6 | Fallback (all others) | `/scoring/leaderboard/` |
+
 ---
 
 ## Authentik Group Summary
