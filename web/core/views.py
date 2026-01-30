@@ -72,7 +72,11 @@ def home(request: HttpRequest) -> HttpResponse:
         return redirect("scoring:orange_team_portal")
     if is_team:
         return redirect("team_tickets")
-    if has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin"):
+    if (
+        has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+        or has_permission(user, "admin")
+    ):
         return redirect("ops_ticket_list")
     if has_permission(user, "gold_team"):
         return redirect("scoring:leaderboard")
