@@ -116,8 +116,10 @@ def _get_user_team(user: User) -> Team | None:
 def require_leaderboard_access[**P](
     view_func: Callable[Concatenate[HttpRequest, P], HttpResponse],
 ) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
-    """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin."""
-    from django.http import HttpResponseForbidden
+    """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin.
+
+    Redirects Red Team and Orange Team to their respective portals.
+    """
 
     @wraps(view_func)
     def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
@@ -132,6 +134,13 @@ def require_leaderboard_access[**P](
             or has_permission(user, "ticketing_admin")
         ):
             return view_func(request, *args, **kwargs)
+
+        # Redirect team-specific users to their portals
+        if has_permission(user, "red_team"):
+            return redirect("scoring:red_team_findings")
+
+        if has_permission(user, "orange_team"):
+            return redirect("scoring:orange_team_portal")
 
         return HttpResponseForbidden("You do not have permission to access this page")
 
