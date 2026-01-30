@@ -336,3 +336,189 @@ class TestAuthentikManager:
             call_args = mock_update.call_args
             assert call_args[0][0] == {"pk": "binding-456", "enabled": True}
             assert call_args[1]["enabled"] is False
+
+    def test_enable_applications_all_success(self, manager: AuthentikManager) -> None:
+        """Test enabling multiple applications successfully."""
+        with patch.object(manager, "enable_application") as mock_enable:
+            mock_enable.return_value = (True, None)
+
+            results = manager.enable_applications(["app1", "app2", "app3"])
+
+            assert len(results) == 3
+            assert all(success for success, _ in results.values())
+            assert mock_enable.call_count == 3
+
+    def test_enable_applications_partial_failure(self, manager: AuthentikManager) -> None:
+        """Test enabling multiple applications with some failures."""
+        with patch.object(manager, "enable_application") as mock_enable:
+            mock_enable.side_effect = [
+                (True, None),
+                (False, "App not found"),
+                (True, None),
+            ]
+
+            results = manager.enable_applications(["app1", "app2", "app3"])
+
+            assert results["app1"] == (True, None)
+            assert results["app2"] == (False, "App not found")
+            assert results["app3"] == (True, None)
+
+    def test_enable_applications_empty_list(self, manager: AuthentikManager) -> None:
+        """Test enabling empty list of applications."""
+        results = manager.enable_applications([])
+
+        assert results == {}
+
+    def test_disable_applications_all_success(self, manager: AuthentikManager) -> None:
+        """Test disabling multiple applications successfully."""
+        with patch.object(manager, "disable_application") as mock_disable:
+            mock_disable.return_value = (True, None)
+
+            results = manager.disable_applications(["app1", "app2"])
+
+            assert len(results) == 2
+            assert all(success for success, _ in results.values())
+            assert mock_disable.call_count == 2
+
+    def test_disable_applications_partial_failure(self, manager: AuthentikManager) -> None:
+        """Test disabling multiple applications with some failures."""
+        with patch.object(manager, "disable_application") as mock_disable:
+            mock_disable.side_effect = [
+                (False, "Binding not found"),
+                (True, None),
+            ]
+
+            results = manager.disable_applications(["app1", "app2"])
+
+            assert results["app1"] == (False, "Binding not found")
+            assert results["app2"] == (True, None)
+
+    def test_update_user_discord_id_success(self, manager: AuthentikManager) -> None:
+        """Test successfully updating user's Discord ID."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+
+        with patch("requests.patch", return_value=mock_response) as mock_patch:
+            result = manager.update_user_discord_id("user-123", 123456789)
+
+            assert result is True
+            mock_patch.assert_called_once()
+            call_args = mock_patch.call_args
+            assert "user-123" in call_args[0][0]
+            assert call_args[1]["json"]["attributes"]["discord_id"] == "123456789"
+
+    def test_update_user_discord_id_failure(self, manager: AuthentikManager) -> None:
+        """Test handling failure when updating Discord ID."""
+        with patch(
+            "requests.patch",
+            side_effect=requests.exceptions.ConnectionError("Network error"),
+        ):
+            result = manager.update_user_discord_id("user-123", 123456789)
+
+            assert result is False
+
+    def test_revoke_user_sessions_success(self, manager: AuthentikManager) -> None:
+        """Test successfully revoking user sessions."""
+        mock_user_response = Mock()
+        mock_user_response.json.return_value = {"results": [{"pk": 42}]}
+        mock_user_response.raise_for_status = Mock()
+
+        mock_sessions_response = Mock()
+        mock_sessions_response.json.return_value = {
+            "results": [
+                {"uuid": "session-1"},
+                {"uuid": "session-2"},
+            ]
+        }
+        mock_sessions_response.raise_for_status = Mock()
+
+        mock_delete_response = Mock()
+        mock_delete_response.raise_for_status = Mock()
+
+        with (
+            patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]),
+            patch("requests.delete", return_value=mock_delete_response) as mock_delete,
+        ):
+            success, error, count = manager.revoke_user_sessions("team01")
+
+            assert success is True
+            assert error is None
+            assert count == 2
+            assert mock_delete.call_count == 2
+
+    def test_revoke_user_sessions_user_not_found(self, manager: AuthentikManager) -> None:
+        """Test revoking sessions for non-existent user."""
+        mock_response = Mock()
+        mock_response.json.return_value = {"results": []}
+        mock_response.raise_for_status = Mock()
+
+        with patch("requests.get", return_value=mock_response):
+            success, error, count = manager.revoke_user_sessions("nonexistent")
+
+            assert success is False
+            assert "not found" in error
+            assert count == 0
+
+    def test_revoke_user_sessions_no_sessions(self, manager: AuthentikManager) -> None:
+        """Test revoking sessions when user has none."""
+        mock_user_response = Mock()
+        mock_user_response.json.return_value = {"results": [{"pk": 42}]}
+        mock_user_response.raise_for_status = Mock()
+
+        mock_sessions_response = Mock()
+        mock_sessions_response.json.return_value = {"results": []}
+        mock_sessions_response.raise_for_status = Mock()
+
+        with patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]):
+            success, error, count = manager.revoke_user_sessions("team01")
+
+            assert success is True
+            assert error is None
+            assert count == 0
+
+    def test_revoke_user_sessions_network_error(self, manager: AuthentikManager) -> None:
+        """Test handling network error during session revocation."""
+        with patch(
+            "requests.get",
+            side_effect=requests.exceptions.ConnectionError("Network error"),
+        ):
+            success, error, count = manager.revoke_user_sessions("team01")
+
+            assert success is False
+            assert "Network error" in error
+            assert count == 0
+
+    def test_revoke_user_sessions_partial_failure(self, manager: AuthentikManager) -> None:
+        """Test partial failure when revoking some sessions."""
+        mock_user_response = Mock()
+        mock_user_response.json.return_value = {"results": [{"pk": 42}]}
+        mock_user_response.raise_for_status = Mock()
+
+        mock_sessions_response = Mock()
+        mock_sessions_response.json.return_value = {
+            "results": [
+                {"uuid": "session-1"},
+                {"uuid": "session-2"},
+                {"uuid": "session-3"},
+            ]
+        }
+        mock_sessions_response.raise_for_status = Mock()
+
+        mock_delete_success = Mock()
+        mock_delete_success.raise_for_status = Mock()
+
+        mock_delete_fail = Mock()
+        mock_delete_fail.raise_for_status = Mock(side_effect=requests.exceptions.HTTPError("Delete failed"))
+
+        with (
+            patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]),
+            patch(
+                "requests.delete",
+                side_effect=[mock_delete_success, Exception("Delete failed"), mock_delete_success],
+            ),
+        ):
+            success, error, count = manager.revoke_user_sessions("team01")
+
+            assert success is True
+            assert error is None
+            assert count == 2  # 2 succeeded, 1 failed
