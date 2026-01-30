@@ -203,8 +203,8 @@ class TestProcessRedTeamSubmission:
         assert result.finding.submitted_by == users["red1"]
         assert users["red1"] in result.finding.contributors.all()
 
-    def test_merges_duplicate_submission(self, teams, users, attack_type):
-        """Merges submission when duplicate found."""
+    def test_duplicate_submission_creates_new_finding(self, teams, users, attack_type):
+        """Duplicate submissions create separate findings (deduplication disabled)."""
         # First submission
         result1 = process_red_team_submission(
             attack_type=attack_type,
@@ -216,7 +216,7 @@ class TestProcessRedTeamSubmission:
         )
         assert result1.status == "created"
 
-        # Duplicate submission
+        # Second submission with same criteria creates new finding
         result2 = process_red_team_submission(
             attack_type=attack_type,
             boxes=["Web Server"],
@@ -225,15 +225,13 @@ class TestProcessRedTeamSubmission:
             source_ip_pool=None,
             submitter=users["red2"],
         )
-        assert result2.status == "merged"
-        assert result2.finding == result1.finding
-        assert result2.ips_merged is True
-        assert users["red2"] in result2.finding.contributors.all()
+        assert result2.status == "created"
+        assert result2.finding != result1.finding  # Different findings
 
-    def test_partial_merge_adds_new_teams(self, teams, users, attack_type):
-        """Adds new teams when submission partially overlaps."""
+    def test_overlapping_teams_creates_new_finding(self, teams, users, attack_type):
+        """Overlapping team submissions create separate findings (deduplication disabled)."""
         # First submission for team 1
-        process_red_team_submission(
+        result1 = process_red_team_submission(
             attack_type=attack_type,
             boxes=["Web Server"],
             teams=[teams[0]],
@@ -242,7 +240,7 @@ class TestProcessRedTeamSubmission:
             submitter=users["red1"],
         )
 
-        # Second submission for teams 1 and 2
+        # Second submission for teams 1 and 2 creates new finding
         result2 = process_red_team_submission(
             attack_type=attack_type,
             boxes=["Web Server"],
@@ -251,8 +249,8 @@ class TestProcessRedTeamSubmission:
             source_ip_pool=None,
             submitter=users["red2"],
         )
-        assert result2.status == "partial_merge"
-        assert result2.teams_added == [teams[1]]
+        assert result2.status == "created"
+        assert result2.finding != result1.finding
         assert result2.finding.affected_teams.count() == 2
 
     def test_creates_finding_with_outcomes(self, teams, users, attack_type):

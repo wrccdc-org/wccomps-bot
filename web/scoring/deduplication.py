@@ -172,71 +172,11 @@ def process_red_team_submission(
     """
     teams_list = list(teams)
 
-    # Check for duplicate
-    existing_finding, uncovered_teams = find_duplicate_finding(
-        attack_type=attack_type,
-        boxes=boxes,
-        teams=teams_list,
-    )
+    # NOTE: Automatic deduplication disabled - always create new findings
+    # The find_duplicate_finding() and merge logic has been removed.
+    # Red team members can manually mark findings as duplicates if needed.
 
-    if existing_finding:
-        # Merge into existing finding
-        ips_merged = merge_source_ips(existing_finding, source_ip, source_ip_pool)
-
-        # Add contributor
-        existing_finding.contributors.add(submitter)
-
-        # Add any new teams
-        teams_added = list(uncovered_teams)
-        if teams_added:
-            existing_finding.affected_teams.add(*teams_added)
-
-        # Append notes if provided
-        if notes:
-            if existing_finding.notes:
-                existing_finding.notes += f"\n\n[{submitter.username}]: {notes}"
-            else:
-                existing_finding.notes = f"[{submitter.username}]: {notes}"
-            existing_finding.save()
-
-        # Determine message
-        if teams_added and ips_merged:
-            message = (
-                f"Combined with existing finding #{existing_finding.id}. "
-                f"Teams {', '.join(t.team_name for t in teams_added)} added. "
-                f"Your IP(s) were merged."
-            )
-            status = "partial_merge"
-        elif teams_added:
-            message = (
-                f"Combined with existing finding #{existing_finding.id}. "
-                f"Teams {', '.join(t.team_name for t in teams_added)} added."
-            )
-            status = "partial_merge"
-        elif ips_merged:
-            message = (
-                f"This attack was already submitted (Finding #{existing_finding.id} "
-                f"by {existing_finding.submitted_by.username if existing_finding.submitted_by else 'unknown'}). "
-                f"Your IP(s) were added."
-            )
-            status = "merged"
-        else:
-            message = (
-                f"This attack was already submitted (Finding #{existing_finding.id} "
-                f"by {existing_finding.submitted_by.username if existing_finding.submitted_by else 'unknown'})."
-            )
-            status = "merged"
-
-        return SubmissionResult(
-            status=status,
-            finding=existing_finding,
-            message=message,
-            teams_added=teams_added,
-            original_submitter=existing_finding.submitted_by,
-            ips_merged=ips_merged,
-        )
-
-    # No duplicate - create new finding
+    # Create new finding
     outcome_fields = {}
     if outcomes:
         outcome_fields = {
