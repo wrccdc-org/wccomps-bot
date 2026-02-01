@@ -690,6 +690,59 @@ class AdminCompetitionCog(commands.Cog):
         await interaction.followup.send(result_msg, ephemeral=True)
 
     @competition_group.command(
+        name="stop-competition",
+        description="[ADMIN] Stop the competition (disable applications and accounts)",
+    )
+    @app_commands.check(check_admin)
+    async def admin_stop_competition(self, interaction: discord.Interaction) -> None:
+        """Stop the competition by disabling applications and Authentik accounts."""
+        from bot.competition_actions import stop_competition, update_status_channel
+
+        await interaction.response.defer(ephemeral=True)
+
+        result = await stop_competition()
+
+        if not result["success"]:
+            await interaction.followup.send(f"Error: {result.get('error', 'Unknown error')}", ephemeral=True)
+            return
+
+        # Create audit log
+        await AuditLog.objects.acreate(
+            action="competition_stopped",
+            admin_user=str(interaction.user),
+            target_entity="competition_config",
+            target_id=0,
+            details={
+                "apps_disabled": len(result["apps_disabled"]),
+                "apps_failed": len(result["apps_failed"]),
+                "accounts_disabled": result["accounts_disabled"],
+                "accounts_failed": result["accounts_failed"],
+            },
+        )
+
+        # Build result message
+        result_msg = "**Competition Stopped!**\n\n"
+        result_msg += f"Applications disabled: {len(result['apps_disabled'])}/{len(result['controlled_apps'])}\n"
+        if result["apps_disabled"]:
+            result_msg += f"✓ Disabled: {', '.join(result['apps_disabled'])}\n"
+        if result["apps_failed"]:
+            result_msg += "\n✗ **Failed Applications:**\n"
+            for app, error in result["apps_failed"]:
+                result_msg += f"  • {app}: {error}\n"
+
+        result_msg += f"\nAccounts disabled: {result['accounts_disabled']}"
+        if result["accounts_failed"] > 0:
+            result_msg += f" ({result['accounts_failed']} failed)"
+
+        # Log to ops channel
+        await log_to_ops_channel(self.bot, f"Competition Stopped by {interaction.user.mention}\n{result_msg}")
+
+        # Update status channel
+        await update_status_channel(self.bot)
+
+        await interaction.followup.send(result_msg, ephemeral=True)
+
+    @competition_group.command(
         name="set-apps",
         description="[ADMIN] Set which Authentik applications to control",
     )
