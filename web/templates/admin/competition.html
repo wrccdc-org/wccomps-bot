@@ -7,138 +7,143 @@
 <div x-data="competitionAdmin()">
     <c-page_header title="Competition Management" />
 
-    <!-- Competition Status Banner (matches Discord status channel) -->
-    <c-alert variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}error{% endif %}" class="mb-20">
+    <!-- Status Banner -->
+    <c-alert variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}warning{% endif %}" class="mb-20">
         <div class="d-flex items-center gap-15 mb-10">
-            <strong style="font-size: 18px;">Competition Status</strong>
-            <c-badge variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}danger{% endif %}">
+            <strong class="text-lg">Competition Status</strong>
+            <c-badge variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}warning{% endif %}">
                 {% if config.applications_enabled %}RUNNING{% elif config.competition_start_time %}SCHEDULED{% else %}STOPPED{% endif %}
             </c-badge>
         </div>
-        <c-detail_grid>
-            <c-detail_row label="Team Accounts">{% if config.applications_enabled %}Enabled{% else %}Disabled{% endif %} (50 teams)</c-detail_row>
+        <div class="text-sm">
+            <strong>Team Accounts:</strong> {% if config.applications_enabled %}Enabled{% else %}Disabled{% endif %} (50 teams)
             {% if config.controlled_applications %}
-            <c-detail_row label="Controlled Applications">{{ config.controlled_applications|join:", " }}</c-detail_row>
+            &nbsp;&bull;&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|join:", " }}
             {% endif %}
             {% if config.competition_start_time %}
-            <c-detail_row label="Scheduled Start">
-                <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')" x-text="formatted"></span>
-            </c-detail_row>
+            &nbsp;&bull;&nbsp; <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')" x-text="formatted"></span>
             {% endif %}
             {% if config.competition_end_time %}
-            <c-detail_row label="Scheduled End">
-                <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')" x-text="formatted"></span>
-            </c-detail_row>
+            &nbsp;&bull;&nbsp; <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')" x-text="formatted"></span>
             {% endif %}
-        </c-detail_grid>
+        </div>
     </c-alert>
 
-    <div class="d-flex gap-20 flex-wrap">
-        <c-module style="flex: 1; min-width: 300px;">
-            <c-slot name="title">Team Statistics</c-slot>
-            <c-detail_grid>
-                <c-detail_row label="Active Teams">{{ active_teams }}/{{ total_teams }}</c-detail_row>
-                <c-detail_row label="Linked Users">{{ linked_users }}</c-detail_row>
-                <c-detail_row label="Max Team Members">{{ config.max_team_members }}</c-detail_row>
-            </c-detail_grid>
-        </c-module>
-
-        <c-module style="flex: 0 0 auto; min-width: 250px;">
-            <c-slot name="title">Quick Actions</c-slot>
-            <div class="d-flex flex-column gap-10">
-                <c-button variant="success" class="w-full" @click="startCompetition()" ::disabled="loading">
-                    Start Competition
-                </c-button>
-                <c-button variant="warning" class="w-full" @click="stopCompetition()" ::disabled="loading">
-                    Stop Competition
-                </c-button>
-                <c-button variant="danger" class="w-full" @click="cleanupCompetition()" ::disabled="loading">
-                    Cleanup Competition
-                </c-button>
-                <c-button variant="default" class="w-full mt-10" @click="syncQuotient()" ::disabled="loading">
-                    Sync Quotient Metadata
-                </c-button>
-                <hr class="mt-10 mb-5" style="border-color: var(--color-border);">
-                <c-button variant="danger" class="w-full" @click="wipeCompetition()" ::disabled="loading" style="background: #8b0000;">
-                    ☢️ Wipe All Data
-                </c-button>
+    <!-- Section 1: Pre-Competition Setup -->
+    <c-fieldset heading="Pre-Competition Setup" class="mb-20">
+        <div class="grid-2 mb-20">
+            <!-- Team Configuration -->
+            <div>
+                <h3 class="mt-0 mb-10">Team Configuration</h3>
+                <form @submit.prevent="setMaxMembers()" class="d-flex gap-10 items-end mb-15">
+                    <c-form_field label="Max Team Members" id="max_members" style="flex: 1;">
+                        <input type="number" name="max_members" id="max_members" x-model="maxMembers" min="1" max="20" class="vTextField">
+                    </c-form_field>
+                    <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
+                </form>
+                <form @submit.prevent="setApps()" class="d-flex gap-10 items-end">
+                    <c-form_field label="Controlled Apps" id="app_slugs" style="flex: 1;">
+                        <input type="text" name="app_slugs" id="app_slugs" x-model="appSlugs" placeholder="netbird,scoring" class="vTextField">
+                    </c-form_field>
+                    <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
+                </form>
+                <p class="help-text mt-10">
+                    <strong>{{ active_teams }}/{{ total_teams }}</strong> teams active &bull;
+                    <strong>{{ linked_users }}</strong> users linked &bull;
+                    <strong>{{ config.max_team_members }}</strong> max members
+                </p>
             </div>
-        </c-module>
-    </div>
 
-    <div class="d-flex gap-20 flex-wrap mt-20">
-        <c-module style="flex: 1; min-width: 300px;">
-            <c-slot name="title">Configuration</c-slot>
-            <form @submit.prevent="setMaxMembers()" class="d-flex gap-10 items-end">
-                <c-form_field label="Max Team Members" id="max_members" style="flex: 1;">
-                    <input type="number" name="max_members" id="max_members" x-model="maxMembers" min="1" max="20">
-                </c-form_field>
-                <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
-            </form>
-
-            <form @submit.prevent="setApps()" class="d-flex gap-10 items-end mt-15">
-                <c-form_field label="Controlled Apps (comma-separated)" id="app_slugs" style="flex: 1;">
-                    <input type="text" name="app_slugs" id="app_slugs" x-model="appSlugs" placeholder="netbird,scoring">
-                </c-form_field>
-                <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
-            </form>
-        </c-module>
-
-        <c-module style="flex: 1; min-width: 300px;">
-            <c-slot name="title">Schedule Competition</c-slot>
-            <form @submit.prevent="setStartTime()">
-                <div class="d-flex gap-10 items-end">
+            <!-- Schedule -->
+            <div>
+                <h3 class="mt-0 mb-10">Schedule</h3>
+                <form @submit.prevent="setStartTime()" class="d-flex gap-10 items-end mb-15">
                     <c-form_field label="Start Time" id="start_datetime" style="flex: 1;">
-                        <input type="datetime-local" name="start_datetime" id="start_datetime" x-model="startDatetime">
+                        <input type="datetime-local" name="start_datetime" id="start_datetime" x-model="startDatetime" class="vTextField">
                     </c-form_field>
-                    <c-form_field label="Timezone" id="start_timezone">
-                        <select name="start_timezone" id="start_timezone" x-model="startTimezone">
+                    <c-form_field label="TZ" id="start_timezone">
+                        <select name="start_timezone" id="start_timezone" x-model="startTimezone" class="vTextField">
                             {% for value, label in timezone_choices %}
                             <option value="{{ value }}">{{ label }}</option>
                             {% endfor %}
                         </select>
                     </c-form_field>
                     <c-button type="submit" variant="default" ::disabled="loading">Set</c-button>
-                </div>
-            </form>
-
-            <form @submit.prevent="setEndTime()" class="mt-15">
-                <div class="d-flex gap-10 items-end">
+                </form>
+                <form @submit.prevent="setEndTime()" class="d-flex gap-10 items-end">
                     <c-form_field label="End Time" id="end_datetime" style="flex: 1;">
-                        <input type="datetime-local" name="end_datetime" id="end_datetime" x-model="endDatetime">
+                        <input type="datetime-local" name="end_datetime" id="end_datetime" x-model="endDatetime" class="vTextField">
                     </c-form_field>
-                    <c-form_field label="Timezone" id="end_timezone">
-                        <select name="end_timezone" id="end_timezone" x-model="endTimezone">
+                    <c-form_field label="TZ" id="end_timezone">
+                        <select name="end_timezone" id="end_timezone" x-model="endTimezone" class="vTextField">
                             {% for value, label in timezone_choices %}
                             <option value="{{ value }}">{{ label }}</option>
                             {% endfor %}
                         </select>
                     </c-form_field>
                     <c-button type="submit" variant="default" ::disabled="loading">Set</c-button>
-                </div>
+                </form>
+            </div>
+        </div>
+    </c-fieldset>
+
+    <!-- Section 2: Competition Controls -->
+    <c-fieldset heading="Competition Controls" class="mb-20">
+        <div class="d-flex gap-15 flex-wrap">
+            <c-button variant="success" @click="startCompetition()" ::disabled="loading">
+                Start Competition
+            </c-button>
+            <c-button variant="warning" @click="stopCompetition()" ::disabled="loading">
+                Stop Competition
+            </c-button>
+            <c-button variant="default" @click="syncQuotient()" ::disabled="loading">
+                Sync Quotient Metadata
+            </c-button>
+        </div>
+    </c-fieldset>
+
+    <!-- Section 3: Post-Competition -->
+    <c-fieldset heading="Post-Competition" class="mb-20">
+        <!-- Password Reset -->
+        <div class="mb-20">
+            <h3 class="mt-0 mb-10">Password Management</h3>
+            <form @submit.prevent="resetPasswords()" class="d-flex gap-10 items-end" style="max-width: 500px;">
+                <c-form_field label="Team Numbers" id="team_numbers" style="flex: 1;">
+                    <input type="text" name="team_numbers" id="team_numbers" x-model="teamNumbers" placeholder="1,3,5-10 (empty = all)" class="vTextField">
+                </c-form_field>
+                <c-button type="submit" variant="warning" ::disabled="loading">Reset Passwords</c-button>
             </form>
-        </c-module>
-    </div>
+            <p class="help-text mt-5">Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.</p>
 
-    <c-module class="mt-20">
-        <c-slot name="title">Password Management</c-slot>
-        <form @submit.prevent="resetPasswords()" class="d-flex gap-10 items-end" style="max-width: 500px;">
-            <c-form_field label="Team Numbers" help_text="Leave empty to reset all 50 teams" id="team_numbers" style="flex: 1;">
-                <input type="text" name="team_numbers" id="team_numbers" x-model="teamNumbers" placeholder="1,3,5-10,15">
-            </c-form_field>
-            <c-button type="submit" variant="danger" ::disabled="loading">Reset Passwords</c-button>
-        </form>
+            <template x-if="csvContent">
+                <c-action_box heading="Password CSV Generated" class="mt-15">
+                    <textarea readonly class="w-full vTextField" style="height: 120px; font-family: monospace; font-size: 12px;" x-text="csvContent"></textarea>
+                    <c-button_row class="mt-10">
+                        <c-button type="button" variant="default" @click="downloadCsv()">Download CSV</c-button>
+                    </c-button_row>
+                </c-action_box>
+            </template>
+        </div>
 
-        <template x-if="csvContent">
-            <c-action_box heading="Password CSV Generated" class="mt-20">
-                <textarea readonly class="w-full" style="height: 150px; font-family: monospace; font-size: 12px;" x-text="csvContent"></textarea>
-                <c-button_row class="mt-15">
-                    <c-button type="button" variant="default" @click="downloadCsv()">Download CSV</c-button>
-                </c-button_row>
-            </c-action_box>
-        </template>
-    </c-module>
+        <!-- Cleanup -->
+        <div class="mb-20">
+            <h3 class="mt-0 mb-10">Cleanup</h3>
+            <p class="help-text mb-10">Deactivates Discord links and clears queued announcements. Competition must be stopped first.</p>
+            <c-button variant="danger" @click="cleanupCompetition()" ::disabled="loading">
+                Cleanup Competition
+            </c-button>
+        </div>
 
+        <!-- Danger Zone -->
+        <c-action_box variant="warning" heading="Danger Zone">
+            <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
+            <c-button variant="danger" @click="wipeCompetition()" ::disabled="loading" style="background: #8b0000;">
+                Wipe All Data
+            </c-button>
+        </c-action_box>
+    </c-fieldset>
+
+    <!-- Toast Notification -->
     <template x-if="message">
         <div x-transition class="fixed bottom-4 right-4 z-50">
             <div class="alert" :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
@@ -151,10 +156,10 @@
 <script>
 function formatTime(iso) {
     const date = new Date(iso);
-    const opts = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+    const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
     const local = date.toLocaleString('en-US', opts);
     const ca = date.toLocaleString('en-US', { ...opts, timeZone: 'America/Los_Angeles' });
-    return { formatted: `${local} (Local) · ${ca} (CA)` };
+    return { formatted: `${local} (Local) / ${ca} (CA)` };
 }
 
 function competitionAdmin() {
@@ -184,9 +189,7 @@ function competitionAdmin() {
 
                 const response = await fetch('{% url "admin_competition_action" %}', {
                     method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
                     body: formData
                 });
 
@@ -213,43 +216,32 @@ function competitionAdmin() {
         },
 
         startCompetition() {
-            if (confirm('Start the competition? This will enable all controlled applications and team accounts.')) {
+            if (confirm('Start the competition?\n\nThis will enable all controlled applications and team accounts.')) {
                 this.doAction('start_competition');
             }
         },
 
         stopCompetition() {
-            if (confirm('Stop the competition? This will disable all applications and team accounts. You can restart later.')) {
+            if (confirm('Stop the competition?\n\nThis will disable all applications and team accounts.\nYou can restart later.')) {
                 this.doAction('stop_competition');
             }
         },
 
         cleanupCompetition() {
-            if (confirm('Cleanup the competition? This will:\n- Deactivate all team Discord links\n- Clear queued announcements\n\nCompetition must be stopped first. Discord channels must be deleted via the bot.')) {
+            if (confirm('Cleanup the competition?\n\nThis will:\n• Deactivate all team Discord links\n• Clear queued announcements\n\nCompetition must be stopped first.')) {
                 this.doAction('cleanup_competition');
             }
         },
 
         wipeCompetition() {
-            const message = `☢️ WIPE ALL COMPETITION DATA?\n\nThis will PERMANENTLY DELETE:\n\n` +
-                `SCORING:\n` +
-                `• Red Team Findings & Screenshots\n` +
-                `• Incident Reports & Screenshots\n` +
-                `• Inject Grades\n` +
-                `• Orange Team Bonuses\n` +
-                `• Service Scores\n` +
-                `• Black Team Adjustments\n` +
-                `• Final Scores & Event Scores\n\n` +
-                `TICKETING:\n` +
-                `• All Tickets, Comments, History\n\n` +
-                `DISCORD:\n` +
-                `• Blue Team Discord Links\n\n` +
-                `PRESERVED:\n` +
-                `• Teams (BlueTeam01-50)\n` +
-                `• Staff/Volunteer Discord Links\n` +
-                `• Audit Logs & Bot State\n\n` +
+            const message = `WIPE ALL COMPETITION DATA?\n\n` +
+                `This will PERMANENTLY DELETE:\n\n` +
+                `SCORING: Red Team Findings, Incident Reports, Inject Grades, Service Scores, Final Scores\n` +
+                `TICKETING: All Tickets, Comments, History\n` +
+                `DISCORD: Blue Team Discord Links\n\n` +
+                `PRESERVED: Teams, Staff Links, Audit Logs\n\n` +
                 `Competition must be stopped first.\n` +
-                `This action CANNOT be undone!\n\n` +
+                `This CANNOT be undone!\n\n` +
                 `Type "yolo" to confirm:`;
 
             const response = prompt(message);
@@ -290,7 +282,7 @@ function competitionAdmin() {
 
         resetPasswords() {
             const teamDesc = this.teamNumbers ? `teams ${this.teamNumbers}` : 'all 50 teams';
-            if (confirm(`Reset passwords for ${teamDesc}? This will generate new passwords and revoke existing sessions.`)) {
+            if (confirm(`Reset passwords for ${teamDesc}?\n\nThis will generate new passwords and revoke existing sessions.`)) {
                 this.doAction('reset_passwords', { team_numbers: this.teamNumbers });
             }
         },
