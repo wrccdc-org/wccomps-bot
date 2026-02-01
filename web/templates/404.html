@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load cotton %}
+
+{% block title %}404 - Page Not Found{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <c-module>
+        <div class="text-center p-20">
+            <h1 style="font-size: 72px; margin: 0 0 10px 0;">404</h1>
+            <div class="text-xl font-semibold text-dark mb-8">
+                This page got pwned
+            </div>
+            <div class="text-md text-secondary mb-20" style="max-width: 400px; margin: 0 auto 30px auto;">
+                Either red team took it down, or it never existed. We're not sure which is worse.
+            </div>
+            <c-button href="/" variant="default">
+                Return to Safety
+            </c-button>
+        </div>
+    </c-module>
+</div>
+{% endblock %}

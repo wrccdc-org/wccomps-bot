@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load cotton %}
+
+{% block title %}500 - Server Error{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <c-module>
+        <div class="text-center p-20">
+            <h1 style="font-size: 72px; margin: 0 0 10px 0;">500</h1>
+            <div class="text-xl font-semibold text-dark mb-8">
+                Something broke. Blame red team.
+            </div>
+            <div class="text-md text-secondary mb-20" style="max-width: 400px; margin: 0 auto 30px auto;">
+                Our servers are having a bad day. We've been notified and are investigating.
+            </div>
+            <c-button href="/" variant="default">
+                Try Again
+            </c-button>
+        </div>
+    </c-module>
+</div>
+{% endblock %}

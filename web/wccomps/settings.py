@@ -326,7 +326,7 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@wccomps.org")
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 
-# Logging configuration - capture errors to stdout
+# Logging configuration - capture errors to stdout and Discord
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -341,6 +341,10 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
+        "discord": {
+            "class": "core.discord_logging.DiscordWebhookHandler",
+            "level": "ERROR",
+        },
     },
     "root": {
         "handlers": ["console"],
@@ -353,7 +357,7 @@ LOGGING = {
             "propagate": False,
         },
         "django.request": {
-            "handlers": ["console"],
+            "handlers": ["console", "discord"],
             "level": "ERROR",
             "propagate": False,
         },

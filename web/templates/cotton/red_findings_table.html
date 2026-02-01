@@ -145,11 +145,11 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if is_gold_team %}11{% else %}9{% endif %}">
+                        <td colspan="{% if is_gold_team %}11{% else %}9{% endif %}" class="text-center p-20">
                             {% if selected_team or selected_attack_type or selected_submitter or status_filter != 'pending' %}
-                                No findings match your filters. Try adjusting your filters or <a href="{% url 'scoring:red_team_portal' %}">clearing all filters</a>
+                                No findings match your filters. Try <a href="{% url 'scoring:red_team_portal' %}">clearing all filters</a>
                             {% else %}
-                                No pending findings. All red team findings have been reviewed.
+                                No findings to review. Red team must be on a coffee break.
                             {% endif %}
                         </td>
                     </tr>

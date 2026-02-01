@@ -33,8 +33,8 @@
                     Try <c-link href="{% url 'team_tickets' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
                 </c-empty_state>
                 {% else %}
-                <c-empty_state title="No tickets yet">
-                    <c-link href="{% url 'create_ticket' %}" variant="add">Create your first ticket</c-link> to get started!
+                <c-empty_state title="No tickets yet" description="Either everything is working perfectly, or nobody knows how to ask for help.">
+                    <c-link href="{% url 'create_ticket' %}" variant="add">Create your first ticket</c-link>
                 </c-empty_state>
                 {% endif %}
             </td>

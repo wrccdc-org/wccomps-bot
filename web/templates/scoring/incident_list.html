@@ -51,8 +51,8 @@
             {% endfor %}
     </c-table>
     {% else %}
-    <c-empty_state title="No incident reports submitted yet" description="Submit an incident report when you detect suspicious activity">
-        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Submit your first incident report</c-link>
+    <c-empty_state title="No incidents reported yet" description="Either you haven't been attacked, or you haven't noticed yet. We're hoping it's the first one.">
+        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Report an incident</c-link>
     </c-empty_state>
     {% endif %}
 </c-module>

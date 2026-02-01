@@ -136,11 +136,11 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8">
+                    <td colspan="8" class="text-center p-20">
                         {% if search_query or status_filter != 'all' or category_filter != 'all' or team_filter or assignee_filter %}
-                            No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_ticket_list' %}">clearing all filters</a>
+                            No tickets match your filters. Try <a href="{% url 'ops_ticket_list' %}">clearing all filters</a>
                         {% else %}
-                            No tickets found. Tickets will appear here when teams create them.
+                            No tickets yet. Either everything is working, or teams haven't found the help button.
                         {% endif %}
                     </td>
                 </tr>
