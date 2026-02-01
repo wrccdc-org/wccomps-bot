@@ -19,7 +19,7 @@ from core.authentik_utils import (
     reset_blueteam_password,
     toggle_authentik_user,
 )
-from core.models import AuditLog, CompetitionConfig, DiscordTask
+from core.models import AuditLog, CompetitionConfig, DiscordTask, QueuedAnnouncement
 from team.models import DiscordLink, Team
 
 from .auth_utils import has_permission
@@ -210,22 +210,100 @@ def _action_start_competition(request: HttpRequest, config: CompetitionConfig, a
     )
 
 
-def _action_toggle_blueteams(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
-    """Handle toggle_blueteams action."""
-    enable = request.POST.get("enable") == "true"
-    action_word = "enabled" if enable else "disabled"
+def _action_stop_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle stop_competition action."""
+    if not config.controlled_applications:
+        return JsonResponse({"error": "No controlled applications configured"}, status=400)
 
-    success_count, failed_count = _toggle_blueteam_accounts(enable=enable)
+    auth_manager = AuthentikManager()
+    app_results = auth_manager.disable_applications(config.controlled_applications)
+
+    success_count, failed_count = _toggle_blueteam_accounts(enable=False)
+
+    config.applications_enabled = False
+    config.competition_end_time = None  # Clear end_time only
+    config.save()
+
+    success_apps = [app for app, (success, _) in app_results.items() if success]
+    failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
 
     AuditLog.objects.create(
-        action=f"blueteam_accounts_{action_word}",
+        action="competition_stopped",
         admin_user=authentik_username,
-        target_entity="authentik_users",
-        target_id=0,
-        details={"success_count": success_count, "failed_count": failed_count},
+        target_entity="competition_config",
+        target_id=config.pk,
+        details={
+            "apps_disabled": len(success_apps),
+            "apps_failed": len(failed_apps),
+            "accounts_disabled": success_count,
+            "accounts_failed": failed_count,
+        },
     )
 
-    return JsonResponse({"success": True, "message": f"{action_word.capitalize()} {success_count}/50 accounts"})
+    app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
+    return JsonResponse(
+        {"success": True, "message": f"Competition stopped. {app_msg}, Accounts disabled: {success_count}/50"}
+    )
+
+
+def _action_cleanup_competition(
+    request: HttpRequest, config: CompetitionConfig, authentik_username: str
+) -> JsonResponse:
+    """Handle cleanup_competition action."""
+    if config.applications_enabled:
+        return JsonResponse({"error": "Competition must be stopped before cleanup"}, status=400)
+
+    # Deactivate team member links
+    links = DiscordLink.objects.filter(is_active=True, team__isnull=False)
+    deactivated = 0
+    for link in links:
+        link.is_active = False
+        link.unlinked_at = timezone.now()
+        link.save()
+        deactivated += 1
+
+        AuditLog.objects.create(
+            action="user_unlinked",
+            admin_user=authentik_username,
+            target_entity="discord_link",
+            target_id=link.discord_id,
+            details={
+                "discord_id": link.discord_id,
+                "team_name": link.team.team_name if link.team else "Unknown",
+                "authentik_username": link.user.username,
+                "reason": "competition_cleanup",
+            },
+        )
+
+    # Clear team Discord IDs
+    Team.objects.all().update(discord_category_id=None, discord_role_id=None)
+
+    # Clear competition times
+    config.competition_start_time = None
+    config.competition_end_time = None
+    config.save()
+
+    # Clear queued announcements
+    deleted_count = QueuedAnnouncement.objects.all().delete()[0]
+
+    AuditLog.objects.create(
+        action="competition_cleanup",
+        admin_user=authentik_username,
+        target_entity="competition",
+        target_id=0,
+        details={
+            "deactivated_links": deactivated,
+            "cleared_announcements": deleted_count,
+        },
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Cleanup complete. Deactivated {deactivated} links, cleared {deleted_count} announcements. "
+            "Discord cleanup requires bot commands.",
+        }
+    )
 
 
 def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
@@ -279,82 +357,6 @@ def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, aut
     )
 
 
-def _action_end_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
-    """Handle end_competition action."""
-    results = []
-
-    # Deactivate team member links
-    links = DiscordLink.objects.filter(is_active=True, team__isnull=False)
-    deactivated = 0
-    for link in links:
-        link.is_active = False
-        link.unlinked_at = timezone.now()
-        link.save()
-        deactivated += 1
-
-        AuditLog.objects.create(
-            action="user_unlinked",
-            admin_user=authentik_username,
-            target_entity="discord_link",
-            target_id=link.discord_id,
-            details={
-                "discord_id": link.discord_id,
-                "team_name": link.team.team_name if link.team else "Unknown",
-                "reason": "competition_ended",
-            },
-        )
-
-    results.append(f"Deactivated {deactivated} links")
-
-    # Clear Discord IDs from teams
-    Team.objects.all().update(discord_category_id=None, discord_role_id=None)
-
-    # Deactivate helpers
-    helpers = DiscordLink.objects.filter(is_student_helper=True, is_active=True)
-    helpers_removed = 0
-    for discord_link in helpers:
-        discord_link.is_student_helper = False
-        discord_link.helper_removal_reason = "Competition ended"
-        discord_link.helper_deactivated_at = timezone.now()
-        discord_link.save()
-        helpers_removed += 1
-
-    if helpers_removed:
-        results.append(f"Deactivated {helpers_removed} helpers")
-
-    # Clear config
-    config.competition_start_time = None
-    config.competition_end_time = None
-    config.applications_enabled = False
-    config.save()
-
-    # Disable accounts
-    success_count, _ = _toggle_blueteam_accounts(enable=False)
-    results.append(f"Disabled {success_count}/50 accounts")
-
-    # Create task for bot to delete channels
-    msg = f"Competition ended by {authentik_username}. Run /competition end-competition to delete channels."
-    DiscordTask.objects.create(
-        task_type="broadcast_message",
-        payload={"message": msg},
-        status="pending",
-    )
-
-    AuditLog.objects.create(
-        action="competition_ended",
-        admin_user=authentik_username,
-        target_entity="competition",
-        target_id=0,
-        details={
-            "deactivated_links": deactivated,
-            "helpers_removed": helpers_removed,
-            "accounts_disabled": success_count,
-        },
-    )
-
-    return JsonResponse({"success": True, "message": ". ".join(results)})
-
-
 def _action_sync_quotient(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle sync_quotient action."""
     try:
@@ -378,9 +380,9 @@ _COMPETITION_ACTION_HANDLERS = {
     "set_start_time": _action_set_start_time,
     "set_end_time": _action_set_end_time,
     "start_competition": _action_start_competition,
-    "toggle_blueteams": _action_toggle_blueteams,
+    "stop_competition": _action_stop_competition,
+    "cleanup_competition": _action_cleanup_competition,
     "reset_passwords": _action_reset_passwords,
-    "end_competition": _action_end_competition,
     "sync_quotient": _action_sync_quotient,
 }
 
