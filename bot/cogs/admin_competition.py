@@ -640,86 +640,52 @@ class AdminCompetitionCog(commands.Cog):
     @app_commands.check(check_admin)
     async def admin_start_competition(self, interaction: discord.Interaction) -> None:
         """Start the competition by enabling applications and Authentik accounts."""
+        from bot.competition_actions import start_competition, update_status_channel
 
         await interaction.response.defer(ephemeral=True)
 
-        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
+        result = await start_competition()
 
-        if not config.controlled_applications:
-            await interaction.followup.send(
-                "No controlled applications configured. Use `/competition set-apps` first.",
-                ephemeral=True,
-            )
+        if not result["success"]:
+            await interaction.followup.send(f"Error: {result.get('error', 'Unknown error')}", ephemeral=True)
             return
 
-        from bot.authentik_manager import AuthentikManager
-
-        auth_manager = AuthentikManager()
-
-        # Enable applications
-        app_results = auth_manager.enable_applications(config.controlled_applications)
-
-        # Enable all blueteam accounts
-        enabled_count, failed_count = await toggle_all_blueteam_accounts(is_active=True)
-
-        # Update config and clear scheduled times (manual start)
-        config.applications_enabled = True
-        config.competition_start_time = None
-        config.competition_end_time = None
-        await config.asave()
-
-        # Sync Quotient metadata for new competition
-        from asgiref.sync import sync_to_async
-        from scoring.quotient_sync import sync_quotient_metadata
-
-        try:
-            await sync_to_async(sync_quotient_metadata)()
-            quotient_synced = True
-        except Exception as e:
-            logger.warning(f"Failed to sync Quotient metadata: {e}")
-            quotient_synced = False
-
-        # Build result message with detailed errors
-        success_apps = [app for app, (success, _) in app_results.items() if success]
-        failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
-
-        # Create audit log with detailed results
+        # Create audit log
         await AuditLog.objects.acreate(
             action="competition_started",
             admin_user=str(interaction.user),
             target_entity="competition_config",
-            target_id=config.pk,
+            target_id=0,
             details={
-                "controlled_apps": config.controlled_applications,
-                "apps_success_count": len(success_apps),
-                "apps_failed_count": len(failed_apps),
-                "accounts_enabled": enabled_count,
-                "accounts_failed": failed_count,
-                "quotient_synced": quotient_synced,
-                "errors": dict(failed_apps),
+                "apps_enabled": len(result["apps_enabled"]),
+                "apps_failed": len(result["apps_failed"]),
+                "accounts_enabled": result["accounts_enabled"],
+                "accounts_failed": result["accounts_failed"],
+                "quotient_synced": result["quotient_synced"],
             },
         )
 
+        # Build result message
         result_msg = "**Competition Started!**\n\n"
-        result_msg += f"Applications enabled: {len(success_apps)}/{len(config.controlled_applications)}\n"
-        if success_apps:
-            result_msg += f"✓ Enabled: {', '.join(success_apps)}\n"
-        if failed_apps:
+        result_msg += f"Applications enabled: {len(result['apps_enabled'])}/{len(result['controlled_apps'])}\n"
+        if result["apps_enabled"]:
+            result_msg += f"✓ Enabled: {', '.join(result['apps_enabled'])}\n"
+        if result["apps_failed"]:
             result_msg += "\n✗ **Failed Applications:**\n"
-            for app, error in failed_apps:
+            for app, error in result["apps_failed"]:
                 result_msg += f"  • {app}: {error}\n"
 
-        result_msg += f"\nAccounts enabled: {enabled_count}"
-        if failed_count > 0:
-            result_msg += f" ({failed_count} failed)"
+        result_msg += f"\nAccounts enabled: {result['accounts_enabled']}"
+        if result["accounts_failed"] > 0:
+            result_msg += f" ({result['accounts_failed']} failed)"
 
-        result_msg += f"\nQuotient metadata: {'✓ synced' if quotient_synced else '✗ sync failed'}"
+        result_msg += f"\nQuotient metadata: {'✓ synced' if result['quotient_synced'] else '✗ sync failed'}"
 
-        # Log to ops
-        await log_to_ops_channel(
-            self.bot,
-            f"Competition Started by {interaction.user.mention}\n{result_msg}",
-        )
+        # Log to ops channel
+        await log_to_ops_channel(self.bot, f"Competition Started by {interaction.user.mention}\n{result_msg}")
+
+        # Update status channel
+        await update_status_channel(self.bot)
 
         await interaction.followup.send(result_msg, ephemeral=True)
 
