@@ -250,10 +250,10 @@ function competitionAdmin() {
                 `• Audit Logs & Bot State\n\n` +
                 `Competition must be stopped first.\n` +
                 `This action CANNOT be undone!\n\n` +
-                `Type "yes" to confirm:`;
+                `Type "yolo" to confirm:`;
 
             const response = prompt(message);
-            if (response && response.toLowerCase() === 'yes') {
+            if (response && response.toLowerCase() === 'yolo') {
                 this.doAction('wipe_competition');
             }
         },
