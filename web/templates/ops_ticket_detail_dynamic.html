@@ -1,4 +1,4 @@
-{% load cotton %}
+{% load cotton ticket_filters %}
 <!-- Comments List -->
 <div id="comments-list">
     {% if comments %}
@@ -40,7 +40,7 @@
             <td>{{ event.timestamp|timesince }} ago</td>
             <td>{{ event.action }}</td>
             <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
-            <td>{{ event.details }}</td>
+            <td>{{ event.details|format_history_details }}</td>
         </tr>
         {% endfor %}
     </c-table>

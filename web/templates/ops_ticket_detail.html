@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static cotton %}
+{% load static cotton ticket_filters %}
 
 {% block title %}Ticket {{ ticket.ticket_number }} - WCComps{% endblock %}
 
@@ -256,7 +256,7 @@
                         <td>{{ event.timestamp|timesince }} ago</td>
                         <td>{{ event.action }}</td>
                         <td>{% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</td>
-                        <td>{{ event.details }}</td>
+                        <td>{{ event.details|format_history_details }}</td>
                     </tr>
                     {% endfor %}
                 </c-table>

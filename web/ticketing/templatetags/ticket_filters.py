@@ -1,0 +1,29 @@
+"""Template filters for ticketing."""
+
+from django import template
+
+register = template.Library()
+
+
+@register.filter
+def format_history_details(details: dict[str, object]) -> str:
+    """Format ticket history details, showing only meaningful extras."""
+    if not details or not isinstance(details, dict):
+        return ""
+
+    parts = []
+
+    # Category changes
+    if "old_category_name" in details and "new_category_name" in details:
+        parts.append(f"{details['old_category_name']} → {details['new_category_name']}")
+
+    # Points
+    if "points_charged" in details:
+        parts.append(f"{details['points_charged']} pts")
+
+    # Notes/reasons
+    parts.extend(
+        str(details[key]) for key in ("notes", "resolution_notes", "verification_notes", "reason") if details.get(key)
+    )
+
+    return " · ".join(parts)
