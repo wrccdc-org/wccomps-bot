@@ -14,6 +14,7 @@ htmlcov/
 .vscode/
 .idea/
 .claude
+docs/plans/
 DESIGN.md
 DEPLOYMENT.md
 TESTING.md
