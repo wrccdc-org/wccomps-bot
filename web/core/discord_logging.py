@@ -53,26 +53,34 @@ class DiscordWebhookHandler(logging.Handler):
             if exc_info:
                 # Truncate to fit Discord's 1024 char field limit
                 exc_preview = exc_info[-1000:] if len(exc_info) > 1000 else exc_info
-                fields.append({
-                    "name": "Traceback",
-                    "value": f"```\n{exc_preview}\n```",
-                    "inline": False,
-                })
+                fields.append(
+                    {
+                        "name": "Traceback",
+                        "value": f"```\n{exc_preview}\n```",
+                        "inline": False,
+                    }
+                )
 
             # Add request path if available (from django.request logger)
             if hasattr(record, "request"):
                 request = record.request
-                fields.insert(0, {
-                    "name": "Request",
-                    "value": f"{request.method} {request.path}",
-                    "inline": True,
-                })
-                if hasattr(request, "user") and request.user.is_authenticated:
-                    fields.insert(1, {
-                        "name": "User",
-                        "value": request.user.username,
+                fields.insert(
+                    0,
+                    {
+                        "name": "Request",
+                        "value": f"{request.method} {request.path}",
                         "inline": True,
-                    })
+                    },
+                )
+                if hasattr(request, "user") and request.user.is_authenticated:
+                    fields.insert(
+                        1,
+                        {
+                            "name": "User",
+                            "value": request.user.username,
+                            "inline": True,
+                        },
+                    )
 
             payload = {"embeds": [embed]}
 

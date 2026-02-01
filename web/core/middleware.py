@@ -3,8 +3,10 @@
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 from urllib.parse import quote
 
+from django.db import connection
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -60,8 +62,32 @@ class AuthentikRequiredMiddleware:
         return self.get_response(request)
 
 
+class QueryTracker:
+    """Tracks database queries during a request.
+
+    Implements Django's _ExecuteWrapper protocol from django-stubs.
+    """
+
+    def __init__(self) -> None:
+        self.queries: list[float] = []  # durations in ms
+
+    # Signature matches Django's _ExecuteWrapper type alias which uses Any
+    def __call__(  # type: ignore[explicit-any]
+        self,
+        execute: Callable[[str, Any, bool, dict[str, Any]], Any],
+        sql: str,
+        params: Any,
+        many: bool,
+        context: dict[str, Any],
+    ) -> Any:
+        start = time.time()
+        result = execute(sql, params, many, context)
+        self.queries.append((time.time() - start) * 1000)
+        return result
+
+
 class AccessLoggingMiddleware:
-    """Log all requests with username and response status."""
+    """Log all requests with username, response status, and query metrics."""
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
@@ -72,12 +98,17 @@ class AccessLoggingMiddleware:
             return self.get_response(request)
 
         start_time = time.time()
-        response = self.get_response(request)
-        duration_ms = (time.time() - start_time) * 1000
+        tracker = QueryTracker()
 
+        with connection.execute_wrapper(tracker):
+            response = self.get_response(request)
+
+        duration_ms = (time.time() - start_time) * 1000
         username = request.user.username if request.user.is_authenticated else "-"
+
+        # Log with query stats: [query_count, total_db_time_ms]
         logger.info(
-            '%s %s %s "%s %s" %d %.0fms',
+            '%s %s %s "%s %s" %d %.0fms [%dq %.0fms]',
             request.META.get("REMOTE_ADDR", "-"),
             username,
             request.META.get("HTTP_HOST", "-"),
@@ -85,6 +116,8 @@ class AccessLoggingMiddleware:
             request.path,
             response.status_code,
             duration_ms,
+            len(tracker.queries),
+            sum(tracker.queries),
         )
 
         return response

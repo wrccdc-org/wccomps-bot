@@ -1,9 +1,0 @@
-{# Form grid component - responsive grid layout for form fields #}
-{# Usage: <c-form_grid min_width="200px" gap="15px">form fields</c-form_grid> #}
-{# Props: min_width (optional: minimum column width, default "200px"), gap (optional: spacing, default "15px") #}
-
-<c-vars min_width="200px" gap="15px" />
-
-<div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax({{ min_width }}, 1fr)); gap: {{ gap }}; align-items: end;">
-    {{ slot }}
-</div>

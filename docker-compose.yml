@@ -40,10 +40,9 @@ services:
       - static_files:/app/web/staticfiles
     restart: unless-stopped
     logging:
-      driver: json-file
+      driver: journald
       options:
-        max-size: "50m"
-        max-file: "10"
+        tag: wccomps-web
     networks:
       - wccomps-net
       - dockge_default
@@ -82,10 +81,9 @@ services:
       - ./logs:/app/logs
     restart: unless-stopped
     logging:
-      driver: json-file
+      driver: journald
       options:
-        max-size: "50m"
-        max-file: "10"
+        tag: wccomps-bot
     networks:
       - wccomps-net
 
