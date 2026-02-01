@@ -160,9 +160,11 @@ class TestCompetitionTimer:
                 "accounts_failed": 0,
                 "controlled_apps": ["app1"],
             }
-            with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock):
-                with patch("bot.competition_timer.update_status_channel", new_callable=AsyncMock):
-                    await timer._check_competition_times()
+            with (
+                patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock),
+                patch("bot.competition_timer.update_status_channel", new_callable=AsyncMock),
+            ):
+                await timer._check_competition_times()
 
             mock_start.assert_called_once()
 

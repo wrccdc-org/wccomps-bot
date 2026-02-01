@@ -81,7 +81,9 @@ class CompetitionTimer:
 
                 if result["success"]:
                     result_msg = "**Competition Auto-Started!**\n\n"
-                    result_msg += f"Applications enabled: {len(result['apps_enabled'])}/{len(result['controlled_apps'])}\n"
+                    result_msg += (
+                        f"Applications enabled: {len(result['apps_enabled'])}/{len(result['controlled_apps'])}\n"
+                    )
                     if result["apps_enabled"]:
                         result_msg += f"✓ Enabled: {', '.join(result['apps_enabled'])}\n"
                     if result["apps_failed"]:
@@ -101,22 +103,24 @@ class CompetitionTimer:
             elif should_stop:
                 logger.info("Competition end time reached! Stopping competition...")
 
-                result = await stop_competition()
+                stop_result = await stop_competition()
 
-                if result["success"]:
+                if stop_result["success"]:
                     result_msg = "**Competition Auto-Stopped!**\n\n"
-                    result_msg += f"Applications disabled: {len(result['apps_disabled'])}/{len(result['controlled_apps'])}\n"
-                    if result["apps_disabled"]:
-                        result_msg += f"✓ Disabled: {', '.join(result['apps_disabled'])}\n"
-                    if result["apps_failed"]:
+                    disabled_count = len(stop_result["apps_disabled"])
+                    total_count = len(stop_result["controlled_apps"])
+                    result_msg += f"Applications disabled: {disabled_count}/{total_count}\n"
+                    if stop_result["apps_disabled"]:
+                        result_msg += f"✓ Disabled: {', '.join(stop_result['apps_disabled'])}\n"
+                    if stop_result["apps_failed"]:
                         result_msg += "\n✗ **Failed:**\n"
-                        for app, error in result["apps_failed"]:
+                        for app, error in stop_result["apps_failed"]:
                             result_msg += f"  • {app}: {error}\n"
-                    result_msg += f"\nAccounts disabled: {result['accounts_disabled']}"
-                    if result["accounts_failed"] > 0:
-                        result_msg += f" ({result['accounts_failed']} failed)"
+                    result_msg += f"\nAccounts disabled: {stop_result['accounts_disabled']}"
+                    if stop_result["accounts_failed"] > 0:
+                        result_msg += f" ({stop_result['accounts_failed']} failed)"
                 else:
-                    result_msg = f"**Competition Auto-Stop Failed:** {result.get('error', 'Unknown error')}"
+                    result_msg = f"**Competition Auto-Stop Failed:** {stop_result.get('error', 'Unknown error')}"
 
                 await log_to_ops_channel(self.bot, result_msg)
                 await update_status_channel(self.bot)

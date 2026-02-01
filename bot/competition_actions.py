@@ -1,7 +1,7 @@
 """Shared competition actions for commands and timer."""
 
 import logging
-from typing import Any
+from typing import TypedDict
 
 import discord
 from asgiref.sync import sync_to_async
@@ -13,7 +13,32 @@ from core.models import CompetitionConfig
 logger = logging.getLogger(__name__)
 
 
-async def start_competition() -> dict[str, Any]:
+class StartResult(TypedDict, total=False):
+    """Result of start_competition."""
+
+    success: bool
+    error: str
+    apps_enabled: list[str]
+    apps_failed: list[tuple[str, str | None]]
+    accounts_enabled: int
+    accounts_failed: int
+    quotient_synced: bool
+    controlled_apps: list[str]
+
+
+class StopResult(TypedDict, total=False):
+    """Result of stop_competition."""
+
+    success: bool
+    error: str
+    apps_disabled: list[str]
+    apps_failed: list[tuple[str, str | None]]
+    accounts_disabled: int
+    accounts_failed: int
+    controlled_apps: list[str]
+
+
+async def start_competition() -> StartResult:
     """
     Start the competition by enabling applications and accounts.
 
@@ -48,7 +73,7 @@ async def start_competition() -> dict[str, Any]:
 
     # Update config - clear start_time only, preserve end_time
     @sync_to_async
-    def update_config():
+    def update_config() -> None:
         config.applications_enabled = True
         config.competition_start_time = None
         config.save()
@@ -70,7 +95,7 @@ async def start_competition() -> dict[str, Any]:
     }
 
 
-async def stop_competition() -> dict[str, Any]:
+async def stop_competition() -> StopResult:
     """
     Stop the competition by disabling applications and accounts.
 
@@ -95,7 +120,7 @@ async def stop_competition() -> dict[str, Any]:
 
     # Update config - clear end_time only, preserve start_time
     @sync_to_async
-    def update_config():
+    def update_config() -> None:
         config.applications_enabled = False
         config.competition_end_time = None
         config.save()
@@ -153,7 +178,7 @@ async def update_status_channel(bot: discord.Client) -> bool:
         message = await channel.send(embed=embed)
 
         @sync_to_async
-        def save_message_id():
+        def save_message_id() -> None:
             config.status_message_id = message.id
             config.save(update_fields=["status_message_id"])
 
