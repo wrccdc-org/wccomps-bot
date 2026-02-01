@@ -159,6 +159,14 @@ class CompetitionConfig(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     last_check = models.DateTimeField(null=True, blank=True, help_text="Last time background task checked")
 
+    # Status channel
+    status_channel_id = models.BigIntegerField(
+        null=True, blank=True, help_text="Discord channel ID for competition status display"
+    )
+    status_message_id = models.BigIntegerField(
+        null=True, blank=True, help_text="Discord message ID for status embed (updated in place)"
+    )
+
     class Meta:
         verbose_name = "Competition Configuration"
         verbose_name_plural = "Competition Configuration"
