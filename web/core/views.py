@@ -34,6 +34,15 @@ logger = logging.getLogger(__name__)
 
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
 
+# MIME types safe for inline viewing (no XSS risk)
+INLINE_SAFE_MIME_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+}
+
 
 def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploaded_by: str) -> HttpResponse | None:
     """
@@ -934,8 +943,12 @@ def ticket_attachment_download(
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
 
-    # Support inline preview for images and PDFs
-    as_attachment = request.GET.get("inline") != "1"
+    # Only allow inline viewing for safe MIME types (images, PDFs)
+    # Force download for everything else to prevent XSS via HTML/SVG
+    inline_requested = request.GET.get("inline") == "1"
+    is_safe_for_inline = attachment.mime_type in INLINE_SAFE_MIME_TYPES
+    as_attachment = not (inline_requested and is_safe_for_inline)
+
     response = HttpResponse(bytes(attachment.file_data), content_type=attachment.mime_type)
     response["Content-Disposition"] = str(
         content_disposition_header(as_attachment=as_attachment, filename=attachment.filename)
@@ -1613,24 +1626,26 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
         return HttpResponse("No tickets selected", status=400)
 
     claimed_count = 0
-    for ticket_number in ticket_numbers:
-        try:
-            ticket = Ticket.objects.get(ticket_number=ticket_number, status="open")
-            ticket.status = "claimed"
-            ticket.assigned_to = user
-            ticket.assigned_at = timezone.now()
-            ticket.save()
+    with transaction.atomic():
+        for ticket_number in ticket_numbers:
+            try:
+                # Use select_for_update to prevent race conditions
+                ticket = Ticket.objects.select_for_update().get(ticket_number=ticket_number, status="open")
+                ticket.status = "claimed"
+                ticket.assigned_to = user
+                ticket.assigned_at = timezone.now()
+                ticket.save()
 
-            TicketHistory.objects.create(
-                ticket=ticket,
-                action="claimed",
-                actor=user,
-                details={"claimed_by": authentik_username, "bulk": True},
-            )
+                TicketHistory.objects.create(
+                    ticket=ticket,
+                    action="claimed",
+                    actor=user,
+                    details={"claimed_by": authentik_username, "bulk": True},
+                )
 
-            claimed_count += 1
-        except Ticket.DoesNotExist:
-            continue
+                claimed_count += 1
+            except Ticket.DoesNotExist:
+                continue
 
     logger.info(f"Bulk claimed {claimed_count} tickets by {authentik_username}")
     return redirect("ops_ticket_list")
@@ -1656,25 +1671,27 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
         return HttpResponse("No tickets selected", status=400)
 
     resolved_count = 0
-    for ticket_number in ticket_numbers:
-        try:
-            ticket = Ticket.objects.get(ticket_number=ticket_number, status="claimed")
-            ticket.status = "resolved"
-            ticket.resolved_at = timezone.now()
-            ticket.resolved_by = user
-            ticket.resolution_notes = "Bulk resolved via web interface"
-            ticket.save()
+    with transaction.atomic():
+        for ticket_number in ticket_numbers:
+            try:
+                # Use select_for_update to prevent race conditions
+                ticket = Ticket.objects.select_for_update().get(ticket_number=ticket_number, status="claimed")
+                ticket.status = "resolved"
+                ticket.resolved_at = timezone.now()
+                ticket.resolved_by = user
+                ticket.resolution_notes = "Bulk resolved via web interface"
+                ticket.save()
 
-            TicketHistory.objects.create(
-                ticket=ticket,
-                action="resolved",
-                actor=user,
-                details={"resolved_by": authentik_username, "bulk": True},
-            )
+                TicketHistory.objects.create(
+                    ticket=ticket,
+                    action="resolved",
+                    actor=user,
+                    details={"resolved_by": authentik_username, "bulk": True},
+                )
 
-            resolved_count += 1
-        except Ticket.DoesNotExist:
-            continue
+                resolved_count += 1
+            except Ticket.DoesNotExist:
+                continue
 
     logger.info(f"Bulk resolved {resolved_count} tickets by {authentik_username}")
     return redirect("ops_ticket_list")

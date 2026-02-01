@@ -45,9 +45,13 @@ def registration_edit(request: HttpRequest, token: str) -> HttpResponse:
         messages.error(request, "This edit link has expired.")
         return render(request, "registration/edit_locked.html", {"registration": registration})
 
-    # Check if editing is allowed (not after credentials sent)
-    if registration.status == "credentials_sent":
-        messages.error(request, "This registration can no longer be edited.")
+    # Check if editing is allowed (only pending registrations can be edited)
+    # Block editing after approval to prevent:
+    # - Changing school_name after approval
+    # - Changing region to bypass event restrictions
+    # - Changing contact info to hijack registration
+    if registration.status not in ("pending", "rejected"):
+        messages.error(request, "This registration can no longer be edited after approval.")
         return render(request, "registration/edit_locked.html", {"registration": registration})
 
     if request.method == "POST":

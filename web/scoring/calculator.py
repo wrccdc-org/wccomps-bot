@@ -20,6 +20,36 @@ from .models import (
     ServiceScore,
 )
 
+# =============================================================================
+# Score Component Queries (DRY - used by both global and event-scoped calcs)
+# =============================================================================
+
+
+def get_approved_inject_total(team: Team, event: Event | None = None) -> Decimal:
+    """Get total approved inject points for a team, optionally scoped to event."""
+    filters = {"team": team, "is_approved": True}
+    if event:
+        filters["event"] = event
+    return InjectGrade.objects.filter(**filters).aggregate(total=Sum("points_awarded"))["total"] or Decimal("0")
+
+
+def get_approved_orange_total(team: Team, event: Event | None = None) -> Decimal:
+    """Get total approved orange team bonuses for a team, optionally scoped to event."""
+    filters = {"team": team, "is_approved": True}
+    if event:
+        filters["event"] = event
+    return OrangeTeamBonus.objects.filter(**filters).aggregate(total=Sum("points_awarded"))["total"] or Decimal("0")
+
+
+def get_approved_red_deductions(team: Team, event: Event | None = None) -> Decimal:
+    """Get total approved red team deductions for a team, optionally scoped to event."""
+    filters = {"affected_teams": team, "is_approved": True}
+    if event:
+        filters["event"] = event
+    red_findings = RedTeamFinding.objects.filter(**filters)
+    total = sum(finding.points_per_team for finding in red_findings)
+    return Decimal(str(total)) * Decimal("-1")  # Return as negative
+
 
 def calculate_team_score(team: Team) -> dict[str, Decimal]:
     """
@@ -46,18 +76,14 @@ def calculate_team_score(team: Team) -> dict[str, Decimal]:
         service_points = Decimal("0")
         sla_penalties = Decimal("0")
 
-    # 2. Inject Points
-    inject_total = InjectGrade.objects.filter(team=team).aggregate(total=Sum("points_awarded"))["total"] or Decimal("0")
+    # 2. Inject Points (only approved grades count)
+    inject_total = get_approved_inject_total(team)
 
-    # 3. Orange Team Bonuses
-    orange_total = OrangeTeamBonus.objects.filter(team=team).aggregate(total=Sum("points_awarded"))["total"] or Decimal(
-        "0"
-    )
+    # 3. Orange Team Bonuses (only approved bonuses count)
+    orange_total = get_approved_orange_total(team)
 
-    # 4. Red Team Deductions (sum of all findings affecting this team)
-    red_findings = RedTeamFinding.objects.filter(affected_teams=team)
-    red_deductions = sum(finding.points_per_team for finding in red_findings)
-    red_deductions = Decimal(str(red_deductions)) * Decimal("-1")  # Apply as negative
+    # 4. Red Team Deductions (only approved findings count)
+    red_deductions = get_approved_red_deductions(team)
 
     # 5. Incident Recovery Points (points returned from matched incident reports)
     incident_recovery = IncidentReport.objects.filter(
@@ -276,20 +302,14 @@ def calculate_team_event_score(team: Team, event: Event) -> dict[str, Decimal]:
         service_points = Decimal("0")
         sla_penalties = Decimal("0")
 
-    # 2. Inject Points (scoped to event)
-    inject_total = InjectGrade.objects.filter(team=team, event=event).aggregate(total=Sum("points_awarded"))[
-        "total"
-    ] or Decimal("0")
+    # 2. Inject Points (scoped to event, only approved grades count)
+    inject_total = get_approved_inject_total(team, event)
 
-    # 3. Orange Team Bonuses (scoped to event)
-    orange_total = OrangeTeamBonus.objects.filter(team=team, event=event).aggregate(total=Sum("points_awarded"))[
-        "total"
-    ] or Decimal("0")
+    # 3. Orange Team Bonuses (scoped to event, only approved bonuses count)
+    orange_total = get_approved_orange_total(team, event)
 
-    # 4. Red Team Deductions (scoped to event)
-    red_findings = RedTeamFinding.objects.filter(affected_teams=team, event=event)
-    red_deductions = sum(finding.points_per_team for finding in red_findings)
-    red_deductions = Decimal(str(red_deductions)) * Decimal("-1")
+    # 4. Red Team Deductions (scoped to event, only approved findings count)
+    red_deductions = get_approved_red_deductions(team, event)
 
     # 5. Incident Recovery Points (scoped to event)
     incident_recovery = IncidentReport.objects.filter(

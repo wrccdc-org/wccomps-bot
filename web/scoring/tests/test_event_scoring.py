@@ -107,13 +107,14 @@ class TestCalculateTeamEventScore:
             date="2025-04-15",
         )
 
-        # Create inject grades for both events
+        # Create inject grades for both events (must be approved to count)
         InjectGrade.objects.create(
             team=team,
             event=event,
             inject_id="inject1",
             inject_name="Inject 1",
             points_awarded=Decimal("100"),
+            is_approved=True,
         )
         InjectGrade.objects.create(
             team=team,
@@ -121,6 +122,7 @@ class TestCalculateTeamEventScore:
             inject_id="inject2",
             inject_name="Inject 2",
             points_awarded=Decimal("200"),
+            is_approved=True,
         )
 
         scores = calculate_team_event_score(team, event)
@@ -143,12 +145,14 @@ class TestCalculateTeamEventScore:
             event=event,
             description="Good work",
             points_awarded=Decimal("50"),
+            is_approved=True,
         )
         OrangeTeamBonus.objects.create(
             team=team,
             event=other_event,
             description="Other event bonus",
             points_awarded=Decimal("100"),
+            is_approved=True,
         )
 
         scores = calculate_team_event_score(team, event)
@@ -179,13 +183,14 @@ class TestRecalculateEventScores:
         reg2 = TeamRegistration.objects.create(school_name="School 2", status="paid")
         EventTeamAssignment.objects.create(event=event, registration=reg2, team=team2)
 
-        # Give team2 more points
+        # Give team2 more points (must be approved to count)
         InjectGrade.objects.create(
             team=team2,
             event=event,
             inject_id="inject1",
             inject_name="Inject 1",
             points_awarded=Decimal("100"),
+            is_approved=True,
         )
 
         recalculate_event_scores(event)
@@ -204,13 +209,14 @@ class TestGetEventLeaderboard:
 
     def test_returns_ordered_scores(self, event, team, team_assignment):
         """Should return scores ordered by rank."""
-        # Create inject grade to have scoring activity
+        # Create inject grade to have scoring activity (must be approved to count)
         InjectGrade.objects.create(
             team=team,
             event=event,
             inject_id="inject1",
             inject_name="Inject 1",
             points_awarded=Decimal("100"),
+            is_approved=True,
         )
 
         recalculate_event_scores(event)
