@@ -1,131 +1,140 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Team Packet: {{ packet.title }} - WCComps{% endblock %}
-
+{% block title %}
+    Team Packet: {{ packet.title }} - WCComps
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="Team Packet" subtitle="{{ packet.title }}" />
-
-    {% if messages %}
-        {% for message in messages %}
-        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
-        {% endfor %}
-    {% endif %}
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="Team Packet" subtitle="{{ packet.title }}" />
+        {% if messages %}
+            {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+        {% endif %}
+        <c-module>
         <c-slot name="toolbar">
-            <c-link href="{% url 'ops_packets_list' %}" variant="history">Back to List</c-link>
-            <c-link href="/admin/packets/teampacket/{{ packet.id }}/change/">Edit in Django Admin</c-link>
+        <c-link href="{% url 'ops_packets_list' %}" variant="history">Back to List</c-link>
+        <c-link href="/admin/packets/teampacket/{{ packet.id }}/change/">Edit in Django Admin</c-link>
         </c-slot>
-
         <c-fieldset heading="Packet Information">
-            <c-detail_grid>
-                <dt>Status</dt>
-                <dd><c-badge status="{{ packet.status }}">{{ packet.get_status_display }}</c-badge></dd>
-
-                <dt>File</dt>
-                <dd>{{ packet.filename }} ({{ packet.file_size|filesizeformat }})</dd>
-
-                <dt>MIME Type</dt>
-                <dd>{{ packet.mime_type }}</dd>
-
-                <dt>Uploaded By</dt>
-                <dd>{{ packet.uploaded_by }}</dd>
-
-                <dt>Created</dt>
-                <dd>{{ packet.created_at }}</dd>
-
-                <dt>Distribution Methods</dt>
-                <dd>
-                    {% if packet.send_via_email %}📧 Email{% endif %}
-                    {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
-                </dd>
-
-                {% if packet.actual_distribution_time %}
-                <dt>Distributed At</dt>
-                <dd>{{ packet.actual_distribution_time }}</dd>
-                {% endif %}
-
-                {% if packet.notes %}
-                <dt>Notes</dt>
-                <dd>{{ packet.notes }}</dd>
-                {% endif %}
-            </c-detail_grid>
+        <c-detail_grid>
+        <dt>Status</dt>
+        <dd>
+            <c-badge status="{{ packet.status }}">{{ packet.get_status_display }}</c-badge>
+        </dd>
+        <dt>File</dt>
+        <dd>
+            {{ packet.filename }} ({{ packet.file_size|filesizeformat }})
+        </dd>
+        <dt>MIME Type</dt>
+        <dd>
+            {{ packet.mime_type }}
+        </dd>
+        <dt>Uploaded By</dt>
+        <dd>
+            {{ packet.uploaded_by }}
+        </dd>
+        <dt>Created</dt>
+        <dd>
+            {{ packet.created_at }}
+        </dd>
+        <dt>Distribution Methods</dt>
+        <dd>
+            {% if packet.send_via_email %}📧 Email{% endif %}
+            {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
+        </dd>
+        {% if packet.actual_distribution_time %}
+            <dt>Distributed At</dt>
+            <dd>
+                {{ packet.actual_distribution_time }}
+            </dd>
+        {% endif %}
+        {% if packet.notes %}
+            <dt>Notes</dt>
+            <dd>
+                {{ packet.notes }}
+            </dd>
+        {% endif %}
+        </c-detail_grid>
         </c-fieldset>
-
         <c-fieldset heading="Distribution Statistics">
-            <c-detail_grid>
-                <dt>Total Teams</dt>
-                <dd>{{ stats.total }}</dd>
-
-                <dt>Emails Sent</dt>
-                <dd>{{ stats.sent }}</dd>
-
-                <dt>Emails Pending</dt>
-                <dd>{{ stats.pending }}</dd>
-
-                <dt>Emails Failed</dt>
-                <dd>{{ stats.failed }}</dd>
-
-                <dt>Teams Downloaded</dt>
-                <dd>{{ stats.downloaded }}</dd>
-            </c-detail_grid>
+        <c-detail_grid>
+        <dt>Total Teams</dt>
+        <dd>
+            {{ stats.total }}
+        </dd>
+        <dt>Emails Sent</dt>
+        <dd>
+            {{ stats.sent }}
+        </dd>
+        <dt>Emails Pending</dt>
+        <dd>
+            {{ stats.pending }}
+        </dd>
+        <dt>Emails Failed</dt>
+        <dd>
+            {{ stats.failed }}
+        </dd>
+        <dt>Teams Downloaded</dt>
+        <dd>
+            {{ stats.downloaded }}
+        </dd>
+        </c-detail_grid>
         </c-fieldset>
-
         <c-button_row class="justify-end">
-            {% if packet.status not in "cancelled" %}
-            <form method="post" action="{% url 'ops_cancel_packet' packet.id %}" class="d-inline">
+        {% if packet.status not in "cancelled" %}
+            <form method="post"
+                  action="{% url 'ops_cancel_packet' packet.id %}"
+                  class="d-inline">
                 {% csrf_token %}
                 <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
             </form>
-            {% endif %}
-
-            {% if packet.status == "draft" %}
-            <form method="post" action="{% url 'ops_distribute_packet' packet.id %}" class="d-inline">
+        {% endif %}
+        {% if packet.status == "draft" %}
+            <form method="post"
+                  action="{% url 'ops_distribute_packet' packet.id %}"
+                  class="d-inline">
                 {% csrf_token %}
                 <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
             </form>
-            {% endif %}
+        {% endif %}
         </c-button_row>
-    </c-module>
-
-    <c-module>
+        </c-module>
+        <c-module>
         <c-fieldset heading="Distribution Status by Team">
-            {% if distributions %}
+        {% if distributions %}
             <c-table aria_label="Distribution status by team">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Team</c-table_header>
-                        <c-table_header sortable="false">Email Status</c-table_header>
-                        <c-table_header sortable="false">Email Sent To</c-table_header>
-                        <c-table_header sortable="false">Email Sent At</c-table_header>
-                        <c-table_header sortable="false">Downloaded</c-table_header>
-                        <c-table_header sortable="false">Download Count</c-table_header>
-                    </tr>
-                </c-slot>
-                    {% for dist in distributions %}
-                    <tr>
-                        <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
-                        <td><c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge></td>
-                        <td>{{ dist.email_sent_to|default:"-" }}</td>
-                        <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                        <td>
-                            {% if dist.downloaded_at %}
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Team</c-table_header>
+                <c-table_header sortable="false">Email Status</c-table_header>
+                <c-table_header sortable="false">Email Sent To</c-table_header>
+                <c-table_header sortable="false">Email Sent At</c-table_header>
+                <c-table_header sortable="false">Downloaded</c-table_header>
+                <c-table_header sortable="false">Download Count</c-table_header>
+            </tr>
+            </c-slot>
+            {% for dist in distributions %}
+                <tr>
+                    <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
+                    <td>
+                        <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
+                    </td>
+                    <td>{{ dist.email_sent_to|default:"-" }}</td>
+                    <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>
+                        {% if dist.downloaded_at %}
                             <c-badge status="success">✓</c-badge> {{ dist.downloaded_at|date:"Y-m-d H:i" }}
-                            {% else %}
+                        {% else %}
                             <span class="text-muted">✗</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ dist.download_count }}</td>
-                    </tr>
-                    {% endfor %}
+                        {% endif %}
+                    </td>
+                    <td>{{ dist.download_count }}</td>
+                </tr>
+            {% endfor %}
             </c-table>
-            {% else %}
+        {% else %}
             <c-empty_state title="No distribution records" description="Distribution records will appear here once the packet is distributed" />
-            {% endif %}
+        {% endif %}
         </c-fieldset>
-    </c-module>
-</div>
-
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock content %}

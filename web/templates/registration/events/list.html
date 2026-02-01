@@ -1,25 +1,33 @@
 {% extends "registration/admin_base.html" %}
 {% load cotton %}
-
-{% block title %}{{ season.name }} Events - WCComps{% endblock %}
-
+{% block title %}
+    {{ season.name }} Events - WCComps
+{% endblock title %}
 {% block registration_content %}
-<div id="content-main">
-    <c-page_header title="{{ season.name }} Events">
-        <a href="{% url 'registration_event_create' season_id=season.id %}" class="btn btn-primary">Create Event</a>
-    </c-page_header>
-
-    {% if messages %}
-        {% for message in messages %}
-            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+    <div id="content-main">
+        <c-page_header title="{{ season.name }} Events">
+        <a href="{% url 'registration_event_create' season_id=season.id %}"
+           class="btn btn-primary">Create Event</a>
+        </c-page_header>
+        {% if messages %}
+            {% for message in messages %}
+                <c-alert variant="
+                {% if message.tags == 'error' %}
+                    error
+                {% elif message.tags == 'success' %}
+                    success
+                {% else %}
+                    info
+                {% endif %}
+                ">
                 {{ message }}
-            </c-alert>
-        {% endfor %}
-    {% endif %}
-
-    <c-module>
-        <p><a href="{% url 'registration_season_list' %}">&larr; Back to Seasons</a></p>
-
+                </c-alert>
+            {% endfor %}
+        {% endif %}
+        <c-module>
+        <p>
+            <a href="{% url 'registration_season_list' %}">← Back to Seasons</a>
+        </p>
         <table class="table">
             <thead>
                 <tr>
@@ -34,36 +42,43 @@
             </thead>
             <tbody>
                 {% for event in events %}
-                <tr>
-                    <td><a href="{% url 'registration_event_detail' event_id=event.id %}">{{ event.name }}</a></td>
-                    <td>{{ event.get_event_type_display }}</td>
-                    <td>{{ event.date|date:"M d, Y" }}</td>
-                    <td>{{ event.start_time|time:"g:i A" }} - {{ event.end_time|time:"g:i A" }}</td>
-                    <td>{{ event.enrollment_count|default:0 }} / {{ event.max_teams }}</td>
-                    <td>
-                        {% if event.is_finalized %}
-                            <c-badge status="neutral">Finalized</c-badge>
-                        {% elif event.is_active %}
-                            <c-badge status="success">Active</c-badge>
-                        {% elif event.registration_open %}
-                            <c-badge status="info">Open</c-badge>
-                        {% else %}
-                            <c-badge status="warning">Closed</c-badge>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{% url 'registration_event_detail' event_id=event.id %}" class="btn btn-sm btn-secondary">View</a>
-                        <a href="{% url 'registration_event_edit' event_id=event.id %}" class="btn btn-sm btn-secondary">Edit</a>
-                        <a href="{% url 'registration_event_delete' event_id=event.id %}" class="btn btn-sm btn-danger">Delete</a>
-                    </td>
-                </tr>
+                    <tr>
+                        <td>
+                            <a href="{% url 'registration_event_detail' event_id=event.id %}">{{ event.name }}</a>
+                        </td>
+                        <td>{{ event.get_event_type_display }}</td>
+                        <td>{{ event.date|date:"M d, Y" }}</td>
+                        <td>{{ event.start_time|time:"g:i A" }} - {{ event.end_time|time:"g:i A" }}</td>
+                        <td>{{ event.enrollment_count|default:0 }} / {{ event.max_teams }}</td>
+                        <td>
+                            {% if event.is_finalized %}
+                                <c-badge status="neutral">Finalized</c-badge>
+                            {% elif event.is_active %}
+                                <c-badge status="success">Active</c-badge>
+                            {% elif event.registration_open %}
+                                <c-badge status="info">Open</c-badge>
+                            {% else %}
+                                <c-badge status="warning">Closed</c-badge>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'registration_event_detail' event_id=event.id %}"
+                               class="btn btn-sm btn-secondary">View</a>
+                            <a href="{% url 'registration_event_edit' event_id=event.id %}"
+                               class="btn btn-sm btn-secondary">Edit</a>
+                            <a href="{% url 'registration_event_delete' event_id=event.id %}"
+                               class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center">No events found. <a href="{% url 'registration_event_create' season_id=season.id %}">Create one</a>.</td>
-                </tr>
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            No events found. <a href="{% url 'registration_event_create' season_id=season.id %}">Create one</a>.
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock registration_content %}

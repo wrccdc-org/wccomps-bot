@@ -1,54 +1,55 @@
 {% extends "scoring/red_base.html" %}
-{% block title %}{{ action }} IP Pool{% endblock %}
-
+{% block title %}
+    {{ action }} IP Pool
+{% endblock title %}
 {% block red_content %}
-{% load cotton %}
-<c-page_header title="{{ action }} IP Pool" subtitle="{% if action == 'Edit' %}Update pool '{{ pool.name }}'{% else %}Create a new IP pool for rotating source IPs{% endif %}" />
+    {% load cotton %}
+    <c-page_header title="{{ action }} IP Pool" subtitle="
+    {% if action == 'Edit' %}
+        Update pool '{{ pool.name }}'
+    {% else %}
+        Create a new IP pool for rotating source IPs
+    {% endif %}
+    " />
     <c-module>
-        <form method="post">
-            {% csrf_token %}
-
-            <c-form_field label="{{ form.name.label }}" required="true" :id="form.name.id_for_label" help_text="{{ form.name.help_text }}" error="{{ form.name.errors|join:', ' }}">
-                {{ form.name }}
-            </c-form_field>
-
-            <c-form_field label="{{ form.ip_addresses.label }}" required="true" :id="form.ip_addresses.id_for_label" help_text="{{ form.ip_addresses.help_text }}" error="{{ form.ip_addresses.errors|join:', ' }}">
-                {{ form.ip_addresses }}
-            </c-form_field>
-
-            <div class="form-text mb-20">
-                <span id="ipCount">0</span> IP addresses entered
-            </div>
-
-            {% if pool %}
+    <form method="post">
+        {% csrf_token %}
+        <c-form_field label="{{ form.name.label }}" required="true" :id="form.name.id_for_label" help_text="{{ form.name.help_text }}" error="{{ form.name.errors|join:', ' }}">
+        {{ form.name }}
+        </c-form_field>
+        <c-form_field label="{{ form.ip_addresses.label }}" required="true" :id="form.ip_addresses.id_for_label" help_text="{{ form.ip_addresses.help_text }}" error="{{ form.ip_addresses.errors|join:', ' }}">
+        {{ form.ip_addresses }}
+        </c-form_field>
+        <div class="form-text mb-20">
+            <span id="ipCount">0</span> IP addresses entered
+        </div>
+        {% if pool %}
             <c-alert variant="info" class="mb-20">
-                This pool is used by {{ pool.findings.count }} finding(s).
+            This pool is used by {{ pool.findings.count }} finding(s).
             </c-alert>
-            {% endif %}
-
-            <c-button_row class="justify-end">
-                <c-link href="{% url 'scoring:ip_pool_list' %}">Cancel</c-link>
-                <c-button type="submit" variant="primary">{{ action }} Pool</c-button>
-            </c-button_row>
-        </form>
+        {% endif %}
+        <c-button_row class="justify-end">
+        <c-link href="{% url 'scoring:ip_pool_list' %}">Cancel</c-link>
+        <c-button type="submit" variant="primary">{{ action }} Pool</c-button>
+        </c-button_row>
+    </form>
     </c-module>
+    <script>
+        function updateIpCount() {
+            const textarea = document.getElementById('{{ form.ip_addresses.id_for_label }}');
+            if (textarea) {
+                const text = textarea.value;
+                const ips = text.replace(/,/g, '\n').split('\n').filter(ip => ip.trim()).length;
+                document.getElementById('ipCount').textContent = ips;
+            }
+        }
 
-<script>
-function updateIpCount() {
-    const textarea = document.getElementById('{{ form.ip_addresses.id_for_label }}');
-    if (textarea) {
-        const text = textarea.value;
-        const ips = text.replace(/,/g, '\n').split('\n').filter(ip => ip.trim()).length;
-        document.getElementById('ipCount').textContent = ips;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const textarea = document.getElementById('{{ form.ip_addresses.id_for_label }}');
-    if (textarea) {
-        textarea.addEventListener('input', updateIpCount);
-        updateIpCount();
-    }
-});
-</script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const textarea = document.getElementById('{{ form.ip_addresses.id_for_label }}');
+            if (textarea) {
+                textarea.addEventListener('input', updateIpCount);
+                updateIpCount();
+            }
+        });
+    </script>
 {% endblock red_content %}

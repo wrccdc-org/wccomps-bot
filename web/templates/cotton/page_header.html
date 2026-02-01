@@ -1,13 +1,9 @@
 {# Page header component - title and subtitle #}
 {# Usage: <c-page_header title="Tickets" subtitle="Team Blue">Optional content</c-page_header> #}
 {# Props: title, subtitle #}
-
-<c-vars title="" subtitle="" />
-
+<c-vars title subtitle />
 <div class="page-header">
     <h1>{{ title }}</h1>
-    {% if subtitle %}
-    <p class="page-header-subtitle">{{ subtitle }}</p>
-    {% endif %}
+    {% if subtitle %}<p class="page-header-subtitle">{{ subtitle }}</p>{% endif %}
     {{ slot }}
 </div>

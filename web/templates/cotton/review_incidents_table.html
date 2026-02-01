@@ -1,32 +1,33 @@
 {# Review incidents table - swappable content for htmx #}
-
 <div id="review-incidents-content">
     <c-table id="result_list" fixed_layout="true" aria_label="Incident reports list">
-        <c-slot name="colgroup">
-            <colgroup>
-                <col style="width: 6%;">
-                <col style="width: 15%;">
-                <col style="width: 15%;">
-                <col style="width: 22%;">
-                <col style="width: 14%;">
-                <col style="width: 8%;">
-                <col style="width: 10%;">
-                <col style="width: 10%;">
-            </colgroup>
-        </c-slot>
-        <c-slot name="headers">
-            <tr role="row">
-                <c-table_header sortable="false">ID</c-table_header>
-                <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Team</c-table_header>
-                <c-table_header sortable="false">Box/Service</c-table_header>
-                <c-table_header sortable="false">Description</c-table_header>
-                <c-table_header sort_field="attack_detected_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Detected</c-table_header>
-                <c-table_header sortable="false">Evidence</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
-            </tr>
-        </c-slot>
-        {% for incident in page_obj %}
+    <c-slot name="colgroup">
+    {# djlint:off H021 #}
+    <colgroup>
+        <col style="width: 6%;">
+        <col style="width: 15%;">
+        <col style="width: 15%;">
+        <col style="width: 22%;">
+        <col style="width: 14%;">
+        <col style="width: 8%;">
+        <col style="width: 10%;">
+        <col style="width: 10%;">
+    </colgroup>
+    {# djlint:on #}
+    </c-slot>
+    <c-slot name="headers">
+    <tr role="row">
+        <c-table_header sortable="false">ID</c-table_header>
+        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Team</c-table_header>
+        <c-table_header sortable="false">Box/Service</c-table_header>
+        <c-table_header sortable="false">Description</c-table_header>
+        <c-table_header sort_field="attack_detected_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}">Detected</c-table_header>
+        <c-table_header sortable="false">Evidence</c-table_header>
+        <c-table_header sortable="false">Status</c-table_header>
+        <c-table_header sortable="false">Actions</c-table_header>
+    </tr>
+    </c-slot>
+    {% for incident in page_obj %}
         <tr class="{% cycle 'row1' 'row2' %}" role="row">
             <th class="field-id">
                 <c-link href="{% url 'scoring:view_incident_report' incident.id %}">#{{ incident.id }}</c-link>
@@ -52,7 +53,9 @@
                 {% if incident.gold_team_reviewed %}
                     <c-badge status="resolved">✓ Reviewed</c-badge>
                     {% if incident.points_returned %}
-                    <div class="text-sm"><c-score_value :value="incident.points_returned" format="signed" /></div>
+                        <div class="text-sm">
+                            <c-score_value :value="incident.points_returned" format="signed" />
+                        </div>
                     {% endif %}
                 {% else %}
                     <c-badge status="claimed">⏳ Pending</c-badge>
@@ -60,13 +63,13 @@
             </td>
             <td class="field-actions">
                 {% if not incident.gold_team_reviewed %}
-                <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
+                    <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
                 {% else %}
-                <span class="text-secondary">Reviewed</span>
+                    <span class="text-secondary">Reviewed</span>
                 {% endif %}
             </td>
         </tr>
-        {% empty %}
+    {% empty %}
         <tr>
             <td colspan="8">
                 {% if selected_team or selected_box or status_filter != 'pending' %}
@@ -76,8 +79,7 @@
                 {% endif %}
             </td>
         </tr>
-        {% endfor %}
+    {% endfor %}
     </c-table>
-
     <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&team={{ selected_team }}&box={{ selected_box }}&sort={{ sort_by }}" />
 </div>

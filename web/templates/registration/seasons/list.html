@@ -1,23 +1,29 @@
 {% extends "registration/admin_base.html" %}
 {% load cotton %}
-
-{% block title %}Seasons - WCComps{% endblock %}
-
+{% block title %}
+    Seasons - WCComps
+{% endblock title %}
 {% block registration_content %}
-<div id="content-main">
-    <c-page_header title="Seasons">
+    <div id="content-main">
+        <c-page_header title="Seasons">
         <a href="{% url 'registration_season_create' %}" class="btn btn-primary">Create Season</a>
-    </c-page_header>
-
-    {% if messages %}
-        {% for message in messages %}
-            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+        </c-page_header>
+        {% if messages %}
+            {% for message in messages %}
+                <c-alert variant="
+                {% if message.tags == 'error' %}
+                    error
+                {% elif message.tags == 'success' %}
+                    success
+                {% else %}
+                    info
+                {% endif %}
+                ">
                 {{ message }}
-            </c-alert>
-        {% endfor %}
-    {% endif %}
-
-    <c-module>
+                </c-alert>
+            {% endfor %}
+        {% endif %}
+        <c-module>
         <table class="table">
             <thead>
                 <tr>
@@ -30,30 +36,35 @@
             </thead>
             <tbody>
                 {% for season in seasons %}
-                <tr>
-                    <td>{{ season.name }}</td>
-                    <td>{{ season.year }}</td>
-                    <td>
-                        {% if season.is_active %}
-                            <c-badge status="success">Active</c-badge>
-                        {% else %}
-                            <c-badge status="neutral">Inactive</c-badge>
-                        {% endif %}
-                    </td>
-                    <td>{{ season.events.count }}</td>
-                    <td>
-                        <a href="{% url 'registration_event_list' season_id=season.id %}" class="btn btn-sm btn-secondary">Events</a>
-                        <a href="{% url 'registration_season_edit' season_id=season.id %}" class="btn btn-sm btn-secondary">Edit</a>
-                        <a href="{% url 'registration_season_delete' season_id=season.id %}" class="btn btn-sm btn-danger">Delete</a>
-                    </td>
-                </tr>
+                    <tr>
+                        <td>{{ season.name }}</td>
+                        <td>{{ season.year }}</td>
+                        <td>
+                            {% if season.is_active %}
+                                <c-badge status="success">Active</c-badge>
+                            {% else %}
+                                <c-badge status="neutral">Inactive</c-badge>
+                            {% endif %}
+                        </td>
+                        <td>{{ season.events.count }}</td>
+                        <td>
+                            <a href="{% url 'registration_event_list' season_id=season.id %}"
+                               class="btn btn-sm btn-secondary">Events</a>
+                            <a href="{% url 'registration_season_edit' season_id=season.id %}"
+                               class="btn btn-sm btn-secondary">Edit</a>
+                            <a href="{% url 'registration_season_delete' season_id=season.id %}"
+                               class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No seasons found. <a href="{% url 'registration_season_create' %}">Create one</a>.</td>
-                </tr>
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            No seasons found. <a href="{% url 'registration_season_create' %}">Create one</a>.
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock registration_content %}

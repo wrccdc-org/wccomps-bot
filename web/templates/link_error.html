@@ -1,24 +1,21 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Link Error - WCComps{% endblock %}
-
+{% block title %}
+    Link Error - WCComps
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="{{ error }}" />
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="{{ error }}" />
+        <c-module>
         <c-alert variant="error">
-            <p style="margin: 0;">There was a problem linking your account</p>
+        <p class="m-0">There was a problem linking your account</p>
         </c-alert>
-
         <c-fieldset>
-            <p>{{ message }}</p>
+        <p>{{ message }}</p>
         </c-fieldset>
-
-        <p style="margin-top: 20px;">
+        <p class="mt-20">
             Please return to Discord and try again. If the problem persists, contact an administrator for assistance.
         </p>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock content %}

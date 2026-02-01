@@ -1,45 +1,52 @@
 {% extends "registration/admin_base.html" %}
 {% load cotton %}
-
-{% block title %}Reject Registration - WCComps{% endblock %}
-
+{% block title %}
+    Reject Registration - WCComps
+{% endblock title %}
 {% block registration_content %}
-<div id="content-main">
-    <c-page_header title="Reject Registration" />
-
-    {% if messages %}
-        {% for message in messages %}
-            <c-alert variant="{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+    <div id="content-main">
+        <c-page_header title="Reject Registration" />
+        {% if messages %}
+            {% for message in messages %}
+                <c-alert variant="
+                {% if message.tags == 'error' %}
+                    error
+                {% elif message.tags == 'success' %}
+                    success
+                {% else %}
+                    info
+                {% endif %}
+                ">
                 {{ message }}
-            </c-alert>
-        {% endfor %}
-    {% endif %}
-
-    <c-module>
+                </c-alert>
+            {% endfor %}
+        {% endif %}
+        <c-module>
         <p>You are about to reject the registration for:</p>
-
         <c-detail_grid>
-            <c-slot name="items">
-                <dt>School Name</dt>
-                <dd>{{ registration.school_name }}</dd>
-                <dt>Contact Email</dt>
-                <dd>{{ registration.contact_email }}</dd>
-            </c-slot>
+        <c-slot name="items">
+        <dt>School Name</dt>
+        <dd>
+            {{ registration.school_name }}
+        </dd>
+        <dt>Contact Email</dt>
+        <dd>
+            {{ registration.contact_email }}
+        </dd>
+        </c-slot>
         </c-detail_grid>
-
         <form method="post">
             {% csrf_token %}
             <c-fieldset aligned="true">
-                <c-form_field label="Rejection Reason" required="true" id="reason" help_text="Please provide a reason for rejecting this registration.">
-                    <textarea id="reason" name="reason" rows="4" required style="width: 100%;"></textarea>
-                </c-form_field>
+            <c-form_field label="Rejection Reason" required="true" id="reason" help_text="Please provide a reason for rejecting this registration.">
+            <textarea id="reason" name="reason" rows="4" required class="w-full"></textarea>
+            </c-form_field>
             </c-fieldset>
-
             <c-button_row class="mt-20 justify-end">
-                <c-link href="{% url 'registration_review_list' %}">Cancel</c-link>
-                <c-button type="submit" variant="danger">Reject Registration</c-button>
+            <c-link href="{% url 'registration_review_list' %}">Cancel</c-link>
+            <c-button type="submit" variant="danger">Reject Registration</c-button>
             </c-button_row>
         </form>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock registration_content %}

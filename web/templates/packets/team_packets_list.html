@@ -1,41 +1,39 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Team Packets - WCComps{% endblock %}
-
+{% block title %}
+    Team Packets - WCComps
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="Your Team Packets" />
-
-    {% if messages %}
-        {% for message in messages %}
-        <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
-        {% endfor %}
-    {% endif %}
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="Your Team Packets" />
+        {% if messages %}
+            {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+        {% endif %}
+        <c-module>
         {% if distributions %}
-        <c-table aria_label="Team packets">
+            <c-table aria_label="Team packets">
             <c-slot name="headers">
-                <tr>
-                    <c-table_header sortable="false">Team Packet Title</c-table_header>
-                    <c-table_header sortable="false">File</c-table_header>
-                    <c-table_header sortable="false">Distributed</c-table_header>
-                    <c-table_header sortable="false">Downloaded</c-table_header>
-                    <c-table_header sortable="false">Actions</c-table_header>
-                </tr>
+            <tr>
+                <c-table_header sortable="false">Team Packet Title</c-table_header>
+                <c-table_header sortable="false">File</c-table_header>
+                <c-table_header sortable="false">Distributed</c-table_header>
+                <c-table_header sortable="false">Downloaded</c-table_header>
+                <c-table_header sortable="false">Actions</c-table_header>
+            </tr>
             </c-slot>
-                {% for dist in distributions %}
+            {% for dist in distributions %}
                 <tr>
                     <td>
                         <strong>{{ dist.packet.title }}</strong>
                         {% if dist.packet.notes %}
-                            <br><small>{{ dist.packet.notes }}</small>
+                            <br>
+                            <small>{{ dist.packet.notes }}</small>
                         {% endif %}
                     </td>
                     <td>
                         {{ dist.packet.filename }}
-                        <br><small>{{ dist.packet.file_size|filesizeformat }}</small>
+                        <br>
+                        <small>{{ dist.packet.file_size|filesizeformat }}</small>
                     </td>
                     <td>
                         {% if dist.packet.actual_distribution_time %}
@@ -46,24 +44,26 @@
                     </td>
                     <td>
                         {% if dist.downloaded_at %}
-                        <c-badge status="success">✓</c-badge>
-                        {{ dist.download_count }} time(s)
-                        <br><small>Last: {{ dist.last_downloaded_at|date:"Y-m-d H:i" }}</small>
+                            <c-badge status="success">✓</c-badge>
+                            {{ dist.download_count }} time(s)
+                            <br>
+                            <small>Last: {{ dist.last_downloaded_at|date:"Y-m-d H:i" }}</small>
                         {% else %}
-                        <span class="text-muted">Not yet</span>
+                            <span class="text-muted">Not yet</span>
                         {% endif %}
                     </td>
                     <td>
                         <c-button type="button" onclick="window.location='{% url 'download_packet' dist.packet.id %}'">Download</c-button>
                     </td>
                 </tr>
-                {% endfor %}
-        </c-table>
+            {% endfor %}
+            </c-table>
         {% else %}
-        <c-empty_state title="No team packets available" description="Team packets will appear here when distributed" />
+            <c-empty_state title="No team packets available" description="Team packets will appear here when distributed" />
         {% endif %}
-    </c-module>
-
-    <p class="mt-20"><c-link href="{% url 'home' %}" variant="history">Back to Home</c-link></p>
-</div>
-{% endblock %}
+        </c-module>
+        <p class="mt-20">
+            <c-link href="{% url 'home' %}" variant="history">Back to Home</c-link>
+        </p>
+    </div>
+{% endblock content %}

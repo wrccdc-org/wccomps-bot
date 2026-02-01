@@ -1,148 +1,172 @@
 {% extends "scoring/red_base.html" %}
 {% load cotton %}
-
-{% block title %}Red Team Finding #{{ finding.id }}{% endblock %}
-
+{% block title %}
+    Red Team Finding #{{ finding.id }}
+{% endblock title %}
 {% block red_content %}
-<c-page_header title="Red Team Finding #{{ finding.id }}" />
-<c-module>
+    <c-page_header title="Red Team Finding #{{ finding.id }}" />
+    <c-module>
     <c-slot name="toolbar">
-        {% if finding.is_approved %}
-            <c-badge status="resolved">Approved</c-badge>
-        {% else %}
-            <c-badge status="claimed">Pending Review</c-badge>
-        {% endif %}
+    {% if finding.is_approved %}
+        <c-badge status="resolved">Approved</c-badge>
+    {% else %}
+        <c-badge status="claimed">Pending Review</c-badge>
+    {% endif %}
     </c-slot>
-
     <div class="grid-2 gap-20">
         <div>
             <h3>Attack Details</h3>
             <c-detail_grid>
-                <dt>Attack Type</dt>
-                <dd>{{ finding.attack_type.name|default:"—" }}</dd>
-                <dt>Affected Boxes</dt>
-                <dd>{{ finding.affected_boxes_display|default:"—" }}</dd>
-                <dt>Affected Service</dt>
-                <dd>{{ finding.affected_service|default:"—" }}</dd>
-                <dt>Source IP</dt>
-                <dd><code>{{ finding.source_ip_display }}</code></dd>
-                {% if finding.destination_ip_template %}
+            <dt>Attack Type</dt>
+            <dd>
+                {{ finding.attack_type.name|default:"—" }}
+            </dd>
+            <dt>Affected Boxes</dt>
+            <dd>
+                {{ finding.affected_boxes_display|default:"—" }}
+            </dd>
+            <dt>Affected Service</dt>
+            <dd>
+                {{ finding.affected_service|default:"—" }}
+            </dd>
+            <dt>Source IP</dt>
+            <dd>
+                <code>{{ finding.source_ip_display }}</code>
+            </dd>
+            {% if finding.destination_ip_template %}
                 <dt>Destination IP Template</dt>
-                <dd><code>{{ finding.destination_ip_template }}</code></dd>
-                {% endif %}
+                <dd>
+                    <code>{{ finding.destination_ip_template }}</code>
+                </dd>
+            {% endif %}
             </c-detail_grid>
         </div>
         <div>
             <h3>Submission</h3>
             <c-detail_grid>
-                <dt>Submitted By</dt>
-                <dd>{{ finding.submitted_by.username }}</dd>
-                <dt>Submitted At</dt>
-                <dd>{{ finding.created_at|date:"Y-m-d H:i:s" }}</dd>
-                {% if finding.contributors.exists %}
+            <dt>Submitted By</dt>
+            <dd>
+                {{ finding.submitted_by.username }}
+            </dd>
+            <dt>Submitted At</dt>
+            <dd>
+                {{ finding.created_at|date:"Y-m-d H:i:s" }}
+            </dd>
+            {% if finding.contributors.exists %}
                 <dt>Contributors</dt>
                 <dd>
                     {% for user in finding.contributors.all %}
-                        {{ user.username }}{% if not forloop.last %}, {% endif %}
+                        {{ user.username }}
+                        {% if not forloop.last %},{% endif %}
                     {% endfor %}
                 </dd>
-                {% endif %}
+            {% endif %}
             </c-detail_grid>
         </div>
     </div>
-
     <c-fieldset heading="Affected Teams">
-        {% if finding.affected_teams.exists %}
+    {% if finding.affected_teams.exists %}
         <div class="d-flex gap-10 flex-wrap">
-            {% for team in finding.affected_teams.all %}
-                <c-badge>{{ team.team_name }}</c-badge>
-            {% endfor %}
+            {% for team in finding.affected_teams.all %}<c-badge>{{ team.team_name }}</c-badge>{% endfor %}
         </div>
-        {% else %}
+    {% else %}
         <p class="text-muted">No teams specified.</p>
-        {% endif %}
-    </c-fieldset>
-
-    <c-fieldset heading="Flags">
-        <div class="d-flex gap-20">
-            <div>
-                <strong>Universally Attempted:</strong>
-                {% if finding.universally_attempted %}Yes{% else %}No{% endif %}
-            </div>
-            <div>
-                <strong>Persistence Established:</strong>
-                {% if finding.persistence_established %}Yes{% else %}No{% endif %}
-            </div>
-        </div>
-    </c-fieldset>
-
-    <c-fieldset heading="Scoring Outcomes">
-        {% if finding.outcomes_display %}
-        <div class="d-flex gap-10 flex-wrap">
-            {% for outcome in finding.outcomes_display %}
-                <c-badge variant="warning">{{ outcome }}</c-badge>
-            {% endfor %}
-        </div>
-        <p class="mt-10"><strong>Points per team:</strong> <span class="score-negative">-{{ finding.points_per_team }}</span></p>
-        {% else %}
-        <p class="text-muted">No outcomes selected.</p>
-        {% endif %}
-    </c-fieldset>
-
-    {% if finding.notes %}
-    <c-fieldset heading="Notes">
-        <c-info_box>
-            {{ finding.notes|linebreaks }}
-        </c-info_box>
-    </c-fieldset>
     {% endif %}
-
-    <c-fieldset heading="Evidence Screenshots">
-        {% if finding.screenshots.exists %}
-            <c-image_grid>
-                {% for screenshot in finding.screenshots.all %}
-                    {% if screenshot.has_data %}
-                    <a href="{% url 'scoring:red_screenshot' screenshot.id %}" target="_blank">
-                        <img src="{% url 'scoring:red_screenshot' screenshot.id %}" alt="{{ screenshot.filename }}">
-                    </a>
-                    {% else %}
-                    <div class="screenshot-lost">
-                        <span class="text-muted">{{ screenshot.filename }}</span>
-                        <small class="text-danger d-block">(file lost)</small>
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            </c-image_grid>
-        {% else %}
-            <c-empty_state title="No screenshots" description="No screenshots were attached to this finding" />
-        {% endif %}
     </c-fieldset>
-
+    <c-fieldset heading="Flags">
+    <div class="d-flex gap-20">
+        <div>
+            <strong>Universally Attempted:</strong>
+            {% if finding.universally_attempted %}
+                Yes
+            {% else %}
+                No
+            {% endif %}
+        </div>
+        <div>
+            <strong>Persistence Established:</strong>
+            {% if finding.persistence_established %}
+                Yes
+            {% else %}
+                No
+            {% endif %}
+        </div>
+    </div>
+    </c-fieldset>
+    <c-fieldset heading="Scoring Outcomes">
+    {% if finding.outcomes_display %}
+        <div class="d-flex gap-10 flex-wrap">
+            {% for outcome in finding.outcomes_display %}<c-badge variant="warning">{{ outcome }}</c-badge>{% endfor %}
+        </div>
+        <p class="mt-10">
+            <strong>Points per team:</strong> <span class="score-negative">-{{ finding.points_per_team }}</span>
+        </p>
+    {% else %}
+        <p class="text-muted">No outcomes selected.</p>
+    {% endif %}
+    </c-fieldset>
+    {% if finding.notes %}
+        <c-fieldset heading="Notes">
+        <c-info_box>
+        {{ finding.notes|linebreaks }}
+        </c-info_box>
+        </c-fieldset>
+    {% endif %}
+    <c-fieldset heading="Evidence Screenshots">
+    {% if finding.screenshots.exists %}
+        <c-image_grid>
+        {% for screenshot in finding.screenshots.all %}
+            {% if screenshot.has_data %}
+                <a href="{% url 'scoring:red_screenshot' screenshot.id %}"
+                   target="_blank">
+                    <img src="{% url 'scoring:red_screenshot' screenshot.id %}"
+                         alt="{{ screenshot.filename }}"
+                         width="200"
+                         height="150">
+                </a>
+            {% else %}
+                <div class="screenshot-lost">
+                    <span class="text-muted">{{ screenshot.filename }}</span>
+                    <small class="text-danger d-block">(file lost)</small>
+                </div>
+            {% endif %}
+        {% endfor %}
+        </c-image_grid>
+    {% else %}
+        <c-empty_state title="No screenshots" description="No screenshots were attached to this finding" />
+    {% endif %}
+    </c-fieldset>
     {% if finding.is_approved %}
-    <c-alert variant="success">
+        <c-alert variant="success">
         <h3 class="mt-0">Approval Status</h3>
         <c-detail_grid>
-            <dt>Approved By</dt>
-            <dd>{{ finding.approved_by.username }}</dd>
-            <dt>Approved At</dt>
-            <dd>{{ finding.approved_at|date:"Y-m-d H:i:s" }}</dd>
+        <dt>Approved By</dt>
+        <dd>
+            {{ finding.approved_by.username }}
+        </dd>
+        <dt>Approved At</dt>
+        <dd>
+            {{ finding.approved_at|date:"Y-m-d H:i:s" }}
+        </dd>
         </c-detail_grid>
-    </c-alert>
+        </c-alert>
     {% else %}
-    <c-alert variant="warning">
+        <c-alert variant="warning">
         This finding is pending Gold Team review.
-    </c-alert>
+        </c-alert>
     {% endif %}
-
     <c-button_row class="mt-15 justify-end">
-        {% if can_delete %}
-            <form method="post" action="{% url 'scoring:delete_red_finding' finding.id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this finding? This cannot be undone.');">
-                {% csrf_token %}
-                <c-button type="submit" variant="danger">Delete Finding</c-button>
-            </form>
-        {% endif %}
-        <c-link href="{% url 'scoring:red_team_findings' %}" variant="default">Back to Findings</c-link>
-        <c-link href="{% url 'scoring:submit_red_finding' %}" variant="primary">Submit Another</c-link>
+    {% if can_delete %}
+        <form method="post"
+              action="{% url 'scoring:delete_red_finding' finding.id %}"
+              class="d-inline"
+              onsubmit="return confirm('Are you sure you want to delete this finding? This cannot be undone.');">
+            {% csrf_token %}
+            <c-button type="submit" variant="danger">Delete Finding</c-button>
+        </form>
+    {% endif %}
+    <c-link href="{% url 'scoring:red_team_findings' %}" variant="default">Back to Findings</c-link>
+    <c-link href="{% url 'scoring:submit_red_finding' %}" variant="primary">Submit Another</c-link>
     </c-button_row>
-</c-module>
-{% endblock %}
+    </c-module>
+{% endblock red_content %}

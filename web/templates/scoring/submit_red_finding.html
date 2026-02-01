@@ -1,646 +1,651 @@
 {% extends "scoring/red_base.html" %}
-{% block title %}Submit Finding{% endblock %}
-
+{% block title %}
+    Submit Finding
+{% endblock title %}
 {% block red_content %}
-{% load cotton %}
-<c-page_header title="Submit Finding" subtitle="Document successful attacks for scoring" />
+    {% load cotton %}
+    <c-page_header title="Submit Finding" subtitle="Document successful attacks for scoring" />
     <c-module>
-        <form method="post" enctype="multipart/form-data" id="findingForm">
-                    {% csrf_token %}
-
-                    <!-- Attack Details Section -->
-                    <c-fieldset legend="Attack Details">
-                        <c-form_field label="{{ form.attack_type.label }}" required="true" :id="form.attack_type.id_for_label" help_text="{{ form.attack_type.help_text }}" error="{{ form.attack_type.errors|join:', ' }}">
-                            {{ form.attack_type }}
+    <form method="post" enctype="multipart/form-data" id="findingForm">
+        {% csrf_token %}
+        <!-- Attack Details Section -->
+        <c-fieldset legend="Attack Details">
+        <c-form_field label="{{ form.attack_type.label }}" required="true" :id="form.attack_type.id_for_label" help_text="{{ form.attack_type.help_text }}" error="{{ form.attack_type.errors|join:', ' }}">
+        {{ form.attack_type }}
+        </c-form_field>
+        <!-- Source IP Selection -->
+        <div class="source-ip-section">
+            <label class="form-label required">Source IP</label>
+            <div class="d-flex gap-20 mb-10">
+                {% for radio in form.source_ip_type %}
+                    <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+            <!-- Single IP input -->
+            <div id="singleIpSection">
+                <c-form_field label="{{ form.source_ip.label }}" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
+                {{ form.source_ip }}
+                </c-form_field>
+            </div>
+            <!-- IP Pool selection -->
+            <div id="poolSection" class="d-none">
+                <div class="d-flex gap-10 items-end">
+                    <div class="flex-grow-1">
+                        <c-form_field label="{{ form.source_ip_pool.label }}" :id="form.source_ip_pool.id_for_label" help_text="{{ form.source_ip_pool.help_text }}" error="{{ form.source_ip_pool.errors|join:', ' }}">
+                        {{ form.source_ip_pool }}
                         </c-form_field>
-
-                        <!-- Source IP Selection -->
-                        <div class="source-ip-section">
-                            <label class="form-label required">Source IP</label>
-                            <div class="d-flex gap-20 mb-10">
-                                {% for radio in form.source_ip_type %}
-                                <div class="form-check">
-                                    {{ radio.tag }}
-                                    <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
-                                </div>
-                                {% endfor %}
-                            </div>
-
-                            <!-- Single IP input -->
-                            <div id="singleIpSection">
-                                <c-form_field label="{{ form.source_ip.label }}" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
-                                    {{ form.source_ip }}
-                                </c-form_field>
-                            </div>
-
-                            <!-- IP Pool selection -->
-                            <div id="poolSection" class="d-none">
-                                <div class="d-flex gap-10 items-end">
-                                    <div class="flex-grow-1">
-                                        <c-form_field label="{{ form.source_ip_pool.label }}" :id="form.source_ip_pool.id_for_label" help_text="{{ form.source_ip_pool.help_text }}" error="{{ form.source_ip_pool.errors|join:', ' }}">
-                                            {{ form.source_ip_pool }}
-                                        </c-form_field>
-                                    </div>
-                                    <div class="mb-15">
-                                        <c-button type="button" onclick="openCreatePoolModal()">Create Pool</c-button>
-                                    </div>
-                                </div>
-                                {% if user_pools %}
-                                <div class="form-text">
-                                    <a href="{% url 'scoring:ip_pool_list' %}">Manage your IP pools</a>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </c-fieldset>
-
-                    <!-- Target Information Section -->
-                    <c-fieldset legend="Target Information">
-                        <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
-                            {{ form.affected_boxes }}
-                            {% if form.box_choices %}
-                            <div class="mt-10">
-                                <small class="text-muted">Quick add:</small>
-                                <div class="d-flex flex-wrap gap-5 mt-5">
-                                    {% for value, label in form.box_choices %}
-                                    <button type="button" class="btn btn-sm btn-outline-secondary box-suggestion" data-box="{{ value }}">{{ label }}</button>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endif %}
-                            <div id="selectedIps" class="text-muted mt-10 d-none">
-                                Target IPs: <span id="ipList"></span>
-                            </div>
-                        </c-form_field>
-
-                        <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
-                            {{ form.affected_service }}
-                            {% if form.service_choices %}
-                            <div class="mt-5">
-                                <small class="text-muted">Quick add:</small>
-                                {% for value, label in form.service_choices %}
-                                <button type="button" class="btn btn-sm btn-outline-secondary service-suggestion ms-5" data-service="{{ value }}">{{ label }}</button>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </c-form_field>
-
-                        <!-- Hidden field to store destination IPs for form submission -->
-                        <input type="hidden" name="destination_ip_template" id="id_destination_ip_template" value="">
-                    </c-fieldset>
-
-                    <!-- Attack Characteristics Section -->
-                    <c-fieldset legend="Attack Characteristics">
-                        <div class="form-check mb-2">
-                            {{ form.universally_attempted }}
-                            <label class="form-check-label" for="{{ form.universally_attempted.id_for_label }}">
-                                {{ form.universally_attempted.label }}
-                            </label>
-                            {% if form.universally_attempted.help_text %}
-                                <div class="form-text">{{ form.universally_attempted.help_text }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="form-check mb-2">
-                            {{ form.persistence_established }}
-                            <label class="form-check-label" for="{{ form.persistence_established.id_for_label }}">
-                                {{ form.persistence_established.label }}
-                            </label>
-                            {% if form.persistence_established.help_text %}
-                                <div class="form-text">{{ form.persistence_established.help_text }}</div>
-                            {% endif %}
-                        </div>
-                    </c-fieldset>
-
-                    <!-- Attack Outcomes Section (CCDC Scoring) -->
-                    <c-fieldset legend="Attack Outcomes">
-                        <div class="d-flex flex-wrap gap-15 mb-15">
-                            <div>
-                                <label class="form-label">Access Level</label>
-                                <div class="form-check mb-2">
-                                    {{ form.root_access }}
-                                    <label class="form-check-label" for="{{ form.root_access.id_for_label }}" title="Root/Administrator level access obtained">
-                                        Root access <span class="text-muted">-100</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.user_access }}
-                                    <label class="form-check-label" for="{{ form.user_access.id_for_label }}" title="User level access obtained (not scored if root access)">
-                                        User access <span class="text-muted">-25</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.privilege_escalation }}
-                                    <label class="form-check-label" for="{{ form.privilege_escalation.id_for_label }}" title="User escalated to Root/Admin (additional penalty)">
-                                        Priv esc <span class="text-muted">-100</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="form-label">Data Recovery</label>
-                                <div class="form-check mb-2">
-                                    {{ form.credentials_recovered }}
-                                    <label class="form-check-label" for="{{ form.credentials_recovered.id_for_label }}" title="User IDs and passwords recovered">
-                                        Credentials <span class="text-muted">-50</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.sensitive_files_recovered }}
-                                    <label class="form-check-label" for="{{ form.sensitive_files_recovered.id_for_label }}" title="Config files, corporate data recovered">
-                                        Sensitive files <span class="text-muted">-25</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.credit_cards_recovered }}
-                                    <label class="form-check-label" for="{{ form.credit_cards_recovered.id_for_label }}" title="Customer credit card numbers recovered">
-                                        Credit cards <span class="text-muted">-50</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.pii_recovered }}
-                                    <label class="form-check-label" for="{{ form.pii_recovered.id_for_label }}" title="PII recovered: name, address, credit card number">
-                                        PII <span class="text-muted">-200</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.encrypted_db_recovered }}
-                                    <label class="form-check-label" for="{{ form.encrypted_db_recovered.id_for_label }}" title="Encrypted customer data/database recovered">
-                                        Encrypted DB <span class="text-muted">-25</span>
-                                    </label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    {{ form.db_decrypted }}
-                                    <label class="form-check-label" for="{{ form.db_decrypted.id_for_label }}" title="Database was decrypted (additional penalty)">
-                                        DB decrypted <span class="text-muted">-25</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="calculatedPoints" class="text-lg font-semibold">
-                            Total: <span id="pointsValue">0</span> pts per team
-                        </div>
-                    </c-fieldset>
-
-                    <!-- Affected Teams Section -->
-                    <c-fieldset legend="Affected Teams">
-                        <div class="d-flex justify-between items-center mb-10">
-                            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
-                            <div class="d-flex gap-5">
-                                <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
-                                <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
-                            </div>
-                        </div>
-                        {% if form.affected_teams.help_text %}
-                            <div class="form-text mb-2">{{ form.affected_teams.help_text }}</div>
-                        {% endif %}
-
-                        <!-- Hidden checkboxes for form submission -->
-                        <div class="d-none" id="teamCheckboxes">
-                            {% for checkbox in form.affected_teams %}
-                                {{ checkbox.tag }}
-                            {% endfor %}
-                        </div>
-
-                        <!-- Visual team selector buttons -->
-                        <div class="border rounded">
-                            <div class="p-15">
-                                <div id="teamButtons" class="d-flex flex-wrap gap-10">
-                                    {% for checkbox in form.affected_teams %}
-                                        <button type="button"
-                                                class="team-btn"
-                                                data-team-id="{{ checkbox.data.value }}"
-                                                data-team-label="{{ checkbox.choice_label }}"
-                                                onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')">
-                                        </button>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-10">
-                            <small class="text-muted">
-                                <span id="selectedCount">0</span> teams selected - Click teams to toggle selection
-                            </small>
-                        </div>
-                        {% if form.affected_teams.errors %}
-                            <div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>
-                        {% endif %}
-                    </c-fieldset>
-
-                    <!-- Screenshot Evidence Section -->
-                    <c-fieldset legend="Screenshot Evidence">
-                        <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload 3-4 screenshots showing IP addresses, attack evidence, and impact. Maximum 20 files, 50MB per file.">
-                            <input type="file"
-                                   class="form-control"
-                                   id="screenshots"
-                                   name="screenshots"
-                                   accept="image/*"
-                                   multiple
-                                   onchange="previewScreenshots(this)">
-                        </c-form_field>
-
-                        <div id="screenshotPreview" class="grid-4 mb-15"></div>
-                    </c-fieldset>
-
-                    <!-- Additional Notes Section -->
-                    <c-fieldset legend="Additional Information">
-                        <c-form_field label="{{ form.notes.label }}" :id="form.notes.id_for_label" help_text="{{ form.notes.help_text }}" error="{{ form.notes.errors|join:', ' }}">
-                            {{ form.notes }}
-                        </c-form_field>
-                    </c-fieldset>
-
-                    <c-alert variant="info" class="mb-20">
-                        <h3 class="mt-0 text-lg">Submission Guidelines</h3>
-                        <ul class="mb-0">
-                            <li>Provide detailed technical information about the vulnerability or attack</li>
-                            <li>Include all relevant IP addresses visible in screenshots</li>
-                            <li>Select all teams that were successfully compromised</li>
-                            <li>Gold Team will review and assign point values</li>
-                        </ul>
-                    </c-alert>
-
-                    <c-button_row class="justify-end">
-                        <c-link href="{% url 'scoring:red_team_findings' %}">Cancel</c-link>
-                        <c-button type="submit" variant="primary">Submit Finding</c-button>
-                    </c-button_row>
-                </form>
+                    </div>
+                    <div class="mb-15">
+                        <c-button type="button" onclick="openCreatePoolModal()">Create Pool</c-button>
+                    </div>
+                </div>
+                {% if user_pools %}
+                    <div class="form-text">
+                        <a href="{% url 'scoring:ip_pool_list' %}">Manage your IP pools</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        </c-fieldset>
+        <!-- Target Information Section -->
+        <c-fieldset legend="Target Information">
+        <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
+        {{ form.affected_boxes }}
+        {% if form.box_choices %}
+            <div class="mt-10">
+                <small class="text-muted">Quick add:</small>
+                <div class="d-flex flex-wrap gap-5 mt-5">
+                    {% for value, label in form.box_choices %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary box-suggestion"
+                                data-box="{{ value }}">{{ label }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        <div id="selectedIps" class="text-muted mt-10 d-none">
+            Target IPs: <span id="ipList"></span>
+        </div>
+        </c-form_field>
+        <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
+        {{ form.affected_service }}
+        {% if form.service_choices %}
+            <div class="mt-5">
+                <small class="text-muted">Quick add:</small>
+                {% for value, label in form.service_choices %}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary service-suggestion ms-5"
+                            data-service="{{ value }}">{{ label }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
+        </c-form_field>
+        <!-- Hidden field to store destination IPs for form submission -->
+        <input type="hidden"
+               name="destination_ip_template"
+               id="id_destination_ip_template"
+               value="">
+        </c-fieldset>
+        <!-- Attack Characteristics Section -->
+        <c-fieldset legend="Attack Characteristics">
+        <div class="form-check mb-2">
+            {{ form.universally_attempted }}
+            <label class="form-check-label"
+                   for="{{ form.universally_attempted.id_for_label }}">{{ form.universally_attempted.label }}</label>
+            {% if form.universally_attempted.help_text %}
+                <div class="form-text">{{ form.universally_attempted.help_text }}</div>
+            {% endif %}
+        </div>
+        <div class="form-check mb-2">
+            {{ form.persistence_established }}
+            <label class="form-check-label"
+                   for="{{ form.persistence_established.id_for_label }}">
+                {{ form.persistence_established.label }}
+            </label>
+            {% if form.persistence_established.help_text %}
+                <div class="form-text">{{ form.persistence_established.help_text }}</div>
+            {% endif %}
+        </div>
+        </c-fieldset>
+        <!-- Attack Outcomes Section (CCDC Scoring) -->
+        <c-fieldset legend="Attack Outcomes">
+        <div class="d-flex flex-wrap gap-15 mb-15">
+            <div>
+                <label class="form-label">Access Level</label>
+                <div class="form-check mb-2">
+                    {{ form.root_access }}
+                    <label class="form-check-label"
+                           for="{{ form.root_access.id_for_label }}"
+                           title="Root/Administrator level access obtained">
+                        Root access <span class="text-muted">-100</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.user_access }}
+                    <label class="form-check-label"
+                           for="{{ form.user_access.id_for_label }}"
+                           title="User level access obtained (not scored if root access)">
+                        User access <span class="text-muted">-25</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.privilege_escalation }}
+                    <label class="form-check-label"
+                           for="{{ form.privilege_escalation.id_for_label }}"
+                           title="User escalated to Root/Admin (additional penalty)">
+                        Priv esc <span class="text-muted">-100</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Data Recovery</label>
+                <div class="form-check mb-2">
+                    {{ form.credentials_recovered }}
+                    <label class="form-check-label"
+                           for="{{ form.credentials_recovered.id_for_label }}"
+                           title="User IDs and passwords recovered">
+                        Credentials <span class="text-muted">-50</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.sensitive_files_recovered }}
+                    <label class="form-check-label"
+                           for="{{ form.sensitive_files_recovered.id_for_label }}"
+                           title="Config files, corporate data recovered">
+                        Sensitive files <span class="text-muted">-25</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.credit_cards_recovered }}
+                    <label class="form-check-label"
+                           for="{{ form.credit_cards_recovered.id_for_label }}"
+                           title="Customer credit card numbers recovered">
+                        Credit cards <span class="text-muted">-50</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.pii_recovered }}
+                    <label class="form-check-label"
+                           for="{{ form.pii_recovered.id_for_label }}"
+                           title="PII recovered: name, address, credit card number">
+                        PII <span class="text-muted">-200</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.encrypted_db_recovered }}
+                    <label class="form-check-label"
+                           for="{{ form.encrypted_db_recovered.id_for_label }}"
+                           title="Encrypted customer data/database recovered">
+                        Encrypted DB <span class="text-muted">-25</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    {{ form.db_decrypted }}
+                    <label class="form-check-label"
+                           for="{{ form.db_decrypted.id_for_label }}"
+                           title="Database was decrypted (additional penalty)">
+                        DB decrypted <span class="text-muted">-25</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div id="calculatedPoints" class="text-lg font-semibold">
+            Total: <span id="pointsValue">0</span> pts per team
+        </div>
+        </c-fieldset>
+        <!-- Affected Teams Section -->
+        <c-fieldset legend="Affected Teams">
+        <div class="d-flex justify-between items-center mb-10">
+            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
+            <div class="d-flex gap-5">
+                <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
+                <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
+            </div>
+        </div>
+        {% if form.affected_teams.help_text %}<div class="form-text mb-2">{{ form.affected_teams.help_text }}</div>{% endif %}
+        <!-- Hidden checkboxes for form submission -->
+        <div class="d-none" id="teamCheckboxes">
+            {% for checkbox in form.affected_teams %}{{ checkbox.tag }}{% endfor %}
+        </div>
+        <!-- Visual team selector buttons -->
+        <div class="border rounded">
+            <div class="p-15">
+                <div id="teamButtons" class="d-flex flex-wrap gap-10">
+                    {% for checkbox in form.affected_teams %}
+                        <button type="button"
+                                class="team-btn"
+                                data-team-id="{{ checkbox.data.value }}"
+                                data-team-label="{{ checkbox.choice_label }}"
+                                onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')"></button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="mt-10">
+            <small class="text-muted">
+                <span id="selectedCount">0</span> teams selected - Click teams to toggle selection
+            </small>
+        </div>
+        {% if form.affected_teams.errors %}<div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>{% endif %}
+        </c-fieldset>
+        <!-- Screenshot Evidence Section -->
+        <c-fieldset legend="Screenshot Evidence">
+        <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload 3-4 screenshots showing IP addresses, attack evidence, and impact. Maximum 20 files, 50MB per file.">
+        <input type="file"
+               class="form-control"
+               id="screenshots"
+               name="screenshots"
+               accept="image/*"
+               multiple
+               onchange="previewScreenshots(this)">
+        </c-form_field>
+        <div id="screenshotPreview" class="grid-4 mb-15"></div>
+        </c-fieldset>
+        <!-- Additional Notes Section -->
+        <c-fieldset legend="Additional Information">
+        <c-form_field label="{{ form.notes.label }}" :id="form.notes.id_for_label" help_text="{{ form.notes.help_text }}" error="{{ form.notes.errors|join:', ' }}">
+        {{ form.notes }}
+        </c-form_field>
+        </c-fieldset>
+        <c-alert variant="info" class="mb-20">
+        <h3 class="mt-0 text-lg">Submission Guidelines</h3>
+        <ul class="mb-0">
+            <li>Provide detailed technical information about the vulnerability or attack</li>
+            <li>Include all relevant IP addresses visible in screenshots</li>
+            <li>Select all teams that were successfully compromised</li>
+            <li>Gold Team will review and assign point values</li>
+        </ul>
+        </c-alert>
+        <c-button_row class="justify-end">
+        <c-link href="{% url 'scoring:red_team_findings' %}">Cancel</c-link>
+        <c-button type="submit" variant="primary">Submit Finding</c-button>
+        </c-button_row>
+    </form>
     </c-module>
-
-<!-- Create IP Pool Modal -->
-<div id="createPoolModal" class="modal">
-    <div class="modal-backdrop" onclick="closeCreatePoolModal()"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">Create IP Pool</h3>
-            <button type="button" class="modal-close" onclick="closeCreatePoolModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="createPoolForm">
-                <div class="mb-15">
-                    <label class="form-label required" for="poolName">Pool Name</label>
-                    <input type="text" class="form-control" id="poolName" name="name" placeholder="e.g., Rotation Pool A" required>
-                    <div class="form-text">A memorable name for this pool of IPs</div>
-                </div>
-                <div class="mb-15">
-                    <label class="form-label required" for="poolIps">IP Addresses</label>
-                    <textarea class="form-control" id="poolIps" name="ip_addresses" rows="8" placeholder="Enter IP addresses, one per line or comma-separated:
-10.0.0.1
-10.0.0.2
-10.0.0.3" required></textarea>
-                    <div class="form-text">Enter one IP per line or comma-separated. <span id="ipCount">0</span> IPs entered.</div>
-                </div>
-                <div id="poolFormError" class="text-danger mb-10 d-none"></div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <c-button type="button" onclick="closeCreatePoolModal()">Cancel</c-button>
-            <c-button type="button" variant="primary" onclick="submitCreatePool()">Create Pool</c-button>
+    <!-- Create IP Pool Modal -->
+    <div id="createPoolModal" class="modal">
+        <div class="modal-backdrop" onclick="closeCreatePoolModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create IP Pool</h3>
+                <button type="button" class="modal-close" onclick="closeCreatePoolModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="createPoolForm">
+                    <div class="mb-15">
+                        <label class="form-label required" for="poolName">Pool Name</label>
+                        <input type="text"
+                               class="form-control"
+                               id="poolName"
+                               name="name"
+                               placeholder="e.g., Rotation Pool A"
+                               required>
+                        <div class="form-text">A memorable name for this pool of IPs</div>
+                    </div>
+                    <div class="mb-15">
+                        <label class="form-label required" for="poolIps">IP Addresses</label>
+                        <textarea class="form-control"
+                                  id="poolIps"
+                                  name="ip_addresses"
+                                  rows="8"
+                                  placeholder="Enter IP addresses, one per line or comma-separated: 10.0.0.1 10.0.0.2 10.0.0.3"
+                                  required></textarea>
+                        <div class="form-text">
+                            Enter one IP per line or comma-separated. <span id="ipCount">0</span> IPs entered.
+                        </div>
+                    </div>
+                    <div id="poolFormError" class="text-danger mb-10 d-none"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <c-button type="button" onclick="closeCreatePoolModal()">Cancel</c-button>
+                <c-button type="button" variant="primary" onclick="submitCreatePool()">Create Pool</c-button>
+            </div>
         </div>
     </div>
-</div>
+    {{ box_metadata|json_script:"box-metadata" }}
+    <script>
+        const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
 
-{{ box_metadata|json_script:"box-metadata" }}
-<script>
-const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
-
-// IP Pool Modal Functions
-function openCreatePoolModal() {
-    document.getElementById('createPoolModal').classList.add('modal--open');
-    document.getElementById('poolName').focus();
-}
-
-function closeCreatePoolModal() {
-    document.getElementById('createPoolModal').classList.remove('modal--open');
-    document.getElementById('createPoolForm').reset();
-    document.getElementById('poolFormError').classList.add('d-none');
-    document.getElementById('ipCount').textContent = '0';
-}
-
-function updateIpCount() {
-    const text = document.getElementById('poolIps').value;
-    const ips = text.replace(/,/g, '\n').split('\n').filter(ip => ip.trim()).length;
-    document.getElementById('ipCount').textContent = ips;
-}
-
-async function submitCreatePool() {
-    const form = document.getElementById('createPoolForm');
-    const formData = new FormData(form);
-    const errorDiv = document.getElementById('poolFormError');
-
-    try {
-        const response = await fetch('{% url "scoring:ip_pool_create" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: formData,
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Add new pool to the dropdown and select it
-            const poolSelect = document.getElementById('{{ form.source_ip_pool.id_for_label }}');
-            const option = document.createElement('option');
-            option.value = data.pool.id;
-            option.textContent = `${data.pool.name} (${data.pool.ip_count} IPs)`;
-            option.selected = true;
-            poolSelect.appendChild(option);
-
-            closeCreatePoolModal();
-        } else {
-            // Show errors
-            let errorMsg = '';
-            for (const [field, errors] of Object.entries(data.errors)) {
-                errorMsg += `${field}: ${errors.join(', ')}\n`;
-            }
-            errorDiv.textContent = errorMsg;
-            errorDiv.classList.remove('d-none');
+        // IP Pool Modal Functions
+        function openCreatePoolModal() {
+            document.getElementById('createPoolModal').classList.add('modal--open');
+            document.getElementById('poolName').focus();
         }
-    } catch (error) {
-        errorDiv.textContent = 'Failed to create pool. Please try again.';
-        errorDiv.classList.remove('d-none');
-    }
-}
 
-// Source IP Type Toggle
-function toggleSourceIpType() {
-    const radios = document.querySelectorAll('input[name="source_ip_type"]');
-    const singleSection = document.getElementById('singleIpSection');
-    const poolSection = document.getElementById('poolSection');
+        function closeCreatePoolModal() {
+            document.getElementById('createPoolModal').classList.remove('modal--open');
+            document.getElementById('createPoolForm').reset();
+            document.getElementById('poolFormError').classList.add('d-none');
+            document.getElementById('ipCount').textContent = '0';
+        }
 
-    radios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'single') {
-                singleSection.classList.remove('d-none');
-                poolSection.classList.add('d-none');
-            } else {
+        function updateIpCount() {
+            const text = document.getElementById('poolIps').value;
+            const ips = text.replace(/,/g, '\n').split('\n').filter(ip => ip.trim()).length;
+            document.getElementById('ipCount').textContent = ips;
+        }
+
+        async function submitCreatePool() {
+            const form = document.getElementById('createPoolForm');
+            const formData = new FormData(form);
+            const errorDiv = document.getElementById('poolFormError');
+
+            try {
+                const response = await fetch('{% url "scoring:ip_pool_create" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Add new pool to the dropdown and select it
+                    const poolSelect = document.getElementById('{{ form.source_ip_pool.id_for_label }}');
+                    const option = document.createElement('option');
+                    option.value = data.pool.id;
+                    option.textContent = `${data.pool.name} (${data.pool.ip_count} IPs)`;
+                    option.selected = true;
+                    poolSelect.appendChild(option);
+
+                    closeCreatePoolModal();
+                } else {
+                    // Show errors
+                    let errorMsg = '';
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        errorMsg += `${field}: ${errors.join(', ')}\n`;
+                    }
+                    errorDiv.textContent = errorMsg;
+                    errorDiv.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Failed to create pool. Please try again.';
+                errorDiv.classList.remove('d-none');
+            }
+        }
+
+        // Source IP Type Toggle
+        function toggleSourceIpType() {
+            const radios = document.querySelectorAll('input[name="source_ip_type"]');
+            const singleSection = document.getElementById('singleIpSection');
+            const poolSection = document.getElementById('poolSection');
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'single') {
+                        singleSection.classList.remove('d-none');
+                        poolSection.classList.add('d-none');
+                    } else {
+                        singleSection.classList.add('d-none');
+                        poolSection.classList.remove('d-none');
+                    }
+                });
+            });
+
+            // Initialize based on current selection
+            const selectedRadio = document.querySelector('input[name="source_ip_type"]:checked');
+            if (selectedRadio && selectedRadio.value === 'pool') {
                 singleSection.classList.add('d-none');
                 poolSection.classList.remove('d-none');
             }
-        });
-    });
-
-    // Initialize based on current selection
-    const selectedRadio = document.querySelector('input[name="source_ip_type"]:checked');
-    if (selectedRadio && selectedRadio.value === 'pool') {
-        singleSection.classList.add('d-none');
-        poolSection.classList.remove('d-none');
-    }
-}
-
-function previewScreenshots(input) {
-    const preview = document.getElementById('screenshotPreview');
-    preview.innerHTML = '';
-
-    if (input.files) {
-        const fileCount = input.files.length;
-
-        if (fileCount > 20) {
-            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
         }
 
-        Array.from(input.files).slice(0, 20).forEach((file, index) => {
-            const reader = new FileReader();
+        function previewScreenshots(input) {
+            const preview = document.getElementById('screenshotPreview');
+            preview.innerHTML = '';
 
-            reader.onload = function(e) {
-                const div = document.createElement('div');
-                div.innerHTML = `
+            if (input.files) {
+                const fileCount = input.files.length;
+
+                if (fileCount > 20) {
+                    alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+                }
+
+                Array.from(input.files).slice(0, 20).forEach((file, index) => {
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
                     <img src="${e.target.result}" alt="Screenshot ${index + 1}" class="screenshot-preview-img">
                     <div class="screenshot-preview-name">${file.name}</div>
                 `;
 
-                preview.appendChild(div);
-            };
+                        preview.appendChild(div);
+                    };
 
-            reader.readAsDataURL(file);
-        });
-    }
-}
-
-// Team selection functions
-function getTeamCheckboxes() {
-    return document.querySelectorAll('input[name="affected_teams"]');
-}
-
-function getTeamButtons() {
-    return document.querySelectorAll('.team-btn');
-}
-
-function updateSelectedCount() {
-    const checkboxes = getTeamCheckboxes();
-    const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
-    document.getElementById('selectedCount').textContent = checked;
-}
-
-function toggleTeam(button, checkboxId) {
-    const checkbox = document.getElementById(checkboxId);
-    if (checkbox) {
-        checkbox.checked = !checkbox.checked;
-        updateTeamButton(button, checkbox.checked);
-        updateSelectedCount();
-    }
-}
-
-function updateTeamButton(button, isSelected) {
-    if (isSelected) {
-        button.classList.add('team-btn--selected');
-    } else {
-        button.classList.remove('team-btn--selected');
-    }
-}
-
-function selectAllTeams() {
-    const checkboxes = getTeamCheckboxes();
-    const buttons = getTeamButtons();
-
-    checkboxes.forEach(cb => cb.checked = true);
-    buttons.forEach(btn => updateTeamButton(btn, true));
-    updateSelectedCount();
-}
-
-function deselectAllTeams() {
-    const checkboxes = getTeamCheckboxes();
-    const buttons = getTeamButtons();
-
-    checkboxes.forEach(cb => cb.checked = false);
-    buttons.forEach(btn => updateTeamButton(btn, false));
-    updateSelectedCount();
-}
-
-// Get box names from comma-separated text input
-function getBoxNames() {
-    const input = document.getElementById('id_affected_boxes');
-    if (!input || !input.value.trim()) return [];
-    return input.value.split(',').map(b => b.trim()).filter(b => b);
-}
-
-// Add a box to the text input
-function addBox(boxName) {
-    const input = document.getElementById('id_affected_boxes');
-    const boxes = getBoxNames();
-    if (!boxes.includes(boxName)) {
-        boxes.push(boxName);
-        input.value = boxes.join(', ');
-        updateIPAndServices();
-    }
-}
-
-// Set the service field
-function setService(serviceName) {
-    const input = document.getElementById('{{ form.affected_service.id_for_label }}');
-    if (input) {
-        input.value = serviceName;
-    }
-}
-
-// Auto-populate destination IP display based on entered boxes
-function updateIPAndServices() {
-    const boxNames = getBoxNames();
-    const ipTemplate = document.getElementById('id_destination_ip_template');
-    const selectedIpsDiv = document.getElementById('selectedIps');
-    const ipListSpan = document.getElementById('ipList');
-
-    // Collect IPs from known boxes
-    const ipTemplates = [];
-    boxNames.forEach(boxName => {
-        const boxData = boxMetadata[boxName];
-        if (boxData && boxData.ip) {
-            ipTemplates.push(boxData.ip);
-        }
-    });
-
-    // Update hidden field and display IPs
-    if (ipTemplate) {
-        ipTemplate.value = ipTemplates.join(', ');
-    }
-    if (selectedIpsDiv && ipListSpan) {
-        if (ipTemplates.length > 0) {
-            ipListSpan.textContent = ipTemplates.join(', ');
-            selectedIpsDiv.classList.remove('d-none');
-        } else {
-            selectedIpsDiv.classList.add('d-none');
-        }
-    }
-}
-
-// Calculate points based on outcome checkboxes (mirrors server-side logic)
-function calculatePoints() {
-    let total = 0;
-    const rootAccess = document.getElementById('{{ form.root_access.id_for_label }}')?.checked;
-    const userAccess = document.getElementById('{{ form.user_access.id_for_label }}')?.checked;
-    const privEsc = document.getElementById('{{ form.privilege_escalation.id_for_label }}')?.checked;
-    const credentials = document.getElementById('{{ form.credentials_recovered.id_for_label }}')?.checked;
-    const sensitiveFiles = document.getElementById('{{ form.sensitive_files_recovered.id_for_label }}')?.checked;
-    const creditCards = document.getElementById('{{ form.credit_cards_recovered.id_for_label }}')?.checked;
-    const pii = document.getElementById('{{ form.pii_recovered.id_for_label }}')?.checked;
-    const encryptedDb = document.getElementById('{{ form.encrypted_db_recovered.id_for_label }}')?.checked;
-    const dbDecrypted = document.getElementById('{{ form.db_decrypted.id_for_label }}')?.checked;
-
-    // Access level (only highest scored)
-    if (rootAccess) {
-        total += 100;
-    } else if (userAccess) {
-        total += 25;
-    }
-
-    // Privilege escalation is additional
-    if (privEsc) total += 100;
-
-    // Data recovery outcomes (cumulative)
-    if (credentials) total += 50;
-    if (sensitiveFiles) total += 25;
-    if (creditCards) total += 50;
-    if (pii) total += 200;
-    if (encryptedDb) total += 25;
-    if (dbDecrypted) total += 25;
-
-    document.getElementById('pointsValue').textContent = total;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    toggleSourceIpType();
-
-    // Setup IP count for pool modal
-    const poolIpsTextarea = document.getElementById('poolIps');
-    if (poolIpsTextarea) {
-        poolIpsTextarea.addEventListener('input', updateIpCount);
-    }
-
-    // Setup outcome checkbox handlers for live points calculation
-    const outcomeCheckboxes = [
-        '{{ form.root_access.id_for_label }}',
-        '{{ form.user_access.id_for_label }}',
-        '{{ form.privilege_escalation.id_for_label }}',
-        '{{ form.credentials_recovered.id_for_label }}',
-        '{{ form.sensitive_files_recovered.id_for_label }}',
-        '{{ form.credit_cards_recovered.id_for_label }}',
-        '{{ form.pii_recovered.id_for_label }}',
-        '{{ form.encrypted_db_recovered.id_for_label }}',
-        '{{ form.db_decrypted.id_for_label }}',
-    ];
-    outcomeCheckboxes.forEach(id => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-            checkbox.addEventListener('change', calculatePoints);
-        }
-    });
-    // Calculate initial points on load
-    calculatePoints();
-
-    // Set team button labels and sync with checkbox state
-    const teamButtons = getTeamButtons();
-    teamButtons.forEach(button => {
-        const fullLabel = button.getAttribute('data-team-label');
-        if (fullLabel) {
-            // Extract numbers from the label (e.g., "Team 01" -> "1", "Team01" -> "1")
-            const match = fullLabel.match(/\d+/);
-            if (match) {
-                // Remove leading zeros
-                button.textContent = parseInt(match[0], 10).toString();
-            } else {
-                button.textContent = fullLabel;
+                    reader.readAsDataURL(file);
+                });
             }
         }
 
-        // Sync button appearance with checkbox state
-        const teamId = button.getAttribute('data-team-id');
-        const checkbox = document.querySelector(`input[name="affected_teams"][value="${teamId}"]`);
-        if (checkbox) {
-            updateTeamButton(button, checkbox.checked);
+        // Team selection functions
+        function getTeamCheckboxes() {
+            return document.querySelectorAll('input[name="affected_teams"]');
         }
-    });
 
-    // Update selected count on page load
-    updateSelectedCount();
+        function getTeamButtons() {
+            return document.querySelectorAll('.team-btn');
+        }
 
-    // Setup box text input handler for auto-populating IP
-    const boxInput = document.getElementById('id_affected_boxes');
-    if (boxInput) {
-        boxInput.addEventListener('input', updateIPAndServices);
-    }
+        function updateSelectedCount() {
+            const checkboxes = getTeamCheckboxes();
+            const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+            document.getElementById('selectedCount').textContent = checked;
+        }
 
-    // Handle quick-add box buttons
-    document.querySelectorAll('.box-suggestion').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            addBox(this.dataset.box);
+        function toggleTeam(button, checkboxId) {
+            const checkbox = document.getElementById(checkboxId);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateTeamButton(button, checkbox.checked);
+                updateSelectedCount();
+            }
+        }
+
+        function updateTeamButton(button, isSelected) {
+            if (isSelected) {
+                button.classList.add('team-btn--selected');
+            } else {
+                button.classList.remove('team-btn--selected');
+            }
+        }
+
+        function selectAllTeams() {
+            const checkboxes = getTeamCheckboxes();
+            const buttons = getTeamButtons();
+
+            checkboxes.forEach(cb => cb.checked = true);
+            buttons.forEach(btn => updateTeamButton(btn, true));
+            updateSelectedCount();
+        }
+
+        function deselectAllTeams() {
+            const checkboxes = getTeamCheckboxes();
+            const buttons = getTeamButtons();
+
+            checkboxes.forEach(cb => cb.checked = false);
+            buttons.forEach(btn => updateTeamButton(btn, false));
+            updateSelectedCount();
+        }
+
+        // Get box names from comma-separated text input
+        function getBoxNames() {
+            const input = document.getElementById('id_affected_boxes');
+            if (!input || !input.value.trim()) return [];
+            return input.value.split(',').map(b => b.trim()).filter(b => b);
+        }
+
+        // Add a box to the text input
+        function addBox(boxName) {
+            const input = document.getElementById('id_affected_boxes');
+            const boxes = getBoxNames();
+            if (!boxes.includes(boxName)) {
+                boxes.push(boxName);
+                input.value = boxes.join(', ');
+                updateIPAndServices();
+            }
+        }
+
+        // Set the service field
+        function setService(serviceName) {
+            const input = document.getElementById('{{ form.affected_service.id_for_label }}');
+            if (input) {
+                input.value = serviceName;
+            }
+        }
+
+        // Auto-populate destination IP display based on entered boxes
+        function updateIPAndServices() {
+            const boxNames = getBoxNames();
+            const ipTemplate = document.getElementById('id_destination_ip_template');
+            const selectedIpsDiv = document.getElementById('selectedIps');
+            const ipListSpan = document.getElementById('ipList');
+
+            // Collect IPs from known boxes
+            const ipTemplates = [];
+            boxNames.forEach(boxName => {
+                const boxData = boxMetadata[boxName];
+                if (boxData && boxData.ip) {
+                    ipTemplates.push(boxData.ip);
+                }
+            });
+
+            // Update hidden field and display IPs
+            if (ipTemplate) {
+                ipTemplate.value = ipTemplates.join(', ');
+            }
+            if (selectedIpsDiv && ipListSpan) {
+                if (ipTemplates.length > 0) {
+                    ipListSpan.textContent = ipTemplates.join(', ');
+                    selectedIpsDiv.classList.remove('d-none');
+                } else {
+                    selectedIpsDiv.classList.add('d-none');
+                }
+            }
+        }
+
+        // Calculate points based on outcome checkboxes (mirrors server-side logic)
+        function calculatePoints() {
+            let total = 0;
+            const rootAccess = document.getElementById('{{ form.root_access.id_for_label }}')?.checked;
+            const userAccess = document.getElementById('{{ form.user_access.id_for_label }}')?.checked;
+            const privEsc = document.getElementById('{{ form.privilege_escalation.id_for_label }}')?.checked;
+            const credentials = document.getElementById('{{ form.credentials_recovered.id_for_label }}')?.checked;
+            const sensitiveFiles = document.getElementById('{{ form.sensitive_files_recovered.id_for_label }}')?.checked;
+            const creditCards = document.getElementById('{{ form.credit_cards_recovered.id_for_label }}')?.checked;
+            const pii = document.getElementById('{{ form.pii_recovered.id_for_label }}')?.checked;
+            const encryptedDb = document.getElementById('{{ form.encrypted_db_recovered.id_for_label }}')?.checked;
+            const dbDecrypted = document.getElementById('{{ form.db_decrypted.id_for_label }}')?.checked;
+
+            // Access level (only highest scored)
+            if (rootAccess) {
+                total += 100;
+            } else if (userAccess) {
+                total += 25;
+            }
+
+            // Privilege escalation is additional
+            if (privEsc) total += 100;
+
+            // Data recovery outcomes (cumulative)
+            if (credentials) total += 50;
+            if (sensitiveFiles) total += 25;
+            if (creditCards) total += 50;
+            if (pii) total += 200;
+            if (encryptedDb) total += 25;
+            if (dbDecrypted) total += 25;
+
+            document.getElementById('pointsValue').textContent = total;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleSourceIpType();
+
+            // Setup IP count for pool modal
+            const poolIpsTextarea = document.getElementById('poolIps');
+            if (poolIpsTextarea) {
+                poolIpsTextarea.addEventListener('input', updateIpCount);
+            }
+
+            // Setup outcome checkbox handlers for live points calculation
+            const outcomeCheckboxes = [
+                '{{ form.root_access.id_for_label }}',
+                '{{ form.user_access.id_for_label }}',
+                '{{ form.privilege_escalation.id_for_label }}',
+                '{{ form.credentials_recovered.id_for_label }}',
+                '{{ form.sensitive_files_recovered.id_for_label }}',
+                '{{ form.credit_cards_recovered.id_for_label }}',
+                '{{ form.pii_recovered.id_for_label }}',
+                '{{ form.encrypted_db_recovered.id_for_label }}',
+                '{{ form.db_decrypted.id_for_label }}',
+            ];
+            outcomeCheckboxes.forEach(id => {
+                const checkbox = document.getElementById(id);
+                if (checkbox) {
+                    checkbox.addEventListener('change', calculatePoints);
+                }
+            });
+            // Calculate initial points on load
+            calculatePoints();
+
+            // Set team button labels and sync with checkbox state
+            const teamButtons = getTeamButtons();
+            teamButtons.forEach(button => {
+                const fullLabel = button.getAttribute('data-team-label');
+                if (fullLabel) {
+                    // Extract numbers from the label (e.g., "Team 01" -> "1", "Team01" -> "1")
+                    const match = fullLabel.match(/\d+/);
+                    if (match) {
+                        // Remove leading zeros
+                        button.textContent = parseInt(match[0], 10).toString();
+                    } else {
+                        button.textContent = fullLabel;
+                    }
+                }
+
+                // Sync button appearance with checkbox state
+                const teamId = button.getAttribute('data-team-id');
+                const checkbox = document.querySelector(`input[name="affected_teams"][value="${teamId}"]`);
+                if (checkbox) {
+                    updateTeamButton(button, checkbox.checked);
+                }
+            });
+
+            // Update selected count on page load
+            updateSelectedCount();
+
+            // Setup box text input handler for auto-populating IP
+            const boxInput = document.getElementById('id_affected_boxes');
+            if (boxInput) {
+                boxInput.addEventListener('input', updateIPAndServices);
+            }
+
+            // Handle quick-add box buttons
+            document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    addBox(this.dataset.box);
+                });
+            });
+
+            // Handle quick-add service buttons
+            document.querySelectorAll('.service-suggestion').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    setService(this.dataset.service);
+                });
+            });
+
+            // Initialize on page load if any boxes already entered
+            if (getBoxNames().length > 0) {
+                updateIPAndServices();
+            }
         });
-    });
-
-    // Handle quick-add service buttons
-    document.querySelectorAll('.service-suggestion').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            setService(this.dataset.service);
-        });
-    });
-
-    // Initialize on page load if any boxes already entered
-    if (getBoxNames().length > 0) {
-        updateIPAndServices();
-    }
-});
-</script>
+    </script>
 {% endblock red_content %}

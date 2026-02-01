@@ -1,14 +1,8 @@
 {# Module/Card component - content container with optional toolbar #}
 {# Usage: <c-module><c-slot name="toolbar">Actions</c-slot>Content here</c-module> #}
 {# Props: class (additional classes), filtered (bool for filtered style) #}
-
-<c-vars class="" filtered="false" />
-
+<c-vars class filtered="false" />
 <div class="module {% if filtered == 'true' %}filtered{% endif %} {{ class }}">
-    {% if toolbar %}
-    <div class="toolbar">
-        {{ toolbar }}
-    </div>
-    {% endif %}
+    {% if toolbar %}<div class="toolbar">{{ toolbar }}</div>{% endif %}
     {{ slot }}
 </div>

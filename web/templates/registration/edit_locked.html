@@ -1,18 +1,16 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Registration Locked - WCComps{% endblock %}
-
+{% block title %}
+    Registration Locked - WCComps
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="Registration Locked" />
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="Registration Locked" />
+        <c-module>
         <c-alert variant="info">
-            This registration for <strong>{{ registration.school_name }}</strong> can no longer be edited because credentials have already been sent.
+        This registration for <strong>{{ registration.school_name }}</strong> can no longer be edited because credentials have already been sent.
         </c-alert>
-
         <p>If you need to make changes, please contact the competition organizers.</p>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock content %}

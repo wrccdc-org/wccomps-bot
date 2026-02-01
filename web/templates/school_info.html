@@ -1,39 +1,39 @@
 {% extends "admin/base.html" %}
 {% load static cotton %}
-
-{% block title %}School Information - WCComps{% endblock %}
-
+{% block title %}
+    School Information - WCComps
+{% endblock title %}
 {% block admin_content %}
-<div id="content-main">
-    <c-page_header title="School Information" />
-
-    <c-module id="changelist">
+    <div id="content-main">
+        <c-page_header title="School Information" />
+        <c-module id="changelist">
         <c-slot name="toolbar">
-            <c-link href="{% url 'school_info_import' %}" variant="addlink">Import from CSV</c-link>
+        <c-link href="{% url 'school_info_import' %}" variant="addlink">Import from CSV</c-link>
         </c-slot>
-
         <c-table id="result_list" class="w-full" fixed_layout="true" aria_label="School information for all teams">
-            <c-slot name="colgroup">
-                <colgroup>
-                    <col style="width: 15%;">
-                    <col style="width: 25%;">
-                    <col style="width: 25%;">
-                    <col style="width: 20%;">
-                    <col style="width: 10%;">
-                    <col style="width: 5%;">
-                </colgroup>
-            </c-slot>
-            <c-slot name="headers">
-                <tr>
-                    <c-table_header sortable="false">Team</c-table_header>
-                    <c-table_header sortable="false">School Name</c-table_header>
-                    <c-table_header sortable="false">Contact Email</c-table_header>
-                    <c-table_header sortable="false">Secondary Email</c-table_header>
-                    <c-table_header sortable="false">Last Updated</c-table_header>
-                    <c-table_header sortable="false">Action</c-table_header>
-                </tr>
-            </c-slot>
-            {% for item in teams %}
+        <c-slot name="colgroup">
+        {# djlint:off H021 #}
+        <colgroup>
+            <col style="width: 15%;">
+            <col style="width: 25%;">
+            <col style="width: 25%;">
+            <col style="width: 20%;">
+            <col style="width: 10%;">
+            <col style="width: 5%;">
+        </colgroup>
+        {# djlint:on #}
+        </c-slot>
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false">School Name</c-table_header>
+            <c-table_header sortable="false">Contact Email</c-table_header>
+            <c-table_header sortable="false">Secondary Email</c-table_header>
+            <c-table_header sortable="false">Last Updated</c-table_header>
+            <c-table_header sortable="false">Action</c-table_header>
+        </tr>
+        </c-slot>
+        {% for item in teams %}
             <tr class="{% cycle 'row1' 'row2' %}">
                 <th class="field-team">
                     Team {{ item.team.team_number }}
@@ -71,12 +71,9 @@
                     <c-link href="{% url 'school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
                 </td>
             </tr>
-            {% endfor %}
+        {% endfor %}
         </c-table>
-
-        <p class="paginator">
-            {{ teams|length }} team(s)
-        </p>
-    </c-module>
-</div>
-{% endblock %}
+        <p class="paginator">{{ teams|length }} team(s)</p>
+        </c-module>
+    </div>
+{% endblock admin_content %}

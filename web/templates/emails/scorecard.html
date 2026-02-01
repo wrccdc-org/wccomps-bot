@@ -1,93 +1,167 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #1a365d; color: white; padding: 20px; text-align: center; }
-        .content { padding: 20px; background: #f8f9fa; }
-        .rank-badge { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #78350f; padding: 20px; border-radius: 10px; text-align: center; margin: 15px 0; }
-        .rank-badge .rank { font-size: 48px; font-weight: bold; }
-        .rank-badge .label { font-size: 14px; }
-        .event-details { background: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .score-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .score-table th, .score-table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-        .score-table th { background: #f3f4f6; }
-        .score-table .positive { color: #059669; }
-        .score-table .negative { color: #dc2626; }
-        .score-table .total { font-weight: bold; font-size: 18px; background: #dbeafe; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Competition Score Card</h1>
-        </div>
-        <div class="content">
-            <div class="rank-badge">
-                <div class="rank">#{{ rank }}</div>
-                <div class="label">out of {{ total_teams }} teams</div>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Scorecard - WCComps</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+            }
+
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            .header {
+                background: #1a365d;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+
+            .content {
+                padding: 20px;
+                background: #f8f9fa;
+            }
+
+            .rank-badge {
+                background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                color: #78350f;
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                margin: 15px 0;
+            }
+
+            .rank-badge .rank {
+                font-size: 48px;
+                font-weight: bold;
+            }
+
+            .rank-badge .label {
+                font-size: 14px;
+            }
+
+            .event-details {
+                background: white;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 15px 0;
+            }
+
+            .score-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 15px 0;
+            }
+
+            .score-table th,
+            .score-table td {
+                padding: 10px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .score-table th {
+                background: #f3f4f6;
+            }
+
+            .score-table .positive {
+                color: #059669;
+            }
+
+            .score-table .negative {
+                color: #dc2626;
+            }
+
+            .score-table .total {
+                font-weight: bold;
+                font-size: 18px;
+                background: #dbeafe;
+            }
+
+            .footer {
+                text-align: center;
+                padding: 20px;
+                color: #666;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Competition Score Card</h1>
             </div>
-
-            <div class="event-details">
-                <h3>Event Details</h3>
-                <p><strong>Event:</strong> {{ event_name }}</p>
-                <p><strong>Date:</strong> {{ event_date|date:"F d, Y" }}</p>
-                <p><strong>School:</strong> {{ school_name }}</p>
-                <p><strong>Team Number:</strong> {{ team_number }}</p>
+            <div class="content">
+                <div class="rank-badge">
+                    <div class="rank">#{{ rank }}</div>
+                    <div class="label">out of {{ total_teams }} teams</div>
+                </div>
+                <div class="event-details">
+                    <h3>Event Details</h3>
+                    <p>
+                        <strong>Event:</strong> {{ event_name }}
+                    </p>
+                    <p>
+                        <strong>Date:</strong> {{ event_date|date:"F d, Y" }}
+                    </p>
+                    <p>
+                        <strong>School:</strong> {{ school_name }}
+                    </p>
+                    <p>
+                        <strong>Team Number:</strong> {{ team_number }}
+                    </p>
+                </div>
+                <h3>Score Breakdown</h3>
+                <table class="score-table">
+                    <tr>
+                        <th>Category</th>
+                        <th>Points</th>
+                    </tr>
+                    <tr>
+                        <td>Service Points</td>
+                        <td class="positive">+{{ service_points }}</td>
+                    </tr>
+                    <tr>
+                        <td>Inject Points</td>
+                        <td class="positive">+{{ inject_points }}</td>
+                    </tr>
+                    <tr>
+                        <td>Orange Team Bonuses</td>
+                        <td class="positive">+{{ orange_points }}</td>
+                    </tr>
+                    <tr>
+                        <td>Red Team Deductions</td>
+                        <td class="negative">-{{ red_deductions }}</td>
+                    </tr>
+                    <tr>
+                        <td>Incident Recovery</td>
+                        <td class="positive">+{{ incident_recovery_points }}</td>
+                    </tr>
+                    <tr>
+                        <td>SLA Penalties</td>
+                        <td class="negative">-{{ sla_penalties }}</td>
+                    </tr>
+                    <tr>
+                        <td>Black Team Adjustments</td>
+                        <td>{{ black_adjustments }}</td>
+                    </tr>
+                    <tr class="total">
+                        <td>Total Score</td>
+                        <td>{{ total_score }}</td>
+                    </tr>
+                </table>
+                {% if scorecard_attached %}<p>A detailed score card PDF is attached to this email.</p>{% endif %}
+                <p>Thank you for participating in {{ event_name }}!</p>
             </div>
-
-            <h3>Score Breakdown</h3>
-            <table class="score-table">
-                <tr>
-                    <th>Category</th>
-                    <th>Points</th>
-                </tr>
-                <tr>
-                    <td>Service Points</td>
-                    <td class="positive">+{{ service_points }}</td>
-                </tr>
-                <tr>
-                    <td>Inject Points</td>
-                    <td class="positive">+{{ inject_points }}</td>
-                </tr>
-                <tr>
-                    <td>Orange Team Bonuses</td>
-                    <td class="positive">+{{ orange_points }}</td>
-                </tr>
-                <tr>
-                    <td>Red Team Deductions</td>
-                    <td class="negative">-{{ red_deductions }}</td>
-                </tr>
-                <tr>
-                    <td>Incident Recovery</td>
-                    <td class="positive">+{{ incident_recovery_points }}</td>
-                </tr>
-                <tr>
-                    <td>SLA Penalties</td>
-                    <td class="negative">-{{ sla_penalties }}</td>
-                </tr>
-                <tr>
-                    <td>Black Team Adjustments</td>
-                    <td>{{ black_adjustments }}</td>
-                </tr>
-                <tr class="total">
-                    <td>Total Score</td>
-                    <td>{{ total_score }}</td>
-                </tr>
-            </table>
-
-            {% if scorecard_attached %}
-            <p>A detailed score card PDF is attached to this email.</p>
-            {% endif %}
-
-            <p>Thank you for participating in {{ event_name }}!</p>
+            <div class="footer">
+                <p>WCComps Competition</p>
+            </div>
         </div>
-        <div class="footer">
-            <p>WCComps Competition</p>
-        </div>
-    </div>
-</body>
+    </body>
 </html>

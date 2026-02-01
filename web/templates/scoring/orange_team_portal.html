@@ -1,58 +1,59 @@
 {% extends "scoring/orange_base.html" %}
-{% block title %}Orange Team Adjustments{% endblock %}
-
+{% block title %}
+    Orange Team Adjustments
+{% endblock title %}
 {% block orange_content %}
-{% load cotton %}
-<c-page_header title="My Adjustments" subtitle="View submitted customer service bonuses and penalties" />
-<c-module>
+    {% load cotton %}
+    <c-page_header title="My Adjustments" subtitle="View submitted customer service bonuses and penalties" />
+    <c-module>
     <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="add">Submit Adjustment</c-link>
+    <c-link href="{% url 'scoring:submit_orange_bonus' %}" variant="add">Submit Adjustment</c-link>
     </c-slot>
-
     {% if bonuses %}
-    <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
+        <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
         <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">ID</c-table_header>
-                <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false">Category</c-table_header>
-                <c-table_header sortable="false">Description</c-table_header>
-                <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Submitted</c-table_header>
-            </tr>
-        </c-slot>
-
-        {% for bonus in bonuses %}
         <tr>
-            <td><strong>#{{ bonus.id }}</strong></td>
-            <td>{{ bonus.team.team_name }}</td>
-            <td>
-                {% if bonus.check_type %}
-                    <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
-                {% else %}
-                    <c-badge status="cancelled">Uncategorized</c-badge>
-                {% endif %}
-            </td>
-            <td>{{ bonus.description|truncatechars:60 }}</td>
-            <td style="text-align: right;">
-                <c-score_value :value="bonus.points_awarded" format="signed" />
-            </td>
-            <td>
-                {% if bonus.is_approved %}
-                    <c-badge status="resolved">Approved</c-badge>
-                {% else %}
-                    <c-badge status="claimed">Pending</c-badge>
-                {% endif %}
-            </td>
-            <td>
-                <small>{{ bonus.created_at|date:"m/d H:i" }}</small>
-            </td>
+            <c-table_header sortable="false">ID</c-table_header>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false">Category</c-table_header>
+            <c-table_header sortable="false">Description</c-table_header>
+            <c-table_header sortable="false" class="text-right">Points</c-table_header>
+            <c-table_header sortable="false">Status</c-table_header>
+            <c-table_header sortable="false">Submitted</c-table_header>
         </tr>
+        </c-slot>
+        {% for bonus in bonuses %}
+            <tr>
+                <td>
+                    <strong>#{{ bonus.id }}</strong>
+                </td>
+                <td>{{ bonus.team.team_name }}</td>
+                <td>
+                    {% if bonus.check_type %}
+                        <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
+                    {% else %}
+                        <c-badge status="cancelled">Uncategorized</c-badge>
+                    {% endif %}
+                </td>
+                <td>{{ bonus.description|truncatechars:60 }}</td>
+                <td class="text-right">
+                    <c-score_value :value="bonus.points_awarded" format="signed" />
+                </td>
+                <td>
+                    {% if bonus.is_approved %}
+                        <c-badge status="resolved">Approved</c-badge>
+                    {% else %}
+                        <c-badge status="claimed">Pending</c-badge>
+                    {% endif %}
+                </td>
+                <td>
+                    <small>{{ bonus.created_at|date:"m/d H:i" }}</small>
+                </td>
+            </tr>
         {% endfor %}
-    </c-table>
+        </c-table>
     {% else %}
-    <c-empty_state title="No adjustments yet" description="Teams are being suspiciously polite. Or suspiciously rude. Hard to tell." />
+        <c-empty_state title="No adjustments yet" description="Teams are being suspiciously polite. Or suspiciously rude. Hard to tell." />
     {% endif %}
-</c-module>
+    </c-module>
 {% endblock orange_content %}

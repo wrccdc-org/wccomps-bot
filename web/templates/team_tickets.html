@@ -1,32 +1,33 @@
 {% extends "base.html" %}
 {% load static cotton %}
-
-{% block title %}Tickets - {{ team.team_name }}{% endblock %}
-
-{% block home_url %}{% url 'team_tickets' %}{% endblock %}
-
+{% block title %}
+    Tickets - {{ team.team_name }}
+{% endblock title %}
+{% block home_url %}
+    {% url 'team_tickets' %}
+{% endblock home_url %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="{{ team.team_name }} - Tickets" />
-
-    <c-module id="changelist">
+    <div id="content-main">
+        <c-page_header title="{{ team.team_name }} - Tickets" />
+        <c-module id="changelist">
         <c-slot name="toolbar">
-            <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
+        <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
-
         <c-filter_toolbar form_id="filter-form" hx_get="{% url 'team_tickets' %}" hx_target="#ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
-            <c-filter_field label="Status" id="id_status">
-                <select name="status" id="id_status" aria-label="Filter by status">
-                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-                    <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                    <option value="claimed" {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
-                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                </select>
-            </c-filter_field>
+        <c-filter_field label="Status" id="id_status">
+        <select name="status" id="id_status" aria-label="Filter by status">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+            <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+            <option value="claimed"
+                    {% if status_filter == 'claimed' %}selected{% endif %}>Claimed</option>
+            <option value="resolved"
+                    {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+            <option value="cancelled"
+                    {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+        </c-filter_field>
         </c-filter_toolbar>
-
         <c-ticket_list :tickets="tickets" :status_filter="status_filter" />
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock content %}

@@ -97,6 +97,27 @@ class AuthentikManager:
             url=response.url,
         )
 
+    def list_applications(self) -> list[str]:
+        """List all application slugs from Authentik."""
+        url = f"{self.base_url}/api/v3/core/applications/"
+        slugs: list[str] = []
+        try:
+            self._log_request("GET", url)
+            response = requests.get(
+                url,
+                headers=self.headers,
+                params={"page_size": 100},
+                timeout=10,
+            )
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            slugs = sorted([app.get("slug", "") for app in results if app.get("slug")])
+            logger.info(f"Found {len(slugs)} applications in Authentik")
+            return slugs
+        except Exception as e:
+            logger.exception(f"Failed to list applications: {e}")
+            return slugs
+
     def get_application_by_slug(self, slug: str) -> AuthentikApplication | None:
         """Get application details by slug."""
         url = f"{self.base_url}/api/v3/core/applications/"

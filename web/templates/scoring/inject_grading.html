@@ -1,23 +1,22 @@
 {% extends "scoring/base.html" %}
-
 {% block scoring_content %}
-{% load cotton %}
-<c-page_header title="Inject Grading" />
-<c-module>
+    {% load cotton %}
+    <c-page_header title="Inject Grading" />
+    <c-module>
     {% if not quotient_available %}
-    <c-alert variant="error">
+        <c-alert variant="error">
         <strong>Connection Error</strong>
         <p class="mb-0">Unable to connect to Quotient. Check the API URL and credentials.</p>
-    </c-alert>
+        </c-alert>
     {% elif no_injects %}
-    <c-alert variant="info">
+        <c-alert variant="info">
         <strong>No Injects</strong>
         <p class="mb-0">No injects are configured in Quotient yet.</p>
-    </c-alert>
+        </c-alert>
     {% else %}
-
-    <c-form_field label="Select Inject" id="inject-select">
-        <select id="inject-select" class="form-select"
+        <c-form_field label="Select Inject" id="inject-select">
+        <select id="inject-select"
+                class="form-select"
                 hx-get="{% url 'scoring:inject_grading' %}"
                 hx-target="#inject-grading-content"
                 hx-swap="outerHTML"
@@ -26,13 +25,11 @@
                 name="inject">
             <option value="">-- Select an inject to grade --</option>
             {% for id, title in inject_choices %}
-            <option value="{{ id }}" {% if id == selected_inject_id %}selected{% endif %}>{{ title }}</option>
+                <option value="{{ id }}" {% if id == selected_inject_id %}selected{% endif %}>{{ title }}</option>
             {% endfor %}
         </select>
-    </c-form_field>
-
-    <c-inject_grading_content :selected_inject="selected_inject" :selected_inject_id="selected_inject_id" :team_data="team_data" :inject_choices="inject_choices" />
-
+        </c-form_field>
+        <c-inject_grading_content :selected_inject="selected_inject" :selected_inject_id="selected_inject_id" :team_data="team_data" :inject_choices="inject_choices" />
     {% endif %}
-</c-module>
-{% endblock %}
+    </c-module>
+{% endblock scoring_content %}

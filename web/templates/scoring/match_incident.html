@@ -1,126 +1,133 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
-
 {% block scoring_content %}
-<c-page_header title="Review Incident #{{ incident.id }}" />
-<div class="grid-2 gap-20">
-    <c-module>
+    <c-page_header title="Review Incident #{{ incident.id }}" />
+    <div class="grid-2 gap-20">
+        <c-module>
         <h2 class="module-header">Incident Report #{{ incident.id }}</h2>
         <c-detail_grid class="mb-15">
-            <dt>Team</dt>
-            <dd>{{ incident.team.team_name }}</dd>
-            <dt>Affected Boxes</dt>
-            <dd>{{ incident.affected_boxes_display|default:"—" }}</dd>
-            <dt>Affected Service</dt>
-            <dd>{{ incident.affected_service }}</dd>
-            <dt>Source IP</dt>
-            <dd><code>{{ incident.source_ip }}</code></dd>
-            <dt>Detected At</dt>
-            <dd>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</dd>
+        <dt>Team</dt>
+        <dd>
+            {{ incident.team.team_name }}
+        </dd>
+        <dt>Affected Boxes</dt>
+        <dd>
+            {{ incident.affected_boxes_display|default:"—" }}
+        </dd>
+        <dt>Affected Service</dt>
+        <dd>
+            {{ incident.affected_service }}
+        </dd>
+        <dt>Source IP</dt>
+        <dd>
+            <code>{{ incident.source_ip }}</code>
+        </dd>
+        <dt>Detected At</dt>
+        <dd>
+            {{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}
+        </dd>
         </c-detail_grid>
-
         <c-fieldset heading="Attack Description">
-            <c-info_box>
-                <small>{{ incident.attack_description|linebreaks }}</small>
-            </c-info_box>
+        <c-info_box>
+        <small>{{ incident.attack_description|linebreaks }}</small>
+        </c-info_box>
         </c-fieldset>
-
         <c-fieldset heading="Evidence ({{ incident.screenshots.count }})">
-            {% if incident.screenshots.exists %}
-                <c-image_grid>
-                    {% for screenshot in incident.screenshots.all %}
-                        {% if screenshot.has_data %}
-                        <a href="{% url 'scoring:incident_screenshot' screenshot.id %}" target="_blank">
-                            <img src="{% url 'scoring:incident_screenshot' screenshot.id %}" alt="{{ screenshot.filename }}">
-                        </a>
-                        {% else %}
-                        <div class="screenshot-lost">
-                            <span class="text-muted">{{ screenshot.filename|cut:"scoring/incidents/" }}</span>
-                            <small class="text-danger d-block">(file lost)</small>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                </c-image_grid>
-            {% else %}
-                <c-empty_state title="No screenshots" description="No evidence screenshots attached" />
-            {% endif %}
+        {% if incident.screenshots.exists %}
+            <c-image_grid>
+            {% for screenshot in incident.screenshots.all %}
+                {% if screenshot.has_data %}
+                    <a href="{% url 'scoring:incident_screenshot' screenshot.id %}"
+                       target="_blank">
+                        <img src="{% url 'scoring:incident_screenshot' screenshot.id %}"
+                             alt="{{ screenshot.filename }}"
+                             width="200"
+                             height="150">
+                    </a>
+                {% else %}
+                    <div class="screenshot-lost">
+                        <span class="text-muted">{{ screenshot.filename|cut:"scoring/incidents/" }}</span>
+                        <small class="text-danger d-block">(file lost)</small>
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </c-image_grid>
+        {% else %}
+            <c-empty_state title="No screenshots" description="No evidence screenshots attached" />
+        {% endif %}
         </c-fieldset>
-    </c-module>
-
-    <c-module>
+        </c-module>
+        <c-module>
         <h2 class="module-header module-header-success">Review & Match</h2>
         {% if suggested_findings %}
-        <c-alert variant="info">
+            <c-alert variant="info">
             <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
             <p class="mb-0">
                 <small>Based on source IP, affected box, and service</small>
             </p>
-        </c-alert>
-
-        <div class="mb-15">
-            <h3 class="text-md mt-0">Potential Red Team Findings:</h3>
-            {% for finding in suggested_findings %}
-            <div class="rounded p-10 mb-10 {% if finding.source_ip == incident.source_ip %}border-success{% elif forloop.first %}border-warning{% else %}border{% endif %}">
-                <div class="d-flex justify-between items-start">
-                    <div>
-                        <strong>Finding #{{ finding.id }}</strong>
-                        {% if finding.source_ip == incident.source_ip %}
-                        <c-badge status="success" class="ml-5">IP Match</c-badge>
-                        {% endif %}
-                        <br><small>{{ finding.attack_vector|truncatechars:60 }}</small>
-                        <br><small class="text-muted">
-                            {{ finding.affected_boxes_display|default:"—" }} / {{ finding.affected_service }}
-                        </small>
-                        <br><small class="{% if finding.source_ip == incident.source_ip %}text-success font-bold{% else %}text-muted{% endif %}">
-                            Source IP: <code>{{ finding.source_ip }}</code>
-                        </small>
+            </c-alert>
+            <div class="mb-15">
+                <h3 class="text-md mt-0">Potential Red Team Findings:</h3>
+                {% for finding in suggested_findings %}
+                    <div class="rounded p-10 mb-10 {% if finding.source_ip == incident.source_ip %}border-success{% elif forloop.first %}border-warning{% else %}border{% endif %}">
+                        <div class="d-flex justify-between items-start">
+                            <div>
+                                <strong>Finding #{{ finding.id }}</strong>
+                                {% if finding.source_ip == incident.source_ip %}<c-badge status="success" class="ml-5">IP Match</c-badge>{% endif %}
+                                <br>
+                                <small>{{ finding.attack_vector|truncatechars:60 }}</small>
+                                <br>
+                                <small class="text-muted">{{ finding.affected_boxes_display|default:"—" }} / {{ finding.affected_service }}</small>
+                                <br>
+                                <small class="{% if finding.source_ip == incident.source_ip %}text-success font-bold{% else %}text-muted{% endif %}">
+                                    Source IP: <code>{{ finding.source_ip }}</code>
+                                </small>
+                            </div>
+                            <c-badge status="danger">-{{ finding.points_per_team }} pts</c-badge>
+                        </div>
+                        <small class="text-muted d-block mt-5">Submitted: {{ finding.created_at|date:"m/d H:i" }}</small>
                     </div>
-                    <c-badge status="danger">-{{ finding.points_per_team }} pts</c-badge>
-                </div>
-                <small class="text-muted d-block mt-5">
-                    Submitted: {{ finding.created_at|date:"m/d H:i" }}
-                </small>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
         {% else %}
-        <c-alert variant="warning">
+            <c-alert variant="warning">
             <strong>No Automatic Matches Found</strong>
             <p class="mb-0">No red team findings match this incident's source IP, box, or service for this team.</p>
-        </c-alert>
+            </c-alert>
         {% endif %}
-
         <form method="post">
             {% csrf_token %}
             <c-fieldset aligned="true">
-                <c-form_field label="{{ form.matched_to_red_finding.label }}" id="{{ form.matched_to_red_finding.id_for_label }}" help_text="{{ form.matched_to_red_finding.help_text }}" error="{% for e in form.matched_to_red_finding.errors %}{{ e }}{% endfor %}">
-                    {{ form.matched_to_red_finding }}
-                </c-form_field>
-
-                <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="{% for e in form.points_returned.errors %}{{ e }}{% endfor %}">
-                    {{ form.points_returned }}
-                </c-form_field>
-
-                <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="{% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}">
-                    {{ form.reviewer_notes }}
-                </c-form_field>
+            <c-form_field label="{{ form.matched_to_red_finding.label }}" id="{{ form.matched_to_red_finding.id_for_label }}" help_text="{{ form.matched_to_red_finding.help_text }}" error="
+            {% for e in form.matched_to_red_finding.errors %}{{ e }}{% endfor %}
+            ">
+            {{ form.matched_to_red_finding }}
+            </c-form_field>
+            <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="
+            {% for e in form.points_returned.errors %}{{ e }}{% endfor %}
+            ">
+            {{ form.points_returned }}
+            </c-form_field>
+            <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="
+            {% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}
+            ">
+            {{ form.reviewer_notes }}
+            </c-form_field>
             </c-fieldset>
-
             <c-alert variant="info" class="text-sm">
-                <strong>Review Guidelines:</strong>
-                <ul class="mb-0">
-                    <li>Verify evidence shows IP addresses and timestamps</li>
-                    <li>Match to corresponding red team finding if applicable</li>
-                    <li>Award points based on detection quality and mitigation</li>
-                    <li>Leave unmatched if no corresponding red finding exists</li>
-                </ul>
+            <strong>Review Guidelines:</strong>
+            <ul class="mb-0">
+                <li>Verify evidence shows IP addresses and timestamps</li>
+                <li>Match to corresponding red team finding if applicable</li>
+                <li>Award points based on detection quality and mitigation</li>
+                <li>Leave unmatched if no corresponding red finding exists</li>
+            </ul>
             </c-alert>
-
             <c-button_row class="mt-15 justify-end">
-                <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
-                <c-button type="submit" variant="primary">Complete Review</c-button>
+            <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
+            <c-button type="submit" variant="primary">Complete Review</c-button>
             </c-button_row>
         </form>
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock scoring_content %}

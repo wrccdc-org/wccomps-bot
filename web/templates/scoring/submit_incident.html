@@ -1,229 +1,237 @@
 {% extends "base.html" %}
-
-{% block title %}Submit Incident Report{% endblock %}
-
+{% block title %}
+    Submit Incident Report
+{% endblock title %}
 {% block content %}
-{% load cotton %}
-<div class="max-w-1200">
-    <c-page_header title="Submit Incident Report" subtitle="Report detected attacks on your systems" />
-    <c-module>
+    {% load cotton %}
+    <div class="max-w-1200">
+        <c-page_header title="Submit Incident Report" subtitle="Report detected attacks on your systems" />
+        <c-module>
         {% if team or is_admin %}
-        <form method="post" enctype="multipart/form-data" id="incidentForm">
-            {% csrf_token %}
-
-            <!-- Target Information Section -->
-            <c-fieldset legend="Target Information">
+            <form method="post" enctype="multipart/form-data" id="incidentForm">
+                {% csrf_token %}
+                <!-- Target Information Section -->
+                <c-fieldset legend="Target Information">
                 {% if is_admin %}
-                <c-form_field label="{{ form.team.label }}" required="true" :id="form.team.id_for_label" help_text="{{ form.team.help_text }}" error="{{ form.team.errors|join:', ' }}">
+                    <c-form_field label="{{ form.team.label }}" required="true" :id="form.team.id_for_label" help_text="{{ form.team.help_text }}" error="{{ form.team.errors|join:', ' }}">
                     {{ form.team }}
-                </c-form_field>
+                    </c-form_field>
                 {% endif %}
-
                 <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
-                    {{ form.affected_boxes }}
-                    {% if form.box_choices %}
+                {{ form.affected_boxes }}
+                {% if form.box_choices %}
                     <div class="mt-10">
                         <small class="text-muted">Quick add:</small>
                         <div class="d-flex flex-wrap gap-5 mt-5">
                             {% for value, label in form.box_choices %}
-                            <button type="button" class="btn btn-sm btn-outline-secondary box-suggestion" data-box="{{ value }}">{{ label }}</button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary box-suggestion"
+                                        data-box="{{ value }}">{{ label }}</button>
                             {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
+                {% endif %}
                 </c-form_field>
-
                 <div class="grid-2">
                     <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" help_text="{{ form.affected_service.help_text }}" error="{{ form.affected_service.errors|join:', ' }}">
-                        {{ form.affected_service }}
-                        {% if form.service_choices %}
+                    {{ form.affected_service }}
+                    {% if form.service_choices %}
                         <div class="mt-5">
                             <small class="text-muted">Quick add:</small>
                             {% for value, label in form.service_choices %}
-                            <button type="button" class="btn btn-sm btn-outline-secondary service-suggestion ms-5" data-service="{{ value }}">{{ label }}</button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary service-suggestion ms-5"
+                                        data-service="{{ value }}">{{ label }}</button>
                             {% endfor %}
                         </div>
-                        {% endif %}
+                    {% endif %}
                     </c-form_field>
-
                     <c-form_field label="{{ form.destination_ip.label }}" required="true" :id="form.destination_ip.id_for_label" help_text="Auto-populated based on selected boxes" error="{{ form.destination_ip.errors|join:', ' }}">
-                        {{ form.destination_ip }}
+                    {{ form.destination_ip }}
                     </c-form_field>
                 </div>
-            </c-fieldset>
-
-            <!-- Attack Details Section -->
-            <c-fieldset legend="Attack Details">
+                </c-fieldset>
+                <!-- Attack Details Section -->
+                <c-fieldset legend="Attack Details">
                 <div class="grid-2">
                     <c-form_field label="{{ form.source_ip.label }}" required="true" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
-                        {{ form.source_ip }}
+                    {{ form.source_ip }}
                     </c-form_field>
-
                     <c-form_field label="{{ form.attack_detected_at.label }}" required="true" :id="form.attack_detected_at.id_for_label" help_text="{{ form.attack_detected_at.help_text }}" error="{{ form.attack_detected_at.errors|join:', ' }}">
-                        {{ form.attack_detected_at }}
+                    {{ form.attack_detected_at }}
                     </c-form_field>
                 </div>
-
                 <c-form_field label="{{ form.attack_description.label }}" required="true" :id="form.attack_description.id_for_label" help_text="{{ form.attack_description.help_text }}" error="{{ form.attack_description.errors|join:', ' }}">
-                    {{ form.attack_description }}
+                {{ form.attack_description }}
                 </c-form_field>
-
                 <div class="form-check mb-2">
                     {{ form.attack_mitigated }}
-                    <label class="form-check-label" for="{{ form.attack_mitigated.id_for_label }}">
-                        {{ form.attack_mitigated.label }}
-                    </label>
-                    {% if form.attack_mitigated.help_text %}
-                        <div class="form-text">{{ form.attack_mitigated.help_text }}</div>
-                    {% endif %}
+                    <label class="form-check-label"
+                           for="{{ form.attack_mitigated.id_for_label }}">{{ form.attack_mitigated.label }}</label>
+                    {% if form.attack_mitigated.help_text %}<div class="form-text">{{ form.attack_mitigated.help_text }}</div>{% endif %}
                 </div>
-            </c-fieldset>
-
-            <!-- Screenshot Evidence Section -->
-            <c-fieldset legend="Screenshot Evidence">
+                </c-fieldset>
+                <!-- Screenshot Evidence Section -->
+                <c-fieldset legend="Screenshot Evidence">
                 <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload screenshots showing attack evidence. Maximum 20 files.">
-                    <input type="file"
-                           class="form-control"
-                           id="screenshots"
-                           name="screenshots"
-                           accept="image/*"
-                           multiple
-                           onchange="previewScreenshots(this)">
+                <input type="file"
+                       class="form-control"
+                       id="screenshots"
+                       name="screenshots"
+                       accept="image/*"
+                       multiple
+                       onchange="previewScreenshots(this)">
                 </c-form_field>
-
                 <div id="screenshotPreview" class="grid-4 mb-15"></div>
-            </c-fieldset>
-
-            <c-alert variant="info" class="mb-20">
+                </c-fieldset>
+                <c-alert variant="info" class="mb-20">
                 <h3 class="mt-0 text-lg">Incident Report Guidelines</h3>
-                <p>Teams are strongly encouraged to provide incident reports for each Red Team incident they detect. Incident reports can be completed as needed throughout the competition and presented to the White Team for collection.</p>
-                <p><strong>Your incident report must contain:</strong></p>
+                <p>
+                    Teams are strongly encouraged to provide incident reports for each Red Team incident they detect. Incident reports can be completed as needed throughout the competition and presented to the White Team for collection.
+                </p>
+                <p>
+                    <strong>Your incident report must contain:</strong>
+                </p>
                 <ul>
-                    <li>A description of what occurred (including source and destination IP addresses, timelines of activity, passwords cracked, access obtained, damage done, etc.)</li>
+                    <li>
+                        A description of what occurred (including source and destination IP addresses, timelines of activity, passwords cracked, access obtained, damage done, etc.)
+                    </li>
                     <li>A discussion of what was affected</li>
                     <li>A remediation plan</li>
                 </ul>
-                <p class="mb-0"><strong>Important:</strong> A thorough incident report that correctly identifies and addresses a successful Red Team attack may reduce the Red Team penalty for that event. No partial points will be given for incomplete or vague incident reports.</p>
-            </c-alert>
-
-            <c-button_row class="justify-end">
+                <p class="mb-0">
+                    <strong>Important:</strong> A thorough incident report that correctly identifies and addresses a successful Red Team attack may reduce the Red Team penalty for that event. No partial points will be given for incomplete or vague incident reports.
+                </p>
+                </c-alert>
+                <c-button_row class="justify-end">
                 <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Submit Report</c-button>
-            </c-button_row>
-        </form>
+                </c-button_row>
+            </form>
         {% else %}
-        <c-alert variant="warning">
+            <c-alert variant="warning">
             You must be associated with a team to submit incident reports.
-        </c-alert>
+            </c-alert>
         {% endif %}
-    </c-module>
-</div>
+        </c-module>
+    </div>
+    {{ box_metadata|json_script:"box-metadata" }}
+    <script>
+        const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
+        let teamNumber = {
+            %
+            if team %
+        } {
+            {
+                team.team_number
+            }
+        } {
+            %
+            else %
+        }
+        null {
+            % endif %
+        };
 
-{{ box_metadata|json_script:"box-metadata" }}
-<script>
-const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
-let teamNumber = {% if team %}{{ team.team_number }}{% else %}null{% endif %};
-
-function getSelectedTeamNumber() {
-    const teamSelect = document.getElementById('id_team');
-    if (teamSelect && teamSelect.value) {
-        const match = teamSelect.selectedOptions[0].text.match(/(\d+)/);
-        return match ? parseInt(match[1], 10) : null;
-    }
-    return teamNumber;
-}
-
-function getBoxNames() {
-    const input = document.getElementById('id_affected_boxes');
-    if (!input || !input.value.trim()) return [];
-    return input.value.split(',').map(b => b.trim()).filter(b => b);
-}
-
-function updateIP() {
-    const ipField = document.getElementById('id_destination_ip');
-    const currentTeam = getSelectedTeamNumber();
-    const boxes = getBoxNames();
-
-    // Get first box for IP field
-    if (boxes.length > 0 && boxMetadata[boxes[0]] && ipField && currentTeam) {
-        const teamStr = currentTeam.toString().padStart(2, '0');
-        ipField.value = boxMetadata[boxes[0]].ip.replace('_', teamStr);
-    } else if (ipField) {
-        ipField.value = '';
-    }
-}
-
-function addBox(boxName) {
-    const input = document.getElementById('id_affected_boxes');
-    const boxes = getBoxNames();
-    if (!boxes.includes(boxName)) {
-        boxes.push(boxName);
-        input.value = boxes.join(', ');
-        updateIP();
-    }
-}
-
-function setService(serviceName) {
-    const input = document.getElementById('id_affected_service');
-    if (input) {
-        input.value = serviceName;
-    }
-}
-
-function previewScreenshots(input) {
-    const preview = document.getElementById('screenshotPreview');
-    preview.innerHTML = '';
-
-    if (input.files) {
-        if (input.files.length > 20) {
-            alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+        function getSelectedTeamNumber() {
+            const teamSelect = document.getElementById('id_team');
+            if (teamSelect && teamSelect.value) {
+                const match = teamSelect.selectedOptions[0].text.match(/(\d+)/);
+                return match ? parseInt(match[1], 10) : null;
+            }
+            return teamNumber;
         }
 
-        Array.from(input.files).slice(0, 20).forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const div = document.createElement('div');
-                div.innerHTML = `
+        function getBoxNames() {
+            const input = document.getElementById('id_affected_boxes');
+            if (!input || !input.value.trim()) return [];
+            return input.value.split(',').map(b => b.trim()).filter(b => b);
+        }
+
+        function updateIP() {
+            const ipField = document.getElementById('id_destination_ip');
+            const currentTeam = getSelectedTeamNumber();
+            const boxes = getBoxNames();
+
+            // Get first box for IP field
+            if (boxes.length > 0 && boxMetadata[boxes[0]] && ipField && currentTeam) {
+                const teamStr = currentTeam.toString().padStart(2, '0');
+                ipField.value = boxMetadata[boxes[0]].ip.replace('_', teamStr);
+            } else if (ipField) {
+                ipField.value = '';
+            }
+        }
+
+        function addBox(boxName) {
+            const input = document.getElementById('id_affected_boxes');
+            const boxes = getBoxNames();
+            if (!boxes.includes(boxName)) {
+                boxes.push(boxName);
+                input.value = boxes.join(', ');
+                updateIP();
+            }
+        }
+
+        function setService(serviceName) {
+            const input = document.getElementById('id_affected_service');
+            if (input) {
+                input.value = serviceName;
+            }
+        }
+
+        function previewScreenshots(input) {
+            const preview = document.getElementById('screenshotPreview');
+            preview.innerHTML = '';
+
+            if (input.files) {
+                if (input.files.length > 20) {
+                    alert('Maximum 20 screenshots allowed. Only the first 20 will be uploaded.');
+                }
+
+                Array.from(input.files).slice(0, 20).forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
                     <img src="${e.target.result}" alt="Screenshot ${index + 1}" class="screenshot-preview-img">
                     <div class="screenshot-preview-name">${file.name}</div>
                 `;
-                preview.appendChild(div);
-            };
-            reader.readAsDataURL(file);
+                        preview.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const boxInput = document.getElementById('id_affected_boxes');
+            const teamSelect = document.getElementById('id_team');
+
+            // Update IP when box input changes
+            if (boxInput) {
+                boxInput.addEventListener('input', updateIP);
+            }
+
+            // Handle quick-add box buttons
+            document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    addBox(this.dataset.box);
+                });
+            });
+
+            // Handle quick-add service buttons
+            document.querySelectorAll('.service-suggestion').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    setService(this.dataset.service);
+                });
+            });
+
+            // Initial update
+            updateIP();
+
+            if (teamSelect) {
+                teamSelect.addEventListener('change', updateIP);
+            }
         });
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const boxInput = document.getElementById('id_affected_boxes');
-    const teamSelect = document.getElementById('id_team');
-
-    // Update IP when box input changes
-    if (boxInput) {
-        boxInput.addEventListener('input', updateIP);
-    }
-
-    // Handle quick-add box buttons
-    document.querySelectorAll('.box-suggestion').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            addBox(this.dataset.box);
-        });
-    });
-
-    // Handle quick-add service buttons
-    document.querySelectorAll('.service-suggestion').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            setService(this.dataset.service);
-        });
-    });
-
-    // Initial update
-    updateIP();
-
-    if (teamSelect) {
-        teamSelect.addEventListener('change', updateIP);
-    }
-});
-</script>
-
-{% endblock %}
+    </script>
+{% endblock content %}

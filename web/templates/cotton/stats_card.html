@@ -1,14 +1,8 @@
 {# Stats card component - displays statistics with value and label #}
 {# Usage: <c-stats_card value="42" label="Total Teams" color="primary" /> #}
 {# Props: value (stat to display), label (description), color (primary|success|warning|danger) #}
-
-<c-vars value="" label="" color="primary" />
-
+<c-vars value label color="primary" />
 <div class="stats-card">
-    <div class="stats-card-value {{ color }}">
-        {{ value }}
-    </div>
-    <div class="stats-card-label">
-        {{ label }}
-    </div>
+    <div class="stats-card-value {{ color }}">{{ value }}</div>
+    <div class="stats-card-label">{{ label }}</div>
 </div>

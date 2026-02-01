@@ -1,26 +1,29 @@
 {% extends "scoring/orange_base.html" %}
-{% block title %}Edit Check Type{% endblock %}
-
+{% block title %}
+    Edit Check Type
+{% endblock title %}
 {% block orange_content %}
-{% load cotton %}
-<c-page_header title="Edit Check Type" subtitle="{{ check_type.name }}" />
-<c-module>
+    {% load cotton %}
+    <c-page_header title="Edit Check Type" subtitle="{{ check_type.name }}" />
+    <c-module>
     <form method="post">
         {% csrf_token %}
         <c-fieldset aligned="true">
-            <c-form_field label="Name" required="true" id="{{ form.name.id_for_label }}" error="{% for e in form.name.errors %}{{ e }}{% endfor %}">
-                {{ form.name }}
-            </c-form_field>
-
-            <c-form_field label="{{ form.default_points.label }}" required="true" id="{{ form.default_points.id_for_label }}" help_text="{{ form.default_points.help_text }}" error="{% for e in form.default_points.errors %}{{ e }}{% endfor %}">
-                {{ form.default_points }}
-            </c-form_field>
+        <c-form_field label="Name" required="true" id="{{ form.name.id_for_label }}" error="
+        {% for e in form.name.errors %}{{ e }}{% endfor %}
+        ">
+        {{ form.name }}
+        </c-form_field>
+        <c-form_field label="{{ form.default_points.label }}" required="true" id="{{ form.default_points.id_for_label }}" help_text="{{ form.default_points.help_text }}" error="
+        {% for e in form.default_points.errors %}{{ e }}{% endfor %}
+        ">
+        {{ form.default_points }}
+        </c-form_field>
         </c-fieldset>
-
         <c-button_row class="mt-15 justify-end">
-            <c-link href="{% url 'scoring:manage_check_types' %}">Cancel</c-link>
-            <c-button type="submit" variant="primary">Save Changes</c-button>
+        <c-link href="{% url 'scoring:manage_check_types' %}">Cancel</c-link>
+        <c-button type="submit" variant="primary">Save Changes</c-button>
         </c-button_row>
     </form>
-</c-module>
+    </c-module>
 {% endblock orange_content %}

@@ -1,61 +1,72 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
-
-{% block scoring_title %}Leaderboard{% endblock %}
-
+{% block scoring_title %}
+    Leaderboard
+{% endblock scoring_title %}
 {% block scoring_content %}
-<c-page_header title="Leaderboard" />
-<c-module>
+    <c-page_header title="Leaderboard" />
+    <c-module>
     <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
+    <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
     </c-slot>
-
     {% if scores %}
-    <c-table id="result_list" aria_label="Score leaderboard">
+        <c-table id="result_list" aria_label="Score leaderboard">
         <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Rank</c-table_header>
-                <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false" class="text-right">Services</c-table_header>
-                <c-table_header sortable="false" class="text-right">Injects</c-table_header>
-                <c-table_header sortable="false" class="text-right">Orange</c-table_header>
-                <c-table_header sortable="false" class="text-right">Red</c-table_header>
-                <c-table_header sortable="false" class="text-right">Recovery</c-table_header>
-                <c-table_header sortable="false" class="text-right">SLA</c-table_header>
-                <c-table_header sortable="false" class="text-right">Adjustments</c-table_header>
-                <c-table_header sortable="false" class="text-right">Total</c-table_header>
-            </tr>
-        </c-slot>
-
-        {% for score in scores %}
         <tr>
-            <td><strong>{{ score.rank }}</strong></td>
-            <td>{{ score.team.team_name }}</td>
-            <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
-            <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
-            <td class="text-right"><c-score_value :value="score.orange_points" format="signed" /></td>
-            <td class="text-right"><c-score_value :value="score.red_deductions" /></td>
-            <td class="text-right"><c-score_value :value="score.incident_recovery_points" format="signed" /></td>
-            <td class="text-right"><c-score_value :value="score.sla_penalties" /></td>
-            <td class="text-right">{{ score.black_adjustments|floatformat:2 }}</td>
-            <td class="text-right"><strong>{{ score.total_score|floatformat:2 }}</strong></td>
+            <c-table_header sortable="false">Rank</c-table_header>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false" class="text-right">Services</c-table_header>
+            <c-table_header sortable="false" class="text-right">Injects</c-table_header>
+            <c-table_header sortable="false" class="text-right">Orange</c-table_header>
+            <c-table_header sortable="false" class="text-right">Red</c-table_header>
+            <c-table_header sortable="false" class="text-right">Recovery</c-table_header>
+            <c-table_header sortable="false" class="text-right">SLA</c-table_header>
+            <c-table_header sortable="false" class="text-right">Adjustments</c-table_header>
+            <c-table_header sortable="false" class="text-right">Total</c-table_header>
         </tr>
+        </c-slot>
+        {% for score in scores %}
+            <tr>
+                <td>
+                    <strong>{{ score.rank }}</strong>
+                </td>
+                <td>{{ score.team.team_name }}</td>
+                <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
+                <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
+                <td class="text-right">
+                    <c-score_value :value="score.orange_points" format="signed" />
+                </td>
+                <td class="text-right">
+                    <c-score_value :value="score.red_deductions" />
+                </td>
+                <td class="text-right">
+                    <c-score_value :value="score.incident_recovery_points" format="signed" />
+                </td>
+                <td class="text-right">
+                    <c-score_value :value="score.sla_penalties" />
+                </td>
+                <td class="text-right">{{ score.black_adjustments|floatformat:2 }}</td>
+                <td class="text-right">
+                    <strong>{{ score.total_score|floatformat:2 }}</strong>
+                </td>
+            </tr>
         {% endfor %}
-    </c-table>
-
-    <div class="table-footer">
-        <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
-        {% if user.is_staff %}
-        <form method="post" action="{% url 'scoring:recalculate_scores' %}" class="m-0">
-            {% csrf_token %}
-            <c-button type="submit" variant="primary">Recalculate</c-button>
-        </form>
-        {% endif %}
-    </div>
+        </c-table>
+        <div class="table-footer">
+            <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
+            {% if user.is_staff %}
+                <form method="post"
+                      action="{% url 'scoring:recalculate_scores' %}"
+                      class="m-0">
+                    {% csrf_token %}
+                    <c-button type="submit" variant="primary">Recalculate</c-button>
+                </form>
+            {% endif %}
+        </div>
     {% else %}
-    <c-alert variant="info">
+        <c-alert variant="info">
         No scores calculated yet. Run the recalculate scores command or sync data from Quotient.
-    </c-alert>
+        </c-alert>
     {% endif %}
-</c-module>
-{% endblock %}
+    </c-module>
+{% endblock scoring_content %}

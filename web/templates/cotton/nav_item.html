@@ -2,12 +2,7 @@
 {# Usage: <c-nav_item name="leaderboard" href="/scoring/">Leaderboard</c-nav_item> #}
 {# Props: name (for matching current), href (link URL) #}
 {# Note: Uses subnav_active from context processor for current page highlighting #}
-
-<c-vars name="" href="#" />
-
-<a
-    href="{{ href }}"
-    class="nav-item {% if name == subnav_active %}nav-item--current{% endif %}"
-    {% if name == subnav_active %}aria-current="page"{% endif %}>
-    {{ slot }}
-</a>
+<c-vars name href="#" />
+<a href="{{ href }}"
+   class="nav-item {% if name == subnav_active %}nav-item--current{% endif %}"
+   {% if name == subnav_active %}aria-current="page"{% endif %}>{{ slot }}</a>

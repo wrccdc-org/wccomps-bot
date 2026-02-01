@@ -1,24 +1,19 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Error - WCComps Tickets{% endblock %}
-
+{% block title %}
+    Error - WCComps Tickets
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="{{ error }}" />
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="{{ error }}" />
+        <c-module>
         <c-alert variant="error">
-            <p style="margin: 0;">Unable to access tickets</p>
+        <p class="m-0">Unable to access tickets</p>
         </c-alert>
-
         <c-fieldset>
-            <p>{{ message }}</p>
+        <p>{{ message }}</p>
         </c-fieldset>
-
-        <p style="margin-top: 20px;">
-            If you believe this is an error, please contact an administrator for assistance.
-        </p>
-    </c-module>
-</div>
-{% endblock %}
+        <p class="mt-20">If you believe this is an error, please contact an administrator for assistance.</p>
+        </c-module>
+    </div>
+{% endblock content %}

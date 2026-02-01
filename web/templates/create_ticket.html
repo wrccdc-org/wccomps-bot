@@ -1,241 +1,262 @@
 {% extends "base.html" %}
 {% load static cotton %}
-
-{% block title %}Create Ticket - {{ team.team_name }}{% endblock %}
-
-{% block home_url %}{% url 'team_tickets' %}{% endblock %}
-
+{% block title %}
+    Create Ticket - {{ team.team_name }}
+{% endblock title %}
+{% block home_url %}
+    {% url 'team_tickets' %}
+{% endblock home_url %}
 {% block extra_css %}
-<style>
-    .dynamic-field {
-        display: none;
-    }
-    .dynamic-field.show {
-        display: block;
-    }
-</style>
-{% endblock %}
+    <style>
+        .dynamic-field {
+            display: none;
+        }
 
+        .dynamic-field.show {
+            display: block;
+        }
+    </style>
+{% endblock extra_css %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="Create Support Ticket" subtitle="{{ team.team_name }}" />
-
-    <form method="post" id="ticketForm"
-          x-data="ticketForm()"
-          @submit="validateForm($event)">
-        {% csrf_token %}
-
-        <c-module>
+    <div id="content-main">
+        <c-page_header title="Create Support Ticket" subtitle="{{ team.team_name }}" />
+        <form method="post"
+              id="ticketForm"
+              x-data="ticketForm()"
+              @submit="validateForm($event)">
+            {% csrf_token %}
+            <c-module>
             <c-slot name="toolbar">
-                <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
+            <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
             </c-slot>
-
-            {% if error %}
-            <c-alert variant="error">{{ error }}</c-alert>
-            {% endif %}
-
+            {% if error %}<c-alert variant="error">{{ error }}</c-alert>{% endif %}
             <c-fieldset>
-                {% if teams %}
+            {% if teams %}
                 <div class="form-row">
                     <div>
                         <label class="required" for="team_id">Team:</label>
                         <select name="team_id" id="team_id" required>
                             <option value="">Select a team...</option>
                             {% for t in teams %}
-                            <option value="{{ t.id }}" {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
-                                Team {{ t.team_number }} - {{ t.team_name }}
-                            </option>
+                                <option value="{{ t.id }}"
+                                        {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
+                                    Team {{ t.team_number }} - {{ t.team_name }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-                {% endif %}
-
-                <div class="form-row">
-                    <div>
-                        <label class="required" for="category">Category:</label>
-                        <select name="category" id="category" required x-model="selectedCategory" @change="onCategoryChange()">
-                            <option value="">Select a category...</option>
-                            {% for cat_key, cat_info in categories.items %}
+            {% endif %}
+            <div class="form-row">
+                <div>
+                    <label class="required" for="category">Category:</label>
+                    <select name="category"
+                            id="category"
+                            required
+                            x-model="selectedCategory"
+                            @change="onCategoryChange()">
+                        <option value="">Select a category...</option>
+                        {% for cat_key, cat_info in categories.items %}
                             <option value="{{ cat_key }}"
                                     data-points="{{ cat_info.points }}"
                                     {% if form_data.category == cat_key %}selected{% endif %}>
                                 {{ cat_info.display_name }} - {{ cat_info.points }} points
                             </option>
-                            {% endfor %}
-                        </select>
-                        <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
-                    </div>
+                        {% endfor %}
+                    </select>
+                    <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
                 </div>
-
-                <div class="form-row">
-                    <div>
-                        <label class="required" for="title">Title:</label>
-                        <input type="text" name="title" id="title" required maxlength="200"
-                               value="{{ form_data.title }}"
-                               placeholder="Brief summary of the issue">
-                    </div>
+            </div>
+            <div class="form-row">
+                <div>
+                    <label class="required" for="title">Title:</label>
+                    <input type="text"
+                           name="title"
+                           id="title"
+                           required
+                           maxlength="200"
+                           value="{{ form_data.title }}"
+                           placeholder="Brief summary of the issue">
                 </div>
-
-                <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('hostname') }" id="field-hostname">
-                    <div>
-                        <label for="hostname">Hostname: <span class="text-danger" x-show="requiredFields.includes('hostname')">*</span></label>
-                        <input type="text" name="hostname" id="hostname"
-                               x-model="selectedHostname"
-                               @input="onHostnameChange()"
-                               list="hostname-list"
-                               :required="requiredFields.includes('hostname')"
-                               placeholder="Select or enter hostname..."
-                               value="{{ form_data.hostname }}">
-                        <datalist id="hostname-list">
-                            {% for box_name in box_names %}
-                            <option value="{{ box_name }}">
-                            {% endfor %}
-                        </datalist>
-                    </div>
+            </div>
+            <div class="form-row dynamic-field"
+                 :class="{ 'show': visibleFields.includes('hostname') }"
+                 id="field-hostname">
+                <div>
+                    <label for="hostname">
+                        Hostname: <span class="text-danger" x-show="requiredFields.includes('hostname')">*</span>
+                    </label>
+                    <input type="text"
+                           name="hostname"
+                           id="hostname"
+                           x-model="selectedHostname"
+                           @input="onHostnameChange()"
+                           list="hostname-list"
+                           :required="requiredFields.includes('hostname')"
+                           placeholder="Select or enter hostname..."
+                           value="{{ form_data.hostname }}">
+                    <datalist id="hostname-list">
+                        {% for box_name in box_names %}<option value="{{ box_name }}"></option>{% endfor %}
+                    </datalist>
                 </div>
-
-                <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('ip_address') }" id="field-ip_address">
-                    <div>
-                        <label for="ip_address">IP Address: <span class="text-danger" x-show="requiredFields.includes('ip_address')">*</span></label>
-                        <input type="text" name="ip_address" id="ip_address"
-                               x-model="ipAddress"
-                               :required="requiredFields.includes('ip_address')"
-                               placeholder="Enter IP address or select hostname above">
-                    </div>
+            </div>
+            <div class="form-row dynamic-field"
+                 :class="{ 'show': visibleFields.includes('ip_address') }"
+                 id="field-ip_address">
+                <div>
+                    <label for="ip_address">
+                        IP Address: <span class="text-danger" x-show="requiredFields.includes('ip_address')">*</span>
+                    </label>
+                    <input type="text"
+                           name="ip_address"
+                           id="ip_address"
+                           x-model="ipAddress"
+                           :required="requiredFields.includes('ip_address')"
+                           placeholder="Enter IP address or select hostname above">
                 </div>
-
-                <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('service_name') }" id="field-service_name">
-                    <div>
-                        <label for="service_name">Service: <span class="text-danger" x-show="requiredFields.includes('service_name')">*</span></label>
-                        <select name="service_name" id="service_name" x-ref="serviceSelect" x-model="selectedService" @change="onServiceChange()" :required="requiredFields.includes('service_name')">
-                            <option value="">Select a service...</option>
-                        </select>
-                    </div>
+            </div>
+            <div class="form-row dynamic-field"
+                 :class="{ 'show': visibleFields.includes('service_name') }"
+                 id="field-service_name">
+                <div>
+                    <label for="service_name">
+                        Service: <span class="text-danger" x-show="requiredFields.includes('service_name')">*</span>
+                    </label>
+                    <select name="service_name"
+                            id="service_name"
+                            x-ref="serviceSelect"
+                            x-model="selectedService"
+                            @change="onServiceChange()"
+                            :required="requiredFields.includes('service_name')">
+                        <option value="">Select a service...</option>
+                    </select>
                 </div>
-
-                <div class="form-row dynamic-field" :class="{ 'show': visibleFields.includes('description') }" id="field-description">
-                    <div>
-                        <label for="description">Description: <span class="text-danger" x-show="requiredFields.includes('description')">*</span></label>
-                        <textarea name="description" id="description" rows="5"
-                                  :required="requiredFields.includes('description')"
-                                  placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
-                    </div>
+            </div>
+            <div class="form-row dynamic-field"
+                 :class="{ 'show': visibleFields.includes('description') }"
+                 id="field-description">
+                <div>
+                    <label for="description">
+                        Description: <span class="text-danger" x-show="requiredFields.includes('description')">*</span>
+                    </label>
+                    <textarea name="description"
+                              id="description"
+                              rows="5"
+                              :required="requiredFields.includes('description')"
+                              placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
                 </div>
+            </div>
             </c-fieldset>
-
             <c-button_row class="justify-end">
-                <c-link href="{% url 'team_tickets' %}">Cancel</c-link>
-                <c-button type="submit" variant="primary">Create Ticket</c-button>
+            <c-link href="{% url 'team_tickets' %}">Cancel</c-link>
+            <c-button type="submit" variant="primary">Create Ticket</c-button>
             </c-button_row>
-        </c-module>
-    </form>
-</div>
+            </c-module>
+        </form>
+    </div>
+    {{ categories|json_script:"categories-data" }}
+    {{ box_ip_map|json_script:"box-ip-map-data" }}
+    {{ service_choices|json_script:"service-choices-data" }}
+    <script>
+            function ticketForm() {
+                const categories = JSON.parse(document.getElementById('categories-data').textContent);
+                const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
+                const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
 
-{{ categories|json_script:"categories-data" }}
-{{ box_ip_map|json_script:"box-ip-map-data" }}
-{{ service_choices|json_script:"service-choices-data" }}
+                return {
+                    selectedCategory: '{{ form_data.category|default:"" }}',
+                    selectedHostname: '{{ form_data.hostname|default:"" }}',
+                    selectedService: '{{ form_data.service_name|default:"" }}',
+                    ipAddress: '{{ form_data.ip_address|default:"" }}',
+                    categoryWarning: '',
+                    visibleFields: [],
+                    requiredFields: [],
 
-<script>
-function ticketForm() {
-    const categories = JSON.parse(document.getElementById('categories-data').textContent);
-    const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
-    const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
+                    init() {
+                        this.rebuildServiceOptions();
+                        if (this.selectedCategory) {
+                            this.onCategoryChange();
+                        }
+                        if (this.selectedHostname) {
+                            this.onHostnameChange();
+                        }
+                    },
 
-    return {
-        selectedCategory: '{{ form_data.category|default:"" }}',
-        selectedHostname: '{{ form_data.hostname|default:"" }}',
-        selectedService: '{{ form_data.service_name|default:"" }}',
-        ipAddress: '{{ form_data.ip_address|default:"" }}',
-        categoryWarning: '',
-        visibleFields: [],
-        requiredFields: [],
+                    getFilteredServices() {
+                        if (this.selectedHostname) {
+                            return allServiceChoices.filter(s => s.box_name === this.selectedHostname);
+                        }
+                        return allServiceChoices;
+                    },
 
-        init() {
-            this.rebuildServiceOptions();
-            if (this.selectedCategory) {
-                this.onCategoryChange();
+                    rebuildServiceOptions() {
+                        const select = this.$refs.serviceSelect;
+                        if (!select) return;
+
+                        const currentValue = this.selectedService;
+                        select.innerHTML = '<option value="">Select a service...</option>';
+
+                        const services = this.getFilteredServices();
+                        services.forEach(svc => {
+                            const option = document.createElement('option');
+                            option.value = svc.value;
+                            option.textContent = this.selectedHostname ? svc.service_name : svc.label;
+                            if (svc.value === currentValue) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+                    },
+
+                    onCategoryChange() {
+                        const catData = categories[this.selectedCategory];
+                        if (!catData) {
+                            this.visibleFields = [];
+                            this.requiredFields = [];
+                            this.categoryWarning = '';
+                            return;
+                        }
+
+                        this.categoryWarning = catData.warning || '';
+                        this.requiredFields = catData.required_fields || [];
+                        this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
+                    },
+
+                    onHostnameChange() {
+                        if (this.selectedHostname && boxIpMap[this.selectedHostname]) {
+                            this.ipAddress = boxIpMap[this.selectedHostname];
+                        } else {
+                            this.ipAddress = '';
+                        }
+                        // Clear service if it doesn't match the new hostname
+                        if (this.selectedService) {
+                            const svc = allServiceChoices.find(s => s.value === this.selectedService);
+                            if (svc && svc.box_name !== this.selectedHostname) {
+                                this.selectedService = '';
+                            }
+                        }
+                        this.rebuildServiceOptions();
+                    },
+
+                    onServiceChange() {
+                        if (!this.selectedService) return;
+                        const svc = allServiceChoices.find(s => s.value === this.selectedService);
+                        if (svc) {
+                            if (this.visibleFields.includes('hostname') && !this.selectedHostname) {
+                                this.selectedHostname = svc.box_name;
+                                this.onHostnameChange();
+                            }
+                            if (this.visibleFields.includes('ip_address')) {
+                                this.ipAddress = svc.box_ip;
+                            }
+                        }
+                    },
+
+                    validateForm(event) {
+                        // Form validation is handled by HTML5 required attributes
+                        return true;
+                    }
+                };
             }
-            if (this.selectedHostname) {
-                this.onHostnameChange();
-            }
-        },
-
-        getFilteredServices() {
-            if (this.selectedHostname) {
-                return allServiceChoices.filter(s => s.box_name === this.selectedHostname);
-            }
-            return allServiceChoices;
-        },
-
-        rebuildServiceOptions() {
-            const select = this.$refs.serviceSelect;
-            if (!select) return;
-
-            const currentValue = this.selectedService;
-            select.innerHTML = '<option value="">Select a service...</option>';
-
-            const services = this.getFilteredServices();
-            services.forEach(svc => {
-                const option = document.createElement('option');
-                option.value = svc.value;
-                option.textContent = this.selectedHostname ? svc.service_name : svc.label;
-                if (svc.value === currentValue) {
-                    option.selected = true;
-                }
-                select.appendChild(option);
-            });
-        },
-
-        onCategoryChange() {
-            const catData = categories[this.selectedCategory];
-            if (!catData) {
-                this.visibleFields = [];
-                this.requiredFields = [];
-                this.categoryWarning = '';
-                return;
-            }
-
-            this.categoryWarning = catData.warning || '';
-            this.requiredFields = catData.required_fields || [];
-            this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
-        },
-
-        onHostnameChange() {
-            if (this.selectedHostname && boxIpMap[this.selectedHostname]) {
-                this.ipAddress = boxIpMap[this.selectedHostname];
-            } else {
-                this.ipAddress = '';
-            }
-            // Clear service if it doesn't match the new hostname
-            if (this.selectedService) {
-                const svc = allServiceChoices.find(s => s.value === this.selectedService);
-                if (svc && svc.box_name !== this.selectedHostname) {
-                    this.selectedService = '';
-                }
-            }
-            this.rebuildServiceOptions();
-        },
-
-        onServiceChange() {
-            if (!this.selectedService) return;
-            const svc = allServiceChoices.find(s => s.value === this.selectedService);
-            if (svc) {
-                if (this.visibleFields.includes('hostname') && !this.selectedHostname) {
-                    this.selectedHostname = svc.box_name;
-                    this.onHostnameChange();
-                }
-                if (this.visibleFields.includes('ip_address')) {
-                    this.ipAddress = svc.box_ip;
-                }
-            }
-        },
-
-        validateForm(event) {
-            // Form validation is handled by HTML5 required attributes
-            return true;
-        }
-    };
-}
-</script>
-{% endblock %}
+    </script>
+{% endblock content %}

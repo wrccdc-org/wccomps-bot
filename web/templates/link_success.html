@@ -1,38 +1,36 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Successfully Linked - WCComps{% endblock %}
-
+{% block title %}
+    Successfully Linked - WCComps
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-    <c-page_header title="Successfully Linked" />
-
-    <c-module>
+    <div id="content-main">
+        <c-page_header title="Successfully Linked" />
+        <c-module>
         <c-detail_grid>
-            <dt>Discord Account</dt>
-            <dd>{{ discord_username }}</dd>
-
-            <dt>Authentik Username</dt>
-            <dd>{{ authentik_username }}</dd>
-
-            {% if is_team_account %}
-            <dt>Team</dt>
-            <dd>{{ team_name }} (#{{ team_number }})</dd>
-            {% endif %}
-        </c-detail_grid>
-
+        <dt>Discord Account</dt>
+        <dd>
+            {{ discord_username }}
+        </dd>
+        <dt>Authentik Username</dt>
+        <dd>
+            {{ authentik_username }}
+        </dd>
         {% if is_team_account %}
-        <p class="mt-20">
-            Your team role will be assigned shortly. You can now close this window and return to Discord.
-        </p>
-        <p class="mt-10 text-muted">
-            If you don't see your role appear within a few minutes, please contact an administrator.
-        </p>
-        {% else %}
-        <p class="mt-20">
-            You can now close this window and return to Discord.
-        </p>
+            <dt>Team</dt>
+            <dd>
+                {{ team_name }} (#{{ team_number }})
+            </dd>
         {% endif %}
-    </c-module>
-</div>
-{% endblock %}
+        </c-detail_grid>
+        {% if is_team_account %}
+            <p class="mt-20">Your team role will be assigned shortly. You can now close this window and return to Discord.</p>
+            <p class="mt-10 text-muted">
+                If you don't see your role appear within a few minutes, please contact an administrator.
+            </p>
+        {% else %}
+            <p class="mt-20">You can now close this window and return to Discord.</p>
+        {% endif %}
+        </c-module>
+    </div>
+{% endblock content %}

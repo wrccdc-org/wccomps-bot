@@ -1,40 +1,46 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
-
-{% block title %}Review Incident Reports - WCComps{% endblock %}
-
-{% block scoring_title %}Review Incident Reports{% endblock %}
-
+{% block title %}
+    Review Incident Reports - WCComps
+{% endblock title %}
+{% block scoring_title %}
+    Review Incident Reports
+{% endblock scoring_title %}
 {% block scoring_content %}
-<div id="content-main">
-<c-page_header title="Review Incident Reports" />
-    <c-module filtered="true" id="changelist">
+    <div id="content-main">
+        <c-page_header title="Review Incident Reports" />
+        <c-module filtered="true" id="changelist">
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:review_incidents' %}" hx_target="#review-incidents-content" hx_swap="outerHTML" hx_push_url="true">
-            <c-filter_field label="Status" id="id_status">
-                <select name="status" id="id_status" aria-label="Filter by status">
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
-                    <option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
-                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-                </select>
-            </c-filter_field>
-
-            <c-filter_field label="Team" id="id_team">
-                <select name="team" id="id_team" aria-label="Filter by team">
-                    <option value="">All Teams</option>
-                    {% for team in available_teams %}
-                        <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
-                            {{ team.team_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </c-filter_field>
-
-            <c-filter_field label="Box" id="id_box" min_width="120px">
-                <input type="text" name="box" id="id_box" value="{{ selected_box|default:'' }}" placeholder="Box name..." aria-label="Filter by box">
-            </c-filter_field>
+        <c-filter_field label="Status" id="id_status">
+        <select name="status" id="id_status" aria-label="Filter by status">
+            <option value="pending"
+                    {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+            <option value="reviewed"
+                    {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+        </select>
+        </c-filter_field>
+        <c-filter_field label="Team" id="id_team">
+        <select name="team" id="id_team" aria-label="Filter by team">
+            <option value="">All Teams</option>
+            {% for team in available_teams %}
+                <option value="{{ team.id }}"
+                        {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
+                    {{ team.team_name }}
+                </option>
+            {% endfor %}
+        </select>
+        </c-filter_field>
+        <c-filter_field label="Box" id="id_box" min_width="120px">
+        <input type="text"
+               name="box"
+               id="id_box"
+               value="{{ selected_box|default:'' }}"
+               placeholder="Box name..."
+               aria-label="Filter by box">
+        </c-filter_field>
         </c-filter_toolbar>
-
         <c-review_incidents_table :page_obj="page_obj" :status_filter="status_filter" :selected_team="selected_team" :selected_box="selected_box" :sort_by="sort_by" />
-    </c-module>
-</div>
-{% endblock %}
+        </c-module>
+    </div>
+{% endblock scoring_content %}

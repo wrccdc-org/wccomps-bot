@@ -1,77 +1,80 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
-
-{% block scoring_title %}Scoring Configuration{% endblock %}
-
+{% block scoring_title %}
+    Scoring Configuration
+{% endblock scoring_title %}
 {% block scoring_content %}
-<c-page_header title="Scoring Configuration" />
-<c-module>
+    <c-page_header title="Scoring Configuration" />
+    <c-module>
     <h2>Scoring Formula</h2>
     <c-alert variant="info">
-        <p><strong>Current Formula:</strong></p>
-        <code class="code-block">
-            Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
-        </code>
-        <p class="m-0 text-sm">
-            Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
-        </p>
+    <p>
+        <strong>Current Formula:</strong>
+    </p>
+    <code class="code-block">
+        Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
+    </code>
+    <p class="m-0 text-sm">
+        Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
+    </p>
     </c-alert>
-
     <form method="post">
         {% csrf_token %}
         <c-fieldset heading="Multiplier Configuration">
-            {% for field in form %}
-            <c-form_field
-                label="{{ field.label }}"
-                required="{{ field.field.required|yesno:'true,false' }}"
-                help_text="{{ field.help_text }}"
-                id="{{ field.id_for_label }}">
-                {{ field }}
+        {% for field in form %}
+            <c-form_field label="{{ field.label }}" required="{{ field.field.required|yesno:'true,false' }}" help_text="{{ field.help_text }}" id="{{ field.id_for_label }}">
+            {{ field }}
             </c-form_field>
-            {% endfor %}
+        {% endfor %}
         </c-fieldset>
         <c-button_row>
-            <c-button type="submit" variant="primary">Update Multipliers</c-button>
+        <c-button type="submit" variant="primary">Update Multipliers</c-button>
         </c-button_row>
     </form>
-</c-module>
-
-<c-module>
+    </c-module>
+    <c-module>
     <h2>Quotient Integration</h2>
     {% if metadata %}
-    <c-detail_grid class="mb-15">
+        <c-detail_grid class="mb-15">
         <dt>Last Synced</dt>
-        <dd>{{ metadata.last_synced|date:"Y-m-d H:i:s" }}</dd>
+        <dd>
+            {{ metadata.last_synced|date:"Y-m-d H:i:s" }}
+        </dd>
         <dt>Event</dt>
-        <dd>{{ metadata.event_name }}</dd>
+        <dd>
+            {{ metadata.event_name }}
+        </dd>
         <dt>Teams</dt>
-        <dd>{{ metadata.team_count }}</dd>
+        <dd>
+            {{ metadata.team_count }}
+        </dd>
         <dt>Boxes</dt>
-        <dd>{{ metadata.boxes|length }}</dd>
-    </c-detail_grid>
+        <dd>
+            {{ metadata.boxes|length }}
+        </dd>
+        </c-detail_grid>
     {% else %}
-    <c-alert variant="warning">Metadata not synced yet</c-alert>
+        <c-alert variant="warning">Metadata not synced yet</c-alert>
     {% endif %}
-
-    <form method="post" action="{% url 'scoring:sync_metadata' %}" class="d-inline mr-10">
+    <form method="post"
+          action="{% url 'scoring:sync_metadata' %}"
+          class="d-inline mr-10">
         {% csrf_token %}
         <c-button type="submit" variant="primary">Sync Metadata</c-button>
     </form>
-
-    <form method="post" action="{% url 'scoring:sync_scores' %}" class="d-inline">
+    <form method="post"
+          action="{% url 'scoring:sync_scores' %}"
+          class="d-inline">
         {% csrf_token %}
         <c-button type="submit" variant="primary">Sync Service Scores</c-button>
     </form>
-</c-module>
-
-<c-module>
+    </c-module>
+    <c-module>
     <h2>Score Management</h2>
     <form method="post" action="{% url 'scoring:recalculate_scores' %}">
         {% csrf_token %}
         <c-button type="submit" variant="primary">Recalculate All Scores</c-button>
     </form>
-    <p class="help-text mt-10">
-        Recalculates final scores for all teams based on current data and multipliers
-    </p>
-</c-module>
-{% endblock %}
+    <p class="help-text mt-10">Recalculates final scores for all teams based on current data and multipliers</p>
+    </c-module>
+{% endblock scoring_content %}

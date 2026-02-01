@@ -26,6 +26,18 @@ uv run ruff check .
 
 echo "✓ Code formatting and linting passed"
 echo ""
+echo "Running djlint on templates..."
+uv run djlint web/templates --reformat --quiet 2>/dev/null
+
+echo "Running djlint lint check..."
+if ! uv run djlint web/templates --lint --quiet 2>/dev/null; then
+    echo "✗ Template linting errors found"
+    uv run djlint web/templates --lint
+    exit 1
+fi
+
+echo "✓ Template formatting and linting passed"
+echo ""
 echo "Running type checks with mypy..."
 MYPY_OUTPUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ --exclude 'bot/tests/.*' --exclude 'web/tests/.*' --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$' 2>&1)
 MYPY_EXIT=$?

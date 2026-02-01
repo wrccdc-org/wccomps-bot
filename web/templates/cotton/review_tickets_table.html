@@ -1,9 +1,9 @@
 {# Review tickets table - swappable content for htmx #}
 {# Usage: <c-review_tickets_table :page_obj="page_obj" ... /> #}
-
 <div id="review-tickets-content">
     <div class="results">
-        <table id="result_list" role="grid" aria-label="Resolved tickets list" style="table-layout: fixed; width: 100%;">
+        <table id="result_list" role="grid" aria-label="Resolved tickets list">
+            {# djlint:off H021 #}
             <colgroup>
                 <col style="width: 10%;">
                 <col style="width: 10%;">
@@ -14,6 +14,7 @@
                 <col style="width: 12%;">
                 <col style="width: 28%;">
             </colgroup>
+            {# djlint:on #}
             <thead>
                 <tr role="row">
                     <c-table_header sortable="false">Ticket</c-table_header>
@@ -28,63 +29,69 @@
             </thead>
             <tbody>
                 {% for item in page_obj %}
-                <tr class="{% cycle 'row1' 'row2' %}" role="row">
-                    <th class="field-ticket_number">
-                        <c-link href="{% url 'ops_ticket_detail' item.ticket.ticket_number %}">{{ item.ticket.ticket_number }}</c-link>
-                    </th>
-                    <td class="field-team">{{ item.ticket.team.team_name }}</td>
-                    <td class="field-category">{{ item.category_name }}</td>
-                    <td class="field-resolved-by">
-                        {% if item.ticket.resolved_by %}
-                            {{ item.ticket.resolved_by }}
-                        {% else %}
-                            Unknown
-                        {% endif %}
-                    </td>
-                    <td class="field-points">
-                        {{ item.ticket.points_charged }}
-                        {% if item.ticket.points_charged != item.expected_points %}
-                        <span title="Expected: {{ item.expected_points }}" class="text-warning">⚠️</span>
-                        {% endif %}
-                    </td>
-                    <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
-                    <td class="field-verified">
-                        {% if item.ticket.points_verified %}
-                            <c-badge status="resolved">✓ Verified</c-badge>
-                            <div class="text-sm text-muted">
-                                by {{ item.ticket.points_verified_by.username }}
-                            </div>
-                        {% else %}
-                            <c-badge status="claimed">⏳ Pending</c-badge>
-                        {% endif %}
-                    </td>
-                    <td class="field-actions">
-                        {% if not item.ticket.points_verified %}
-                        <form method="post" action="{% url 'ops_verify_ticket' item.ticket.ticket_number %}" class="d-inline" onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
-                            {% csrf_token %}
-                            <input type="hidden" name="points_adjustment" id="points_{{ item.ticket.ticket_number }}" value="{{ item.ticket.points_charged }}" />
-                            <input type="hidden" name="verification_notes" id="notes_{{ item.ticket.ticket_number }}" value="" />
-                            <c-button type="submit" variant="primary">Verify</c-button>
-                        </form>
-                        {% else %}
-                            <span class="text-secondary">Verified</span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    <tr class="{% cycle 'row1' 'row2' %}" role="row">
+                        <th class="field-ticket_number">
+                            <c-link href="{% url 'ops_ticket_detail' item.ticket.ticket_number %}">{{ item.ticket.ticket_number }}</c-link>
+                        </th>
+                        <td class="field-team">{{ item.ticket.team.team_name }}</td>
+                        <td class="field-category">{{ item.category_name }}</td>
+                        <td class="field-resolved-by">
+                            {% if item.ticket.resolved_by %}
+                                {{ item.ticket.resolved_by }}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </td>
+                        <td class="field-points">
+                            {{ item.ticket.points_charged }}
+                            {% if item.ticket.points_charged != item.expected_points %}
+                                <span title="Expected: {{ item.expected_points }}" class="text-warning">⚠️</span>
+                            {% endif %}
+                        </td>
+                        <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
+                        <td class="field-verified">
+                            {% if item.ticket.points_verified %}
+                                <c-badge status="resolved">✓ Verified</c-badge>
+                                <div class="text-sm text-muted">by {{ item.ticket.points_verified_by.username }}</div>
+                            {% else %}
+                                <c-badge status="claimed">⏳ Pending</c-badge>
+                            {% endif %}
+                        </td>
+                        <td class="field-actions">
+                            {% if not item.ticket.points_verified %}
+                                <form method="post"
+                                      action="{% url 'ops_verify_ticket' item.ticket.ticket_number %}"
+                                      class="d-inline"
+                                      onsubmit="return showVerificationDialog(event, '{{ item.ticket.ticket_number }}', {{ item.ticket.points_charged }}, {{ item.expected_points }});">
+                                    {% csrf_token %}
+                                    <input type="hidden"
+                                           name="points_adjustment"
+                                           id="points_{{ item.ticket.ticket_number }}"
+                                           value="{{ item.ticket.points_charged }}" />
+                                    <input type="hidden"
+                                           name="verification_notes"
+                                           id="notes_{{ item.ticket.ticket_number }}"
+                                           value />
+                                    <c-button type="submit" variant="primary">Verify</c-button>
+                                </form>
+                            {% else %}
+                                <span class="text-secondary">Verified</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="8">
-                        {% if search_query or verified_filter != 'unverified' or team_filter %}
-                            No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_review_tickets' %}">clearing all filters</a>
-                        {% else %}
-                            No unverified tickets found. All resolved tickets have been verified.
-                        {% endif %}
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="8">
+                            {% if search_query or verified_filter != 'unverified' or team_filter %}
+                                No tickets match your filters. Try adjusting your filters or <a href="{% url 'ops_review_tickets' %}">clearing all filters</a>
+                            {% else %}
+                                No unverified tickets found. All resolved tickets have been verified.
+                            {% endif %}
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
     <c-pagination :page_obj="page_obj" query_params="&verified={{ verified_filter }}&team={{ team_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }}" />
 </div>

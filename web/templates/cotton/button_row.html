@@ -1,9 +1,5 @@
 {# Button row component - container for form buttons/actions #}
 {# Usage: <c-button_row><c-button>Save</c-button><c-link href="...">Cancel</c-link></c-button_row> #}
 {# Props: class (additional classes - e.g., justify-end, mt-15) #}
-
-<c-vars class="" />
-
-<div class="submit-row d-flex gap-10 {{ class }}">
-    {{ slot }}
-</div>
+<c-vars class />
+<div class="submit-row d-flex gap-10 {{ class }}">{{ slot }}</div>

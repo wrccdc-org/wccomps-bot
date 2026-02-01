@@ -1,159 +1,175 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
-
 {% block extrastyle %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static "admin/css/changelists.css" %}">
-<style>
-.expand-toggle {
-    cursor: pointer;
-    user-select: none;
-    color: var(--link-fg);
-}
-.expand-toggle:hover {
-    text-decoration: underline;
-}
-.expand-toggle::before {
-    content: "▶ ";
-    display: inline-block;
-    transition: transform 0.15s;
-    font-size: 0.7em;
-    vertical-align: middle;
-}
-.expand-toggle.expanded::before {
-    transform: rotate(90deg);
-}
-.member-details {
-    display: none;
-    padding-top: 0.5em;
-}
-.member-details.visible {
-    display: block;
-}
-.member-list {
-    margin: 0;
-    padding-left: 1.2em;
-    list-style: disc;
-}
-.member-list li {
-    padding: 0.15em 0;
-}
-</style>
-{% endblock %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static "admin/css/changelists.css" %}">
+    <style>
+        .expand-toggle {
+            cursor: pointer;
+            user-select: none;
+            color: var(--link-fg);
+        }
 
-{% block bodyclass %}{{ block.super }} app-operations model-teammappings change-list{% endblock %}
+        .expand-toggle:hover {
+            text-decoration: underline;
+        }
 
+        .expand-toggle::before {
+            content: "▶ ";
+            display: inline-block;
+            transition: transform 0.15s;
+            font-size: 0.7em;
+            vertical-align: middle;
+        }
+
+        .expand-toggle.expanded::before {
+            transform: rotate(90deg);
+        }
+
+        .member-details {
+            display: none;
+            padding-top: 0.5em;
+        }
+
+        .member-details.visible {
+            display: block;
+        }
+
+        .member-list {
+            margin: 0;
+            padding-left: 1.2em;
+            list-style: disc;
+        }
+
+        .member-list li {
+            padding: 0.15em 0;
+        }
+    </style>
+{% endblock extrastyle %}
+{% block bodyclass %}
+    {{ block.super }} app-operations model-teammappings change-list
+{% endblock bodyclass %}
 {% block breadcrumbs %}
-<div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
-    &rsaquo; Team Mappings
-</div>
-{% endblock %}
-
-{% block coltype %}{% endblock %}
-
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        › Team Mappings
+    </div>
+{% endblock breadcrumbs %}
+{% block coltype %}
+{% endblock coltype %}
 {% block content %}
-<div id="content-main">
-    <div class="module" id="changelist">
-        <div class="changelist-form-container">
-            <div id="toolbar">
-                <form id="changelist-search">
-                    <div>
-                        <label for="team-search" class="assistive-text">{% translate 'Search' %}</label>
-                        <input type="text" id="team-search" placeholder="{% translate 'Search teams by number or name...' %}">
-                    </div>
-                </form>
-            </div>
-
-            <div class="results">
-                <table id="result_list">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="sortable column-team">
-                                <div class="text"><span>Team</span></div>
-                            </th>
-                            <th scope="col" class="sortable column-status">
-                                <div class="text"><span>Status</span></div>
-                            </th>
-                            <th scope="col" class="sortable column-members">
-                                <div class="text"><span>Members</span></div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in team_status %}
-                        <tr class="{% cycle 'row1' 'row2' %} team-row" data-team="{{ item.team.team_number }}" data-name="{{ item.team.team_name|lower }}">
-                            <td class="field-team">
-                                <strong>Team {{ item.team.team_number }}</strong>
-                                <br><span class="mini quiet">{{ item.team.team_name }}</span>
-                            </td>
-                            <td class="field-status">
-                                <strong>{{ item.current_count }}/{{ item.max_count }}</strong>
-                                <br>
-                                <span class="mini quiet">
-                                {% if item.is_full %}
-                                    Full
-                                {% elif item.current_count == 0 %}
-                                    Empty
-                                {% else %}
-                                    {{ item.max_count|add:"-"|add:item.current_count }} Open
-                                {% endif %}
-                                </span>
-                            </td>
-                            <td class="field-members">
-                                {% if item.members %}
-                                    <span class="expand-toggle">{{ item.members|length }} member{{ item.members|length|pluralize }}</span>
-                                    <div class="member-details">
-                                        <ul class="member-list">
-                                        {% for member in item.members %}
-                                            <li>{{ member.discord_username }} <span class="mini quiet">({{ member.user.username }})</span></li>
-                                        {% endfor %}
-                                        </ul>
+    <div id="content-main">
+        <div class="module" id="changelist">
+            <div class="changelist-form-container">
+                <div id="toolbar">
+                    <form id="changelist-search">
+                        <div>
+                            <label for="team-search" class="assistive-text">{% translate "Search" %}</label>
+                            <input type="text"
+                                   id="team-search"
+                                   placeholder="{% translate "Search teams by number or name..." %}">
+                        </div>
+                    </form>
+                </div>
+                <div class="results">
+                    <table id="result_list">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="sortable column-team">
+                                    <div class="text">
+                                        <span>Team</span>
                                     </div>
-                                {% else %}
-                                    <span class="quiet">—</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3">No active teams found</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </th>
+                                <th scope="col" class="sortable column-status">
+                                    <div class="text">
+                                        <span>Status</span>
+                                    </div>
+                                </th>
+                                <th scope="col" class="sortable column-members">
+                                    <div class="text">
+                                        <span>Members</span>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in team_status %}
+                                <tr class="{% cycle 'row1' 'row2' %} team-row"
+                                    data-team="{{ item.team.team_number }}"
+                                    data-name="{{ item.team.team_name|lower }}">
+                                    <td class="field-team">
+                                        <strong>Team {{ item.team.team_number }}</strong>
+                                        <br>
+                                        <span class="mini quiet">{{ item.team.team_name }}</span>
+                                    </td>
+                                    <td class="field-status">
+                                        <strong>{{ item.current_count }}/{{ item.max_count }}</strong>
+                                        <br>
+                                        <span class="mini quiet">
+                                            {% if item.is_full %}
+                                                Full
+                                            {% elif item.current_count == 0 %}
+                                                Empty
+                                            {% else %}
+                                                {{ item.max_count|add:"-"|add:item.current_count }} Open
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="field-members">
+                                        {% if item.members %}
+                                            <span class="expand-toggle">{{ item.members|length }} member{{ item.members|length|pluralize }}</span>
+                                            <div class="member-details">
+                                                <ul class="member-list">
+                                                    {% for member in item.members %}
+                                                        <li>
+                                                            {{ member.discord_username }} <span class="mini quiet">({{ member.user.username }})</span>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        {% else %}
+                                            <span class="quiet">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3">No active teams found</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+        <p class="paginator">{{ team_status|length }} team(s)</p>
     </div>
-    <p class="paginator">{{ team_status|length }} team(s)</p>
-</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('team-search');
+            const teamRows = document.querySelectorAll('.team-row');
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('team-search');
-    const teamRows = document.querySelectorAll('.team-row');
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
 
-    searchInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase();
+                teamRows.forEach(row => {
+                    const teamNumber = row.dataset.team;
+                    const teamName = row.dataset.name;
 
-        teamRows.forEach(row => {
-            const teamNumber = row.dataset.team;
-            const teamName = row.dataset.name;
+                    if (teamNumber.includes(query) || teamName.includes(query)) {
+                        row.classList.remove('d-none');
+                    } else {
+                        row.classList.add('d-none');
+                    }
+                });
+            });
 
-            if (teamNumber.includes(query) || teamName.includes(query)) {
-                row.classList.remove('d-none');
-            } else {
-                row.classList.add('d-none');
-            }
+            document.querySelectorAll('.expand-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    this.classList.toggle('expanded');
+                    this.nextElementSibling.classList.toggle('visible');
+                });
+            });
         });
-    });
-
-    document.querySelectorAll('.expand-toggle').forEach(toggle => {
-        toggle.addEventListener('click', function() {
-            this.classList.toggle('expanded');
-            this.nextElementSibling.classList.toggle('visible');
-        });
-    });
-});
-</script>
-{% endblock %}
+    </script>
+{% endblock content %}

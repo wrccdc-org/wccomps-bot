@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% load cotton %}
-
-{% block title %}Incident Reports{% endblock %}
-
+{% block title %}
+    Incident Reports
+{% endblock title %}
 {% block content %}
-<div id="content-main">
-<c-page_header title="Incident Reports" />
-<c-module>
-    <c-slot name="toolbar">
+    <div id="content-main">
+        <c-page_header title="Incident Reports" />
+        <c-module>
+        <c-slot name="toolbar">
         <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Submit New Incident</c-link>
-    </c-slot>
-
-    {% if incidents %}
-    <c-table aria_label="Incident reports">
-        <c-slot name="headers">
+        </c-slot>
+        {% if incidents %}
+            <c-table aria_label="Incident reports">
+            <c-slot name="headers">
             <tr>
                 <c-table_header sortable="false">ID</c-table_header>
                 <c-table_header sortable="false">Submitted</c-table_header>
@@ -23,38 +22,43 @@
                 <c-table_header sortable="false">Status</c-table_header>
                 <c-table_header sortable="false">Actions</c-table_header>
             </tr>
-        </c-slot>
+            </c-slot>
             {% for incident in incidents %}
-            <tr class="{% cycle 'row1' 'row2' %}">
-                <td><strong>#{{ incident.id }}</strong></td>
-                <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ incident.affected_boxes_display|default:"N/A" }}</td>
-                <td>{{ incident.attack_description|truncatewords:10 }}</td>
-                <td>
-                    {% if incident.gold_team_reviewed %}
-                        <c-badge status="resolved">Reviewed</c-badge>
-                    {% else %}
-                        <c-badge status="claimed">Pending</c-badge>
-                    {% endif %}
-                </td>
-                <td>
-                    <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View</c-link>
-                    {% if incident.submitted_by == current_user and not incident.gold_team_reviewed %}
-                        <form method="post" action="{% url 'scoring:delete_incident_report' incident.id %}" style="display: inline;" onsubmit="return confirm('Delete this incident report?');">
-                            {% csrf_token %}
-                            <button type="submit" class="deletelink" title="Delete">Delete</button>
-                        </form>
-                    {% endif %}
-                </td>
-            </tr>
+                <tr class="{% cycle 'row1' 'row2' %}">
+                    <td>
+                        <strong>#{{ incident.id }}</strong>
+                    </td>
+                    <td>{{ incident.created_at|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ incident.affected_boxes_display|default:"N/A" }}</td>
+                    <td>{{ incident.attack_description|truncatewords:10 }}</td>
+                    <td>
+                        {% if incident.gold_team_reviewed %}
+                            <c-badge status="resolved">Reviewed</c-badge>
+                        {% else %}
+                            <c-badge status="claimed">Pending</c-badge>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View</c-link>
+                        {% if incident.submitted_by == current_user and not incident.gold_team_reviewed %}
+                            <form method="post"
+                                  action="{% url 'scoring:delete_incident_report' incident.id %}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('Delete this incident report?');">
+                                {% csrf_token %}
+                                <button type="submit" class="deletelink" title="Delete">Delete</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
             {% endfor %}
-    </c-table>
-    {% else %}
-    <c-empty_state title="No incidents reported yet" description="Either you haven't been attacked, or you haven't noticed yet. We're hoping it's the first one.">
-        <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Report an incident</c-link>
-    </c-empty_state>
-    {% endif %}
-</c-module>
-</div>
-{% endblock %}
+            </c-table>
+        {% else %}
+            <c-empty_state title="No incidents reported yet" description="Either you haven't been attacked, or you haven't noticed yet. We're hoping it's the first one.">
+            <c-link href="{% url 'scoring:submit_incident_report' %}" variant="add">Report an incident</c-link>
+            </c-empty_state>
+        {% endif %}
+        </c-module>
+    </div>
+{% endblock content %}

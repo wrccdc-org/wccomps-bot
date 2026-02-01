@@ -433,11 +433,16 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
     total_teams = Team.objects.count()
     linked_users = DiscordLink.objects.filter(is_active=True, team__isnull=False).count()
 
+    # Get available apps from Authentik
+    auth_manager = AuthentikManager()
+    available_apps = auth_manager.list_applications()
+
     context = {
         "config": config,
         "active_teams": active_teams,
         "total_teams": total_teams,
         "linked_users": linked_users,
+        "available_apps": available_apps,
         "timezone_choices": TIMEZONE_CHOICES,
         "show_ops_nav": True,
         "nav_active": "ops_admin",
