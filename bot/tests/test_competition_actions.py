@@ -42,9 +42,7 @@ class TestStartCompetition:
                 "netbird": (True, None),
                 "scoring": (True, None),
             }
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 result = await start_competition()
@@ -58,9 +56,7 @@ class TestStartCompetition:
 
         with patch("bot.competition_actions.AuthentikManager") as mock_auth:
             mock_auth.return_value.enable_applications.return_value = {}
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 await start_competition()
@@ -83,9 +79,7 @@ class TestStartCompetition:
 
         with patch("bot.competition_actions.AuthentikManager") as mock_auth:
             mock_auth.return_value.enable_applications.return_value = {}
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 await start_competition()
@@ -121,9 +115,7 @@ class TestStopCompetition:
                 "netbird": (True, None),
                 "scoring": (True, None),
             }
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 result = await stop_competition()
@@ -144,9 +136,7 @@ class TestStopCompetition:
 
         with patch("bot.competition_actions.AuthentikManager") as mock_auth:
             mock_auth.return_value.disable_applications.return_value = {}
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 await stop_competition()
@@ -170,9 +160,7 @@ class TestStopCompetition:
 
         with patch("bot.competition_actions.AuthentikManager") as mock_auth:
             mock_auth.return_value.disable_applications.return_value = {}
-            with patch(
-                "bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock
-            ) as mock_toggle:
+            with patch("bot.competition_actions.toggle_all_blueteam_accounts", new_callable=AsyncMock) as mock_toggle:
                 mock_toggle.return_value = (50, 0)
 
                 await stop_competition()

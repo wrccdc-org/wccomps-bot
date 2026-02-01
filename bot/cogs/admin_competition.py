@@ -705,9 +705,7 @@ class AdminCompetitionCog(commands.Cog):
     )
     @app_commands.describe(channel="The channel to use for status display")
     @app_commands.check(check_admin)
-    async def admin_set_status_channel(
-        self, interaction: discord.Interaction, channel: discord.TextChannel
-    ) -> None:
+    async def admin_set_status_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
         """Set the competition status channel."""
         from bot.competition_actions import update_status_channel
 
