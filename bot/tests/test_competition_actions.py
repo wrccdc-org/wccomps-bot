@@ -1,11 +1,17 @@
 """Tests for shared competition actions."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from asgiref.sync import sync_to_async
 
 from core.models import CompetitionConfig
+
+
+@pytest.fixture
+def mock_bot():
+    """Create a mock Discord bot."""
+    return MagicMock()
 
 
 @pytest.fixture
@@ -179,3 +185,82 @@ class TestStopCompetition:
         start_time, end_time = await check_config()
         assert start_time is not None
         assert end_time is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+class TestUpdateStatusChannel:
+    """Tests for status channel update."""
+
+    async def test_creates_new_message_if_none_exists(self, config, mock_bot):
+        """Should create a new status message if none exists."""
+        import discord
+
+        from bot.competition_actions import update_status_channel
+
+        @sync_to_async
+        def setup_config():
+            config.status_channel_id = 123456789
+            config.status_message_id = None
+            config.save()
+
+        await setup_config()
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_message = MagicMock()
+        mock_message.id = 987654321
+        mock_channel.send = AsyncMock(return_value=mock_message)
+        mock_bot.get_channel.return_value = mock_channel
+
+        result = await update_status_channel(mock_bot)
+
+        assert result is True
+        mock_channel.send.assert_called_once()
+
+        @sync_to_async
+        def check_config():
+            config.refresh_from_db()
+            return config.status_message_id
+
+        message_id = await check_config()
+        assert message_id == 987654321
+
+    async def test_edits_existing_message(self, config, mock_bot):
+        """Should edit existing status message."""
+        import discord
+
+        from bot.competition_actions import update_status_channel
+
+        @sync_to_async
+        def setup_config():
+            config.status_channel_id = 123456789
+            config.status_message_id = 987654321
+            config.save()
+
+        await setup_config()
+
+        mock_channel = MagicMock(spec=discord.TextChannel)
+        mock_message = AsyncMock()
+        mock_channel.fetch_message = AsyncMock(return_value=mock_message)
+        mock_bot.get_channel.return_value = mock_channel
+
+        result = await update_status_channel(mock_bot)
+
+        assert result is True
+        mock_message.edit.assert_called_once()
+
+    async def test_skips_if_no_channel_configured(self, config, mock_bot):
+        """Should skip if no status channel configured."""
+        from bot.competition_actions import update_status_channel
+
+        @sync_to_async
+        def setup_config():
+            config.status_channel_id = None
+            config.save()
+
+        await setup_config()
+
+        result = await update_status_channel(mock_bot)
+
+        assert result is False
+        mock_bot.get_channel.assert_not_called()
