@@ -291,6 +291,46 @@ def _action_cleanup_competition(
     )
 
 
+def _action_wipe_competition(
+    request: HttpRequest, config: CompetitionConfig, authentik_username: str
+) -> JsonResponse:
+    """Handle wipe_competition action - nuclear option to delete all competition data."""
+    from core.competition_utils import wipe_competition_data
+
+    if config.applications_enabled:
+        return JsonResponse({"error": "Competition must be stopped before wiping"}, status=400)
+
+    counts = wipe_competition_data()
+
+    # Clear competition config times
+    config.competition_start_time = None
+    config.competition_end_time = None
+    config.save()
+
+    # Summarize what was deleted
+    deleted_items = {k: v for k, v in counts.items() if v > 0}
+    total_deleted = sum(counts.values())
+
+    # Create a new audit log entry (after wiping, so it's the first entry)
+    AuditLog.objects.create(
+        action="competition_wiped",
+        admin_user=authentik_username,
+        target_entity="competition",
+        target_id=0,
+        details={"deleted_counts": deleted_items, "total_deleted": total_deleted},
+    )
+
+    summary_parts = [f"{v} {k}" for k, v in deleted_items.items()]
+    summary = ", ".join(summary_parts) if summary_parts else "No data to delete"
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Competition wiped! Deleted: {summary}",
+        }
+    )
+
+
 def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle reset_passwords action."""
     team_numbers_str = request.POST.get("team_numbers", "").strip()
@@ -367,6 +407,7 @@ _COMPETITION_ACTION_HANDLERS = {
     "start_competition": _action_start_competition,
     "stop_competition": _action_stop_competition,
     "cleanup_competition": _action_cleanup_competition,
+    "wipe_competition": _action_wipe_competition,
     "reset_passwords": _action_reset_passwords,
     "sync_quotient": _action_sync_quotient,
 }

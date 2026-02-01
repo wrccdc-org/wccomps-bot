@@ -58,6 +58,10 @@
                 <c-button variant="default" class="w-full mt-10" @click="syncQuotient()" ::disabled="loading">
                     Sync Quotient Metadata
                 </c-button>
+                <hr class="mt-10 mb-5" style="border-color: var(--color-border);">
+                <c-button variant="danger" class="w-full" @click="wipeCompetition()" ::disabled="loading" style="background: #8b0000;">
+                    ☢️ Wipe All Data
+                </c-button>
             </div>
         </c-module>
     </div>
@@ -223,6 +227,35 @@ function competitionAdmin() {
         cleanupCompetition() {
             if (confirm('Cleanup the competition? This will:\n- Deactivate all team Discord links\n- Clear queued announcements\n\nCompetition must be stopped first. Discord channels must be deleted via the bot.')) {
                 this.doAction('cleanup_competition');
+            }
+        },
+
+        wipeCompetition() {
+            const message = `☢️ WIPE ALL COMPETITION DATA?\n\nThis will PERMANENTLY DELETE:\n\n` +
+                `SCORING:\n` +
+                `• Red Team Findings & Screenshots\n` +
+                `• Incident Reports & Screenshots\n` +
+                `• Inject Grades\n` +
+                `• Orange Team Bonuses\n` +
+                `• Service Scores\n` +
+                `• Black Team Adjustments\n` +
+                `• Final Scores & Event Scores\n\n` +
+                `TICKETING:\n` +
+                `• All Tickets, Comments, History\n\n` +
+                `TEAMS & DISCORD:\n` +
+                `• All Teams\n` +
+                `• Blue Team Discord Links (staff/volunteer links preserved)\n` +
+                `• All Link Tokens/Attempts\n` +
+                `• All Discord Tasks\n` +
+                `• Bot State & Dashboard Updates\n` +
+                `• All Audit Logs\n\n` +
+                `Competition must be stopped first.\n` +
+                `This action CANNOT be undone!`;
+
+            if (confirm(message)) {
+                if (confirm('Are you ABSOLUTELY SURE? Type OK to confirm this destructive action.')) {
+                    this.doAction('wipe_competition');
+                }
             }
         },
 
