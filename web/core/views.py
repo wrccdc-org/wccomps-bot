@@ -1732,7 +1732,7 @@ def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def ops_school_info(request: HttpRequest) -> HttpResponse:
+def school_info(request: HttpRequest) -> HttpResponse:
     """View and edit school information (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
@@ -1765,7 +1765,7 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "ops_school_info.html",
+        "school_info.html",
         {
             "teams": teams_with_info,
             "show_ops_nav": True,
@@ -1774,7 +1774,7 @@ def ops_school_info(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
+def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     """Edit school information for a team (GoldTeam only)."""
     # Get user's permissions
     user = cast(User, request.user)
@@ -1820,7 +1820,7 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
         if not school_name:
             return render(
                 request,
-                "ops_school_info_edit.html",
+                "school_info_edit.html",
                 {
                     "team": team,
                     "school_info": school_info,
@@ -1831,7 +1831,7 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
         if not contact_email:
             return render(
                 request,
-                "ops_school_info_edit.html",
+                "school_info_edit.html",
                 {
                     "team": team,
                     "school_info": school_info,
@@ -1859,11 +1859,11 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
 
         logger.info(f"School info updated for Team {team_number} by {authentik_username}")
 
-        return redirect("ops_school_info")
+        return redirect("school_info")
 
     return render(
         request,
-        "ops_school_info_edit.html",
+        "school_info_edit.html",
         {
             "team": team,
             "school_info": school_info,
@@ -1873,7 +1873,7 @@ def ops_school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse
 
 
 @login_required
-def ops_school_info_import(request: HttpRequest) -> HttpResponse:
+def school_info_import(request: HttpRequest) -> HttpResponse:
     """Import school information from CSV file (GoldTeam only)."""
     from team.forms import CSVUploadForm, apply_csv_import, parse_csv_file, validate_csv_data
 
@@ -1982,7 +1982,7 @@ def ops_school_info_import(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "ops_school_info_import.html",
+        "school_info_import.html",
         {
             "authentik_username": authentik_username,
             "form": form,

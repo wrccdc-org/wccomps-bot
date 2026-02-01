@@ -4,9 +4,10 @@
 {% block title %}Admin - WCComps{% endblock %}
 
 {% block content %}
-<c-nav current="{% if 'competition' in request.resolver_match.url_name %}competition{% elif 'teams' in request.resolver_match.url_name or 'team_detail' in request.resolver_match.url_name %}teams{% elif 'broadcast' in request.resolver_match.url_name %}broadcast{% elif 'sync_roles' in request.resolver_match.url_name %}sync{% endif %}">
+<c-nav current="{% if 'competition' in request.resolver_match.url_name %}competition{% elif 'teams' in request.resolver_match.url_name or 'team_detail' in request.resolver_match.url_name %}teams{% elif 'broadcast' in request.resolver_match.url_name %}broadcast{% elif 'sync_roles' in request.resolver_match.url_name %}sync{% elif 'school' in request.resolver_match.url_name %}schools{% endif %}">
     <c-nav_item name="competition" href="{% url 'admin_competition' %}">Competition</c-nav_item>
     <c-nav_item name="teams" href="{% url 'admin_teams' %}">Teams</c-nav_item>
+    <c-nav_item name="schools" href="{% url 'school_info' %}">Schools</c-nav_item>
     <c-nav_item name="broadcast" href="{% url 'admin_broadcast' %}">Broadcast</c-nav_item>
     <c-nav_item name="sync" href="{% url 'admin_sync_roles' %}">Sync Roles</c-nav_item>
 </c-nav>

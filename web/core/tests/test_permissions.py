@@ -21,7 +21,7 @@ class TestOpsSchoolInfoPermissions:
 
     def test_unauthenticated_redirects_to_login(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
-        response = unauthenticated_client.get(reverse("ops_school_info"))
+        response = unauthenticated_client.get(reverse("school_info"))
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
@@ -41,7 +41,7 @@ class TestOpsSchoolInfoPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("ops_school_info"))
+        response = client.get(reverse("school_info"))
         assert response.status_code == 200
         assert _check_access_denied(response), f"{user_fixture} should be denied access"
 
@@ -51,7 +51,7 @@ class TestOpsSchoolInfoPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("ops_school_info"))
+        response = client.get(reverse("school_info"))
         assert response.status_code == 200
         assert not _check_access_denied(response), f"{user_fixture} should have access"
 

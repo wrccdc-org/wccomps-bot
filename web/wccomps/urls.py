@@ -32,16 +32,16 @@ urlpatterns = [
     path("auth/link", views.link_initiate, name="link_initiate"),
     path("auth/link-callback", views.link_callback, name="link_callback"),
     path("team-packets/", include("packets.urls")),
-    path("ops/school-info/", views.ops_school_info, name="ops_school_info"),
+    path("ops/school-info/", views.school_info, name="school_info"),
     path(
         "ops/school-info/import/",
-        views.ops_school_info_import,
-        name="ops_school_info_import",
+        views.school_info_import,
+        name="school_info_import",
     ),
     path(
         "ops/school-info/<int:team_number>/",
-        views.ops_school_info_edit,
-        name="ops_school_info_edit",
+        views.school_info_edit,
+        name="school_info_edit",
     ),
     path(
         "ops/group-role-mappings/",

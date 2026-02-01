@@ -215,8 +215,8 @@ class TestPageRendering:
         assert response.status == 200
         expect(page.locator("body")).to_contain_text("healthy")
 
-    def test_ops_school_info_renders(self, authenticated_page: Page, live_server_url):
-        """Ops school info page should render."""
+    def test_school_info_renders(self, authenticated_page: Page, live_server_url):
+        """School info page should render."""
         base_url = live_server_url
 
         authenticated_page.goto(f"{base_url}/ops/school-info/")

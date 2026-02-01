@@ -28,14 +28,11 @@
     {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
     <a href="{% url 'scoring:leaderboard' %}" {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring</a>
     {% endif %}
-    {% if is_gold_team or is_admin %}
-    <a href="{% url 'ops_school_info' %}" {% if nav_active == 'school' %}class="current"{% endif %}>School Info</a>
-    {% endif %}
     {% if user.is_staff %}
     <a href="{% url 'admin:index' %}" {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
     {% endif %}
     {% if is_gold_team or is_admin %}
-    <a href="{% url 'admin_competition' %}" {% if nav_active == 'ops_admin' %}class="current"{% endif %}>Comp Mgmt</a>
+    <a href="{% url 'admin_competition' %}" {% if nav_active == 'ops_admin' %}class="current"{% endif %}>Competition</a>
     {% endif %}
     <span class="nav-spacer"></span>
     <span class="nav-user">{{ authentik_username|default:user.username }}</span>

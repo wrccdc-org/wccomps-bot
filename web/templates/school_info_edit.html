@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 {% load static cotton %}
 
 {% block title %}Edit School Information - Team {{ team.team_number }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div id="content-main">
     <c-page_header title="Edit School Information - Team {{ team.team_number }}" subtitle="{{ team.team_name }}" />
 
@@ -12,7 +12,7 @@
 
         <c-module>
             <c-slot name="toolbar">
-                <c-link href="{% url 'ops_school_info' %}" variant="history">Back to School Information</c-link>
+                <c-link href="{% url 'school_info' %}" variant="history">Back to School Information</c-link>
             </c-slot>
 
             {% if error %}
@@ -38,7 +38,7 @@
             </c-fieldset>
 
             <c-button_row class="justify-end">
-                <c-link href="{% url 'ops_school_info' %}">Cancel</c-link>
+                <c-link href="{% url 'school_info' %}">Cancel</c-link>
                 <c-button type="submit" variant="primary">Save School Information</c-button>
             </c-button_row>
 

@@ -263,7 +263,7 @@ class TestEdgeCases:
 
         client = Client()
 
-        response = client.get(reverse("ops_school_info_edit", kwargs={"team_number": 9999}))
+        response = client.get(reverse("school_info_edit", kwargs={"team_number": 9999}))
 
         # Should be 404 or 302, not 500
         assert response.status_code in [404, 302]

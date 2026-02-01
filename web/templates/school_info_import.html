@@ -1,15 +1,15 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 {% load static cotton %}
 
 {% block title %}Import School Information - WCComps{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div id="content-main">
     <c-page_header title="Import School Information from CSV" />
 
     <c-module>
         <c-slot name="toolbar">
-            <c-link href="{% url 'ops_school_info' %}" variant="history">Back to School Information</c-link>
+            <c-link href="{% url 'school_info' %}" variant="history">Back to School Information</c-link>
         </c-slot>
 
         {% if import_results %}
@@ -20,8 +20,8 @@
         </c-alert>
 
         <c-button_row class="justify-end">
-            <c-link href="{% url 'ops_school_info_import' %}">Import Another File</c-link>
-            <c-link href="{% url 'ops_school_info' %}" variant="primary">View School Information</c-link>
+            <c-link href="{% url 'school_info_import' %}">Import Another File</c-link>
+            <c-link href="{% url 'school_info' %}" variant="primary">View School Information</c-link>
         </c-button_row>
 
         {% elif preview_data %}
@@ -79,13 +79,13 @@
         <form method="POST">
             {% csrf_token %}
             <c-button_row class="mt-20 justify-end">
-                <c-link href="{% url 'ops_school_info_import' %}">Cancel</c-link>
+                <c-link href="{% url 'school_info_import' %}">Cancel</c-link>
                 <c-button type="submit" name="confirm" value="true" variant="primary">Confirm and Import</c-button>
             </c-button_row>
         </form>
         {% else %}
         <c-button_row class="justify-end">
-            <c-link href="{% url 'ops_school_info_import' %}" variant="primary">Try Again</c-link>
+            <c-link href="{% url 'school_info_import' %}" variant="primary">Try Again</c-link>
         </c-button_row>
         {% endif %}
 
@@ -121,7 +121,7 @@ Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
                 </c-fieldset>
 
                 <c-button_row class="justify-end">
-                    <c-link href="{% url 'ops_school_info' %}">Cancel</c-link>
+                    <c-link href="{% url 'school_info' %}">Cancel</c-link>
                     <c-button type="submit" name="upload" value="true" variant="primary">Upload and Preview</c-button>
                 </c-button_row>
             </form>

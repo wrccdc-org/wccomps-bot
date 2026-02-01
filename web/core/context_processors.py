@@ -47,9 +47,9 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "delete_check_type": ("orange", "check_types"),
     "api_orange_check_types": ("orange", "check_types"),
     # School Info
-    "ops_school_info": ("school", ""),
-    "ops_school_info_edit": ("school", ""),
-    "ops_school_info_import": ("school", ""),
+    "school_info": ("school", ""),
+    "school_info_edit": ("school", ""),
+    "school_info_import": ("school", ""),
     # Scoring pages
     "leaderboard": ("scoring", "leaderboard"),
     "event_leaderboard": ("scoring", "leaderboard"),

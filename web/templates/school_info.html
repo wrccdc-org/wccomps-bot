@@ -1,15 +1,15 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 {% load static cotton %}
 
 {% block title %}School Information - WCComps{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div id="content-main">
     <c-page_header title="School Information" />
 
     <c-module id="changelist">
         <c-slot name="toolbar">
-            <c-link href="{% url 'ops_school_info_import' %}" variant="addlink">Import from CSV</c-link>
+            <c-link href="{% url 'school_info_import' %}" variant="addlink">Import from CSV</c-link>
         </c-slot>
 
         <c-table id="result_list" class="w-full" fixed_layout="true" aria_label="School information for all teams">
@@ -68,7 +68,7 @@
                     {% endif %}
                 </td>
                 <td class="field-action">
-                    <c-link href="{% url 'ops_school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
+                    <c-link href="{% url 'school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
                 </td>
             </tr>
             {% endfor %}
