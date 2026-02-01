@@ -8,18 +8,18 @@ from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
 
-from bot.authentik_manager import AuthentikManager
-from bot.authentik_utils import (
-    generate_blueteam_password,
-    parse_team_range,
-    reset_blueteam_password,
-)
 from bot.permissions import check_admin
 from bot.utils import (
     get_team_or_respond,
     log_to_ops_channel,
     remove_blueteam_role,
     safe_remove_role,
+)
+from core.authentik_manager import AuthentikManager
+from core.authentik_utils import (
+    generate_blueteam_password,
+    parse_team_range,
+    reset_blueteam_password,
 )
 from core.models import AuditLog
 from team.models import DiscordLink, Team

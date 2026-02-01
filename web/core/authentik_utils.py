@@ -86,9 +86,32 @@ def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
         return (False, "Account toggle failed - check server logs")
 
 
+def toggle_all_blueteam_accounts_sync(is_active: bool) -> tuple[int, int]:
+    """
+    Enable or disable all team01-team50 accounts in Authentik (sync version).
+
+    Args:
+        is_active: True to enable, False to disable
+
+    Returns:
+        (success_count, failed_count)
+    """
+    success_count = 0
+    failed_count = 0
+    for i in range(1, 51):
+        username = f"team{i:02d}"
+        success, _ = toggle_authentik_user(username, is_active)
+        if success:
+            success_count += 1
+        else:
+            failed_count += 1
+
+    return (success_count, failed_count)
+
+
 async def toggle_all_blueteam_accounts(is_active: bool) -> tuple[int, int]:
     """
-    Enable or disable all team01-team50 accounts in Authentik.
+    Enable or disable all team01-team50 accounts in Authentik (async version).
 
     Args:
         is_active: True to enable, False to disable
@@ -98,17 +121,7 @@ async def toggle_all_blueteam_accounts(is_active: bool) -> tuple[int, int]:
     """
     from asgiref.sync import sync_to_async
 
-    success_count = 0
-    failed_count = 0
-    for i in range(1, 51):
-        username = f"team{i:02d}"
-        success, _ = await sync_to_async(toggle_authentik_user)(username, is_active)
-        if success:
-            success_count += 1
-        else:
-            failed_count += 1
-
-    return (success_count, failed_count)
+    return await sync_to_async(toggle_all_blueteam_accounts_sync)(is_active)
 
 
 def generate_blueteam_password() -> str:

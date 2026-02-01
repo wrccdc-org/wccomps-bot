@@ -7,23 +7,35 @@
 <div x-data="competitionAdmin()">
     <c-page_header title="Competition Management" />
 
+    <!-- Competition Status Banner (matches Discord status channel) -->
+    <c-alert variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}error{% endif %}" class="mb-20">
+        <div class="d-flex items-center gap-15 mb-10">
+            <strong style="font-size: 18px;">Competition Status</strong>
+            <c-badge variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}danger{% endif %}">
+                {% if config.applications_enabled %}RUNNING{% elif config.competition_start_time %}SCHEDULED{% else %}STOPPED{% endif %}
+            </c-badge>
+        </div>
+        <c-detail_grid>
+            <c-detail_row label="Team Accounts">{% if config.applications_enabled %}Enabled{% else %}Disabled{% endif %} (50 teams)</c-detail_row>
+            {% if config.controlled_applications %}
+            <c-detail_row label="Controlled Applications">{{ config.controlled_applications|join:", " }}</c-detail_row>
+            {% endif %}
+            {% if config.competition_start_time %}
+            <c-detail_row label="Scheduled Start">{{ config.competition_start_time|date:"F j, Y, g:i A T" }}</c-detail_row>
+            {% endif %}
+            {% if config.competition_end_time %}
+            <c-detail_row label="Scheduled End">{{ config.competition_end_time|date:"F j, Y, g:i A T" }}</c-detail_row>
+            {% endif %}
+        </c-detail_grid>
+    </c-alert>
+
     <div class="d-flex gap-20 flex-wrap">
         <c-module style="flex: 1; min-width: 300px;">
-            <c-slot name="title">Competition Status</c-slot>
+            <c-slot name="title">Team Statistics</c-slot>
             <c-detail_grid>
                 <c-detail_row label="Active Teams">{{ active_teams }}/{{ total_teams }}</c-detail_row>
                 <c-detail_row label="Linked Users">{{ linked_users }}</c-detail_row>
                 <c-detail_row label="Max Team Members">{{ config.max_team_members }}</c-detail_row>
-                <c-detail_row label="Applications Enabled">
-                    {% if config.applications_enabled %}
-                        <c-badge variant="success">Yes</c-badge>
-                    {% else %}
-                        <c-badge variant="danger">No</c-badge>
-                    {% endif %}
-                </c-detail_row>
-                <c-detail_row label="Controlled Apps">{{ config.controlled_applications|join:", "|default:"Not set" }}</c-detail_row>
-                <c-detail_row label="Start Time">{{ config.competition_start_time|default:"Not set" }}</c-detail_row>
-                <c-detail_row label="End Time">{{ config.competition_end_time|default:"Not set" }}</c-detail_row>
             </c-detail_grid>
         </c-module>
 

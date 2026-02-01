@@ -7,7 +7,7 @@ import requests
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from bot.authentik_manager import AuthentikAPIError, AuthentikManager
+from core.authentik_manager import AuthentikAPIError, AuthentikManager
 
 
 class TestAuthentikAPIError:
@@ -52,7 +52,7 @@ class TestAuthentikManager:
     @pytest.fixture
     def manager(self) -> AuthentikManager:
         """Create AuthentikManager instance."""
-        with patch("bot.authentik_manager.settings") as mock_settings:
+        with patch("core.authentik_manager.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.test.local"
             mock_settings.AUTHENTIK_TOKEN = "test-token-123"
             return AuthentikManager()
@@ -101,7 +101,7 @@ class TestAuthentikManager:
     @settings(max_examples=20)
     def test_handle_response_error_5xx(self, status_code: int) -> None:
         """Property: 5xx errors are handled consistently."""
-        with patch("bot.authentik_manager.settings") as mock_settings:
+        with patch("core.authentik_manager.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.test.local"
             mock_settings.AUTHENTIK_TOKEN = "test-token-123"
             manager = AuthentikManager()
@@ -282,6 +282,7 @@ class TestAuthentikManager:
             assert success is True
             assert error is None
             # Check that update_binding_enabled was called with enabled=True
+            # (enabling the binding allows blue team access)
             mock_update.assert_called_once()
             call_args = mock_update.call_args
             assert call_args[0][0] == {"pk": "binding-456", "enabled": False}
@@ -332,6 +333,7 @@ class TestAuthentikManager:
             assert success is True
             assert error is None
             # Check that update_binding_enabled was called with enabled=False
+            # (disabling the binding blocks blue team access)
             mock_update.assert_called_once()
             call_args = mock_update.call_args
             assert call_args[0][0] == {"pk": "binding-456", "enabled": True}

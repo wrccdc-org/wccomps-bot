@@ -215,7 +215,7 @@ class AuthentikManager:
             return False
 
     def enable_application(self, app_slug: str) -> tuple[bool, str | None]:
-        """Enable application for blue teams by disabling the BlueTeam group binding.
+        """Enable application for blue teams by enabling the BlueTeam group binding.
 
         Returns:
             tuple[bool, Optional[str]]: (success, error_message)
@@ -241,13 +241,13 @@ class AuthentikManager:
 
             logger.debug(f"Using binding pk={binding['pk']}")
 
-            # Disable the binding to allow blue team access
-            success = self.update_binding_enabled(binding, enabled=False)
+            # Enable the binding to allow blue team access
+            success = self.update_binding_enabled(binding, enabled=True)
 
             if success:
                 logger.info(f"✓ Application '{app_slug}' enabled for blue teams")
                 return True, None
-            error_msg = f"Failed to disable binding for application '{app_slug}'"
+            error_msg = f"Failed to enable binding for application '{app_slug}'"
             logger.error(error_msg)
             return False, error_msg
 
@@ -257,7 +257,7 @@ class AuthentikManager:
             return False, error_msg
 
     def disable_application(self, app_slug: str) -> tuple[bool, str | None]:
-        """Disable application for blue teams by enabling the BlueTeam group binding.
+        """Disable application for blue teams by disabling the BlueTeam group binding.
 
         Returns:
             tuple[bool, Optional[str]]: (success, error_message)
@@ -283,13 +283,13 @@ class AuthentikManager:
 
             logger.debug(f"Using binding pk={binding['pk']}")
 
-            # Enable the binding to block blue team access
-            success = self.update_binding_enabled(binding, enabled=True)
+            # Disable the binding to block blue team access
+            success = self.update_binding_enabled(binding, enabled=False)
 
             if success:
                 logger.info(f"✓ Application '{app_slug}' disabled for blue teams")
                 return True, None
-            error_msg = f"Failed to enable binding for application '{app_slug}'"
+            error_msg = f"Failed to disable binding for application '{app_slug}'"
             logger.error(error_msg)
             return False, error_msg
 

@@ -1,21 +1,16 @@
 """Registration services for credential generation and distribution."""
 
 import logging
-import sys
 from dataclasses import dataclass
 
 from django.utils import timezone
 
+from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
 from core.email import get_email_service
 
 from .models import Event, EventTeamAssignment, RegistrationContact
 
 logger = logging.getLogger(__name__)
-
-# Import authentik utilities from bot module
-# Add bot directory to path for import
-sys.path.insert(0, "/home/tirefire/wccomps-bot")
-from bot.authentik_utils import generate_blueteam_password, reset_blueteam_password  # noqa: E402
 
 
 @dataclass

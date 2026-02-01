@@ -17,7 +17,7 @@ from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
     reset_blueteam_password,
-    toggle_authentik_user,
+    toggle_all_blueteam_accounts_sync,
 )
 from core.models import AuditLog, CompetitionConfig, DiscordTask, QueuedAnnouncement
 from team.models import DiscordLink, Team
@@ -39,20 +39,6 @@ TIMEZONE_CHOICES = [
 def _check_admin(user: User) -> bool:
     """Check if user has admin permission."""
     return has_permission(user, "admin") or has_permission(user, "gold_team")
-
-
-def _toggle_blueteam_accounts(enable: bool) -> tuple[int, int]:
-    """Toggle all 50 blueteam accounts. Returns (success_count, failed_count)."""
-    success_count = 0
-    failed_count = 0
-    for i in range(1, 51):
-        username = f"team{i:02d}"
-        success, _ = toggle_authentik_user(username, is_active=enable)
-        if success:
-            success_count += 1
-        else:
-            failed_count += 1
-    return success_count, failed_count
 
 
 def _action_set_max_members(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
@@ -171,11 +157,10 @@ def _action_start_competition(request: HttpRequest, config: CompetitionConfig, a
     auth_manager = AuthentikManager()
     app_results = auth_manager.enable_applications(config.controlled_applications)
 
-    success_count, failed_count = _toggle_blueteam_accounts(enable=True)
+    success_count, failed_count = toggle_all_blueteam_accounts_sync(is_active=True)
 
     config.applications_enabled = True
-    config.competition_start_time = None
-    config.competition_end_time = None
+    config.competition_start_time = None  # Clear start_time only, preserve end_time
     config.save()
 
     # Sync Quotient metadata for new competition
@@ -218,7 +203,7 @@ def _action_stop_competition(request: HttpRequest, config: CompetitionConfig, au
     auth_manager = AuthentikManager()
     app_results = auth_manager.disable_applications(config.controlled_applications)
 
-    success_count, failed_count = _toggle_blueteam_accounts(enable=False)
+    success_count, failed_count = toggle_all_blueteam_accounts_sync(is_active=False)
 
     config.applications_enabled = False
     config.competition_end_time = None  # Clear end_time only

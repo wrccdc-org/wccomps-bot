@@ -6,8 +6,8 @@ from typing import TypedDict
 import discord
 from asgiref.sync import sync_to_async
 
-from bot.authentik_manager import AuthentikManager
-from bot.authentik_utils import toggle_all_blueteam_accounts
+from core.authentik_manager import AuthentikManager
+from core.authentik_utils import toggle_all_blueteam_accounts
 from core.models import CompetitionConfig
 
 logger = logging.getLogger(__name__)

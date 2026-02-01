@@ -13,13 +13,13 @@ from discord.ext import commands
 from django.conf import settings
 from django.utils import timezone
 
-from bot.authentik_utils import (
+from bot.permissions import check_admin, check_gold_team
+from bot.utils import ConfirmView, log_to_ops_channel
+from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
     reset_blueteam_password,
 )
-from bot.permissions import check_admin, check_gold_team
-from bot.utils import ConfirmView, log_to_ops_channel
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import parse_datetime_to_utc
 from team.models import DiscordLink, Team
