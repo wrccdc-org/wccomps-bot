@@ -119,10 +119,14 @@ class TestCompetitionTimer:
         bot = AsyncMock(spec=discord.Client)
         timer = CompetitionTimer(bot)
 
-        config = await CompetitionConfig.objects.acreate(
-            competition_start_time=timezone.now() + timedelta(hours=1),
-            applications_enabled=False,
-            controlled_applications=["app1", "app2"],
+        # Use update_or_create with pk=1 to match get_config() singleton pattern
+        config, _ = await CompetitionConfig.objects.aupdate_or_create(
+            pk=1,
+            defaults={
+                "competition_start_time": timezone.now() + timedelta(hours=1),
+                "applications_enabled": False,
+                "controlled_applications": ["app1", "app2"],
+            },
         )
 
         await timer._check_competition_times()
