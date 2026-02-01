@@ -291,9 +291,7 @@ def _action_cleanup_competition(
     )
 
 
-def _action_wipe_competition(
-    request: HttpRequest, config: CompetitionConfig, authentik_username: str
-) -> JsonResponse:
+def _action_wipe_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle wipe_competition action - nuclear option to delete all competition data."""
     from core.competition_utils import wipe_competition_data
 
