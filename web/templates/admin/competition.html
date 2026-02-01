@@ -14,10 +14,6 @@
             <c-badge variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}danger{% endif %}">
                 {% if config.applications_enabled %}RUNNING{% elif config.competition_start_time %}SCHEDULED{% else %}STOPPED{% endif %}
             </c-badge>
-            <span class="nav-spacer"></span>
-            <span style="font-size: 13px; color: var(--body-quiet-color);" x-data="clock()" x-init="start()">
-                <span x-text="localTime"></span> (Local) · <span x-text="californiaTime"></span> (CA)
-            </span>
         </div>
         <c-detail_grid>
             <c-detail_row label="Team Accounts">{% if config.applications_enabled %}Enabled{% else %}Disabled{% endif %} (50 teams)</c-detail_row>
@@ -25,10 +21,14 @@
             <c-detail_row label="Controlled Applications">{{ config.controlled_applications|join:", " }}</c-detail_row>
             {% endif %}
             {% if config.competition_start_time %}
-            <c-detail_row label="Scheduled Start">{{ config.competition_start_time|date:"F j, Y, g:i A T" }}</c-detail_row>
+            <c-detail_row label="Scheduled Start">
+                <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')" x-text="formatted"></span>
+            </c-detail_row>
             {% endif %}
             {% if config.competition_end_time %}
-            <c-detail_row label="Scheduled End">{{ config.competition_end_time|date:"F j, Y, g:i A T" }}</c-detail_row>
+            <c-detail_row label="Scheduled End">
+                <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')" x-text="formatted"></span>
+            </c-detail_row>
             {% endif %}
         </c-detail_grid>
     </c-alert>
@@ -145,21 +145,12 @@
 </div>
 
 <script>
-function clock() {
-    return {
-        localTime: '',
-        californiaTime: '',
-        start() {
-            this.update();
-            setInterval(() => this.update(), 1000);
-        },
-        update() {
-            const now = new Date();
-            const options = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
-            this.localTime = now.toLocaleTimeString('en-US', options);
-            this.californiaTime = now.toLocaleTimeString('en-US', { ...options, timeZone: 'America/Los_Angeles' });
-        }
-    };
+function formatTime(iso) {
+    const date = new Date(iso);
+    const opts = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+    const local = date.toLocaleString('en-US', opts);
+    const ca = date.toLocaleString('en-US', { ...opts, timeZone: 'America/Los_Angeles' });
+    return { formatted: `${local} (Local) · ${ca} (CA)` };
 }
 
 function competitionAdmin() {
