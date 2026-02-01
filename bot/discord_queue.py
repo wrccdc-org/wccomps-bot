@@ -119,6 +119,8 @@ class DiscordQueueProcessor:
                 await self._handle_sync_roles(task)
             elif task.task_type == "assign_role_by_username":
                 await self._handle_assign_role_by_username(task)
+            elif task.task_type == "broadcast_message":
+                await self._handle_broadcast_message(task)
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
@@ -654,3 +656,124 @@ class DiscordQueueProcessor:
 
         await store_results()
         logger.info(f"Role assignment complete: {results}")
+
+    async def _handle_broadcast_message(self, task: DiscordTask) -> None:
+        """Broadcast a message to announcement channel or team channels."""
+        import os
+
+        from bot.utils import log_to_ops_channel
+        from core.authentik_utils import parse_team_range
+
+        target = task.payload.get("target", "")
+        message = task.payload.get("message", "")
+        sender = task.payload.get("sender", "Web Admin")
+
+        if not target or not message:
+            raise ValueError("Missing target or message in payload")
+
+        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            raise RuntimeError("Guild not found")
+
+        target_lower = target.lower().strip()
+        sent_count = 0
+        queued_count = 0
+        failed_channels: list[str] = []
+
+        if target_lower == "announcements":
+            # Broadcast to announcements channel with @Blueteam mention
+            announcement_channel_id = int(os.environ.get("DISCORD_ANNOUNCEMENT_CHANNEL_ID", "0"))
+            channel = guild.get_channel(announcement_channel_id)
+            if not channel or not isinstance(channel, discord.TextChannel):
+                raise RuntimeError("Announcements channel not found")
+
+            blueteam_role_id = int(os.environ.get("BLUETEAM_ROLE_ID", "0"))
+            blueteam_role = guild.get_role(blueteam_role_id)
+            role_mention = blueteam_role.mention if blueteam_role else "@Blueteam"
+
+            await channel.send(f"{role_mention}\n\n{message}")
+            sent_count = 1
+            logger.info(f"Broadcast to announcements by {sender}")
+
+        elif target_lower == "all-teams":
+            # Broadcast to all team chat channels
+            teams = [t async for t in Team.objects.filter(is_active=True).order_by("team_number")]
+            for team in teams:
+                result = await self._send_to_team_channel(guild, team, message, sender)
+                if result == "sent":
+                    sent_count += 1
+                elif result == "queued":
+                    queued_count += 1
+                else:
+                    failed_channels.append(f"Team {team.team_number:02d}")
+
+        else:
+            # Parse specific team range
+            try:
+                team_numbers = parse_team_range(target)
+            except ValueError as e:
+                raise ValueError(f"Invalid team range: {e}") from e
+
+            for team_number in team_numbers:
+                found_team = await Team.objects.filter(team_number=team_number).afirst()
+                if not found_team:
+                    failed_channels.append(f"Team {team_number:02d} (not found)")
+                    continue
+
+                result = await self._send_to_team_channel(guild, found_team, message, sender)
+                if result == "sent":
+                    sent_count += 1
+                elif result == "queued":
+                    queued_count += 1
+                else:
+                    failed_channels.append(f"Team {team_number:02d}")
+
+        # Store results
+        @sync_to_async
+        def store_results() -> None:
+            task.payload["result"] = {
+                "sent_count": sent_count,
+                "queued_count": queued_count,
+                "failed_count": len(failed_channels),
+            }
+            task.save()
+
+        await store_results()
+
+        # Log to ops
+        await log_to_ops_channel(
+            self.bot,
+            f"Broadcast by {sender}\n• Target: {target}\n• Sent: {sent_count}\n• Queued: {queued_count}",
+        )
+
+        logger.info(f"Broadcast complete: sent={sent_count}, queued={queued_count}, failed={len(failed_channels)}")
+
+    async def _send_to_team_channel(self, guild: discord.Guild, team: Team, message: str, sender: str) -> str:
+        """Send message to a team's chat channel. Returns 'sent', 'queued', or 'failed'."""
+        from core.models import QueuedAnnouncement
+
+        try:
+            chat_channel = None
+            if team.discord_category_id:
+                category = guild.get_channel(team.discord_category_id)
+                if category and isinstance(category, discord.CategoryChannel):
+                    for channel in category.channels:
+                        if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                            chat_channel = channel
+                            break
+
+            if chat_channel:
+                await chat_channel.send(f"**Announcement from {sender}:**\n\n{message}")
+                return "sent"
+            else:
+                # Queue for later delivery
+                await QueuedAnnouncement.objects.acreate(
+                    team=team,
+                    message=message,
+                    sender_name=sender,
+                )
+                return "queued"
+        except Exception as e:
+            logger.exception(f"Failed to send to team {team.team_number}: {e}")
+            return "failed"

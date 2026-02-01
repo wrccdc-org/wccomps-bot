@@ -700,43 +700,6 @@ class AdminCompetitionCog(commands.Cog):
         self.bot.loop.create_task(cleanup())
 
     @competition_group.command(
-        name="set-status-channel",
-        description="[ADMIN] Set the channel for competition status display",
-    )
-    @app_commands.describe(channel="The channel to use for status display")
-    @app_commands.check(check_admin)
-    async def admin_set_status_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
-        """Set the competition status channel."""
-        from bot.competition_actions import update_status_channel
-
-        config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
-        config.status_channel_id = channel.id
-        config.status_message_id = None  # Reset message ID to create new message
-        await config.asave()
-
-        # Create audit log
-        await AuditLog.objects.acreate(
-            action="status_channel_set",
-            admin_user=str(interaction.user),
-            target_entity="competition_config",
-            target_id=config.pk,
-            details={"channel_id": channel.id, "channel_name": channel.name},
-        )
-
-        # Update the status channel immediately
-        await update_status_channel(self.bot)
-
-        await interaction.response.send_message(
-            f"Status channel set to {channel.mention}. Status message has been posted.",
-            ephemeral=True,
-        )
-
-        await log_to_ops_channel(
-            self.bot,
-            f"Status Channel Set by {interaction.user.mention}\n• Channel: {channel.mention}",
-        )
-
-    @competition_group.command(
         name="set-apps",
         description="[ADMIN] Set which Authentik applications to control",
     )
