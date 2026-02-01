@@ -33,17 +33,12 @@
                 <c-button variant="success" class="w-full" @click="startCompetition()" ::disabled="loading">
                     Start Competition
                 </c-button>
-                <c-button variant="danger" class="w-full" @click="endCompetition()" ::disabled="loading">
-                    End Competition
+                <c-button variant="warning" class="w-full" @click="stopCompetition()" ::disabled="loading">
+                    Stop Competition
                 </c-button>
-                <div class="d-flex gap-10 mt-10">
-                    <c-button variant="default" @click="toggleBlueteams(true)" ::disabled="loading">
-                        Enable Accounts
-                    </c-button>
-                    <c-button variant="default" @click="toggleBlueteams(false)" ::disabled="loading">
-                        Disable Accounts
-                    </c-button>
-                </div>
+                <c-button variant="danger" class="w-full" @click="cleanupCompetition()" ::disabled="loading">
+                    Cleanup Competition
+                </c-button>
                 <c-button variant="default" class="w-full mt-10" @click="syncQuotient()" ::disabled="loading">
                     Sync Quotient Metadata
                 </c-button>
@@ -195,16 +190,15 @@ function competitionAdmin() {
             }
         },
 
-        endCompetition() {
-            if (confirm('End the competition? This will deactivate all links, disable accounts, and clear scheduled times. Discord channels must be deleted separately via the bot.')) {
-                this.doAction('end_competition');
+        stopCompetition() {
+            if (confirm('Stop the competition? This will disable all applications and team accounts. You can restart later.')) {
+                this.doAction('stop_competition');
             }
         },
 
-        toggleBlueteams(enable) {
-            const action = enable ? 'enable' : 'disable';
-            if (confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} all 50 team accounts?`)) {
-                this.doAction('toggle_blueteams', { enable: enable.toString() });
+        cleanupCompetition() {
+            if (confirm('Cleanup the competition? This will:\n- Deactivate all team Discord links\n- Clear queued announcements\n\nCompetition must be stopped first. Discord channels must be deleted via the bot.')) {
+                this.doAction('cleanup_competition');
             }
         },
 
