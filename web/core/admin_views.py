@@ -10,6 +10,7 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from scoring.models import QuotientMetadataCache
 from scoring.quotient_sync import sync_quotient_metadata
 
 from core.authentik_manager import AuthentikManager
@@ -271,6 +272,9 @@ def _action_cleanup_competition(
     # Clear queued announcements
     deleted_count = QueuedAnnouncement.objects.all().delete()[0]
 
+    # Clear Quotient metadata cache
+    QuotientMetadataCache.objects.all().delete()
+
     AuditLog.objects.create(
         action="competition_cleanup",
         admin_user=authentik_username,
@@ -279,14 +283,15 @@ def _action_cleanup_competition(
         details={
             "deactivated_links": deactivated,
             "cleared_announcements": deleted_count,
+            "cleared_quotient_metadata": True,
         },
     )
 
     return JsonResponse(
         {
             "success": True,
-            "message": f"Cleanup complete. Deactivated {deactivated} links, cleared {deleted_count} announcements. "
-            "Discord cleanup requires bot commands.",
+            "message": f"Cleanup complete. Deactivated {deactivated} links, cleared {deleted_count} announcements, "
+            "cleared Quotient metadata. Discord cleanup requires bot commands.",
         }
     )
 
