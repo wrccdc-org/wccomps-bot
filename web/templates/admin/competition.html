@@ -14,6 +14,10 @@
             <c-badge variant="{% if config.applications_enabled %}success{% elif config.competition_start_time %}info{% else %}danger{% endif %}">
                 {% if config.applications_enabled %}RUNNING{% elif config.competition_start_time %}SCHEDULED{% else %}STOPPED{% endif %}
             </c-badge>
+            <span class="nav-spacer"></span>
+            <span style="font-size: 13px; color: var(--body-quiet-color);" x-data="clock()" x-init="start()">
+                <span x-text="localTime"></span> (Local) · <span x-text="californiaTime"></span> (CA)
+            </span>
         </div>
         <c-detail_grid>
             <c-detail_row label="Team Accounts">{% if config.applications_enabled %}Enabled{% else %}Disabled{% endif %} (50 teams)</c-detail_row>
@@ -141,6 +145,23 @@
 </div>
 
 <script>
+function clock() {
+    return {
+        localTime: '',
+        californiaTime: '',
+        start() {
+            this.update();
+            setInterval(() => this.update(), 1000);
+        },
+        update() {
+            const now = new Date();
+            const options = { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true };
+            this.localTime = now.toLocaleTimeString('en-US', options);
+            this.californiaTime = now.toLocaleTimeString('en-US', { ...options, timeZone: 'America/Los_Angeles' });
+        }
+    };
+}
+
 function competitionAdmin() {
     return {
         loading: false,
