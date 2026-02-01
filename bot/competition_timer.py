@@ -1,4 +1,4 @@
-"""Competition timer background task to enable applications at start time."""
+"""Competition timer background task to enable/disable applications at scheduled times."""
 
 import asyncio
 import contextlib
@@ -8,7 +8,7 @@ import discord
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from bot.authentik_manager import AuthentikManager
+from bot.competition_actions import start_competition, stop_competition, update_status_channel
 from bot.utils import log_to_ops_channel
 from core.models import CompetitionConfig
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class CompetitionTimer:
-    """Background task to monitor competition start time and enable applications."""
+    """Background task to monitor competition start/end times."""
 
     def __init__(self, bot: discord.Client) -> None:
         self.bot = bot
@@ -38,18 +38,18 @@ class CompetitionTimer:
             logger.info("Competition timer stopped")
 
     async def _check_loop(self) -> None:
-        """Main loop to check competition start time."""
+        """Main loop to check competition start/end times."""
         while self.running:
             try:
-                await self._check_competition_start()
+                await self._check_competition_times()
             except Exception as e:
                 logger.exception(f"Error in competition timer check: {e}")
 
             # Check every minute
             await asyncio.sleep(60)
 
-    async def _check_competition_start(self) -> None:
-        """Check if competition should start/end and enable/disable applications if needed."""
+    async def _check_competition_times(self) -> None:
+        """Check if competition should start or stop."""
 
         @sync_to_async
         def check_and_update() -> tuple[bool, bool, CompetitionConfig | None]:
@@ -60,98 +60,71 @@ class CompetitionTimer:
                 config.last_check = timezone.now()
                 config.save(update_fields=["last_check"])
 
-                # Check if applications should be enabled or disabled
-                should_enable = config.should_enable_applications()
-                should_disable = config.should_disable_applications()
-                return should_enable, should_disable, config
+                should_start = config.should_enable_applications()
+                should_stop = config.should_disable_applications()
+                return should_start, should_stop, config
             except Exception as e:
                 logger.exception(f"Error checking competition config: {e}")
                 return False, False, None
 
         try:
-            should_enable, should_disable, config = await check_and_update()
+            should_start, should_stop, config = await check_and_update()
 
             if not config:
                 return
 
-            # Handle competition start (enable applications)
-            if should_enable:
-                logger.info(f"Competition start time reached! Enabling applications: {config.controlled_applications}")
+            # Handle competition start
+            if should_start:
+                logger.info("Competition start time reached! Starting competition...")
 
-                # Enable applications via Authentik API
-                auth_manager = AuthentikManager()
-                results = auth_manager.enable_applications(config.controlled_applications)
+                result = await start_competition()
 
-                # Update config
-                @sync_to_async
-                def save_config_enabled() -> None:
-                    config.applications_enabled = True
-                    config.save()
+                if result["success"]:
+                    result_msg = "**Competition Auto-Started!**\n\n"
+                    result_msg += f"Applications enabled: {len(result['apps_enabled'])}/{len(result['controlled_apps'])}\n"
+                    if result["apps_enabled"]:
+                        result_msg += f"✓ Enabled: {', '.join(result['apps_enabled'])}\n"
+                    if result["apps_failed"]:
+                        result_msg += "\n✗ **Failed:**\n"
+                        for app, error in result["apps_failed"]:
+                            result_msg += f"  • {app}: {error}\n"
+                    result_msg += f"\nAccounts enabled: {result['accounts_enabled']}"
+                    if result["accounts_failed"] > 0:
+                        result_msg += f" ({result['accounts_failed']} failed)"
+                else:
+                    result_msg = f"**Competition Auto-Start Failed:** {result.get('error', 'Unknown error')}"
 
-                await save_config_enabled()
-
-                # Build result message with detailed error information
-                success_apps = [app for app, (success, _) in results.items() if success]
-                failed_apps = [(app, error) for app, (success, error) in results.items() if not success]
-
-                result_msg = "**Competition Started!**\n\n"
-                result_msg += f"Applications enabled: {len(success_apps)}/{len(config.controlled_applications)}\n"
-                if success_apps:
-                    result_msg += f"✓ Enabled: {', '.join(success_apps)}\n"
-                if failed_apps:
-                    result_msg += "\n✗ **Failed Applications:**\n"
-                    for app, error in failed_apps:
-                        result_msg += f"  • {app}: {error}\n"
-                result_msg += f"\nStart Time: {config.competition_start_time}"
-
-                # Log to ops channel
                 await log_to_ops_channel(self.bot, result_msg)
+                await update_status_channel(self.bot)
 
-                logger.info(
-                    f"Competition applications enabled. Success: {len(success_apps)}, Failed: {len(failed_apps)}"
-                )
+            # Handle competition stop
+            elif should_stop:
+                logger.info("Competition end time reached! Stopping competition...")
 
-            # Handle competition end (disable applications)
-            elif should_disable:
-                logger.info(f"Competition end time reached! Disabling applications: {config.controlled_applications}")
+                result = await stop_competition()
 
-                # Disable applications via Authentik API
-                auth_manager = AuthentikManager()
-                results = auth_manager.disable_applications(config.controlled_applications)
+                if result["success"]:
+                    result_msg = "**Competition Auto-Stopped!**\n\n"
+                    result_msg += f"Applications disabled: {len(result['apps_disabled'])}/{len(result['controlled_apps'])}\n"
+                    if result["apps_disabled"]:
+                        result_msg += f"✓ Disabled: {', '.join(result['apps_disabled'])}\n"
+                    if result["apps_failed"]:
+                        result_msg += "\n✗ **Failed:**\n"
+                        for app, error in result["apps_failed"]:
+                            result_msg += f"  • {app}: {error}\n"
+                    result_msg += f"\nAccounts disabled: {result['accounts_disabled']}"
+                    if result["accounts_failed"] > 0:
+                        result_msg += f" ({result['accounts_failed']} failed)"
+                else:
+                    result_msg = f"**Competition Auto-Stop Failed:** {result.get('error', 'Unknown error')}"
 
-                # Update config
-                @sync_to_async
-                def save_config_disabled() -> None:
-                    config.applications_enabled = False
-                    config.save()
-
-                await save_config_disabled()
-
-                # Build result message with detailed error information
-                success_apps = [app for app, (success, _) in results.items() if success]
-                failed_apps = [(app, error) for app, (success, error) in results.items() if not success]
-
-                result_msg = "**Competition Ended!**\n\n"
-                result_msg += f"Applications disabled: {len(success_apps)}/{len(config.controlled_applications)}\n"
-                if success_apps:
-                    result_msg += f"✓ Disabled: {', '.join(success_apps)}\n"
-                if failed_apps:
-                    result_msg += "\n✗ **Failed Applications:**\n"
-                    for app, error in failed_apps:
-                        result_msg += f"  • {app}: {error}\n"
-                result_msg += f"\nEnd Time: {config.competition_end_time}"
-
-                # Log to ops channel
                 await log_to_ops_channel(self.bot, result_msg)
-
-                logger.info(
-                    f"Competition applications disabled. Success: {len(success_apps)}, Failed: {len(failed_apps)}"
-                )
+                await update_status_channel(self.bot)
 
         except Exception as e:
-            logger.exception(f"Failed to enable/disable competition applications: {e}")
+            logger.exception(f"Failed to start/stop competition: {e}")
             with contextlib.suppress(Exception):
                 await log_to_ops_channel(
                     self.bot,
-                    f"**Error enabling/disabling competition applications:** {e}",
+                    f"**Error in competition timer:** {e}",
                 )

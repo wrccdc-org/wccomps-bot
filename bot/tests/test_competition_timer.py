@@ -84,7 +84,7 @@ class TestCompetitionTimer:
                 timer.running = False
 
         with (
-            patch.object(timer, "_check_competition_start", side_effect=mock_check),
+            patch.object(timer, "_check_competition_times", side_effect=mock_check),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             await timer._check_loop()
@@ -107,15 +107,15 @@ class TestCompetitionTimer:
             timer.running = False
 
         with (
-            patch.object(timer, "_check_competition_start", side_effect=mock_check),
+            patch.object(timer, "_check_competition_times", side_effect=mock_check),
             patch("asyncio.sleep", new_callable=AsyncMock),
         ):
             await timer._check_loop()
 
         assert call_count == 2
 
-    async def test_check_competition_start_no_enable_needed(self) -> None:
-        """Test _check_competition_start when applications should not be enabled."""
+    async def test_check_competition_times_no_enable_needed(self) -> None:
+        """Test _check_competition_times when applications should not be enabled."""
         bot = AsyncMock(spec=discord.Client)
         timer = CompetitionTimer(bot)
 
@@ -125,63 +125,70 @@ class TestCompetitionTimer:
             controlled_applications=["app1", "app2"],
         )
 
-        await timer._check_competition_start()
+        await timer._check_competition_times()
 
         await config.arefresh_from_db()
         assert config.applications_enabled is False
         assert config.last_check is not None
 
-    async def test_check_competition_start_exception_handling(self) -> None:
-        """Test _check_competition_start handles exceptions."""
+    async def test_check_competition_times_calls_start_competition(self) -> None:
+        """Test _check_competition_times calls start_competition when scheduled."""
         bot = AsyncMock(spec=discord.Client)
         timer = CompetitionTimer(bot)
 
-        config = await CompetitionConfig.objects.acreate(
-            competition_start_time=timezone.now() - timedelta(minutes=5),
-            applications_enabled=False,
-            controlled_applications=["app1"],
-            last_check=timezone.now() - timedelta(hours=1),
+        # Use update_or_create with pk=1 to match get_config() singleton pattern
+        await CompetitionConfig.objects.aupdate_or_create(
+            pk=1,
+            defaults={
+                "competition_start_time": timezone.now() - timedelta(minutes=5),
+                "applications_enabled": False,
+                "controlled_applications": ["app1"],
+                "last_check": timezone.now() - timedelta(hours=1),
+            },
         )
 
-        with patch("bot.competition_timer.AuthentikManager") as mock_auth_manager_class:
-            mock_auth_manager = Mock()
-            mock_auth_manager.enable_applications.side_effect = Exception("Authentik API error")
-            mock_auth_manager_class.return_value = mock_auth_manager
+        with patch("bot.competition_timer.start_competition", new_callable=AsyncMock) as mock_start:
+            mock_start.return_value = {
+                "success": True,
+                "apps_enabled": ["app1"],
+                "apps_failed": [],
+                "accounts_enabled": 50,
+                "accounts_failed": 0,
+                "controlled_apps": ["app1"],
+            }
+            with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock):
+                with patch("bot.competition_timer.update_status_channel", new_callable=AsyncMock):
+                    await timer._check_competition_times()
+
+            mock_start.assert_called_once()
+
+    async def test_check_competition_times_exception_handling(self) -> None:
+        """Test _check_competition_times handles exceptions."""
+        bot = AsyncMock(spec=discord.Client)
+        timer = CompetitionTimer(bot)
+
+        # Use update_or_create with pk=1 to match get_config() singleton pattern
+        await CompetitionConfig.objects.aupdate_or_create(
+            pk=1,
+            defaults={
+                "competition_start_time": timezone.now() - timedelta(minutes=5),
+                "applications_enabled": False,
+                "controlled_applications": ["app1"],
+                "last_check": timezone.now() - timedelta(hours=1),
+            },
+        )
+
+        with patch("bot.competition_timer.start_competition", new_callable=AsyncMock) as mock_start:
+            mock_start.side_effect = Exception("Start error")
 
             with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock):
                 # Should not raise exception
-                await timer._check_competition_start()
+                await timer._check_competition_times()
 
-        # Verify config was not enabled due to exception
-        await config.arefresh_from_db()
-        assert config.applications_enabled is False
-
-    async def test_check_competition_start_log_exception_handling(self) -> None:
-        """Test _check_competition_start handles log_to_ops_channel failure."""
+    async def test_check_competition_times_with_no_config(self) -> None:
+        """Test _check_competition_times handles missing config."""
         bot = AsyncMock(spec=discord.Client)
         timer = CompetitionTimer(bot)
 
-        await CompetitionConfig.objects.acreate(
-            competition_start_time=timezone.now() - timedelta(minutes=1),
-            applications_enabled=False,
-            controlled_applications=["app1"],
-        )
-
-        with patch("bot.competition_timer.AuthentikManager") as mock_auth_manager_class:
-            mock_auth_manager = Mock()
-            mock_auth_manager.enable_applications.side_effect = Exception("Authentik API error")
-            mock_auth_manager_class.return_value = mock_auth_manager
-
-            with patch("bot.competition_timer.log_to_ops_channel", new_callable=AsyncMock) as mock_log:
-                mock_log.side_effect = Exception("Discord API error")
-
-                # Should not raise exception
-                await timer._check_competition_start()
-
-    async def test_check_competition_start_with_no_config(self) -> None:
-        """Test _check_competition_start handles missing config."""
-        bot = AsyncMock(spec=discord.Client)
-        timer = CompetitionTimer(bot)
-
-        # Should not raise exception
-        await timer._check_competition_start()
+        # Should not raise exception - get_config creates if missing
+        await timer._check_competition_times()
