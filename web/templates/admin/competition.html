@@ -249,12 +249,12 @@ function competitionAdmin() {
                 `• Staff/Volunteer Discord Links\n` +
                 `• Audit Logs & Bot State\n\n` +
                 `Competition must be stopped first.\n` +
-                `This action CANNOT be undone!`;
+                `This action CANNOT be undone!\n\n` +
+                `Type "yes" to confirm:`;
 
-            if (confirm(message)) {
-                if (confirm('Are you ABSOLUTELY SURE? Type OK to confirm this destructive action.')) {
-                    this.doAction('wipe_competition');
-                }
+            const response = prompt(message);
+            if (response && response.toLowerCase() === 'yes') {
+                this.doAction('wipe_competition');
             }
         },
 
