@@ -34,13 +34,29 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --info-bg: rgba(25, 118, 210, 0.15);
+        --info-fg: #81d4fa;
         --warning-bg: rgba(245, 124, 0, 0.15);
         --warning-alert-bg: rgba(255, 193, 7, 0.1);
         --warning-alert-fg: #ffc107;
         --success-bg: rgba(56, 142, 60, 0.15);
+        --success-fg: #81c784;
         --danger-bg: rgba(198, 40, 40, 0.15);
+        --error-fg: #ef9a9a;
         --neutral-bg: rgba(117, 117, 117, 0.15);
     }
+}
+/* Manual dark mode toggle support */
+html[data-theme="dark"] {
+    --info-bg: rgba(25, 118, 210, 0.15);
+    --info-fg: #81d4fa;
+    --warning-bg: rgba(245, 124, 0, 0.15);
+    --warning-alert-bg: rgba(255, 193, 7, 0.1);
+    --warning-alert-fg: #ffc107;
+    --success-bg: rgba(56, 142, 60, 0.15);
+    --success-fg: #81c784;
+    --danger-bg: rgba(198, 40, 40, 0.15);
+    --error-fg: #ef9a9a;
+    --neutral-bg: rgba(117, 117, 117, 0.15);
 }
 
 /* Navigation - dark mode compatible */
@@ -485,7 +501,8 @@ button[type="submit"]:hover {
     margin-bottom: 8px;
     color: var(--body-fg, #333);
 }
-.action-box-warning label {
+.action-box-warning label,
+.action-box-warning p {
     color: var(--warning-alert-fg);
 }
 .action-box input[type="text"],
@@ -664,8 +681,8 @@ button[type="submit"]:hover {
 }
 .alert--info {
     background: var(--info-bg);
-    border-left: 4px solid var(--primary, #417690);
-    color: var(--primary, #417690);
+    border-left: 4px solid var(--info-fg, #417690);
+    color: var(--info-fg, #417690);
 }
 .alert--default {
     background: var(--darkened-bg, #f5f5f5);
