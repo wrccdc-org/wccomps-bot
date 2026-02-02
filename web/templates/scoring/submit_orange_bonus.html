@@ -10,14 +10,10 @@
           x-data="{ checkTypes: {}, points: '{{ form.points_awarded.value|default:'' }}', init() { fetch('{% url 'scoring:api_orange_check_types' %}') .then(r => r.json()) .then(data => { data.check_types.forEach(ct => { this.checkTypes[ct.id] = ct.default_points; }); }); }, onCheckTypeChange(typeId) { if (typeId && this.checkTypes[typeId] !== undefined) { this.points = this.checkTypes[typeId]; } } }">
         {% csrf_token %}
         <c-fieldset aligned="true">
-        <c-form_field label="{{ form.team.label }}" required="true" id="{{ form.team.id_for_label }}" help_text="{{ form.team.help_text }}" error="
-        {% for e in form.team.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="{{ form.team.label }}" required="true" id="{{ form.team.id_for_label }}" help_text="{{ form.team.help_text }}" error="{{ form.team.errors|join:', ' }}">
         {{ form.team }}
         </c-form_field>
-        <c-form_field label="{{ form.check_type.label }}" required="true" id="{{ form.check_type.id_for_label }}" help_text="Select a check type to auto-fill points" error="
-        {% for e in form.check_type.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="{{ form.check_type.label }}" required="true" id="{{ form.check_type.id_for_label }}" help_text="Select a check type to auto-fill points" error="{{ form.check_type.errors|join:', ' }}">
         <select name="check_type"
                 id="{{ form.check_type.id_for_label }}"
                 @change="onCheckTypeChange($event.target.value)">
@@ -30,14 +26,10 @@
             {% endfor %}
         </select>
         </c-form_field>
-        <c-form_field label="{{ form.description.label }}" id="{{ form.description.id_for_label }}" help_text="{{ form.description.help_text }}" error="
-        {% for e in form.description.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="{{ form.description.label }}" id="{{ form.description.id_for_label }}" help_text="{{ form.description.help_text }}" error="{{ form.description.errors|join:', ' }}">
         {{ form.description }}
         </c-form_field>
-        <c-form_field label="{{ form.points_awarded.label }}" required="true" id="{{ form.points_awarded.id_for_label }}" help_text="{{ form.points_awarded.help_text }}" error="
-        {% for e in form.points_awarded.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="{{ form.points_awarded.label }}" required="true" id="{{ form.points_awarded.id_for_label }}" help_text="{{ form.points_awarded.help_text }}" error="{{ form.points_awarded.errors|join:', ' }}">
         <input type="number"
                name="points_awarded"
                id="{{ form.points_awarded.id_for_label }}"

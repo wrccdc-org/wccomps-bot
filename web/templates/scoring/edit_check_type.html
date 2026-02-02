@@ -9,14 +9,10 @@
     <form method="post">
         {% csrf_token %}
         <c-fieldset aligned="true">
-        <c-form_field label="Name" required="true" id="{{ form.name.id_for_label }}" error="
-        {% for e in form.name.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="Name" required="true" id="{{ form.name.id_for_label }}" error="{{ form.name.errors|join:', ' }}">
         {{ form.name }}
         </c-form_field>
-        <c-form_field label="{{ form.default_points.label }}" required="true" id="{{ form.default_points.id_for_label }}" help_text="{{ form.default_points.help_text }}" error="
-        {% for e in form.default_points.errors %}{{ e }}{% endfor %}
-        ">
+        <c-form_field label="{{ form.default_points.label }}" required="true" id="{{ form.default_points.id_for_label }}" help_text="{{ form.default_points.help_text }}" error="{{ form.default_points.errors|join:', ' }}">
         {{ form.default_points }}
         </c-form_field>
         </c-fieldset>
