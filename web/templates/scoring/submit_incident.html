@@ -72,13 +72,12 @@
                 </div>
                 </c-fieldset>
                 <!-- Screenshot Evidence Section -->
-                <c-fieldset legend="Screenshot Evidence">
-                <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload screenshots showing attack evidence. Maximum 20 files.">
+                <c-fieldset legend="Evidence">
+                <c-form_field label="Upload Files" id="screenshots" help_text="Upload screenshots, logs, or other evidence. Maximum 20 files.">
                 <input type="file"
                        class="form-control"
                        id="screenshots"
                        name="screenshots"
-                       accept="image/*"
                        multiple
                        onchange="previewScreenshots(this)">
                 </c-form_field>

@@ -232,13 +232,12 @@
         {% if form.affected_teams.errors %}<div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>{% endif %}
         </c-fieldset>
         <!-- Screenshot Evidence Section -->
-        <c-fieldset legend="Screenshot Evidence">
-        <c-form_field label="Upload Screenshots" id="screenshots" help_text="Upload 3-4 screenshots showing IP addresses, attack evidence, and impact. Maximum 20 files, 50MB per file.">
+        <c-fieldset legend="Evidence">
+        <c-form_field label="Upload Files" id="screenshots" help_text="Upload screenshots, logs, or other evidence. Maximum 20 files, 50MB per file.">
         <input type="file"
                class="form-control"
                id="screenshots"
                name="screenshots"
-               accept="image/*"
                multiple
                onchange="previewScreenshots(this)">
         </c-form_field>
