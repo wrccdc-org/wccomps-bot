@@ -3,59 +3,59 @@
    Extended from Django admin variables
    ============================================ */
 :root {
-    /* Info colors (blue) */
+    /* Info (blue) - "Open" status, informational alerts */
     --info-bg: #e3f2fd;
     --info-fg: #1976d2;
-    --info-border: #90caf9;
 
-    /* Warning colors (orange) */
+    /* Warning (orange) - "Claimed" status badges */
     --warning-bg: #fff3e0;
     --warning-fg: #f57c00;
-    --warning-border: #ffb74d;
+
+    /* Warning Alert (yellow/amber) - caution messages, action boxes */
     --warning-alert-bg: #fff3cd;
     --warning-alert-fg: #856404;
     --warning-alert-border: #ffc107;
 
-    /* Success colors (green) - extend Django's --success-fg */
+    /* Success (green) - "Resolved" status */
     --success-bg: #e8f5e9;
-    --success-border: #81c784;
+    --success-fg: #388e3c;
 
-    /* Danger colors (red) - extend Django's --error-fg */
+    /* Danger (red) - errors, extends Django's --error-fg */
     --danger-bg: #ffebee;
-    --danger-border: #ef9a9a;
 
-    /* Neutral colors (grey) */
+    /* Neutral (grey) - "Cancelled" status */
     --neutral-bg: #f5f5f5;
     --neutral-fg: #757575;
-    --neutral-border: #bdbdbd;
 }
 
-/* Dark mode overrides - app-specific variables only (Django admin handles the rest via dark_mode.css) */
+/* Dark mode - app-specific variables (Django admin handles --error-fg, --darkened-bg, etc.) */
 @media (prefers-color-scheme: dark) {
     :root {
         --info-bg: rgba(129, 212, 250, 0.15);
         --info-fg: #81d4fa;
-        --warning-bg: rgba(255, 193, 7, 0.15);
+        --warning-bg: rgba(255, 183, 77, 0.15);
+        --warning-fg: #ffb74d;
         --warning-alert-bg: rgba(255, 193, 7, 0.15);
         --warning-alert-fg: #ffc107;
-        --warning-alert-border: #ffc107;
         --success-bg: rgba(129, 199, 132, 0.15);
         --success-fg: #81c784;
         --danger-bg: rgba(227, 95, 95, 0.15);
         --neutral-bg: rgba(208, 208, 208, 0.15);
+        --neutral-fg: #bdbdbd;
     }
 }
 html[data-theme="dark"] {
     --info-bg: rgba(129, 212, 250, 0.15);
     --info-fg: #81d4fa;
-    --warning-bg: rgba(255, 193, 7, 0.15);
+    --warning-bg: rgba(255, 183, 77, 0.15);
+    --warning-fg: #ffb74d;
     --warning-alert-bg: rgba(255, 193, 7, 0.15);
     --warning-alert-fg: #ffc107;
-    --warning-alert-border: #ffc107;
     --success-bg: rgba(129, 199, 132, 0.15);
     --success-fg: #81c784;
     --danger-bg: rgba(227, 95, 95, 0.15);
     --neutral-bg: rgba(208, 208, 208, 0.15);
+    --neutral-fg: #bdbdbd;
 }
 
 /* Navigation - dark mode compatible */
@@ -170,25 +170,21 @@ button[type="submit"]:hover {
 .field-status span[role="status"][aria-label*="Open"] {
     background: var(--info-bg);
     color: var(--info-fg);
-    border: 1px solid var(--info-border);
 }
 
 .field-status span[role="status"][aria-label*="Claimed"] {
     background: var(--warning-bg);
     color: var(--warning-fg);
-    border: 1px solid var(--warning-border);
 }
 
 .field-status span[role="status"][aria-label*="Resolved"] {
     background: var(--success-bg);
-    color: var(--success-fg, #388e3c);
-    border: 1px solid var(--success-border);
+    color: var(--success-fg);
 }
 
 .field-status span[role="status"][aria-label*="Cancelled"] {
     background: var(--neutral-bg);
     color: var(--neutral-fg);
-    border: 1px solid var(--neutral-border);
 }
 
 /* Team status in mappings page */
@@ -218,7 +214,7 @@ button[type="submit"]:hover {
 .text-dark { color: var(--body-fg, #333); }
 .text-muted { color: var(--body-quiet-color, #666); }
 .text-secondary { color: var(--body-quiet-color, #999); }
-.text-success { color: var(--success-fg, #28a745); }
+.text-success { color: var(--success-fg); }
 .text-danger { color: var(--error-fg, #dc3545); }
 .text-warning { color: var(--warning-fg); }
 
@@ -378,7 +374,7 @@ button[type="submit"]:hover {
 .border-top { border-top: 1px solid var(--hairline-color, #ddd); }
 .border-bottom { border-bottom: 1px solid var(--hairline-color, #ddd); }
 .border-warning { border: 2px solid var(--warning-alert-border); }
-.border-success { border: 2px solid var(--success-fg, #28a745); }
+.border-success { border: 2px solid var(--success-fg); }
 .rounded { border-radius: 4px; }
 .pt-20-border { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--hairline-color, #ddd); }
 
@@ -389,7 +385,7 @@ button[type="submit"]:hover {
     margin: -15px -15px 15px -15px;
     padding: 15px;
 }
-.module-header-success { background: var(--success-fg, #28a745); }
+.module-header-success { background: var(--success-fg); }
 
 /* Data table (consistent padding and borders) */
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -607,9 +603,9 @@ button[type="submit"]:hover {
     border-color: var(--error-fg, #ba2121) !important;
 }
 .btn-success {
-    background: var(--success-fg, #28a745) !important;
+    background: var(--success-fg) !important;
     color: white !important;
-    border-color: var(--success-fg, #28a745) !important;
+    border-color: var(--success-fg) !important;
 }
 
 /* ============================================
@@ -627,27 +623,22 @@ button[type="submit"]:hover {
 .badge--info {
     background: var(--info-bg);
     color: var(--info-fg);
-    border: 1px solid var(--info-border);
 }
 .badge--warning {
     background: var(--warning-bg);
     color: var(--warning-fg);
-    border: 1px solid var(--warning-border);
 }
 .badge--success {
     background: var(--success-bg);
-    color: var(--success-fg, #388e3c);
-    border: 1px solid var(--success-border);
+    color: var(--success-fg);
 }
 .badge--neutral {
     background: var(--neutral-bg);
     color: var(--neutral-fg);
-    border: 1px solid var(--neutral-border);
 }
 .badge--danger {
     background: var(--danger-bg);
     color: var(--error-fg, #c62828);
-    border: 1px solid var(--danger-border);
 }
 .badge--default {
     background: var(--darkened-bg, #f5f5f5);
@@ -675,13 +666,13 @@ button[type="submit"]:hover {
 }
 .alert--success {
     background: var(--success-bg);
-    border-left: 4px solid var(--success-fg, #388e3c);
-    color: var(--success-fg, #388e3c);
+    border-left: 4px solid var(--success-fg);
+    color: var(--success-fg);
 }
 .alert--info {
     background: var(--info-bg);
-    border-left: 4px solid var(--info-fg, #417690);
-    color: var(--info-fg, #417690);
+    border-left: 4px solid var(--info-fg);
+    color: var(--info-fg);
 }
 .alert--default {
     background: var(--darkened-bg, #f5f5f5);
@@ -692,7 +683,7 @@ button[type="submit"]:hover {
 /* ============================================
    SCORE VALUE COLORS
    ============================================ */
-.score-positive { color: var(--success-fg, #28a745); }
+.score-positive { color: var(--success-fg); }
 .score-negative { color: var(--error-fg, #dc3545); }
 .score-zero { color: var(--body-quiet-color, #6c757d); }
 
@@ -712,7 +703,7 @@ button[type="submit"]:hover {
     margin-bottom: 8px;
 }
 .stats-card-value.primary { color: var(--primary, #417690); }
-.stats-card-value.success { color: var(--success-fg, #28a745); }
+.stats-card-value.success { color: var(--success-fg); }
 .stats-card-value.warning { color: var(--warning-alert-border); }
 .stats-card-value.danger { color: var(--error-fg, #dc3545); }
 .stats-card-label {
