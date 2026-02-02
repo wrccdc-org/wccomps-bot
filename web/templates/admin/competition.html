@@ -80,12 +80,12 @@
                     <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
                     <div class="d-flex gap-5 flex-wrap mb-10">
                         <template x-for="(app, index) in apps" :key="index">
-                            <span class="badge badge--default d-flex items-center gap-5">
-                                <span x-text="app"></span>
-                                <button type="button"
-                                        @click="removeApp(index)"
-                                        class="text-danger btn-reset text-md">×</button>
-                            </span>
+                            <c-badge variant="default" class="d-flex items-center gap-5">
+                            <span x-text="app"></span>
+                            <button type="button"
+                                    @click="removeApp(index)"
+                                    class="text-danger btn-reset text-md">×</button>
+                            </c-badge>
                         </template>
                         <template x-if="apps.length === 0">
                             <span class="text-muted text-sm">No apps configured</span>

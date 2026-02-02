@@ -268,6 +268,16 @@ class TestEventLeaderboardView:
         assert response.status_code == 200
 
 
+# Check if WeasyPrint dependencies are available (pango library)
+try:
+    from weasyprint import HTML  # noqa: F401
+
+    WEASYPRINT_AVAILABLE = True
+except OSError:
+    WEASYPRINT_AVAILABLE = False
+
+
+@pytest.mark.skipif(not WEASYPRINT_AVAILABLE, reason="WeasyPrint system dependencies not available")
 class TestScorecardServices:
     """Tests for scorecard distribution services."""
 

@@ -136,7 +136,7 @@ class TestWipeCompetitionCommand:
         assert Ticket.objects.count() == 1
 
     def test_deletes_all_data_with_confirm(self, populated_database):
-        """Command should delete all data with --confirm."""
+        """Command should delete competition data while preserving static config."""
         assert Team.objects.count() == 1
         assert Ticket.objects.count() == 1
         assert DiscordLink.objects.count() == 1
@@ -144,13 +144,16 @@ class TestWipeCompetitionCommand:
         out = StringIO()
         call_command("wipe_competition", "--confirm", stdout=out)
 
-        assert Team.objects.count() == 0
+        # Competition data should be deleted
         assert Ticket.objects.count() == 0
         assert TicketHistory.objects.count() == 0
-        assert DiscordLink.objects.count() == 0
-        assert LinkAttempt.objects.count() == 0
-        assert LinkToken.objects.count() == 0
-        assert DiscordTask.objects.count() == 0
+        assert DiscordLink.objects.count() == 0  # Blue team links deleted
+
+        # Static config preserved (as documented in wipe_competition_data)
+        assert Team.objects.count() == 1  # Teams are static config
+        assert LinkAttempt.objects.count() == 1  # Harmless history
+        assert LinkToken.objects.count() == 1  # Harmless
+        assert DiscordTask.objects.count() == 1  # Task history
 
     def test_handles_empty_database(self):
         """Command should handle empty database gracefully."""
