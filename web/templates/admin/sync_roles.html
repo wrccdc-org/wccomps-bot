@@ -15,7 +15,7 @@
                 <li>Users must have linked their Discord account to be synced</li>
                 <li>Users removed from Authentik groups will lose Discord roles</li>
             </ul>
-            <c-button_row class="mt-15">
+            <c-button_row class="mt-20">
             <c-button variant="primary" @click="requestSync(true)" ::disabled="loading">
             <span x-show="!loading">Preview Changes (Dry Run)</span>
             <span x-show="loading">Previewing...</span>

@@ -20,7 +20,7 @@
         <c-form_field label="{{ form.ip_addresses.label }}" required="true" :id="form.ip_addresses.id_for_label" help_text="{{ form.ip_addresses.help_text }}" error="{{ form.ip_addresses.errors|join:', ' }}">
         {{ form.ip_addresses }}
         </c-form_field>
-        <div class="form-text mb-20">
+        <div class="help-text mb-20">
             <span id="ipCount">0</span> IP addresses entered
         </div>
         {% if pool %}

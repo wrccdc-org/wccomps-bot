@@ -65,7 +65,7 @@
                 {% if not incident.gold_team_reviewed %}
                     <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review</c-link>
                 {% else %}
-                    <span class="text-secondary">Reviewed</span>
+                    <span class="text-muted">Reviewed</span>
                 {% endif %}
             </td>
         </tr>

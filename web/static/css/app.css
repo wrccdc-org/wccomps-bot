@@ -156,37 +156,6 @@ button[type="submit"]:hover {
     opacity: 0.85;
 }
 
-/* Status indicators - subtle visual distinction */
-.field-status span {
-    display: inline-block;
-    padding: 4px 10px;
-    font-weight: 600;
-    font-size: 12px;
-    border-radius: 3px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.field-status span[role="status"][aria-label*="Open"] {
-    background: var(--info-bg);
-    color: var(--info-fg);
-}
-
-.field-status span[role="status"][aria-label*="Claimed"] {
-    background: var(--warning-bg);
-    color: var(--warning-fg);
-}
-
-.field-status span[role="status"][aria-label*="Resolved"] {
-    background: var(--success-bg);
-    color: var(--success-fg);
-}
-
-.field-status span[role="status"][aria-label*="Cancelled"] {
-    background: var(--neutral-bg);
-    color: var(--neutral-fg);
-}
-
 /* Team status in mappings page */
 .field-status > div:first-child {
     font-weight: 700;
@@ -213,7 +182,6 @@ button[type="submit"]:hover {
 /* Text colors */
 .text-dark { color: var(--body-fg, #333); }
 .text-muted { color: var(--body-quiet-color, #666); }
-.text-secondary { color: var(--body-quiet-color, #999); }
 .text-success { color: var(--success-fg); }
 .text-danger { color: var(--error-fg, #dc3545); }
 .text-warning { color: var(--warning-fg); }
@@ -315,9 +283,7 @@ button[type="submit"]:hover {
 .items-end { align-items: flex-end; }
 .justify-between { justify-content: space-between; }
 .justify-center { justify-content: center; }
-.gap-5 { gap: 5px; }
 .gap-10 { gap: 10px; }
-.gap-15 { gap: 15px; }
 .gap-20 { gap: 20px; }
 .justify-end { justify-content: flex-end; }
 
@@ -327,9 +293,7 @@ button[type="submit"]:hover {
 /* Margins */
 .m-0 { margin: 0; }
 .mt-0 { margin-top: 0; }
-.mt-5 { margin-top: 5px; }
 .mt-10 { margin-top: 10px; }
-.mt-15 { margin-top: 15px; }
 .mt-20 { margin-top: 20px; }
 .mb-0 { margin-bottom: 0; }
 .mb-4 { margin-bottom: 4px; }
@@ -423,11 +387,6 @@ button[type="submit"]:hover {
     display: block;
     margin-bottom: 5px;
     font-weight: 500;
-}
-.form-text {
-    font-size: 12px;
-    color: var(--body-quiet-color, #666);
-    margin-top: 4px;
 }
 .form-check {
     display: flex;

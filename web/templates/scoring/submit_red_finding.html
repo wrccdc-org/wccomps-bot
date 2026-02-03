@@ -43,7 +43,7 @@
                     </div>
                 </div>
                 {% if user_pools %}
-                    <div class="form-text">
+                    <div class="help-text">
                         <a href="{% url 'scoring:ip_pool_list' %}">Manage your IP pools</a>
                     </div>
                 {% endif %}
@@ -57,7 +57,7 @@
         {% if form.box_choices %}
             <div class="mt-10">
                 <small class="text-muted">Quick add:</small>
-                <div class="d-flex flex-wrap gap-5 mt-5">
+                <div class="d-flex flex-wrap gap-10 mt-10">
                     {% for value, label in form.box_choices %}
                         <button type="button"
                                 class="btn btn-sm btn-outline-secondary box-suggestion"
@@ -73,7 +73,7 @@
         <c-form_field label="{{ form.affected_service.label }}" :id="form.affected_service.id_for_label" error="{{ form.affected_service.errors|join:', ' }}">
         {{ form.affected_service }}
         {% if form.service_choices %}
-            <div class="mt-5">
+            <div class="mt-10">
                 <small class="text-muted">Quick add:</small>
                 {% for value, label in form.service_choices %}
                     <button type="button"
@@ -96,7 +96,7 @@
             <label class="form-check-label"
                    for="{{ form.universally_attempted.id_for_label }}">{{ form.universally_attempted.label }}</label>
             {% if form.universally_attempted.help_text %}
-                <div class="form-text">{{ form.universally_attempted.help_text }}</div>
+                <div class="help-text">{{ form.universally_attempted.help_text }}</div>
             {% endif %}
         </div>
         <div class="form-check mb-2">
@@ -106,13 +106,13 @@
                 {{ form.persistence_established.label }}
             </label>
             {% if form.persistence_established.help_text %}
-                <div class="form-text">{{ form.persistence_established.help_text }}</div>
+                <div class="help-text">{{ form.persistence_established.help_text }}</div>
             {% endif %}
         </div>
         </c-fieldset>
         <!-- Attack Outcomes Section (CCDC Scoring) -->
         <c-fieldset legend="Attack Outcomes">
-        <div class="d-flex flex-wrap gap-15 mb-15">
+        <div class="d-flex flex-wrap gap-10 mb-15">
             <div>
                 <label class="form-label">Access Level</label>
                 <div class="form-check mb-2">
@@ -200,12 +200,12 @@
         <c-fieldset legend="Affected Teams">
         <div class="d-flex justify-between items-center mb-10">
             <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
-            <div class="d-flex gap-5">
+            <div class="d-flex gap-10">
                 <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
                 <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
             </div>
         </div>
-        {% if form.affected_teams.help_text %}<div class="form-text mb-2">{{ form.affected_teams.help_text }}</div>{% endif %}
+        {% if form.affected_teams.help_text %}<div class="help-text mb-2">{{ form.affected_teams.help_text }}</div>{% endif %}
         <!-- Hidden checkboxes for form submission -->
         <div class="d-none" id="teamCheckboxes">
             {% for checkbox in form.affected_teams %}{{ checkbox.tag }}{% endfor %}
@@ -282,7 +282,7 @@
                                name="name"
                                placeholder="e.g., Rotation Pool A"
                                required>
-                        <div class="form-text">A memorable name for this pool of IPs</div>
+                        <div class="help-text">A memorable name for this pool of IPs</div>
                     </div>
                     <div class="mb-15">
                         <label class="form-label required" for="poolIps">IP Addresses</label>
@@ -292,7 +292,7 @@
                                   rows="8"
                                   placeholder="Enter IP addresses, one per line or comma-separated: 10.0.0.1 10.0.0.2 10.0.0.3"
                                   required></textarea>
-                        <div class="form-text">
+                        <div class="help-text">
                             Enter one IP per line or comma-separated. <span id="ipCount">0</span> IPs entered.
                         </div>
                     </div>

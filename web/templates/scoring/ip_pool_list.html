@@ -33,7 +33,7 @@
                         <td>{{ pool.findings.count }}</td>
                         <td>{{ pool.created_at|date:"M d, Y" }}</td>
                         <td>
-                            <div class="d-flex gap-5">
+                            <div class="d-flex gap-10">
                                 <a href="{% url 'scoring:ip_pool_edit' pool.id %}" class="btn btn-sm">Edit</a>
                                 {% if not pool.findings.exists %}
                                     <form method="post"

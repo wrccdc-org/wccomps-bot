@@ -16,7 +16,7 @@
             warning
         {% endif %}
         " class="mb-20">
-        <div class="d-flex items-center gap-15 mb-10">
+        <div class="d-flex items-center gap-10 mb-10">
             <strong class="text-lg">Competition Status</strong>
             <c-badge variant="
             {% if config.applications_enabled %}
@@ -78,9 +78,9 @@
                 </form>
                 <div class="mb-10">
                     <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
-                    <div class="d-flex gap-5 flex-wrap mb-10">
+                    <div class="d-flex gap-10 flex-wrap mb-10">
                         <template x-for="(app, index) in apps" :key="index">
-                            <c-badge variant="default" class="d-flex items-center gap-5">
+                            <c-badge variant="default" class="d-flex items-center gap-10">
                             <span x-text="app"></span>
                             <button type="button"
                                     @click="removeApp(index)"
@@ -152,7 +152,7 @@
         </c-fieldset>
         <!-- Section 2: Competition Controls -->
         <c-fieldset heading="Competition Controls" class="mb-20">
-        <div class="d-flex gap-15 flex-wrap mt-10">
+        <div class="d-flex gap-10 flex-wrap mt-10">
             <c-button variant="success" @click="startCompetition()" ::disabled="loading">
             Start Competition
             </c-button>
@@ -181,9 +181,9 @@
                 </c-form_field>
                 <c-button type="submit" variant="warning" ::disabled="loading">Reset Passwords</c-button>
             </form>
-            <p class="help-text mt-5">Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.</p>
+            <p class="help-text mt-10">Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.</p>
             <template x-if="csvContent">
-                <c-action_box heading="Password CSV Generated" class="mt-15">
+                <c-action_box heading="Password CSV Generated" class="mt-20">
                 <textarea readonly
                           class="w-full vTextField h-120 font-mono text-sm"
                           x-text="csvContent"></textarea>

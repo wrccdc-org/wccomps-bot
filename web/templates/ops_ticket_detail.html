@@ -146,7 +146,7 @@
                 </form>
                 </c-fieldset>
                 <!-- Quick Actions Row -->
-                <div class="d-flex gap-15 flex-wrap items-center mt-20 pt-20-border">
+                <div class="d-flex gap-10 flex-wrap items-center mt-20 pt-20-border">
                     <form method="post"
                           action="{% url 'ops_ticket_unclaim' ticket.ticket_number %}"
                           class="d-inline">
@@ -226,7 +226,7 @@
         {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}
             <form method="post"
                   action="{% url 'ops_ticket_comment' ticket.ticket_number %}"
-                  class="mt-15">
+                  class="mt-20">
                 {% csrf_token %}
                 <textarea name="comment"
                           rows="3"
@@ -281,7 +281,7 @@
             <form method="post"
                   action="{% url 'ops_ticket_attachment_upload' ticket.ticket_number %}"
                   enctype="multipart/form-data"
-                  class="mt-15 d-flex gap-10 items-center">
+                  class="mt-20 d-flex gap-10 items-center">
                 {% csrf_token %}
                 <input type="file" name="attachment" required>
                 <c-button type="submit" variant="default">Upload</c-button>

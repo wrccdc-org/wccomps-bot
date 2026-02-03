@@ -3,7 +3,7 @@
 {# Props: form_id, method (GET|POST), action, class, aria_label, hx_get, hx_target, hx_swap, hx_push_url #}
 {# Slots: default (filter fields), actions (buttons on the right) #}
 <c-vars form_id="changelist-filter" method="GET" action class aria_label="Filter results" hx_get hx_target hx_swap hx_push_url />
-<div class="toolbar d-flex justify-between items-start gap-15">
+<div class="toolbar d-flex justify-between items-start gap-10">
     <form id="{{ form_id }}"
           method="{{ method }}"
           {% if action %}action="{{ action }}"{% endif %}
