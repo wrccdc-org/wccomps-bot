@@ -1,39 +1,31 @@
 """
-Tests for scoring system - validates formulas match Excel file.
+Tests for scoring system - validates percentage-based scoring formula.
 
-Excel File: WRCCDC 2026 Invitationals #2 (USE THIS).xlsx
+FORMULA DOCUMENTATION:
+======================
 
-FORMULA DOCUMENTATION (from Excel):
-====================================
+Percentage-Based Scoring with 4 categories:
+    1. Normalize each category: category_pct = raw_points / max_possible
+    2. Apply weight: weighted = category_pct × weight
+    3. Sum all weighted values for final score (max 100)
 
-Main Formula (Rankings & Totals sheet, row 2):
-    Total = Services + Injects + Orange + Red + Penalties
+Categories:
+    - Service: (service_points + sla_penalties) / service_max × service_weight
+    - Inject: inject_total / inject_max × inject_weight
+    - Orange: orange_total / orange_max × orange_weight
+    - Red: (red_deductions + recovery) / red_max × red_weight
 
-Where:
-    Services  = Total Service Points (column E)
-    Injects   = Inject Points (column W, scaled)
-    Orange    = Orange Team Scores (column F, scaled)
-    Red       = Red Team Deductions (column B, negative)
-    Penalties = Point Adjustments (column D)
+Default Weights (must sum to 100%):
+    service_weight:  40% (includes SLA penalties)
+    inject_weight:   30%
+    orange_weight:   15%
+    red_weight:      15% (deductions offset by recovery)
 
-Scaling Factors (from Calculations sheet):
-    Inject scaling:  0.95  (cell B4)
-    Service scaling: 2.1   (cell C4)
-    Orange scaling:  0.75  (cell D4)
-
-Our Implementation:
-    Total = (services × service_weight) + (injects × inject_weight) +
-            (orange × orange_weight) + (red × red_weight) +
-            (incidents × incident_weight) + (sla × sla_weight) +
-            black_adjustments
-
-Default Weights (matching Excel scaling factors):
-    service_weight:  0.60  (60%)
-    inject_weight:   0.30  (30%)
-    orange_weight:   0.10  (10%)
-    red_weight:      0.20  (applied as negative)
-    incident_recovery_weight: 0.12  (12%)
-    sla_weight:      0.10  (applied as negative)
+Default Max Points (for normalization):
+    service_max:  1000
+    inject_max:   500
+    orange_max:   100
+    red_max:      200
 """
 
 from decimal import Decimal
@@ -43,15 +35,13 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from team.models import Team
-
-from .calculator import (
+from scoring.calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
     recalculate_all_scores,
     suggest_red_finding_matches,
 )
-from .models import (
+from scoring.models import (
     FinalScore,
     IncidentReport,
     InjectGrade,
@@ -61,10 +51,11 @@ from .models import (
     ScoringTemplate,
     ServiceScore,
 )
+from team.models import Team
 
 
 class ScoringFormulaTests(TestCase):
-    """Test that our formulas match the Excel file."""
+    """Test percentage-based scoring formula with 4 categories."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -72,58 +63,73 @@ class ScoringFormulaTests(TestCase):
         self.team1 = Team.objects.create(team_number=1, team_name="Test Team 1")
         self.team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
 
-        # Create scoring template with multipliers
+        # Create scoring template with 4 percentage weights
         self.template = ScoringTemplate.objects.create(
-            service_multiplier=Decimal("1.0"),
-            inject_multiplier=Decimal("1.4"),
-            orange_multiplier=Decimal("5.5"),
-            red_multiplier=Decimal("1.0"),
-            sla_multiplier=Decimal("1.0"),
-            recovery_multiplier=Decimal("1.0"),
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("30"),
+            orange_weight=Decimal("15"),
+            red_weight=Decimal("15"),
+            service_max=Decimal("1000"),
+            inject_max=Decimal("500"),
+            orange_max=Decimal("100"),
+            red_max=Decimal("200"),
         )
 
     def test_simple_score_calculation(self) -> None:
-        """Test basic score calculation."""
+        """Test basic percentage-based score calculation with 4 categories."""
+        # Service: (500 - 10) / 1000 = 49% → 49% × 40 = 19.6
         ServiceScore.objects.create(
             team=self.team1,
-            service_points=Decimal("100.00"),
+            service_points=Decimal("500.00"),
             sla_violations=Decimal("-10.00"),
         )
 
+        # Inject: 250/500 = 50% → 50% × 30 = 15
         InjectGrade.objects.create(
             team=self.team1,
             inject_id="INJ-001",
             inject_name="Test Inject",
             max_points=Decimal("100.00"),
-            points_awarded=Decimal("80.00"),
+            points_awarded=Decimal("250.00"),
             graded_by=self.user,
+            is_approved=True,
         )
 
+        # Orange: 50/100 = 50% → 50% × 15 = 7.5
         OrangeTeamBonus.objects.create(
             team=self.team1,
             description="Security improvement",
             points_awarded=Decimal("50.00"),
             submitted_by=self.user,
+            is_approved=True,
         )
 
+        # Red: (-100 + 0) / 200 = -50% → -50% × 15 = -7.5
         red_finding = RedTeamFinding.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
-            points_per_team=Decimal("30.00"),
+            points_per_team=Decimal("100.00"),
             submitted_by=self.user,
+            is_approved=True,
         )
         red_finding.affected_teams.add(self.team1)
 
         scores = calculate_team_score(self.team1)
 
-        self.assertEqual(scores["service_points"], Decimal("100.00"))  # Flat service points
-        self.assertEqual(scores["inject_points"], Decimal("112.00"))  # 80 × 1.4
-        self.assertEqual(scores["orange_points"], Decimal("275.00"))  # 50 × 5.5
-        self.assertEqual(scores["red_deductions"], Decimal("-30.00"))  # -30 flat
-        self.assertEqual(scores["sla_penalties"], Decimal("-10.00"))  # -10 flat
-        self.assertEqual(scores["incident_recovery_points"], Decimal("0.00"))  # No incident reports
-        # Expected total score from formula
-        self.assertEqual(scores["total_score"], Decimal("447.00"))
+        # Service: (500 - 10) / 1000 × 40 = 19.6
+        self.assertEqual(scores["service_points"], Decimal("19.60"))
+        # Inject: 250/500 × 30 = 15
+        self.assertEqual(scores["inject_points"], Decimal("15.00"))
+        # Orange: 50/100 × 15 = 7.5
+        self.assertEqual(scores["orange_points"], Decimal("7.50"))
+        # Red: (-100 + 0) / 200 × 15 = -7.5
+        self.assertEqual(scores["red_deductions"], Decimal("-7.50"))
+        # SLA raw value (for display)
+        self.assertEqual(scores["sla_penalties"], Decimal("-10.00"))
+        # Recovery raw value (for display)
+        self.assertEqual(scores["incident_recovery_points"], Decimal("0.00"))
+        # Final total (service + inject + orange + red)
+        self.assertEqual(scores["total_score"], Decimal("34.60"))
 
     def test_leaderboard_ranking(self) -> None:
         """Test that leaderboard ranks teams correctly."""
@@ -498,13 +504,13 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
+        # Create template with 4 categories
         ScoringTemplate.objects.create(
-            service_multiplier=Decimal("1.0"),
-            inject_multiplier=Decimal("1.0"),
-            orange_multiplier=Decimal("1.0"),
-            red_multiplier=Decimal("1.0"),
-            sla_multiplier=Decimal("1.0"),
-            recovery_multiplier=Decimal("1.0"),
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("30"),
+            orange_weight=Decimal("15"),
+            red_weight=Decimal("15"),
+            red_max=Decimal("200"),
         )
 
         IncidentReport.objects.create(
@@ -532,6 +538,8 @@ class TestIncidentFindingMatching:
 
         scores = calculate_team_score(team)
 
+        # Only reviewed incident counts - recovery is raw value for display
+        # (40 points returned from reviewed incident)
         assert scores["incident_recovery_points"] == Decimal("40.00")
 
     def test_suggest_red_finding_matches_by_source_ip(self, create_user_with_groups) -> None:

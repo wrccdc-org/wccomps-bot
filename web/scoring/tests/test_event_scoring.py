@@ -19,7 +19,7 @@ from scoring.calculator import (
     get_event_leaderboard,
     recalculate_event_scores,
 )
-from scoring.models import EventScore, InjectGrade, OrangeTeamBonus
+from scoring.models import EventScore, InjectGrade, OrangeTeamBonus, ScoringTemplate
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -99,6 +99,15 @@ class TestCalculateTeamEventScore:
 
     def test_inject_points_scoped_to_event(self, team, event, season):
         """Should only count inject grades for the specific event."""
+        # Create scoring template with 4 categories
+        ScoringTemplate.objects.create(
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("30"),
+            orange_weight=Decimal("15"),
+            red_weight=Decimal("15"),
+            inject_max=Decimal("500"),
+        )
+
         # Create another event
         other_event = Event.objects.create(
             season=season,
@@ -128,11 +137,20 @@ class TestCalculateTeamEventScore:
         scores = calculate_team_event_score(team, event)
 
         # Should only count the inject for 'event', not 'other_event'
-        # Default inject multiplier is 1.4
-        assert scores["inject_points"] == Decimal("100") * Decimal("1.4")
+        # Inject: 100/500 = 20% → 20% × 30 = 6
+        assert scores["inject_points"] == Decimal("6.00")
 
     def test_orange_points_scoped_to_event(self, team, event, season):
         """Should only count orange bonuses for the specific event."""
+        # Create scoring template with 4 categories
+        ScoringTemplate.objects.create(
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("30"),
+            orange_weight=Decimal("15"),
+            red_weight=Decimal("15"),
+            orange_max=Decimal("100"),
+        )
+
         other_event = Event.objects.create(
             season=season,
             name="Other Event",
@@ -157,8 +175,8 @@ class TestCalculateTeamEventScore:
 
         scores = calculate_team_event_score(team, event)
 
-        # Default orange multiplier is 5.5
-        assert scores["orange_points"] == Decimal("50") * Decimal("5.5")
+        # Orange: 50/100 = 50% → 50% × 15 = 7.5
+        assert scores["orange_points"] == Decimal("7.50")
 
 
 class TestRecalculateEventScores:

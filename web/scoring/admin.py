@@ -311,32 +311,47 @@ class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
 @admin.register(ScoringTemplate)
 class ScoringTemplateAdmin(admin.ModelAdmin[ScoringTemplate]):
     list_display = [
-        "service_multiplier",
-        "inject_multiplier",
-        "orange_multiplier",
-        "red_multiplier",
-        "sla_multiplier",
-        "recovery_multiplier",
+        "service_weight",
+        "inject_weight",
+        "orange_weight",
+        "red_weight",
+        "weights_total",
         "updated_at",
     ]
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = [
         (
-            "Multipliers",
+            "Category Weights (must sum to 100%)",
             {
                 "fields": [
-                    "service_multiplier",
-                    "inject_multiplier",
-                    "orange_multiplier",
-                    "red_multiplier",
-                    "sla_multiplier",
-                    "recovery_multiplier",
+                    "service_weight",
+                    "inject_weight",
+                    "orange_weight",
+                    "red_weight",
+                ],
+                "description": "Service includes SLA penalties. Red includes recovery points.",
+            },
+        ),
+        (
+            "Max Points (for normalization)",
+            {
+                "fields": [
+                    "service_max",
+                    "inject_max",
+                    "orange_max",
+                    "red_max",
                 ]
             },
         ),
         ("Audit", {"fields": ["updated_by", "created_at", "updated_at"]}),
     ]
+
+    @admin.display(description="Total")
+    def weights_total(self, obj: ScoringTemplate) -> str:
+        total = obj.service_weight + obj.inject_weight + obj.orange_weight + obj.red_weight
+        color = "green" if total == 100 else "red"
+        return format_html(f'<span style="color: {color};">{total}%</span>')
 
 
 @admin.register(QuotientMetadataCache)

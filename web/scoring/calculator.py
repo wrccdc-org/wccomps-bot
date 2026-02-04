@@ -53,28 +53,30 @@ def get_approved_red_deductions(team: Team, event: Event | None = None) -> Decim
 
 def calculate_team_score(team: Team) -> dict[str, Decimal]:
     """
-    Calculate final score for a single team based on all scoring components.
+    Calculate final score for a single team based on 4 weighted categories.
+
+    Categories:
+    - Service: (service_points + sla_penalties) / service_max × service_weight
+    - Inject: inject_total / inject_max × inject_weight
+    - Orange: orange_total / orange_max × orange_weight
+    - Red: net_red_impact / red_max × red_weight (deductions offset by recovery)
 
     Args:
         team: Team instance
 
     Returns:
-        Dictionary with score breakdown
+        Dictionary with score breakdown (raw SLA/recovery preserved for display)
     """
-    # Get scoring template with weights
-    template = ScoringTemplate.objects.first()
-    if not template:
-        # Use default weights if no template exists
-        template = ScoringTemplate()
+    template = ScoringTemplate.objects.first() or ScoringTemplate()
 
-    # 1. Service Points (from Quotient)
+    # 1. Service Points + SLA (from Quotient)
     service_score = ServiceScore.objects.filter(team=team).first()
     if service_score:
-        service_points = service_score.service_points
-        sla_penalties = service_score.sla_violations  # Already stored as negative
+        service_raw = service_score.service_points
+        sla_raw = service_score.sla_violations  # Already stored as negative
     else:
-        service_points = Decimal("0")
-        sla_penalties = Decimal("0")
+        service_raw = Decimal("0")
+        sla_raw = Decimal("0")
 
     # 2. Inject Points (only approved grades count)
     inject_total = get_approved_inject_total(team)
@@ -82,38 +84,53 @@ def calculate_team_score(team: Team) -> dict[str, Decimal]:
     # 3. Orange Team Bonuses (only approved bonuses count)
     orange_total = get_approved_orange_total(team)
 
-    # 4. Red Team Deductions (only approved findings count)
-    red_deductions = get_approved_red_deductions(team)
+    # 4. Red Team Deductions (only approved findings count) - returned as negative
+    red_raw = get_approved_red_deductions(team)
 
     # 5. Incident Recovery Points (points returned from matched incident reports)
-    incident_recovery = IncidentReport.objects.filter(
+    recovery_raw = IncidentReport.objects.filter(
         team=team,
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    # 6. Black Team Adjustments
+    # 6. Black Team Adjustments (added directly, not weighted)
     black_adjustments = BlackTeamAdjustment.objects.filter(team=team).aggregate(total=Sum("point_adjustment"))[
         "total"
     ] or Decimal("0")
 
-    # Apply multipliers to all score components
-    scaled_service = service_points * template.service_multiplier
-    scaled_inject = inject_total * template.inject_multiplier
-    scaled_orange = orange_total * template.orange_multiplier
-    scaled_red = red_deductions * template.red_multiplier
-    scaled_sla = sla_penalties * template.sla_multiplier
-    scaled_recovery = incident_recovery * template.recovery_multiplier
+    # SERVICE: Combine service + SLA (SLA is negative, reduces net service)
+    net_service = service_raw + sla_raw
+    service_norm = max(min(net_service / template.service_max, Decimal("1")), Decimal("0"))
 
-    # Calculate total using formula with configurable multipliers
-    total_score = scaled_service + scaled_inject + scaled_orange + scaled_red + scaled_sla + scaled_recovery
+    # Inject normalization
+    inject_norm = min(inject_total / template.inject_max, Decimal("1")) if template.inject_max else Decimal("0")
+
+    # Orange normalization
+    orange_norm = min(orange_total / template.orange_max, Decimal("1")) if template.orange_max else Decimal("0")
+
+    # Red: combine deductions + recovery, normalize (negative = deduction, capped at -100%)
+    net_red = red_raw + recovery_raw
+    red_norm = max(net_red / template.red_max, Decimal("-1")) if net_red < Decimal("0") else Decimal("0")
+
+    # Apply weights (result is on 0-100 scale)
+    weighted_service = service_norm * template.service_weight
+    weighted_inject = inject_norm * template.inject_weight
+    weighted_orange = orange_norm * template.orange_weight
+    weighted_red = red_norm * template.red_weight  # Already negative
+
+    # Calculate total (0-100 scale)
+    total_score = weighted_service + weighted_inject + weighted_orange + weighted_red
 
     return {
-        "service_points": scaled_service,
-        "inject_points": scaled_inject,
-        "orange_points": scaled_orange,
-        "red_deductions": scaled_red,
-        "incident_recovery_points": scaled_recovery,
-        "sla_penalties": scaled_sla,
+        # Weighted category contributions (used in total)
+        "service_points": weighted_service,
+        "inject_points": weighted_inject,
+        "orange_points": weighted_orange,
+        "red_deductions": weighted_red,
+        # Raw values for display (not separately weighted)
+        "sla_penalties": sla_raw,
+        "incident_recovery_points": recovery_raw,
+        # Adjustments and total
         "black_adjustments": black_adjustments,
         "total_score": total_score,
     }
@@ -279,28 +296,31 @@ def calculate_suggested_recovery_points(incident: IncidentReport, red_finding: R
 
 def calculate_team_event_score(team: Team, event: Event) -> dict[str, Decimal]:
     """
-    Calculate score for a single team for a specific event.
+    Calculate score for a single team for a specific event using 4 weighted categories.
+
+    Categories:
+    - Service: (service_points + sla_penalties) / service_max × service_weight
+    - Inject: inject_total / inject_max × inject_weight
+    - Orange: orange_total / orange_max × orange_weight
+    - Red: net_red_impact / red_max × red_weight (deductions offset by recovery)
 
     Args:
         team: Team instance
         event: Event instance
 
     Returns:
-        Dictionary with score breakdown
+        Dictionary with score breakdown (raw SLA/recovery preserved for display)
     """
-    # Get scoring template with weights
-    template = ScoringTemplate.objects.first()
-    if not template:
-        template = ScoringTemplate()
+    template = ScoringTemplate.objects.first() or ScoringTemplate()
 
-    # 1. Service Points (from Quotient, scoped to event)
+    # 1. Service Points + SLA (from Quotient, scoped to event)
     service_score = ServiceScore.objects.filter(team=team, event=event).first()
     if service_score:
-        service_points = service_score.service_points
-        sla_penalties = service_score.sla_violations
+        service_raw = service_score.service_points
+        sla_raw = service_score.sla_violations
     else:
-        service_points = Decimal("0")
-        sla_penalties = Decimal("0")
+        service_raw = Decimal("0")
+        sla_raw = Decimal("0")
 
     # 2. Inject Points (scoped to event, only approved grades count)
     inject_total = get_approved_inject_total(team, event)
@@ -308,38 +328,54 @@ def calculate_team_event_score(team: Team, event: Event) -> dict[str, Decimal]:
     # 3. Orange Team Bonuses (scoped to event, only approved bonuses count)
     orange_total = get_approved_orange_total(team, event)
 
-    # 4. Red Team Deductions (scoped to event, only approved findings count)
-    red_deductions = get_approved_red_deductions(team, event)
+    # 4. Red Team Deductions (scoped to event, only approved findings count) - returned as negative
+    red_raw = get_approved_red_deductions(team, event)
 
     # 5. Incident Recovery Points (scoped to event)
-    incident_recovery = IncidentReport.objects.filter(
+    recovery_raw = IncidentReport.objects.filter(
         team=team,
         event=event,
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    # 6. Black Team Adjustments (scoped to event)
+    # 6. Black Team Adjustments (scoped to event, added directly, not weighted)
     black_adjustments = BlackTeamAdjustment.objects.filter(team=team, event=event).aggregate(
         total=Sum("point_adjustment")
     )["total"] or Decimal("0")
 
-    # Apply multipliers
-    scaled_service = service_points * template.service_multiplier
-    scaled_inject = inject_total * template.inject_multiplier
-    scaled_orange = orange_total * template.orange_multiplier
-    scaled_red = red_deductions * template.red_multiplier
-    scaled_sla = sla_penalties * template.sla_multiplier
-    scaled_recovery = incident_recovery * template.recovery_multiplier
+    # SERVICE: Combine service + SLA (SLA is negative, reduces net service)
+    net_service = service_raw + sla_raw
+    service_norm = max(min(net_service / template.service_max, Decimal("1")), Decimal("0"))
 
-    total_score = scaled_service + scaled_inject + scaled_orange + scaled_red + scaled_sla + scaled_recovery
+    # Inject normalization
+    inject_norm = min(inject_total / template.inject_max, Decimal("1")) if template.inject_max else Decimal("0")
+
+    # Orange normalization
+    orange_norm = min(orange_total / template.orange_max, Decimal("1")) if template.orange_max else Decimal("0")
+
+    # Red: combine deductions + recovery, normalize (negative = deduction, capped at -100%)
+    net_red = red_raw + recovery_raw
+    red_norm = max(net_red / template.red_max, Decimal("-1")) if net_red < Decimal("0") else Decimal("0")
+
+    # Apply weights (result is on 0-100 scale)
+    weighted_service = service_norm * template.service_weight
+    weighted_inject = inject_norm * template.inject_weight
+    weighted_orange = orange_norm * template.orange_weight
+    weighted_red = red_norm * template.red_weight  # Already negative
+
+    # Calculate total (0-100 scale)
+    total_score = weighted_service + weighted_inject + weighted_orange + weighted_red
 
     return {
-        "service_points": scaled_service,
-        "inject_points": scaled_inject,
-        "orange_points": scaled_orange,
-        "red_deductions": scaled_red,
-        "incident_recovery_points": scaled_recovery,
-        "sla_penalties": scaled_sla,
+        # Weighted category contributions (used in total)
+        "service_points": weighted_service,
+        "inject_points": weighted_inject,
+        "orange_points": weighted_orange,
+        "red_deductions": weighted_red,
+        # Raw values for display (not separately weighted)
+        "sla_penalties": sla_raw,
+        "incident_recovery_points": recovery_raw,
+        # Adjustments and total
         "black_adjustments": black_adjustments,
         "total_score": total_score,
     }

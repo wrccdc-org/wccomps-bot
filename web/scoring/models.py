@@ -19,50 +19,73 @@ def validate_file_size(file: UploadedFile) -> UploadedFile:
 
 
 class ScoringTemplate(models.Model):
-    """Scoring configuration for a competition."""
+    """Scoring configuration for a competition using percentage weights.
 
-    # Score multipliers
-    service_multiplier = models.DecimalField(
+    Four weighted categories (must sum to 100%):
+    - Service: includes SLA penalties (combined for scoring, separate for display)
+    - Inject: inject/scenario responses
+    - Orange: customer service adjustments
+    - Red: red team deductions offset by incident recovery (combined for scoring, separate for display)
+    """
+
+    # Category weights (must sum to 100%)
+    service_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("1.0"),
+        default=Decimal("40"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to service scores (e.g., 1.0 = 100%)",
+        help_text="Percentage weight for service uptime (includes SLA penalties)",
     )
-    inject_multiplier = models.DecimalField(
+    inject_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("1.4"),
+        default=Decimal("30"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to inject scores (e.g., 1.4 = 140%)",
+        help_text="Percentage weight for inject responses",
     )
-    orange_multiplier = models.DecimalField(
+    orange_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("5.5"),
+        default=Decimal("15"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to orange team scores (e.g., 5.5 = 550%)",
+        help_text="Percentage weight for orange team adjustments",
     )
-    red_multiplier = models.DecimalField(
+    red_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("1.0"),
+        default=Decimal("15"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to red team deductions (e.g., 1.0 = 100%)",
+        help_text="Percentage weight for red team (deductions offset by recovery)",
     )
-    sla_multiplier = models.DecimalField(
-        max_digits=5,
+
+    # Max possible points for each category (for normalization)
+    service_max = models.DecimalField(
+        max_digits=10,
         decimal_places=2,
-        default=Decimal("1.0"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to SLA penalties (e.g., 1.0 = 100%)",
+        default=Decimal("1000"),
+        validators=[MinValueValidator(Decimal("1"))],
+        help_text="Maximum possible service points (from Quotient)",
     )
-    recovery_multiplier = models.DecimalField(
-        max_digits=5,
+    inject_max = models.DecimalField(
+        max_digits=10,
         decimal_places=2,
-        default=Decimal("1.0"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Multiplier applied to incident recovery points (e.g., 1.0 = 100%)",
+        default=Decimal("500"),
+        validators=[MinValueValidator(Decimal("1"))],
+        help_text="Maximum possible inject points",
+    )
+    orange_max = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("100"),
+        validators=[MinValueValidator(Decimal("1"))],
+        help_text="Maximum possible orange team points",
+    )
+    red_max = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("200"),
+        validators=[MinValueValidator(Decimal("1"))],
+        help_text="Maximum possible red team deductions",
     )
 
     # Audit
@@ -83,6 +106,14 @@ class ScoringTemplate(models.Model):
 
     def __str__(self) -> str:
         return "Scoring Template"
+
+    def clean(self) -> None:
+        """Validate that weights sum to 100%."""
+        from django.core.exceptions import ValidationError
+
+        total = self.service_weight + self.inject_weight + self.orange_weight + self.red_weight
+        if total != Decimal("100"):
+            raise ValidationError(f"Weights must sum to 100% (currently {total}%)")
 
 
 class QuotientMetadataCache(models.Model):

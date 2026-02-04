@@ -9,72 +9,194 @@
     <h2>Scoring Formula</h2>
     <c-alert variant="info">
     <p>
-        <strong>Current Formula:</strong>
+        <strong>Percentage-Based Scoring (4 categories):</strong>
     </p>
-    <code class="code-block">
-        Total = (Service × service_multiplier) + (Injects × inject_multiplier) + (Orange × orange_multiplier) + (Red × red_multiplier) + (SLA × sla_multiplier) + (Recovery × recovery_multiplier)
-    </code>
-    <p class="m-0 text-sm">
-        Note: Black Team Adjustments are tracked separately for transparency. Default multipliers are 1.0 except: Injects (1.4) and Orange (5.5)
+    <code class="code-block">Final Score = Σ (category_points / max_points × weight)</code>
+    <p class="m-0 text-sm mt-5">
+        <strong>Service</strong> includes SLA penalties. <strong>Red Team</strong> deductions are offset by incident recovery points.
+        Weights must sum to 100%. Black Team adjustments are added separately.
     </p>
     </c-alert>
-    <form method="post">
+    <form method="post" x-data="weightConfig()">
         {% csrf_token %}
-        <c-fieldset heading="Multiplier Configuration">
-        {% for field in form %}
-            <c-form_field label="{{ field.label }}" required="{{ field.field.required|yesno:'true,false' }}" help_text="{{ field.help_text }}" id="{{ field.id_for_label }}">
-            {{ field }}
+        <c-fieldset heading="Category Weights">
+        <p class="text-muted mb-10">Weights must sum to 100%. Adjust using sliders or input fields.</p>
+        <div class="weight-grid">
+            <div class="weight-item">
+                <label for="{{ form.service_weight.id_for_label }}">Service (incl. SLA)</label>
+                <div class="weight-controls">
+                    <input type="range"
+                           min="0"
+                           max="100"
+                           step="1"
+                           x-model="weights.service"
+                           @input="updateFromSlider('service')"
+                           class="weight-slider">
+                    {{ form.service_weight }}
+                </div>
+                <span class="weight-pct" x-text="weights.service + '%'"></span>
+            </div>
+            <div class="weight-item">
+                <label for="{{ form.inject_weight.id_for_label }}">Injects</label>
+                <div class="weight-controls">
+                    <input type="range"
+                           min="0"
+                           max="100"
+                           step="1"
+                           x-model="weights.inject"
+                           @input="updateFromSlider('inject')"
+                           class="weight-slider">
+                    {{ form.inject_weight }}
+                </div>
+                <span class="weight-pct" x-text="weights.inject + '%'"></span>
+            </div>
+            <div class="weight-item">
+                <label for="{{ form.orange_weight.id_for_label }}">Orange Team</label>
+                <div class="weight-controls">
+                    <input type="range"
+                           min="0"
+                           max="100"
+                           step="1"
+                           x-model="weights.orange"
+                           @input="updateFromSlider('orange')"
+                           class="weight-slider">
+                    {{ form.orange_weight }}
+                </div>
+                <span class="weight-pct" x-text="weights.orange + '%'"></span>
+            </div>
+            <div class="weight-item">
+                <label for="{{ form.red_weight.id_for_label }}">Red Team (incl. Recovery)</label>
+                <div class="weight-controls">
+                    <input type="range"
+                           min="0"
+                           max="100"
+                           step="1"
+                           x-model="weights.red"
+                           @input="updateFromSlider('red')"
+                           class="weight-slider">
+                    {{ form.red_weight }}
+                </div>
+                <span class="weight-pct" x-text="weights.red + '%'"></span>
+            </div>
+        </div>
+        <div class="weight-total"
+             :class="total() === 100 ? 'text-success' : 'text-danger'">
+            <strong>Total: <span x-text="total()"></span>%</strong>
+            <span x-show="total() !== 100" class="text-sm ml-5">(must be 100%)</span>
+        </div>
+        </c-fieldset>
+        <c-fieldset heading="Max Points (for normalization)">
+        <p class="text-muted mb-10">Maximum possible points in each category. Used to normalize raw scores to percentages.</p>
+        <div class="max-points-grid">
+            <c-form_field label="Service Max" help_text="{{ form.service_max.help_text }}" id="{{ form.service_max.id_for_label }}">
+            {{ form.service_max }}
             </c-form_field>
-        {% endfor %}
+            <c-form_field label="Inject Max" help_text="{{ form.inject_max.help_text }}" id="{{ form.inject_max.id_for_label }}">
+            {{ form.inject_max }}
+            </c-form_field>
+            <c-form_field label="Orange Max" help_text="{{ form.orange_max.help_text }}" id="{{ form.orange_max.id_for_label }}">
+            {{ form.orange_max }}
+            </c-form_field>
+            <c-form_field label="Red Max" help_text="{{ form.red_max.help_text }}" id="{{ form.red_max.id_for_label }}">
+            {{ form.red_max }}
+            </c-form_field>
+        </div>
         </c-fieldset>
         <c-button_row>
-        <c-button type="submit" variant="primary">Update Multipliers</c-button>
+        <c-button type="submit" variant="primary" x-bind:disabled="total() !== 100">Update Configuration</c-button>
         </c-button_row>
     </form>
     </c-module>
-    <c-module>
-    <h2>Quotient Integration</h2>
-    {% if metadata %}
-        <c-detail_grid class="mb-15">
-        <dt>Last Synced</dt>
-        <dd>
-            {{ metadata.last_synced|date:"Y-m-d H:i:s" }}
-        </dd>
-        <dt>Event</dt>
-        <dd>
-            {{ metadata.event_name }}
-        </dd>
-        <dt>Teams</dt>
-        <dd>
-            {{ metadata.team_count }}
-        </dd>
-        <dt>Boxes</dt>
-        <dd>
-            {{ metadata.boxes|length }}
-        </dd>
-        </c-detail_grid>
-    {% else %}
-        <c-alert variant="warning">Metadata not synced yet</c-alert>
-    {% endif %}
-    <form method="post"
-          action="{% url 'scoring:sync_metadata' %}"
-          class="d-inline mr-10">
-        {% csrf_token %}
-        <c-button type="submit" variant="primary">Sync Metadata</c-button>
-    </form>
-    <form method="post"
-          action="{% url 'scoring:sync_scores' %}"
-          class="d-inline">
-        {% csrf_token %}
-        <c-button type="submit" variant="primary">Sync Service Scores</c-button>
-    </form>
-    </c-module>
-    <c-module>
-    <h2>Score Management</h2>
-    <form method="post" action="{% url 'scoring:recalculate_scores' %}">
-        {% csrf_token %}
-        <c-button type="submit" variant="primary">Recalculate All Scores</c-button>
-    </form>
-    <p class="help-text mt-10">Recalculates final scores for all teams based on current data and multipliers</p>
-    </c-module>
+    <style>
+        .weight-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .weight-item {
+            display: grid;
+            grid-template-columns: 180px 1fr 60px;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .weight-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .weight-slider {
+            flex: 1;
+            height: 8px;
+            cursor: pointer;
+        }
+
+        .weight-controls .form-control {
+            width: 80px;
+        }
+
+        .weight-pct {
+            text-align: right;
+            font-weight: bold;
+            min-width: 50px;
+        }
+
+        .weight-total {
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .max-points-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .text-success {
+            color: var(--color-success, #28a745);
+        }
+
+        .text-danger {
+            color: var(--color-danger, #dc3545);
+        }
+    </style>
+    <script>
+        function weightConfig() {
+            return {
+                weights: {
+                    service: parseInt(document.getElementById('id_service_weight')?.value || 40),
+                    inject: parseInt(document.getElementById('id_inject_weight')?.value || 30),
+                    orange: parseInt(document.getElementById('id_orange_weight')?.value || 15),
+                    red: parseInt(document.getElementById('id_red_weight')?.value || 15)
+                },
+                total() {
+                    return Object.values(this.weights).reduce((sum, val) => sum + parseInt(val || 0), 0);
+                },
+                updateFromSlider(category) {
+                    const inputId = 'id_' + category + '_weight';
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        input.value = this.weights[category];
+                    }
+                },
+                init() {
+                    // Sync sliders with input fields on input change
+                    const categories = ['service', 'inject', 'orange', 'red'];
+                    categories.forEach(cat => {
+                        const input = document.getElementById('id_' + cat + '_weight');
+                        if (input) {
+                            input.addEventListener('input', (e) => {
+                                this.weights[cat] = parseInt(e.target.value) || 0;
+                            });
+                        }
+                    });
+                }
+            }
+        }
+    </script>
 {% endblock scoring_content %}
