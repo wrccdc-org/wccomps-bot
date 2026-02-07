@@ -22,4 +22,14 @@ urlpatterns = [
         views.ops_cancel_packet,
         name="ops_cancel_packet",
     ),
+    path(
+        "ops/<int:packet_id>/reset/",
+        views.ops_reset_packet,
+        name="ops_reset_packet",
+    ),
+    path(
+        "ops/<int:packet_id>/test-email/",
+        views.ops_send_test_email,
+        name="ops_send_test_email",
+    ),
 ]

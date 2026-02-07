@@ -79,6 +79,30 @@
         </dd>
         </c-detail_grid>
         </c-fieldset>
+        <c-fieldset heading="Send Test Email">
+        <form method="post" action="{% url 'ops_send_test_email' packet.id %}">
+            {% csrf_token %}
+            <div class="d-flex gap-10 align-items-end">
+                <div>
+                    <label for="test-team">Team</label>
+                    <select name="team_id" id="test-team" required>
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="test-email">Email Address</label>
+                    <input type="email"
+                           name="email"
+                           id="test-email"
+                           required
+                           placeholder="test@example.com">
+                </div>
+                <c-button type="submit" variant="default">Send Test</c-button>
+            </div>
+        </form>
+        </c-fieldset>
         <c-button_row class="justify-end">
         {% if packet.status not in "cancelled" %}
             <form method="post"
@@ -86,6 +110,14 @@
                   class="d-inline">
                 {% csrf_token %}
                 <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
+            </form>
+        {% endif %}
+        {% if packet.status != "draft" %}
+            <form method="post"
+                  action="{% url 'ops_reset_packet' packet.id %}"
+                  class="d-inline">
+                {% csrf_token %}
+                <c-button type="submit" variant="warning" hx-confirm="Reset packet to draft? Failed distributions will be set back to pending.">Reset to Draft</c-button>
             </form>
         {% endif %}
         {% if packet.status == "draft" %}

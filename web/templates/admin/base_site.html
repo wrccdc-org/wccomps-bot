@@ -40,6 +40,8 @@
                {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
         {% endif %}
         {% if is_gold_team or is_admin %}
+            <a href="{% url 'ops_packets_list' %}"
+               {% if nav_active == 'packets' %}class="current"{% endif %}>Packets</a>
             <a href="{% url 'admin_competition' %}"
                {% if nav_active == 'ops_admin' %}class="current"{% endif %}>Competition</a>
         {% endif %}

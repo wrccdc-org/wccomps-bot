@@ -108,6 +108,7 @@ def ops_packets_list(request: HttpRequest) -> HttpResponse:
 
     context = {
         "packets_with_stats": packets_with_stats,
+        "nav_active": "packets",
     }
 
     return render(request, "packets/ops_packets_list.html", context)
@@ -153,6 +154,7 @@ def _parse_team_extras_csv(csv_text: str) -> dict[str, dict[str, str]]:
 def ops_upload_packet(request: HttpRequest) -> HttpResponse:
     """Upload a new team packet."""
     events = Event.objects.all()
+    form_context = {"events": events, "nav_active": "packets"}
 
     if request.method == "POST":
         # Get form data
@@ -166,12 +168,12 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
         # Validate
         if not title:
             messages.error(request, "Title is required.")
-            return render(request, "packets/ops_upload_packet.html", {"events": events})
+            return render(request, "packets/ops_upload_packet.html", form_context)
 
         # Get uploaded file
         if "packet_file" not in request.FILES:
             messages.error(request, "Please select a file to upload.")
-            return render(request, "packets/ops_upload_packet.html", {"events": events})
+            return render(request, "packets/ops_upload_packet.html", form_context)
 
         uploaded_file = cast(UploadedFile, request.FILES["packet_file"])
 
@@ -180,7 +182,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
         file_size = uploaded_file.size or 0
         if file_size > max_size:
             messages.error(request, "File size must not exceed 25 MB.")
-            return render(request, "packets/ops_upload_packet.html", {"events": events})
+            return render(request, "packets/ops_upload_packet.html", form_context)
 
         # Read file data
         file_data = uploaded_file.read()
@@ -194,7 +196,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
                 event = Event.objects.get(id=event_id)
             except Event.DoesNotExist:
                 messages.error(request, "Selected event not found.")
-                return render(request, "packets/ops_upload_packet.html", {"events": events})
+                return render(request, "packets/ops_upload_packet.html", form_context)
 
         # Parse per-team extras CSV
         team_extras: dict[str, dict[str, str]] = {}
@@ -202,7 +204,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
             team_extras = _parse_team_extras_csv(team_extras_csv)
             if not team_extras:
                 messages.error(request, "Could not parse per-team data. Ensure CSV has a 'team' column.")
-                return render(request, "packets/ops_upload_packet.html", {"events": events})
+                return render(request, "packets/ops_upload_packet.html", form_context)
 
         # Create packet
         TeamPacket.objects.create(
@@ -226,7 +228,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
         )
         return redirect("ops_packets_list")
 
-    return render(request, "packets/ops_upload_packet.html", {"events": events})
+    return render(request, "packets/ops_upload_packet.html", form_context)
 
 
 @require_GET
@@ -236,11 +238,14 @@ def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
     distributions = packet.distributions.select_related("team").order_by("team__team_number")
+    teams = Team.objects.filter(is_active=True).order_by("team_number")
 
     context = {
         "packet": packet,
         "distributions": distributions,
         "stats": packet.get_distribution_stats(),
+        "teams": teams,
+        "nav_active": "packets",
     }
 
     return render(request, "packets/ops_packet_detail.html", context)
@@ -280,4 +285,49 @@ def ops_cancel_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     packet.save(update_fields=["status", "updated_at"])
 
     messages.success(request, f"Packet '{packet.title}' has been cancelled.")
+    return redirect("ops_packet_detail", packet_id=packet_id)
+
+
+@require_POST
+@require_permission("gold_team")
+def ops_reset_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
+    """Reset a packet back to draft status, clearing failed distributions."""
+    packet = get_object_or_404(TeamPacket, id=packet_id)
+
+    # Reset failed distributions to pending
+    packet.distributions.filter(email_status="failed").update(email_status="pending", email_error_message="")
+
+    packet.status = "draft"
+    packet.actual_distribution_time = None
+    packet.save(update_fields=["status", "actual_distribution_time", "updated_at"])
+
+    messages.success(request, f"Packet '{packet.title}' reset to draft.")
+    return redirect("ops_packet_detail", packet_id=packet_id)
+
+
+@require_POST
+@require_permission("gold_team")
+def ops_send_test_email(request: HttpRequest, packet_id: int) -> HttpResponse:
+    """Send a test email for a packet to a specific address."""
+    packet = get_object_or_404(TeamPacket, id=packet_id)
+    email = request.POST.get("email", "").strip()
+    team_id = request.POST.get("team_id", "").strip()
+
+    if not email:
+        messages.error(request, "Email address is required.")
+        return redirect("ops_packet_detail", packet_id=packet_id)
+
+    if not team_id:
+        messages.error(request, "Please select a team.")
+        return redirect("ops_packet_detail", packet_id=packet_id)
+
+    team = get_object_or_404(Team, id=team_id)
+
+    try:
+        service = PacketDistributionService()
+        service.send_test_packet_email(packet, team, email)
+        messages.success(request, f"Test email sent to {email} as Team {team.team_number}.")
+    except Exception as e:
+        messages.error(request, f"Failed to send test email: {e}")
+
     return redirect("ops_packet_detail", packet_id=packet_id)

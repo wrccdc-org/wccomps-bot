@@ -6,8 +6,9 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
-from registration.models import EventTeamAssignment
+from registration.models import Event, EventTeamAssignment, TeamRegistration
 
+from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
 from team.models import SchoolInfo, Team
 
 from .models import PacketDistribution, TeamPacket
@@ -100,6 +101,37 @@ class PacketDistributionService:
 
         return {"sent": sent_count, "failed": failed_count}
 
+    def _ensure_team_credentials(self, event: Event, team: Team) -> EventTeamAssignment:
+        """Ensure an EventTeamAssignment with credentials exists for this team+event.
+
+        Creates TeamRegistration and EventTeamAssignment if needed,
+        generates and sets password in Authentik if not yet generated.
+        """
+        assignment = EventTeamAssignment.objects.filter(event=event, team=team).first()
+
+        if not assignment:
+            # Create a TeamRegistration from SchoolInfo if needed
+            school_info = SchoolInfo.objects.filter(team=team).first()
+            school_name = school_info.school_name if school_info else f"Team {team.team_number}"
+
+            registration, _ = TeamRegistration.objects.get_or_create(
+                school_name=school_name,
+                defaults={"status": "approved"},
+            )
+            assignment = EventTeamAssignment.objects.create(event=event, registration=registration, team=team)
+            logger.info(f"Created EventTeamAssignment for team {team.team_number} in {event.name}")
+
+        if not assignment.password_generated:
+            password = generate_blueteam_password()
+            success, error = reset_blueteam_password(team.team_number, password)
+            if not success:
+                raise ValueError(f"Failed to set Authentik password for team {team.team_number}: {error}")
+            assignment.password_generated = password
+            assignment.save(update_fields=["password_generated"])
+            logger.info(f"Generated credentials for team {team.team_number}")
+
+        return assignment
+
     def send_packet_email(self, distribution: PacketDistribution) -> None:
         """
         Send packet email to a team.
@@ -110,19 +142,16 @@ class PacketDistributionService:
         packet = distribution.packet
         team = distribution.team
 
+        if not packet.event:
+            raise ValueError("Packet must be linked to an event for distribution")
+
         # Get school email from SchoolInfo
         email_address = self._get_team_email(team)
         if not email_address:
             raise ValueError(f"No email address for team {team.team_number}")
 
-        # Get team credentials from event assignment
-        try:
-            assignment = EventTeamAssignment.objects.get(event=packet.event, team=team)
-        except EventTeamAssignment.DoesNotExist as err:
-            raise ValueError(f"No event assignment for team {team.team_number}") from err
-
-        if not assignment.password_generated:
-            raise ValueError(f"No credentials generated for team {team.team_number}")
+        # Ensure credentials exist (creates assignment + password if needed)
+        assignment = self._ensure_team_credentials(packet.event, team)
 
         # Prepare email context
         username = f"team{team.team_number:02d}"
@@ -160,6 +189,42 @@ class PacketDistributionService:
         # Mark as sent
         distribution.mark_as_sent(email_address)
         logger.info(f"Sent packet {packet.id} to team {team.team_number} at {email_address}")
+
+    def send_test_packet_email(self, packet: TeamPacket, team: Team, email: str) -> None:
+        """Send a test packet email to a specific address without creating distribution records."""
+        if not packet.event:
+            raise ValueError("Packet must be linked to an event")
+
+        # Ensure credentials exist (creates assignment + password if needed)
+        assignment = self._ensure_team_credentials(packet.event, team)
+
+        username = f"team{team.team_number:02d}"
+        raw_extras = packet.team_extras.get(str(team.team_number), {}) if packet.team_extras else {}
+        team_extras = {k.replace("_", " ").title(): v for k, v in raw_extras.items()}
+        context = {
+            "packet": packet,
+            "team": team,
+            "username": username,
+            "password": assignment.password_generated,
+            "team_extras": team_extras,
+        }
+
+        subject = f"[TEST] WCComps: {packet.title}"
+        text_content = render_to_string("packets/emails/packet_notification.txt", context)
+        html_content = render_to_string("packets/emails/packet_notification.html", context)
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            reply_to=["info@wccomps.org"],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.attach(packet.filename, bytes(packet.file_data), packet.mime_type)
+        msg.send(fail_silently=False)
+
+        logger.info(f"Sent test email for packet {packet.id} (team {team.team_number}) to {email}")
 
     def _get_team_email(self, team: Team) -> str | None:
         """Get email address for a team from SchoolInfo."""
