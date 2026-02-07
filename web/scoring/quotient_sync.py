@@ -8,7 +8,7 @@ from quotient.client import QuotientClient
 
 from team.models import Team
 
-from .models import QuotientMetadataCache, ServiceScore
+from .models import QuotientMetadataCache, ScoringTemplate, ServiceScore
 
 
 class ServiceData(TypedDict):
@@ -98,6 +98,21 @@ def sync_quotient_metadata(user: User | None = None) -> QuotientMetadataCache:
             team_count=infrastructure.team_count,
             synced_by=user,
         )
+
+    # Update service_max in ScoringTemplate based on total possible service checks
+    # Each service check is worth points; estimate based on number of services × checks × points_per_check
+    total_services = len(services_data)
+    # Assuming a typical competition runs for ~8 hours with checks every 5 minutes = 96 checks
+    # Each successful check is typically worth 1-10 points; use estimate of 10 points per service
+    estimated_service_max = Decimal(str(total_services * 96 * 10)) if total_services > 0 else Decimal("1000")
+
+    template = ScoringTemplate.objects.first()
+    if template:
+        template.service_max = estimated_service_max
+        template.save(update_fields=["service_max"])
+    else:
+        # Create template with calculated service_max
+        ScoringTemplate.objects.create(service_max=estimated_service_max)
 
     return metadata
 

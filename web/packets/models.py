@@ -41,6 +41,9 @@ class TeamPacket(models.Model):
     send_via_email = models.BooleanField(default=True, help_text="Send packet via email to team contacts")
     web_access_enabled = models.BooleanField(default=True, help_text="Allow teams to download from web interface")
 
+    # Per-team data included in emails (keyed by team number as string)
+    team_extras = models.JSONField(default=dict, blank=True, help_text="Per-team data for emails, keyed by team number")
+
     # Metadata
     uploaded_by = models.CharField(max_length=255, help_text="Username who uploaded")
     created_at = models.DateTimeField(auto_now_add=True)

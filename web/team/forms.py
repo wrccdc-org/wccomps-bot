@@ -232,13 +232,18 @@ def validate_csv_data(rows: list[CSVRowData]) -> CSVValidationResult:
     errors: list[str] = []
     warnings: list[str] = []
 
-    # Get teams without school info (available for assignment)
+    # Get the first N available teams by team_number (lowest numbers first)
+    num_rows = len(rows)
     existing_school_info_team_ids = set(SchoolInfo.objects.values_list("team_id", flat=True))
-    available_teams = list(Team.objects.filter(is_active=True).exclude(id__in=existing_school_info_team_ids))
+    available_teams = list(
+        Team.objects.filter(is_active=True)
+        .exclude(id__in=existing_school_info_team_ids)
+        .order_by("team_number")[:num_rows]
+    )
 
-    if len(rows) > len(available_teams):
+    if len(available_teams) < num_rows:
         errors.append(
-            f"Not enough available teams. CSV has {len(rows)} rows but only "
+            f"Not enough available teams. CSV has {num_rows} rows but only "
             f"{len(available_teams)} teams without school info."
         )
         return {

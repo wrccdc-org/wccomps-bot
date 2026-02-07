@@ -1,6 +1,9 @@
 """Views for team packet distribution system."""
 
+import csv
+import io
 import mimetypes
+import re
 from typing import TypedDict, cast
 
 from django.contrib import messages
@@ -10,6 +13,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from registration.models import Event
 
 from core.auth_utils import get_user_team_number, require_permission
 from team.models import Team
@@ -109,26 +113,65 @@ def ops_packets_list(request: HttpRequest) -> HttpResponse:
     return render(request, "packets/ops_packets_list.html", context)
 
 
+def _parse_team_extras_csv(csv_text: str) -> dict[str, dict[str, str]]:
+    """Parse per-team CSV data into a dict keyed by team number.
+
+    Expects a CSV with a 'team' column (e.g. 'Team01', 'Team 3', '5').
+    Returns dict like {"1": {"api_key": "sk-...", ...}, "2": {...}}.
+    """
+    reader = csv.DictReader(io.StringIO(csv_text.strip()))
+    if not reader.fieldnames:
+        return {}
+
+    # Find the team column
+    team_col = None
+    for col in reader.fieldnames:
+        if "team" in col.lower():
+            team_col = col
+            break
+
+    if not team_col:
+        return {}
+
+    result: dict[str, dict[str, str]] = {}
+    other_cols = [c for c in reader.fieldnames if c != team_col]
+
+    for row in reader:
+        raw_team = row.get(team_col, "").strip()
+        # Extract team number: "Team01" -> 1, "Team 3" -> 3, "5" -> 5
+        digits = re.sub(r"[^\d]", "", raw_team)
+        if not digits:
+            continue
+        team_num = str(int(digits))
+        result[team_num] = {col: row.get(col, "").strip() for col in other_cols}
+
+    return result
+
+
 @require_http_methods(["GET", "POST"])
 @require_permission("gold_team")
 def ops_upload_packet(request: HttpRequest) -> HttpResponse:
     """Upload a new team packet."""
+    events = Event.objects.all()
+
     if request.method == "POST":
         # Get form data
         title = request.POST.get("title", "").strip()
         notes = request.POST.get("notes", "").strip()
         send_via_email = request.POST.get("send_via_email") == "on"
         web_access_enabled = request.POST.get("web_access_enabled") == "on"
+        event_id = request.POST.get("event", "").strip()
+        team_extras_csv = request.POST.get("team_extras", "").strip()
 
         # Validate
         if not title:
             messages.error(request, "Title is required.")
-            return render(request, "packets/ops_upload_packet.html")
+            return render(request, "packets/ops_upload_packet.html", {"events": events})
 
         # Get uploaded file
         if "packet_file" not in request.FILES:
             messages.error(request, "Please select a file to upload.")
-            return render(request, "packets/ops_upload_packet.html")
+            return render(request, "packets/ops_upload_packet.html", {"events": events})
 
         uploaded_file = cast(UploadedFile, request.FILES["packet_file"])
 
@@ -137,12 +180,29 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
         file_size = uploaded_file.size or 0
         if file_size > max_size:
             messages.error(request, "File size must not exceed 25 MB.")
-            return render(request, "packets/ops_upload_packet.html")
+            return render(request, "packets/ops_upload_packet.html", {"events": events})
 
         # Read file data
         file_data = uploaded_file.read()
         filename = uploaded_file.name or "unnamed"
         mime_type = uploaded_file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+        # Parse event
+        event = None
+        if event_id:
+            try:
+                event = Event.objects.get(id=event_id)
+            except Event.DoesNotExist:
+                messages.error(request, "Selected event not found.")
+                return render(request, "packets/ops_upload_packet.html", {"events": events})
+
+        # Parse per-team extras CSV
+        team_extras: dict[str, dict[str, str]] = {}
+        if team_extras_csv:
+            team_extras = _parse_team_extras_csv(team_extras_csv)
+            if not team_extras:
+                messages.error(request, "Could not parse per-team data. Ensure CSV has a 'team' column.")
+                return render(request, "packets/ops_upload_packet.html", {"events": events})
 
         # Create packet
         TeamPacket.objects.create(
@@ -156,6 +216,8 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
             web_access_enabled=web_access_enabled,
             uploaded_by=request.user.username,
             notes=notes,
+            event=event,
+            team_extras=team_extras,
         )
 
         messages.success(
@@ -164,7 +226,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
         )
         return redirect("ops_packets_list")
 
-    return render(request, "packets/ops_upload_packet.html")
+    return render(request, "packets/ops_upload_packet.html", {"events": events})
 
 
 @require_GET

@@ -7,7 +7,10 @@ The packet is attached to this email.
 Your Team Credentials:
 - Username: {{ username }}
 - Password: {{ password }}
-
+{% if team_extras %}
+Your Team Resources:
+{% for key, value in team_extras.items %}- {{ key }}: {{ value }}
+{% endfor %}{% endif %}
 Packet Details:
 - Title: {{ packet.title }}
 - File: {{ packet.filename }}

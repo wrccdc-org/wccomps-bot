@@ -194,9 +194,9 @@ class TestAdminCommands:
 
         # Setup guild mock
         mock_interaction.guild.get_member = MagicMock(
-            side_effect=lambda did: member1_discord
-            if did == 111111111
-            else (member2_discord if did == 222222222 else None)
+            side_effect=lambda did: (
+                member1_discord if did == 111111111 else (member2_discord if did == 222222222 else None)
+            )
         )
         mock_interaction.guild.get_role = MagicMock(side_effect=lambda rid: team_role if rid == 1001 else None)
         mock_interaction.guild.get_channel = MagicMock(side_effect=lambda cid: category if cid == 2001 else None)
@@ -305,7 +305,7 @@ class TestAdminCommands:
         blueteam_role.id = 525444104763736075
         blueteam_role.name = "Blueteam"
 
-        mock_interaction.guild.get_role.side_effect = lambda role_id: (team_role if role_id == 1001 else blueteam_role)
+        mock_interaction.guild.get_role.side_effect = lambda role_id: team_role if role_id == 1001 else blueteam_role
 
         # Mock member
         member_mock = AsyncMock(spec=discord.Member)

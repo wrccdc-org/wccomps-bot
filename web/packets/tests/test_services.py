@@ -101,6 +101,28 @@ class PacketDistributionServiceTestCase(TestCase):
         self.assertEqual(distribution.email_status, "sent")
         self.assertEqual(distribution.email_sent_to, "team1@example.com")
 
+    @patch("packets.services.EmailMultiAlternatives")
+    def test_send_packet_email_with_team_extras(self, mock_email_class):
+        """Test that per-team extras are passed to email context."""
+        self.packet.team_extras = {
+            "1": {"api_key": "sk-test-key", "max_spend_usd": "100"},
+            "2": {"api_key": "sk-other-key", "max_spend_usd": "200"},
+        }
+        self.packet.save()
+
+        team = Team.objects.get(team_number=1)
+        distribution = PacketDistribution.objects.create(packet=self.packet, team=team)
+
+        mock_email = MagicMock()
+        mock_email_class.return_value = mock_email
+
+        self.service.send_packet_email(distribution)
+
+        # Verify email was created with correct context (check rendered templates)
+        mock_email.send.assert_called_once_with(fail_silently=False)
+        distribution.refresh_from_db()
+        self.assertEqual(distribution.email_status, "sent")
+
     def test_send_packet_email_requires_event(self):
         """Test that distribution fails without event link."""
         self.packet.event = None

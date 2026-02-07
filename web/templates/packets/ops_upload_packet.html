@@ -16,7 +16,7 @@
             <c-link href="{% url 'ops_packets_list' %}" variant="history">Back to Packets</c-link>
             </c-slot>
             <c-fieldset heading="Team Packet Information">
-            <c-form_field label="Title" required="true" id="id_title" help_text="Brief description of the packet (e.g., 'Competition Rules and Schedule')">
+            <c-form_field label="Title" required="true" id="id_title" help_text="Brief description of the packet (e.g., '2026 Qualifier Packet')">
             <input type="text"
                    name="title"
                    id="id_title"
@@ -24,11 +24,26 @@
                    required
                    maxlength="255">
             </c-form_field>
+            <c-form_field label="Event" id="id_event" help_text="Link to an event for team credential lookup">
+            <select name="event" id="id_event">
+                <option value="">---------</option>
+                {% for event in events %}<option value="{{ event.id }}">{{ event.name }}</option>{% endfor %}
+            </select>
+            </c-form_field>
             <c-form_field label="File" required="true" id="id_packet_file" help_text="Maximum file size: 25 MB. All file types supported.">
             <input type="file" name="packet_file" id="id_packet_file" required>
             </c-form_field>
             <c-form_field label="Notes (optional)" id="id_notes" help_text="Internal notes about this packet (visible to GoldTeam only)">
             <textarea name="notes" id="id_notes" class="vLargeTextField" rows="4"></textarea>
+            </c-form_field>
+            </c-fieldset>
+            <c-fieldset heading="Per-Team Email Data (optional)">
+            <c-form_field label="Team data CSV" id="id_team_extras" help_text="Paste CSV with a 'team' column and any extra columns. Each team's row will be included in their email only.">
+            <textarea name="team_extras"
+                      id="id_team_extras"
+                      class="vLargeTextField"
+                      rows="6"
+                      placeholder="team,api_key,max_spend_usd&#10;Team01,sk-abc123,100&#10;Team02,sk-def456,100"></textarea>
             </c-form_field>
             </c-fieldset>
             <c-fieldset heading="Distribution Settings">

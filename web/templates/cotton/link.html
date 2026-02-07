@@ -1,9 +1,9 @@
 {# Link component - styled links #}
 {# Usage: <c-link href="/back" variant="history">Back</c-link> #}
-{# Props: href, variant (default|history|add|change), class, id #}
+{# Props: href, variant (default|primary|history|add|change), class, id #}
 <c-vars href="#" variant="default" class id />
 <a href="{{ href }}"
    {% if id %}id="{{ id }}"{% endif %}
-   class="{% if variant == 'history' %}historylink {% elif variant == 'add' %}addlink {% elif variant == 'change' %}changelink {% endif %} {{ class }}">
+   class="{% if variant == 'primary' %}button default {% elif variant == 'history' %}historylink {% elif variant == 'add' %}addlink {% elif variant == 'change' %}changelink {% endif %}{{ class }}">
     {{ slot }}
 </a>

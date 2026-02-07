@@ -39,6 +39,11 @@ urlpatterns = [
         name="school_info_import",
     ),
     path(
+        "ops/school-info/clear/",
+        views.school_info_clear,
+        name="school_info_clear",
+    ),
+    path(
         "ops/school-info/<int:team_number>/",
         views.school_info_edit,
         name="school_info_edit",

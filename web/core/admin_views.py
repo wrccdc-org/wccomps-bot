@@ -442,6 +442,9 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
     auth_manager = AuthentikManager()
     available_apps = auth_manager.list_applications()
 
+    # Get Quotient metadata
+    quotient_metadata = QuotientMetadataCache.objects.first()
+
     context = {
         "config": config,
         "active_teams": active_teams,
@@ -449,6 +452,7 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
         "linked_users": linked_users,
         "available_apps": available_apps,
         "timezone_choices": TIMEZONE_CHOICES,
+        "quotient_metadata": quotient_metadata,
         "show_ops_nav": True,
         "nav_active": "ops_admin",
     }

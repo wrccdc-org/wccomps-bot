@@ -159,10 +159,35 @@
             <c-button variant="warning" @click="stopCompetition()" ::disabled="loading">
             Stop Competition
             </c-button>
-            <c-button variant="default" @click="syncQuotient()" ::disabled="loading">
-            Sync Quotient Metadata
-            </c-button>
         </div>
+        </c-fieldset>
+        <!-- Section 2.5: Quotient Integration -->
+        <c-fieldset heading="Quotient Integration" class="mb-20">
+        {% if quotient_metadata %}
+            <c-detail_grid class="mb-10">
+            <dt>Last Synced</dt>
+            <dd>
+                {{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}
+            </dd>
+            <dt>Event</dt>
+            <dd>
+                {{ quotient_metadata.event_name }}
+            </dd>
+            <dt>Teams</dt>
+            <dd>
+                {{ quotient_metadata.team_count }}
+            </dd>
+            <dt>Boxes</dt>
+            <dd>
+                {{ quotient_metadata.boxes|length }}
+            </dd>
+            </c-detail_grid>
+        {% else %}
+            <p class="text-muted mb-10">Metadata not synced yet.</p>
+        {% endif %}
+        <c-button variant="default" @click="syncQuotient()" ::disabled="loading">
+        Sync Quotient Metadata
+        </c-button>
         </c-fieldset>
         <!-- Section 3: Post-Competition -->
         <c-fieldset heading="Post-Competition" class="mb-20">

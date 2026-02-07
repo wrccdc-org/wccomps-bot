@@ -74,6 +74,18 @@
                     </li>
                 </ul>
             </div>
+            {% if team_extras %}
+                <div class="credentials">
+                    <strong>Your Team Resources:</strong>
+                    <ul style="margin: 10px 0;">
+                        {% for key, value in team_extras.items %}
+                            <li>
+                                <strong>{{ key }}:</strong> {{ value }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
             <div class="details">
                 <strong>Packet Details:</strong>
                 <ul style="margin: 10px 0;">

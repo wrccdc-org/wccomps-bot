@@ -274,9 +274,11 @@ async def is_blue_team_async(interaction: discord.Interaction) -> bool:
         from asgiref.sync import sync_to_async
 
         discord_link = await sync_to_async(
-            lambda: DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True, team__isnull=False)
-            .select_related("team")
-            .first()
+            lambda: (
+                DiscordLink.objects.filter(discord_id=interaction.user.id, is_active=True, team__isnull=False)
+                .select_related("team")
+                .first()
+            )
         )()
         return discord_link is not None and discord_link.team is not None
     except Exception as e:

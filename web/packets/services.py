@@ -126,12 +126,16 @@ class PacketDistributionService:
 
         # Prepare email context
         username = f"team{team.team_number:02d}"
+        raw_extras = packet.team_extras.get(str(team.team_number), {}) if packet.team_extras else {}
+        # Format keys for display: "api_key" -> "API Key", "max_spend_usd" -> "Max Spend USD"
+        team_extras = {k.replace("_", " ").title(): v for k, v in raw_extras.items()}
         context = {
             "packet": packet,
             "team": team,
             "distribution": distribution,
             "username": username,
             "password": assignment.password_generated,
+            "team_extras": team_extras,
         }
 
         # Render email templates

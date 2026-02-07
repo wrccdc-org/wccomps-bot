@@ -55,12 +55,18 @@
         <div class="table-footer">
             <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
             {% if user.is_staff %}
-                <form method="post"
-                      action="{% url 'scoring:recalculate_scores' %}"
-                      class="m-0">
-                    {% csrf_token %}
-                    <c-button type="submit" variant="primary">Recalculate</c-button>
-                </form>
+                <div class="d-flex gap-10">
+                    <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="default">Sync Service Scores</c-button>
+                    </form>
+                    <form method="post"
+                          action="{% url 'scoring:recalculate_scores' %}"
+                          class="m-0">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="primary">Recalculate</c-button>
+                    </form>
+                </div>
             {% endif %}
         </div>
     {% else %}
