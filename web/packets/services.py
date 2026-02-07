@@ -132,9 +132,13 @@ class PacketDistributionService:
 
         return assignment
 
-    def send_packet_email(self, distribution: PacketDistribution) -> None:
+    def send_packet_email(self, distribution: PacketDistribution, override_emails: list[str] | None = None) -> None:
         """
         Send packet email to a team.
+
+        Args:
+            distribution: The distribution record to send for.
+            override_emails: If provided, send to these addresses instead of SchoolInfo lookup.
 
         Raises:
             Exception: If email sending fails
@@ -145,10 +149,14 @@ class PacketDistributionService:
         if not packet.event:
             raise ValueError("Packet must be linked to an event for distribution")
 
-        # Get school email from SchoolInfo
-        email_address = self._get_team_email(team)
-        if not email_address:
-            raise ValueError(f"No email address for team {team.team_number}")
+        # Determine recipients
+        if override_emails:
+            recipients = override_emails
+        else:
+            email_address = self._get_team_email(team)
+            if not email_address:
+                raise ValueError(f"No email address for team {team.team_number}")
+            recipients = [email_address]
 
         # Ensure credentials exist (creates assignment + password if needed)
         assignment = self._ensure_team_credentials(packet.event, team)
@@ -177,7 +185,7 @@ class PacketDistributionService:
             subject=subject,
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[email_address],
+            to=recipients,
             reply_to=["info@wccomps.org"],
         )
         email.attach_alternative(html_content, "text/html")
@@ -187,8 +195,9 @@ class PacketDistributionService:
         email.send(fail_silently=False)
 
         # Mark as sent
-        distribution.mark_as_sent(email_address)
-        logger.info(f"Sent packet {packet.id} to team {team.team_number} at {email_address}")
+        sent_to = ", ".join(recipients)
+        distribution.mark_as_sent(sent_to)
+        logger.info(f"Sent packet {packet.id} to team {team.team_number} at {sent_to}")
 
     def send_test_packet_email(self, packet: TeamPacket, team: Team, email: str) -> None:
         """Send a test packet email to a specific address without creating distribution records."""

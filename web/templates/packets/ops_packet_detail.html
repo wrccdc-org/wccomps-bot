@@ -137,29 +137,47 @@
             <c-slot name="headers">
             <tr>
                 <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false">Email Status</c-table_header>
-                <c-table_header sortable="false">Email Sent To</c-table_header>
-                <c-table_header sortable="false">Email Sent At</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Primary Email</c-table_header>
+                <c-table_header sortable="false">Secondary Email</c-table_header>
+                <c-table_header sortable="false">Sent At</c-table_header>
                 <c-table_header sortable="false">Downloaded</c-table_header>
-                <c-table_header sortable="false">Download Count</c-table_header>
+                <c-table_header sortable="false">Action</c-table_header>
             </tr>
             </c-slot>
             {% for dist in distributions %}
                 <tr>
-                    <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
-                    <td>
-                        <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
-                    </td>
-                    <td>{{ dist.email_sent_to|default:"-" }}</td>
-                    <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                    <td>
-                        {% if dist.downloaded_at %}
-                            <c-badge status="success">✓</c-badge> {{ dist.downloaded_at|date:"Y-m-d H:i" }}
-                        {% else %}
-                            <span class="text-muted">✗</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ dist.download_count }}</td>
+                    <form method="post"
+                          action="{% url 'ops_resend_team' packet.id dist.team.id %}"
+                          class="m-0">
+                        {% csrf_token %}
+                        <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
+                        <td>
+                            <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
+                        </td>
+                        <td>
+                            <input type="email"
+                                   name="primary_email"
+                                   value="{{ dist.team.school_info.contact_email|default:'' }}"
+                                   required>
+                        </td>
+                        <td>
+                            <input type="email"
+                                   name="secondary_email"
+                                   value="{{ dist.team.school_info.secondary_email|default:'' }}">
+                        </td>
+                        <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td>
+                            {% if dist.downloaded_at %}
+                                <c-badge status="success">✓</c-badge> {{ dist.download_count }}x
+                            {% else %}
+                                <span class="text-muted">✗</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <c-button type="submit" variant="default">Resend</c-button>
+                        </td>
+                    </form>
                 </tr>
             {% endfor %}
             </c-table>

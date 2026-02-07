@@ -81,7 +81,9 @@ def check_groups_for_permission(groups: list[str], permission_name: str) -> bool
     Can be used with groups from UserGroups.groups.
     """
     if permission_name == "blue_team":
-        return any(g.startswith("WCComps_BlueTeam") for g in groups)
+        return any(
+            g.startswith("WCComps_BlueTeam") or g in ("WCComps_GoldTeam", "WCComps_Discord_Admin") for g in groups
+        )
 
     if permission_name in PERMISSION_MAP:
         return any(g in groups for g in PERMISSION_MAP[permission_name])

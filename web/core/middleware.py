@@ -12,6 +12,7 @@ from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 
 logger = logging.getLogger("wccomps.access")
+error_logger = logging.getLogger("wccomps.errors")
 
 
 class SubdomainRedirectMiddleware:
@@ -100,15 +101,30 @@ class AccessLoggingMiddleware:
         start_time = time.time()
         tracker = QueryTracker()
 
-        with connection.execute_wrapper(tracker):
-            response = self.get_response(request)
+        try:
+            with connection.execute_wrapper(tracker):
+                response = self.get_response(request)
+        except Exception:
+            duration_ms = (time.time() - start_time) * 1000
+            username = request.user.username if request.user.is_authenticated else "-"
+            error_logger.error(
+                '%s %s %s "%s %s" 500 %.0fms (unhandled exception)',
+                request.META.get("REMOTE_ADDR", "-"),
+                username,
+                request.META.get("HTTP_HOST", "-"),
+                request.method,
+                request.path,
+                duration_ms,
+                exc_info=True,
+            )
+            raise
 
         duration_ms = (time.time() - start_time) * 1000
         username = request.user.username if request.user.is_authenticated else "-"
 
         # Log with query stats: [query_count, total_db_time_ms]
-        logger.info(
-            '%s %s %s "%s %s" %d %.0fms [%dq %.0fms]',
+        log_msg = '%s %s %s "%s %s" %d %.0fms [%dq %.0fms]'
+        log_args = (
             request.META.get("REMOTE_ADDR", "-"),
             username,
             request.META.get("HTTP_HOST", "-"),
@@ -119,5 +135,9 @@ class AccessLoggingMiddleware:
             len(tracker.queries),
             sum(tracker.queries),
         )
+        logger.info(log_msg, *log_args)
+
+        if response.status_code >= 500:
+            error_logger.error(log_msg, *log_args)
 
         return response

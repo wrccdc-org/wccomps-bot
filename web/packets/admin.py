@@ -73,8 +73,8 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
             {
                 "fields": [
                     "title",
+                    "event",
                     "status",
-                    "file_data",
                     "filename",
                     "mime_type",
                     "file_size",

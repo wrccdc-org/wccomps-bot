@@ -1,19 +1,57 @@
-{% extends "base.html" %}
-{% load cotton %}
-{% block title %}
-    500 - Server Error
-{% endblock title %}
-{% block content %}
-    <div id="content-main">
-        <c-module>
-        <div class="text-center p-20">
-            <h1 class="text-4xl m-0 mb-10">500</h1>
-            <div class="text-xl font-semibold text-dark mb-8">Something broke. Blame red team.</div>
-            <div class="text-md text-muted mb-20 max-w-400 mx-auto">
-                Our servers are having a bad day. We've been notified and are investigating.
-            </div>
-            <c-link href="/" class="btn btn--default">Try Again</c-link>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>500 - Server Error</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+                background: #1a1a2e;
+                color: #e0e0e0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+            }
+
+            .box {
+                text-align: center;
+                max-width: 400px;
+                padding: 40px;
+            }
+
+            h1 {
+                font-size: 4rem;
+                margin: 0 0 10px;
+                color: #fff;
+            }
+
+            p {
+                font-size: 1.1rem;
+                color: #aaa;
+                margin: 0 0 20px;
+            }
+
+            a {
+                color: #79b8ff;
+                text-decoration: none;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h1>500</h1>
+            <p>
+                <strong>Something broke. Blame red team.</strong>
+            </p>
+            <p>Our servers are having a bad day. We've been notified and are investigating.</p>
+            <button onclick="window.location='/'">Try Again</button>
         </div>
-        </c-module>
-    </div>
-{% endblock content %}
+    </body>
+</html>

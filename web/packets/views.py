@@ -32,8 +32,21 @@ class PacketWithStats(TypedDict):
 @require_GET
 @require_permission("blue_team")
 def team_packets_list(request: HttpRequest) -> HttpResponse:
-    """List all available packets for the current team."""
-    team_number = get_user_team_number(cast(User, request.user))
+    """List all available packets for the current team (or all packets for gold_team)."""
+    from core.auth_utils import has_permission
+
+    user = cast(User, request.user)
+    is_staff = has_permission(user, "gold_team")
+
+    if is_staff:
+        # Gold team sees all distributed packets
+        packets = TeamPacket.objects.filter(status__in=["distributing", "completed"], web_access_enabled=True).order_by(
+            "-created_at"
+        )
+        context: dict[str, object] = {"packets": packets, "is_staff_view": True}
+        return render(request, "packets/team_packets_list.html", context)
+
+    team_number = get_user_team_number(user)
     if not team_number:
         messages.error(request, "You are not assigned to a team.")
         return redirect("/")
@@ -75,17 +88,18 @@ def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     if not packet.web_access_enabled:
         raise Http404("Packet not available for web access")
 
-    # Get user's team
-    team_number = get_user_team_number(cast(User, request.user))
-    if not team_number:
+    # Get user's team (skip download tracking for staff)
+    from core.auth_utils import has_permission
+
+    user = cast(User, request.user)
+    team_number = get_user_team_number(user)
+    if team_number:
+        team = get_object_or_404(Team, team_number=team_number)
+        service = PacketDistributionService()
+        service.record_packet_download(packet, team, request.user.username)
+    elif not has_permission(user, "gold_team"):
         messages.error(request, "You are not assigned to a team.")
         return redirect("/")
-
-    team = get_object_or_404(Team, team_number=team_number)
-
-    # Record the download
-    service = PacketDistributionService()
-    service.record_packet_download(packet, team, request.user.username)
 
     # Serve the file
     response = HttpResponse(bytes(packet.file_data), content_type=packet.mime_type)
@@ -237,7 +251,7 @@ def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     """View packet details and distribution status."""
     packet = get_object_or_404(TeamPacket, id=packet_id)
 
-    distributions = packet.distributions.select_related("team").order_by("team__team_number")
+    distributions = packet.distributions.select_related("team", "team__school_info").order_by("team__team_number")
     teams = Team.objects.filter(is_active=True).order_by("team_number")
 
     context = {
@@ -329,5 +343,53 @@ def ops_send_test_email(request: HttpRequest, packet_id: int) -> HttpResponse:
         messages.success(request, f"Test email sent to {email} as Team {team.team_number}.")
     except Exception as e:
         messages.error(request, f"Failed to send test email: {e}")
+
+    return redirect("ops_packet_detail", packet_id=packet_id)
+
+
+@require_POST
+@require_permission("gold_team")
+def ops_resend_team(request: HttpRequest, packet_id: int, team_id: int) -> HttpResponse:
+    """Resend a packet email to a specific team, saving any email changes."""
+    from team.models import SchoolInfo
+
+    packet = get_object_or_404(TeamPacket, id=packet_id)
+    team = get_object_or_404(Team, id=team_id)
+
+    dist = PacketDistribution.objects.filter(packet=packet, team=team).first()
+    if not dist:
+        messages.error(request, f"No distribution record for Team {team.team_number}.")
+        return redirect("ops_packet_detail", packet_id=packet_id)
+
+    primary_email = request.POST.get("primary_email", "").strip()
+    secondary_email = request.POST.get("secondary_email", "").strip()
+
+    if not primary_email:
+        messages.error(request, f"Primary email is required for Team {team.team_number}.")
+        return redirect("ops_packet_detail", packet_id=packet_id)
+
+    # Save email changes back to SchoolInfo
+    school_info, _ = SchoolInfo.objects.get_or_create(
+        team=team, defaults={"school_name": f"Team {team.team_number}", "contact_email": primary_email}
+    )
+    school_info.contact_email = primary_email
+    school_info.secondary_email = secondary_email
+    school_info.save(update_fields=["contact_email", "secondary_email"])
+
+    # Build recipient list
+    recipients = [primary_email]
+    if secondary_email:
+        recipients.append(secondary_email)
+
+    try:
+        dist.email_status = "pending"
+        dist.email_error_message = ""
+        dist.save(update_fields=["email_status", "email_error_message"])
+
+        service = PacketDistributionService()
+        service.send_packet_email(dist, override_emails=recipients)
+        messages.success(request, f"Email resent to Team {team.team_number} ({', '.join(recipients)}).")
+    except Exception as e:
+        messages.error(request, f"Failed to resend to Team {team.team_number}: {e}")
 
     return redirect("ops_packet_detail", packet_id=packet_id)

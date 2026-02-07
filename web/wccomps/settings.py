@@ -366,5 +366,10 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "wccomps.errors": {
+            "handlers": ["console", "discord"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }

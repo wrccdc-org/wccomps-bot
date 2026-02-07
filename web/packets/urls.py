@@ -32,4 +32,9 @@ urlpatterns = [
         views.ops_send_test_email,
         name="ops_send_test_email",
     ),
+    path(
+        "ops/<int:packet_id>/resend/<int:team_id>/",
+        views.ops_resend_team,
+        name="ops_resend_team",
+    ),
 ]
