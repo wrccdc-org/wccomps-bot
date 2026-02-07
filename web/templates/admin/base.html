@@ -15,11 +15,14 @@
         sync
     {% elif 'school' in request.resolver_match.url_name %}
         schools
+    {% elif 'packet' in request.resolver_match.url_name %}
+        packets
     {% endif %}
     ">
     <c-nav_item name="competition" href="{% url 'admin_competition' %}">Competition</c-nav_item>
     <c-nav_item name="teams" href="{% url 'admin_teams' %}">Teams</c-nav_item>
     <c-nav_item name="schools" href="{% url 'school_info' %}">Schools</c-nav_item>
+    <c-nav_item name="packets" href="{% url 'ops_packets_list' %}">Packets</c-nav_item>
     <c-nav_item name="broadcast" href="{% url 'admin_broadcast' %}">Broadcast</c-nav_item>
     <c-nav_item name="sync" href="{% url 'admin_sync_roles' %}">Sync Roles</c-nav_item>
     </c-nav>

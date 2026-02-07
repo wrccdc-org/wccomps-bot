@@ -1,81 +1,74 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 {% load cotton %}
 {% block title %}
     Manage Team Packets - WCComps
 {% endblock title %}
-{% block content %}
-    <div id="content-main">
-        <c-page_header title="Team Packet Management" />
-        {% if messages %}
-            {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
-        {% endif %}
-        <c-module>
-        <c-slot name="toolbar">
-        <c-link href="{% url 'ops_upload_packet' %}" variant="add">Upload New Team Packet</c-link>
-        <c-link href="{% url 'admin:packets_teampacket_changelist' %}">Django Admin</c-link>
+{% block admin_content %}
+    <c-page_header title="Team Packet Management" />
+    {% if messages %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+    {% endif %}
+    <c-slot name="toolbar">
+    <c-link href="{% url 'ops_upload_packet' %}" variant="add">Upload New Team Packet</c-link>
+    <c-link href="{% url 'admin:packets_teampacket_changelist' %}">Django Admin</c-link>
+    </c-slot>
+    {% if packets_with_stats %}
+        <c-table aria_label="Team packets">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Title</c-table_header>
+            <c-table_header sortable="false">File</c-table_header>
+            <c-table_header sortable="false">Status</c-table_header>
+            <c-table_header sortable="false">Distribution Stats</c-table_header>
+            <c-table_header sortable="false">Created</c-table_header>
+            <c-table_header sortable="false">Actions</c-table_header>
+        </tr>
         </c-slot>
-        {% if packets_with_stats %}
-            <c-table aria_label="Team packets">
-            <c-slot name="headers">
+        {% for item in packets_with_stats %}
             <tr>
-                <c-table_header sortable="false">Title</c-table_header>
-                <c-table_header sortable="false">File</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Distribution Stats</c-table_header>
-                <c-table_header sortable="false">Created</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
-            </tr>
-            </c-slot>
-            {% for item in packets_with_stats %}
-                <tr>
-                    <td>
-                        <strong>{{ item.packet.title }}</strong>
-                        {% if item.packet.notes %}
+                <td>
+                    <strong>{{ item.packet.title }}</strong>
+                    {% if item.packet.notes %}
+                        <br>
+                        <small>{{ item.packet.notes|truncatewords:15 }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ item.packet.filename }}
+                    <br>
+                    <small>{{ item.packet.file_size|filesizeformat }}</small>
+                </td>
+                <td>
+                    <c-badge status="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
+                    <br>
+                    {% if item.packet.send_via_email %}<small>📧 Email</small>{% endif %}
+                    {% if item.packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
+                </td>
+                <td>
+                    <small>
+                        Total: {{ item.stats.total }}
+                        <br>
+                        Sent: {{ item.stats.sent }}
+                        <br>
+                        Downloaded: {{ item.stats.downloaded }}
+                        {% if item.stats.failed > 0 %}
                             <br>
-                            <small>{{ item.packet.notes|truncatewords:15 }}</small>
+                            <span class="text-danger">Failed: {{ item.stats.failed }}</span>
                         {% endif %}
-                    </td>
-                    <td>
-                        {{ item.packet.filename }}
-                        <br>
-                        <small>{{ item.packet.file_size|filesizeformat }}</small>
-                    </td>
-                    <td>
-                        <c-badge status="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
-                        <br>
-                        {% if item.packet.send_via_email %}<small>📧 Email</small>{% endif %}
-                        {% if item.packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
-                    </td>
-                    <td>
-                        <small>
-                            Total: {{ item.stats.total }}
-                            <br>
-                            Sent: {{ item.stats.sent }}
-                            <br>
-                            Downloaded: {{ item.stats.downloaded }}
-                            {% if item.stats.failed > 0 %}
-                                <br>
-                                <span class="text-danger">Failed: {{ item.stats.failed }}</span>
-                            {% endif %}
-                        </small>
-                    </td>
-                    <td>
-                        {{ item.packet.created_at|date:"Y-m-d H:i" }}
-                        <br>
-                        <small>by {{ item.packet.uploaded_by }}</small>
-                    </td>
-                    <td>
-                        <c-link href="{% url 'ops_packet_detail' item.packet.id %}" variant="change">View</c-link>
-                    </td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <c-empty_state title="No packets uploaded yet" description="Upload a team packet to distribute to teams" />
-        {% endif %}
-        </c-module>
-        <p class="mt-20">
-            <c-link href="{% url 'home' %}" variant="history">Back to Home</c-link>
-        </p>
-    </div>
-{% endblock content %}
+                    </small>
+                </td>
+                <td>
+                    {{ item.packet.created_at|date:"Y-m-d H:i" }}
+                    <br>
+                    <small>by {{ item.packet.uploaded_by }}</small>
+                </td>
+                <td>
+                    <c-link href="{% url 'ops_packet_detail' item.packet.id %}" variant="change">View</c-link>
+                </td>
+            </tr>
+        {% endfor %}
+        </c-table>
+    {% else %}
+        <c-empty_state title="No packets uploaded yet" description="Upload a team packet to distribute to teams" />
+    {% endif %}
+{% endblock admin_content %}

@@ -60,8 +60,8 @@ class PacketDistributionService:
         }
 
     def _create_distributions_for_teams(self, packet: TeamPacket) -> int:
-        """Create PacketDistribution records for all active teams."""
-        teams = Team.objects.filter(is_active=True)
+        """Create PacketDistribution records for active teams with contact emails."""
+        teams = Team.objects.filter(is_active=True).exclude(school_info=None)
 
         # Get teams that don't already have distributions
         existing_teams = PacketDistribution.objects.filter(packet=packet).values_list("team_id", flat=True)

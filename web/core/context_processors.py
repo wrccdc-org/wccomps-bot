@@ -50,6 +50,15 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "school_info": ("school", ""),
     "school_info_edit": ("school", ""),
     "school_info_import": ("school", ""),
+    # Packets (under Competition)
+    "ops_packets_list": ("ops_admin", "packets"),
+    "ops_upload_packet": ("ops_admin", "packets"),
+    "ops_packet_detail": ("ops_admin", "packets"),
+    "ops_distribute_packet": ("ops_admin", "packets"),
+    "ops_cancel_packet": ("ops_admin", "packets"),
+    "ops_reset_packet": ("ops_admin", "packets"),
+    "ops_send_test_email": ("ops_admin", "packets"),
+    "ops_resend_team": ("ops_admin", "packets"),
     # Scoring pages
     "leaderboard": ("scoring", "leaderboard"),
     "event_leaderboard": ("scoring", "leaderboard"),

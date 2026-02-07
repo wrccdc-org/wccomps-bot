@@ -122,7 +122,7 @@ def ops_packets_list(request: HttpRequest) -> HttpResponse:
 
     context = {
         "packets_with_stats": packets_with_stats,
-        "nav_active": "packets",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "packets/ops_packets_list.html", context)
@@ -259,7 +259,7 @@ def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
         "distributions": distributions,
         "stats": packet.get_distribution_stats(),
         "teams": teams,
-        "nav_active": "packets",
+        "nav_active": "ops_admin",
     }
 
     return render(request, "packets/ops_packet_detail.html", context)

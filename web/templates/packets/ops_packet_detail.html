@@ -1,190 +1,180 @@
-{% extends "base.html" %}
+{% extends "admin/base.html" %}
 {% load cotton %}
 {% block title %}
     Team Packet: {{ packet.title }} - WCComps
 {% endblock title %}
-{% block content %}
-    <div id="content-main">
-        <c-page_header title="Team Packet" subtitle="{{ packet.title }}" />
-        {% if messages %}
-            {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
-        {% endif %}
-        <c-module>
-        <c-slot name="toolbar">
-        <c-link href="{% url 'ops_packets_list' %}" variant="history">Back to List</c-link>
-        <c-link href="/admin/packets/teampacket/{{ packet.id }}/change/">Edit in Django Admin</c-link>
-        </c-slot>
-        <c-fieldset heading="Packet Information">
-        <c-detail_grid>
-        <dt>Status</dt>
+{% block admin_content %}
+    <c-page_header title="Team Packet" subtitle="{{ packet.title }}" />
+    {% if messages %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+    {% endif %}
+    <c-fieldset heading="Packet Information">
+    <c-detail_grid>
+    <dt>Status</dt>
+    <dd>
+        <c-badge status="{{ packet.status }}">{{ packet.get_status_display }}</c-badge>
+    </dd>
+    <dt>File</dt>
+    <dd>
+        {{ packet.filename }} ({{ packet.file_size|filesizeformat }})
+    </dd>
+    <dt>MIME Type</dt>
+    <dd>
+        {{ packet.mime_type }}
+    </dd>
+    <dt>Uploaded By</dt>
+    <dd>
+        {{ packet.uploaded_by }}
+    </dd>
+    <dt>Created</dt>
+    <dd>
+        {{ packet.created_at }}
+    </dd>
+    <dt>Distribution Methods</dt>
+    <dd>
+        {% if packet.send_via_email %}📧 Email{% endif %}
+        {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
+    </dd>
+    {% if packet.actual_distribution_time %}
+        <dt>Distributed At</dt>
         <dd>
-            <c-badge status="{{ packet.status }}">{{ packet.get_status_display }}</c-badge>
+            {{ packet.actual_distribution_time }}
         </dd>
-        <dt>File</dt>
+    {% endif %}
+    {% if packet.notes %}
+        <dt>Notes</dt>
         <dd>
-            {{ packet.filename }} ({{ packet.file_size|filesizeformat }})
+            {{ packet.notes }}
         </dd>
-        <dt>MIME Type</dt>
-        <dd>
-            {{ packet.mime_type }}
-        </dd>
-        <dt>Uploaded By</dt>
-        <dd>
-            {{ packet.uploaded_by }}
-        </dd>
-        <dt>Created</dt>
-        <dd>
-            {{ packet.created_at }}
-        </dd>
-        <dt>Distribution Methods</dt>
-        <dd>
-            {% if packet.send_via_email %}📧 Email{% endif %}
-            {% if packet.web_access_enabled %}🌐 Web Access{% endif %}
-        </dd>
-        {% if packet.actual_distribution_time %}
-            <dt>Distributed At</dt>
-            <dd>
-                {{ packet.actual_distribution_time }}
-            </dd>
-        {% endif %}
-        {% if packet.notes %}
-            <dt>Notes</dt>
-            <dd>
-                {{ packet.notes }}
-            </dd>
-        {% endif %}
-        </c-detail_grid>
-        </c-fieldset>
-        <c-fieldset heading="Distribution Statistics">
-        <c-detail_grid>
-        <dt>Total Teams</dt>
-        <dd>
-            {{ stats.total }}
-        </dd>
-        <dt>Emails Sent</dt>
-        <dd>
-            {{ stats.sent }}
-        </dd>
-        <dt>Emails Pending</dt>
-        <dd>
-            {{ stats.pending }}
-        </dd>
-        <dt>Emails Failed</dt>
-        <dd>
-            {{ stats.failed }}
-        </dd>
-        <dt>Teams Downloaded</dt>
-        <dd>
-            {{ stats.downloaded }}
-        </dd>
-        </c-detail_grid>
-        </c-fieldset>
-        <c-fieldset heading="Send Test Email">
-        <form method="post" action="{% url 'ops_send_test_email' packet.id %}">
-            {% csrf_token %}
-            <div class="d-flex gap-10 align-items-end">
-                <div>
-                    <label for="test-team">Team</label>
-                    <select name="team_id" id="test-team" required>
-                        {% for team in teams %}
-                            <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label for="test-email">Email Address</label>
-                    <input type="email"
-                           name="email"
-                           id="test-email"
-                           required
-                           placeholder="test@example.com">
-                </div>
-                <c-button type="submit" variant="default">Send Test</c-button>
+    {% endif %}
+    </c-detail_grid>
+    </c-fieldset>
+    <c-fieldset heading="Distribution Statistics">
+    <c-detail_grid>
+    <dt>Total Teams</dt>
+    <dd>
+        {{ stats.total }}
+    </dd>
+    <dt>Emails Sent</dt>
+    <dd>
+        {{ stats.sent }}
+    </dd>
+    <dt>Emails Pending</dt>
+    <dd>
+        {{ stats.pending }}
+    </dd>
+    <dt>Emails Failed</dt>
+    <dd>
+        {{ stats.failed }}
+    </dd>
+    <dt>Teams Downloaded</dt>
+    <dd>
+        {{ stats.downloaded }}
+    </dd>
+    </c-detail_grid>
+    </c-fieldset>
+    <c-fieldset heading="Send Test Email">
+    <form method="post" action="{% url 'ops_send_test_email' packet.id %}">
+        {% csrf_token %}
+        <div class="d-flex gap-10 align-items-end">
+            <div>
+                <label for="test-team">Team</label>
+                <select name="team_id" id="test-team" required>
+                    {% for team in teams %}
+                        <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
+                    {% endfor %}
+                </select>
             </div>
+            <div>
+                <label for="test-email">Email Address</label>
+                <input type="email"
+                       name="email"
+                       id="test-email"
+                       required
+                       placeholder="test@example.com">
+            </div>
+            <c-button type="submit" variant="default">Send Test</c-button>
+        </div>
+    </form>
+    </c-fieldset>
+    <c-button_row class="justify-end">
+    {% if packet.status not in "cancelled" %}
+        <form method="post"
+              action="{% url 'ops_cancel_packet' packet.id %}"
+              class="d-inline">
+            {% csrf_token %}
+            <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
         </form>
-        </c-fieldset>
-        <c-button_row class="justify-end">
-        {% if packet.status not in "cancelled" %}
-            <form method="post"
-                  action="{% url 'ops_cancel_packet' packet.id %}"
-                  class="d-inline">
-                {% csrf_token %}
-                <c-button type="submit" variant="danger" hx-confirm="Cancel this packet distribution?">Cancel Distribution</c-button>
-            </form>
-        {% endif %}
-        {% if packet.status != "draft" %}
-            <form method="post"
-                  action="{% url 'ops_reset_packet' packet.id %}"
-                  class="d-inline">
-                {% csrf_token %}
-                <c-button type="submit" variant="warning" hx-confirm="Reset packet to draft? Failed distributions will be set back to pending.">Reset to Draft</c-button>
-            </form>
-        {% endif %}
-        {% if packet.status == "draft" %}
-            <form method="post"
-                  action="{% url 'ops_distribute_packet' packet.id %}"
-                  class="d-inline">
-                {% csrf_token %}
-                <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
-            </form>
-        {% endif %}
-        </c-button_row>
-        </c-module>
-        <c-module>
-        <c-fieldset heading="Distribution Status by Team">
-        {% if distributions %}
-            <c-table aria_label="Distribution status by team">
-            <c-slot name="headers">
+    {% endif %}
+    {% if packet.status != "draft" %}
+        <form method="post"
+              action="{% url 'ops_reset_packet' packet.id %}"
+              class="d-inline">
+            {% csrf_token %}
+            <c-button type="submit" variant="warning" hx-confirm="Reset packet to draft? Failed distributions will be set back to pending.">Reset to Draft</c-button>
+        </form>
+    {% endif %}
+    {% if packet.status == "draft" %}
+        <form method="post"
+              action="{% url 'ops_distribute_packet' packet.id %}"
+              class="d-inline">
+            {% csrf_token %}
+            <c-button type="submit" variant="primary" hx-confirm="Distribute this team packet to all teams now?">Distribute Now</c-button>
+        </form>
+    {% endif %}
+    </c-button_row>
+    <c-fieldset heading="Distribution Status by Team">
+    {% if distributions %}
+        <c-table aria_label="Distribution status by team">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false">Status</c-table_header>
+            <c-table_header sortable="false">Primary Email</c-table_header>
+            <c-table_header sortable="false">Secondary Email</c-table_header>
+            <c-table_header sortable="false">Sent At</c-table_header>
+            <c-table_header sortable="false">Downloaded</c-table_header>
+            <c-table_header sortable="false">Action</c-table_header>
+        </tr>
+        </c-slot>
+        {% for dist in distributions %}
             <tr>
-                <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Primary Email</c-table_header>
-                <c-table_header sortable="false">Secondary Email</c-table_header>
-                <c-table_header sortable="false">Sent At</c-table_header>
-                <c-table_header sortable="false">Downloaded</c-table_header>
-                <c-table_header sortable="false">Action</c-table_header>
+                <form method="post"
+                      action="{% url 'ops_resend_team' packet.id dist.team.id %}"
+                      class="m-0">
+                    {% csrf_token %}
+                    <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
+                    <td>
+                        <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
+                    </td>
+                    <td>
+                        <input type="email"
+                               name="primary_email"
+                               value="{{ dist.team.school_info.contact_email|default:'' }}"
+                               required>
+                    </td>
+                    <td>
+                        <input type="email"
+                               name="secondary_email"
+                               value="{{ dist.team.school_info.secondary_email|default:'' }}">
+                    </td>
+                    <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>
+                        {% if dist.downloaded_at %}
+                            <c-badge status="success">✓</c-badge> {{ dist.download_count }}x
+                        {% else %}
+                            <span class="text-muted">✗</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <c-button type="submit" variant="default">Resend</c-button>
+                    </td>
+                </form>
             </tr>
-            </c-slot>
-            {% for dist in distributions %}
-                <tr>
-                    <form method="post"
-                          action="{% url 'ops_resend_team' packet.id dist.team.id %}"
-                          class="m-0">
-                        {% csrf_token %}
-                        <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
-                        <td>
-                            <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
-                        </td>
-                        <td>
-                            <input type="email"
-                                   name="primary_email"
-                                   value="{{ dist.team.school_info.contact_email|default:'' }}"
-                                   required>
-                        </td>
-                        <td>
-                            <input type="email"
-                                   name="secondary_email"
-                                   value="{{ dist.team.school_info.secondary_email|default:'' }}">
-                        </td>
-                        <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                        <td>
-                            {% if dist.downloaded_at %}
-                                <c-badge status="success">✓</c-badge> {{ dist.download_count }}x
-                            {% else %}
-                                <span class="text-muted">✗</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <c-button type="submit" variant="default">Resend</c-button>
-                        </td>
-                    </form>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <c-empty_state title="No distribution records" description="Distribution records will appear here once the packet is distributed" />
-        {% endif %}
-        </c-fieldset>
-        </c-module>
-    </div>
-{% endblock content %}
+        {% endfor %}
+        </c-table>
+    {% else %}
+        <c-empty_state title="No distribution records" description="Distribution records will appear here once the packet is distributed" />
+    {% endif %}
+    </c-fieldset>
+{% endblock admin_content %}
