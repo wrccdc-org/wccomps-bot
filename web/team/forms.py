@@ -13,6 +13,48 @@ from django.core.validators import validate_email
 from team.models import SchoolInfo, Team
 
 
+def _infer_header_mapping(fieldnames: list[str]) -> dict[str, str] | None:
+    """Infer canonical column names by inspecting header text.
+
+    Detects email columns (contain 'email'), and assigns the remaining
+    unmapped column as school_name. Returns None if headers already canonical.
+    """
+    canonical = {"school_name", "contact_email", "secondary_email", "notes", "team_name"}
+    normalized = {f: f.strip().lower().replace(" ", "_") for f in fieldnames}
+
+    # If headers already match canonical names, no inference needed
+    if set(normalized.values()) <= canonical:
+        return None
+
+    mapping: dict[str, str] = {}
+    unmapped: list[str] = []
+    skipped: list[str] = []
+    for raw in fieldnames:
+        norm = raw.strip().lower()
+        if "email" in norm:
+            mapping[raw] = "contact_email"
+        elif norm.replace(" ", "_") in canonical:
+            mapping[raw] = norm.replace(" ", "_")
+        elif "team" in norm or norm.replace(" ", "").replace("#", "").isdigit():
+            # Skip team number columns — teams are assigned randomly
+            skipped.append(raw)
+        else:
+            unmapped.append(raw)
+
+    # Single remaining unmapped column is the school name
+    if len(unmapped) == 1 and "school_name" not in mapping.values():
+        mapping[unmapped[0]] = "school_name"
+    else:
+        for raw in unmapped:
+            mapping[raw] = raw.strip().lower().replace(" ", "_")
+
+    # Include skipped columns so they appear in the warning but get ignored
+    for raw in skipped:
+        mapping[raw] = raw.strip().lower().replace(" ", "_")
+
+    return mapping
+
+
 class CSVRowData(TypedDict, total=False):
     school_name: str
     contact_email: str
@@ -43,7 +85,8 @@ class CSVUploadForm(forms.Form):
         help_text=(
             "Upload a CSV file with team school information. "
             "Required columns: school_name, contact_email. "
-            "Optional: team_number, secondary_email, notes"
+            "Optional: secondary_email, notes. "
+            "Column names are auto-detected from headers."
         ),
     )
 
@@ -91,7 +134,17 @@ def parse_csv_file(csv_file: UploadedFile) -> CSVParseResult:
             errors.append("CSV file is empty or has no headers")
             return {"rows": rows, "errors": errors, "warnings": warnings}
 
-        headers = set(reader.fieldnames)
+        # Try to infer header mapping if headers don't match canonical names
+        header_mapping = _infer_header_mapping(list(reader.fieldnames))
+        if header_mapping:
+            mapped_names = set(header_mapping.values())
+            warnings.append(
+                "Columns auto-detected: " + ", ".join(f"{raw} \u2192 {canon}" for raw, canon in header_mapping.items())
+            )
+        else:
+            mapped_names = set(reader.fieldnames)
+
+        headers = mapped_names
 
         # Check for required headers
         missing_headers = required_headers - headers
@@ -105,7 +158,10 @@ def parse_csv_file(csv_file: UploadedFile) -> CSVParseResult:
             warnings.append(f"Unknown columns will be ignored: {', '.join(sorted(unknown_headers))}")
 
         # Process each row
-        for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+        for row_num, raw_row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+            # Apply header mapping if needed
+            row = {header_mapping.get(k, k): v for k, v in raw_row.items()} if header_mapping else raw_row
+
             row_errors: list[str] = []
             row_data: CSVRowData = {}
 

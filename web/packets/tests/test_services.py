@@ -1,8 +1,10 @@
 """Tests for packet services."""
 
+import datetime
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from registration.models import Event, EventTeamAssignment, Season, TeamRegistration
 
 from team.models import SchoolInfo, Team
 
@@ -17,7 +19,16 @@ class PacketDistributionServiceTestCase(TestCase):
         """Create test data."""
         self.service = PacketDistributionService()
 
-        # Create teams with school info
+        # Create season and event
+        season = Season.objects.create(name="Test Season", year=2026)
+        self.event = Event.objects.create(
+            season=season,
+            name="Test Event",
+            event_type="invitational",
+            date=datetime.date(2026, 3, 1),
+        )
+
+        # Create teams with school info and event assignments
         for i in range(1, 4):
             team = Team.objects.create(
                 team_number=i,
@@ -30,6 +41,16 @@ class PacketDistributionServiceTestCase(TestCase):
                 school_name=f"School {i}",
                 contact_email=f"team{i}@example.com",
             )
+            registration = TeamRegistration.objects.create(
+                school_name=f"School {i}",
+                status="approved",
+            )
+            EventTeamAssignment.objects.create(
+                event=self.event,
+                registration=registration,
+                team=team,
+                password_generated=f"TestPass{i}!",
+            )
 
         self.packet = TeamPacket.objects.create(
             title="Test Packet",
@@ -41,6 +62,7 @@ class PacketDistributionServiceTestCase(TestCase):
             status="draft",
             send_via_email=True,
             web_access_enabled=True,
+            event=self.event,
         )
 
     def test_create_distributions_for_teams(self):
@@ -68,6 +90,9 @@ class PacketDistributionServiceTestCase(TestCase):
 
         self.service.send_packet_email(distribution)
 
+        # Verify packet was attached
+        mock_email.attach.assert_called_once_with("test.pdf", b"test file content", "application/pdf")
+
         # Verify email was sent
         mock_email.send.assert_called_once_with(fail_silently=False)
 
@@ -75,6 +100,27 @@ class PacketDistributionServiceTestCase(TestCase):
         distribution.refresh_from_db()
         self.assertEqual(distribution.email_status, "sent")
         self.assertEqual(distribution.email_sent_to, "team1@example.com")
+
+    def test_send_packet_email_requires_event(self):
+        """Test that distribution fails without event link."""
+        self.packet.event = None
+        self.packet.status = "draft"
+        self.packet.save()
+
+        with self.assertRaises(ValueError, msg="Packet must be linked to an event"):
+            self.service.distribute_packet(self.packet)
+
+    def test_send_packet_email_requires_credentials(self):
+        """Test that sending fails without generated credentials."""
+        team = Team.objects.get(team_number=1)
+        assignment = EventTeamAssignment.objects.get(event=self.event, team=team)
+        assignment.password_generated = ""
+        assignment.save()
+
+        distribution = PacketDistribution.objects.create(packet=self.packet, team=team)
+
+        with self.assertRaises(ValueError, msg="No credentials generated"):
+            self.service.send_packet_email(distribution)
 
     @patch("packets.services.PacketDistributionService.send_packet_email")
     def test_distribute_packet(self, mock_send_email):

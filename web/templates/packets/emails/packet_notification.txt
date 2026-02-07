@@ -1,20 +1,21 @@
 Hello Team {{ team.team_number }},
 
-A new team packet is available for download: {{ packet.title }}
+A new team packet is available: {{ packet.title }}
 
-You can download the packet by visiting:
-{{ download_url }}
+The packet is attached to this email.
 
-Or log in to the WCComps portal at {{ BASE_URL }} and navigate to the Team Packets section.
+Your Team Credentials:
+- Username: {{ username }}
+- Password: {{ password }}
 
 Packet Details:
 - Title: {{ packet.title }}
 - File: {{ packet.filename }}
 {% if packet.notes %}- Notes: {{ packet.notes }}{% endif %}
 
-Please download and review this packet before the competition begins.
+Please review this packet before the competition begins.
 
 If you have any questions, please contact the competition organizers.
 
 ---
-Western Cyber Competition
+Western Cyber Competitions

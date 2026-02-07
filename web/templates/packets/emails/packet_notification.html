@@ -29,15 +29,11 @@
                 border: 1px solid #dee2e6;
             }
 
-            .btn {
-                display: inline-block;
-                background-color: #0d6efd;
-                color: white !important;
-                padding: 12px 30px;
-                text-decoration: none;
-                border-radius: 5px;
+            .credentials {
+                background-color: #fff3cd;
+                padding: 15px;
+                border-left: 4px solid #ffc107;
                 margin: 20px 0;
-                font-weight: bold;
             }
 
             .details {
@@ -63,14 +59,21 @@
         </div>
         <div class="content">
             <p>Hello Team {{ team.team_number }},</p>
-            <p>A new team packet is available for download:</p>
-            <h2 style="color: #0d6efd;">{{ packet.title }}</h2>
-            <div style="text-align: center;">
-                <a href="{{ download_url }}" class="btn">Download Team Packet</a>
-            </div>
             <p>
-                You can also log in to the <a href="{{ BASE_URL }}">WCComps portal</a> and navigate to the Team Packets section.
+                A new team packet is available: <strong>{{ packet.title }}</strong>
             </p>
+            <p>The packet is attached to this email.</p>
+            <div class="credentials">
+                <strong>Your Team Credentials:</strong>
+                <ul style="margin: 10px 0;">
+                    <li>
+                        <strong>Username:</strong> {{ username }}
+                    </li>
+                    <li>
+                        <strong>Password:</strong> {{ password }}
+                    </li>
+                </ul>
+            </div>
             <div class="details">
                 <strong>Packet Details:</strong>
                 <ul style="margin: 10px 0;">
@@ -87,14 +90,13 @@
                     {% endif %}
                 </ul>
             </div>
-            <p>Please download and review this packet before the competition begins.</p>
+            <p>Please review this packet before the competition begins.</p>
             <p>If you have any questions, please contact the competition organizers.</p>
         </div>
         <div class="footer">
             <p>
-                <strong>Western Cyber Competition</strong>
+                <strong>Western Cyber Competitions</strong>
             </p>
-            <p>This is an automated message. Please do not reply to this email.</p>
         </div>
     </body>
 </html>

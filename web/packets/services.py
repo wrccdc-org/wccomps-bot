@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.template.loader import render_to_string
+from registration.models import EventTeamAssignment
 
 from team.models import SchoolInfo, Team
 
@@ -31,6 +32,9 @@ class PacketDistributionService:
         """
         if not packet.is_ready_for_distribution():
             raise ValueError(f"Packet {packet.id} is not ready for distribution")
+
+        if not packet.event:
+            raise ValueError("Packet must be linked to an event for distribution")
 
         # Mark packet as distributing
         packet.mark_as_distributing()
@@ -111,12 +115,23 @@ class PacketDistributionService:
         if not email_address:
             raise ValueError(f"No email address for team {team.team_number}")
 
+        # Get team credentials from event assignment
+        try:
+            assignment = EventTeamAssignment.objects.get(event=packet.event, team=team)
+        except EventTeamAssignment.DoesNotExist as err:
+            raise ValueError(f"No event assignment for team {team.team_number}") from err
+
+        if not assignment.password_generated:
+            raise ValueError(f"No credentials generated for team {team.team_number}")
+
         # Prepare email context
+        username = f"team{team.team_number:02d}"
         context = {
             "packet": packet,
             "team": team,
             "distribution": distribution,
-            "download_url": f"{settings.BASE_URL}/packets/download/{packet.id}/",
+            "username": username,
+            "password": assignment.password_generated,
         }
 
         # Render email templates
@@ -124,14 +139,16 @@ class PacketDistributionService:
         text_content = render_to_string("packets/emails/packet_notification.txt", context)
         html_content = render_to_string("packets/emails/packet_notification.html", context)
 
-        # Create email
+        # Create email with packet attached
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email_address],
+            reply_to=["info@wccomps.org"],
         )
         email.attach_alternative(html_content, "text/html")
+        email.attach(packet.filename, bytes(packet.file_data), packet.mime_type)
 
         # Send email
         email.send(fail_silently=False)

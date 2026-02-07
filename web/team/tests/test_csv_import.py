@@ -103,6 +103,52 @@ University One,contact1@example.edu,Blue Team
         assert result["rows"][0]["team_name"] == "Blue Team"
 
 
+class TestCSVHeaderInference:
+    """Test auto-detection of CSV column names."""
+
+    def test_infer_email_and_school_columns(self) -> None:
+        """Test CSV with non-standard headers like 'Capt. Email' and 'School'."""
+        csv_content = """team #,Capt. Email,School
+1,captain@example.edu,Springfield High
+2,coach@example.edu,Shelbyville Academy
+"""
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
+
+        result = parse_csv_file(csv_file)
+
+        assert len(result["errors"]) == 0
+        assert len(result["rows"]) == 2
+        assert result["rows"][0]["school_name"] == "Springfield High"
+        assert result["rows"][0]["contact_email"] == "captain@example.edu"
+        # Should have an auto-detection warning
+        assert any("auto-detected" in w.lower() for w in result["warnings"])
+
+    def test_infer_with_only_two_columns(self) -> None:
+        """Test CSV with just email and school columns."""
+        csv_content = """Email,School
+captain@example.edu,Springfield High
+"""
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
+
+        result = parse_csv_file(csv_file)
+
+        assert len(result["errors"]) == 0
+        assert result["rows"][0]["school_name"] == "Springfield High"
+        assert result["rows"][0]["contact_email"] == "captain@example.edu"
+
+    def test_canonical_headers_no_inference(self) -> None:
+        """Test that canonical headers bypass inference."""
+        csv_content = """school_name,contact_email
+Springfield High,captain@example.edu
+"""
+        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
+
+        result = parse_csv_file(csv_file)
+
+        assert len(result["errors"]) == 0
+        assert not any("auto-detected" in w.lower() for w in result["warnings"])
+
+
 class TestCSVValidation:
     """Test CSV data validation against database."""
 
