@@ -4,7 +4,7 @@ import pytest
 
 from team.models import Team
 
-from ..models import PacketDistribution, TeamPacket
+from ..models import Packet, PacketDistribution
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def team(db):
 @pytest.fixture
 def packet(db):
     """Create test packet."""
-    return TeamPacket.objects.create(
+    return Packet.objects.create(
         title="Test Packet",
         file_data=b"test file content",
         filename="test.pdf",
@@ -27,8 +27,8 @@ def packet(db):
 
 
 @pytest.mark.django_db
-class TestTeamPacket:
-    """Test TeamPacket model."""
+class TestPacket:
+    """Test Packet model."""
 
     def test_packet_creation(self, packet):
         """Test packet can be created."""

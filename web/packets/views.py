@@ -1,7 +1,8 @@
-"""Views for team packet distribution system."""
+"""Views for packet distribution system."""
 
 import csv
 import io
+import json
 import mimetypes
 import re
 from typing import TypedDict, cast
@@ -10,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBase, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from registration.models import Event
@@ -18,20 +19,20 @@ from registration.models import Event
 from core.auth_utils import get_user_team_number, require_permission
 from team.models import Team
 
-from .models import PacketDistribution, TeamPacket
+from .models import Packet, PacketDistribution
 from .services import PacketDistributionService
 
 
 class PacketWithStats(TypedDict):
     """Packet paired with its distribution stats."""
 
-    packet: TeamPacket
+    packet: Packet
     stats: dict[str, int]
 
 
 @require_GET
 @require_permission("blue_team")
-def team_packets_list(request: HttpRequest) -> HttpResponse:
+def team_packet(request: HttpRequest) -> HttpResponse:
     """List all available packets for the current team (or all packets for gold_team)."""
     from core.auth_utils import has_permission
 
@@ -40,11 +41,11 @@ def team_packets_list(request: HttpRequest) -> HttpResponse:
 
     if is_gold:
         # Gold team sees all distributed packets
-        packets = TeamPacket.objects.filter(status__in=["distributing", "completed"], web_access_enabled=True).order_by(
+        packets = Packet.objects.filter(status__in=["distributing", "completed"], web_access_enabled=True).order_by(
             "-created_at"
         )
         context: dict[str, object] = {"packets": packets, "is_gold_view": True}
-        return render(request, "packets/team_packets_list.html", context)
+        return render(request, "packets/team_packet.html", context)
 
     team_number = get_user_team_number(user)
     if not team_number:
@@ -72,14 +73,14 @@ def team_packets_list(request: HttpRequest) -> HttpResponse:
         "team": team,
     }
 
-    return render(request, "packets/team_packets_list.html", context)
+    return render(request, "packets/team_packet.html", context)
 
 
 @login_required
 @require_GET
 def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Download a packet file."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
+    packet = get_object_or_404(Packet, id=packet_id)
 
     # Check if packet is available for download
     if packet.status not in ["distributing", "completed"]:
@@ -111,17 +112,33 @@ def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
 
 @require_GET
 @require_permission("gold_team")
-def ops_packets_list(request: HttpRequest) -> HttpResponse:
+def packets_list(request: HttpRequest) -> HttpResponse:
     """List all packets for GoldTeam administrators."""
-    packets = list(TeamPacket.objects.all().order_by("-created_at"))
+    packets = list(Packet.objects.all().order_by("-created_at"))
 
-    # Build packets with stats for template
-    packets_with_stats: list[PacketWithStats] = [
-        {"packet": packet, "stats": packet.get_distribution_stats()} for packet in packets
-    ]
+    # Active = draft or distributing (there's typically only one)
+    active_packet: Packet | None = None
+    active_stats: dict[str, int] = {}
+    history: list[PacketWithStats] = []
 
-    context = {
-        "packets_with_stats": packets_with_stats,
+    for packet in packets:
+        stats = packet.get_distribution_stats()
+        if not active_packet and packet.status in ("draft", "distributing"):
+            active_packet = packet
+            active_stats = stats
+        else:
+            history.append({"packet": packet, "stats": stats})
+
+    context: dict[str, object] = {
+        "active_packet": active_packet,
+        "active_stats": active_stats,
+        "active_distributions": (
+            active_packet.distributions.select_related("team", "team__school_info").order_by("team__team_number")
+            if active_packet
+            else []
+        ),
+        "history": history,
+        "teams": Team.objects.filter(is_active=True).order_by("team_number"),
         "nav_active": "ops_admin",
     }
 
@@ -165,8 +182,8 @@ def _parse_team_extras_csv(csv_text: str) -> dict[str, dict[str, str]]:
 
 @require_http_methods(["GET", "POST"])
 @require_permission("gold_team")
-def ops_upload_packet(request: HttpRequest) -> HttpResponse:
-    """Upload a new team packet."""
+def upload_packet(request: HttpRequest) -> HttpResponse:
+    """Upload a new packet."""
     events = Event.objects.all()
     form_context = {"events": events, "nav_active": "packets"}
 
@@ -221,7 +238,7 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
                 return render(request, "packets/ops_upload_packet.html", form_context)
 
         # Create packet
-        TeamPacket.objects.create(
+        Packet.objects.create(
             title=title,
             file_data=file_data,
             filename=filename,
@@ -238,18 +255,18 @@ def ops_upload_packet(request: HttpRequest) -> HttpResponse:
 
         messages.success(
             request,
-            f"Team packet '{title}' uploaded successfully. Use 'Distribute Now' to send to all teams.",
+            f"Packet '{title}' uploaded successfully. Use 'Distribute' to send to all teams.",
         )
-        return redirect("ops_packets_list")
+        return redirect("packets_list")
 
     return render(request, "packets/ops_upload_packet.html", form_context)
 
 
 @require_GET
 @require_permission("gold_team")
-def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
+def packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     """View packet details and distribution status."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
+    packet = get_object_or_404(Packet, id=packet_id)
 
     distributions = packet.distributions.select_related("team", "team__school_info").order_by("team__team_number")
     teams = Team.objects.filter(is_active=True).order_by("team_number")
@@ -265,108 +282,84 @@ def ops_packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     return render(request, "packets/ops_packet_detail.html", context)
 
 
+@login_required
 @require_POST
-@require_permission("gold_team")
-def ops_distribute_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
-    """Manually trigger distribution of a packet."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
+def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
+    """Dispatch packet actions (distribute, resend_failed, cancel, test_email)."""
+    from core.auth_utils import has_permission
 
-    if packet.status != "draft":
-        messages.error(request, f"Cannot distribute packet with status: {packet.get_status_display()}")
-        return redirect("ops_packet_detail", packet_id=packet_id)
+    if not has_permission(cast(User, request.user), "gold_team"):
+        return HttpResponse("Access denied", status=403)
 
-    try:
-        service = PacketDistributionService()
-        result = service.distribute_packet(packet)
+    packet = get_object_or_404(Packet, id=packet_id)
+    action = request.POST.get("action", "")
+    service = PacketDistributionService()
 
-        messages.success(
-            request,
-            f"Team packet distributed. Emails sent: {result['email_sent']}, Failed: {result['email_failed']}",
+    if action == "distribute":
+        return StreamingHttpResponse(
+            service.stream_distribute_packet(packet),
+            content_type="application/x-ndjson",
         )
-    except Exception as e:
-        messages.error(request, f"Distribution failed: {e}")
 
-    return redirect("ops_packet_detail", packet_id=packet_id)
+    if action == "resend_failed":
+        return StreamingHttpResponse(
+            service.stream_resend_failed(packet),
+            content_type="application/x-ndjson",
+        )
 
+    if action == "cancel":
+        packet.status = "cancelled"
+        packet.save(update_fields=["status", "updated_at"])
+        return StreamingHttpResponse(
+            iter([json.dumps({"done": True, "success": True, "message": "Packet cancelled"}) + "\n"]),
+            content_type="application/x-ndjson",
+        )
 
-@require_POST
-@require_permission("gold_team")
-def ops_cancel_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
-    """Cancel a packet distribution."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
+    if action == "test_email":
+        email = request.POST.get("email", "").strip()
+        team_id = request.POST.get("team_id", "").strip()
+        if not email or not team_id:
+            return StreamingHttpResponse(
+                iter([json.dumps({"done": True, "success": False, "message": "Email and team are required"}) + "\n"]),
+                content_type="application/x-ndjson",
+            )
+        team = get_object_or_404(Team, id=team_id)
+        try:
+            service.send_test_packet_email(packet, team, email)
+            msg = f"Test email sent to {email} as Team {team.team_number}"
+            return StreamingHttpResponse(
+                iter([json.dumps({"done": True, "success": True, "message": msg}) + "\n"]),
+                content_type="application/x-ndjson",
+            )
+        except Exception as e:
+            return StreamingHttpResponse(
+                iter([json.dumps({"done": True, "success": False, "message": str(e)}) + "\n"]),
+                content_type="application/x-ndjson",
+            )
 
-    packet.status = "cancelled"
-    packet.save(update_fields=["status", "updated_at"])
-
-    messages.success(request, f"Packet '{packet.title}' has been cancelled.")
-    return redirect("ops_packet_detail", packet_id=packet_id)
-
-
-@require_POST
-@require_permission("gold_team")
-def ops_reset_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
-    """Reset a packet back to draft status, clearing failed distributions."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
-
-    # Reset failed distributions to pending
-    packet.distributions.filter(email_status="failed").update(email_status="pending", email_error_message="")
-
-    packet.status = "draft"
-    packet.actual_distribution_time = None
-    packet.save(update_fields=["status", "actual_distribution_time", "updated_at"])
-
-    messages.success(request, f"Packet '{packet.title}' reset to draft.")
-    return redirect("ops_packet_detail", packet_id=packet_id)
-
-
-@require_POST
-@require_permission("gold_team")
-def ops_send_test_email(request: HttpRequest, packet_id: int) -> HttpResponse:
-    """Send a test email for a packet to a specific address."""
-    packet = get_object_or_404(TeamPacket, id=packet_id)
-    email = request.POST.get("email", "").strip()
-    team_id = request.POST.get("team_id", "").strip()
-
-    if not email:
-        messages.error(request, "Email address is required.")
-        return redirect("ops_packet_detail", packet_id=packet_id)
-
-    if not team_id:
-        messages.error(request, "Please select a team.")
-        return redirect("ops_packet_detail", packet_id=packet_id)
-
-    team = get_object_or_404(Team, id=team_id)
-
-    try:
-        service = PacketDistributionService()
-        service.send_test_packet_email(packet, team, email)
-        messages.success(request, f"Test email sent to {email} as Team {team.team_number}.")
-    except Exception as e:
-        messages.error(request, f"Failed to send test email: {e}")
-
-    return redirect("ops_packet_detail", packet_id=packet_id)
+    return HttpResponse("Unknown action", status=400)
 
 
 @require_POST
 @require_permission("gold_team")
-def ops_resend_team(request: HttpRequest, packet_id: int, team_id: int) -> HttpResponse:
+def packet_resend_team(request: HttpRequest, packet_id: int, team_id: int) -> HttpResponse:
     """Resend a packet email to a specific team, saving any email changes."""
     from team.models import SchoolInfo
 
-    packet = get_object_or_404(TeamPacket, id=packet_id)
+    packet = get_object_or_404(Packet, id=packet_id)
     team = get_object_or_404(Team, id=team_id)
 
     dist = PacketDistribution.objects.filter(packet=packet, team=team).first()
     if not dist:
         messages.error(request, f"No distribution record for Team {team.team_number}.")
-        return redirect("ops_packet_detail", packet_id=packet_id)
+        return redirect("packet_detail", packet_id=packet_id)
 
     primary_email = request.POST.get("primary_email", "").strip()
     secondary_email = request.POST.get("secondary_email", "").strip()
 
     if not primary_email:
         messages.error(request, f"Primary email is required for Team {team.team_number}.")
-        return redirect("ops_packet_detail", packet_id=packet_id)
+        return redirect("packet_detail", packet_id=packet_id)
 
     # Save email changes back to SchoolInfo
     school_info, _ = SchoolInfo.objects.get_or_create(
@@ -392,4 +385,4 @@ def ops_resend_team(request: HttpRequest, packet_id: int, team_id: int) -> HttpR
     except Exception as e:
         messages.error(request, f"Failed to resend to Team {team.team_number}: {e}")
 
-    return redirect("ops_packet_detail", packet_id=packet_id)
+    return redirect("packet_detail", packet_id=packet_id)

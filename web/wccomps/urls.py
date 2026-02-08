@@ -31,7 +31,8 @@ urlpatterns = [
     # Discord linking routes
     path("auth/link", views.link_initiate, name="link_initiate"),
     path("auth/link-callback", views.link_callback, name="link_callback"),
-    path("team-packets/", include("packets.urls")),
+    path("packet/", include("packets.urls_team")),
+    path("packets/", include("packets.urls_admin")),
     path("ops/school-info/", views.school_info, name="school_info"),
     path(
         "ops/school-info/import/",

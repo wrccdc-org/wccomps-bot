@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% load cotton %}
 {% block title %}
-    Team Packets - WCComps
+    Packets - WCComps
 {% endblock title %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Your Team Packets" />
+        <c-page_header title="Your Packets" />
         {% if messages %}
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}
         <c-module>
         {% if is_gold_view %}
             {% if packets %}
-                <c-table aria_label="Team packets">
+                <c-table aria_label="Packets">
                 <c-slot name="headers">
                 <tr>
-                    <c-table_header sortable="false">Team Packet Title</c-table_header>
+                    <c-table_header sortable="false">Title</c-table_header>
                     <c-table_header sortable="false">File</c-table_header>
                     <c-table_header sortable="false">Distributed</c-table_header>
                     <c-table_header sortable="false">Actions</c-table_header>
@@ -43,13 +43,13 @@
                 {% endfor %}
                 </c-table>
             {% else %}
-                <c-empty_state title="No team packets available" description="No packets have been distributed yet" />
+                <c-empty_state title="No packets available" description="No packets have been distributed yet" />
             {% endif %}
         {% elif distributions %}
-            <c-table aria_label="Team packets">
+            <c-table aria_label="Packets">
             <c-slot name="headers">
             <tr>
-                <c-table_header sortable="false">Team Packet Title</c-table_header>
+                <c-table_header sortable="false">Title</c-table_header>
                 <c-table_header sortable="false">File</c-table_header>
                 <c-table_header sortable="false">Distributed</c-table_header>
                 <c-table_header sortable="false">Downloaded</c-table_header>
@@ -94,7 +94,7 @@
             {% endfor %}
             </c-table>
         {% else %}
-            <c-empty_state title="No team packets available" description="Team packets will appear here when distributed" />
+            <c-empty_state title="No packets available" description="Packets will appear here when distributed" />
         {% endif %}
         </c-module>
         <p class="mt-20">

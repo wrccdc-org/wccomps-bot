@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 
-class TeamPacket(models.Model):
+class Packet(models.Model):
     """Pre-competition information packet to be distributed to all teams."""
 
     STATUS_CHOICES = [
@@ -52,8 +52,8 @@ class TeamPacket(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        verbose_name = "Team Packet"
-        verbose_name_plural = "Team Packets"
+        verbose_name = "Packet"
+        verbose_name_plural = "Packets"
 
     def __str__(self) -> str:
         return f"{self.title} ({self.status})"
@@ -97,7 +97,7 @@ class PacketDistribution(models.Model):
         ("bounced", "Bounced"),
     ]
 
-    packet = models.ForeignKey(TeamPacket, on_delete=models.CASCADE, related_name="distributions")
+    packet = models.ForeignKey(Packet, on_delete=models.CASCADE, related_name="distributions")
     team = models.ForeignKey("team.Team", on_delete=models.CASCADE)
 
     # Email delivery tracking

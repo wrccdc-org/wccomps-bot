@@ -16,6 +16,10 @@
             <strong>Import completed successfully!</strong>
             <br>
             Created: {{ import_results.created }} school info record(s)
+            {% if import_results.assigned %}
+                <br>
+                Assigned: {{ import_results.assigned }} team(s) to active event
+            {% endif %}
             </c-alert>
             <c-button_row class="justify-end">
             <c-link href="{% url 'school_info_import' %}">Import Another File</c-link>

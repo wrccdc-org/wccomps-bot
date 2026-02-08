@@ -2053,7 +2053,7 @@ def school_info_import(request: HttpRequest) -> HttpResponse:
                     # Apply import
                     result = apply_csv_import(teams_to_create, authentik_username)
 
-                    import_results = {"created": result["created"]}
+                    import_results = {"created": result["created"], "assigned": result["assigned"]}
 
                     # Clear session data
                     del request.session["csv_import_data"]

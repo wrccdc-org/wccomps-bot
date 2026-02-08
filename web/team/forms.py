@@ -275,14 +275,24 @@ def apply_csv_import(
     """
     Apply CSV import to database.
 
+    Creates SchoolInfo for each team and auto-assigns to the active event
+    (TeamRegistration + EventTeamAssignment).
+
     Args:
         teams_to_create: List of team data to create SchoolInfo for
         updated_by: Username of person performing the import
 
     Returns:
-        dict with 'created' count
+        dict with 'created' and 'assigned' counts
     """
+    from registration.models import Event, EventTeamAssignment, Season, TeamRegistration
+
     created = 0
+    assigned = 0
+
+    # Look up active season + event once
+    season = Season.objects.filter(is_active=True).first()
+    event = Event.objects.filter(is_active=True, season=season).first() if season else None
 
     for row in teams_to_create:
         team = row["_team"]
@@ -301,4 +311,18 @@ def apply_csv_import(
             team.team_name = row["team_name"]
             team.save()
 
-    return {"created": created}
+        # Auto-assign to active event
+        if event:
+            registration, _ = TeamRegistration.objects.get_or_create(
+                school_name=row["school_name"],
+                defaults={"status": "approved"},
+            )
+            _, eta_created = EventTeamAssignment.objects.get_or_create(
+                event=event,
+                team=team,
+                defaults={"registration": registration},
+            )
+            if eta_created:
+                assigned += 1
+
+    return {"created": created, "assigned": assigned}

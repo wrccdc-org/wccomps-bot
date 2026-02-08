@@ -1,16 +1,16 @@
 {% extends "admin/base.html" %}
 {% load cotton %}
 {% block title %}
-    Upload Team Packet - WCComps
+    Upload Packet - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <c-page_header title="Upload Team Packet" />
+    <c-page_header title="Upload Packet" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <c-fieldset heading="Team Packet Information">
+        <c-fieldset heading="Packet Information">
         <c-form_field label="Title" required="true" id="id_title" help_text="Brief description of the packet (e.g., '2026 Qualifier Packet')">
         <input type="text"
                name="title"
@@ -53,8 +53,8 @@
         </c-form_field>
         </c-fieldset>
         <c-button_row class="justify-end">
-        <c-link href="{% url 'ops_packets_list' %}">Cancel</c-link>
-        <c-button type="submit" variant="primary">Upload Team Packet</c-button>
+        <c-link href="{% url 'packets_list' %}">Cancel</c-link>
+        <c-button type="submit" variant="primary">Upload Packet</c-button>
         </c-button_row>
     </form>
 {% endblock admin_content %}

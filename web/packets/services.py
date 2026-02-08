@@ -1,6 +1,8 @@
 """Services for team packet distribution."""
 
+import json
 import logging
+from collections.abc import Iterator
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -11,15 +13,20 @@ from registration.models import Event, EventTeamAssignment, TeamRegistration
 from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
 from team.models import SchoolInfo, Team
 
-from .models import PacketDistribution, TeamPacket
+from .models import Packet, PacketDistribution
 
 logger = logging.getLogger(__name__)
+
+
+def _progress(step: str, current: int, total: int, ok: bool = True) -> str:
+    """Encode a single progress line as newline-delimited JSON."""
+    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
 
 
 class PacketDistributionService:
     """Service for distributing team packets."""
 
-    def distribute_packet(self, packet: TeamPacket) -> dict[str, int]:
+    def distribute_packet(self, packet: Packet) -> dict[str, int]:
         """
         Distribute a packet to all teams.
 
@@ -59,7 +66,7 @@ class PacketDistributionService:
             "created": distributions_created,
         }
 
-    def _create_distributions_for_teams(self, packet: TeamPacket) -> int:
+    def _create_distributions_for_teams(self, packet: Packet) -> int:
         """Create PacketDistribution records for active teams with contact emails."""
         teams = Team.objects.filter(is_active=True).exclude(school_info=None)
 
@@ -83,7 +90,7 @@ class PacketDistributionService:
 
         return len(distributions)
 
-    def _send_emails_for_packet(self, packet: TeamPacket) -> dict[str, int]:
+    def _send_emails_for_packet(self, packet: Packet) -> dict[str, int]:
         """Send emails for all pending distributions of a packet."""
         distributions = PacketDistribution.objects.filter(packet=packet, email_status="pending").select_related("team")
 
@@ -199,7 +206,7 @@ class PacketDistributionService:
         distribution.mark_as_sent(sent_to)
         logger.info(f"Sent packet {packet.id} to team {team.team_number} at {sent_to}")
 
-    def send_test_packet_email(self, packet: TeamPacket, team: Team, email: str) -> None:
+    def send_test_packet_email(self, packet: Packet, team: Team, email: str) -> None:
         """Send a test packet email to a specific address without creating distribution records."""
         if not packet.event:
             raise ValueError("Packet must be linked to an event")
@@ -244,7 +251,7 @@ class PacketDistributionService:
             logger.warning(f"No SchoolInfo found for team {team.team_number}")
             return None
 
-    def record_packet_download(self, packet: TeamPacket, team: Team, username: str) -> None:
+    def record_packet_download(self, packet: Packet, team: Team, username: str) -> None:
         """Record that a team downloaded a packet."""
         with transaction.atomic():
             distribution, created = PacketDistribution.objects.get_or_create(
@@ -256,3 +263,96 @@ class PacketDistributionService:
             logger.info(
                 f"Team {team.team_number} downloaded packet {packet.id} (download #{distribution.download_count})"
             )
+
+    def stream_distribute_packet(self, packet: Packet) -> Iterator[str]:
+        """Distribute a packet with streaming progress."""
+        if not packet.event:
+            yield json.dumps({"done": True, "success": False, "message": "Packet must be linked to an event"}) + "\n"
+            return
+
+        packet.mark_as_distributing()
+        self._create_distributions_for_teams(packet)
+
+        distributions = list(
+            PacketDistribution.objects.filter(packet=packet, email_status="pending").select_related("team")
+        )
+        total = len(distributions)
+
+        if total == 0:
+            packet.mark_as_completed()
+            yield json.dumps({"done": True, "success": True, "message": "No teams to distribute to"}) + "\n"
+            return
+
+        sent = 0
+        failed = 0
+        for i, dist in enumerate(distributions, 1):
+            try:
+                self.send_packet_email(dist)
+                sent += 1
+                yield _progress(f"Sent to Team {dist.team.team_number}", i, total)
+            except Exception as e:
+                logger.error(f"Failed to send packet email to team {dist.team.team_number}: {e}")
+                dist.mark_as_failed(str(e))
+                failed += 1
+                yield _progress(f"Failed Team {dist.team.team_number}: {e}", i, total, ok=False)
+
+        if failed == 0:
+            packet.mark_as_completed()
+
+        yield (
+            json.dumps(
+                {
+                    "done": True,
+                    "success": failed == 0,
+                    "message": f"Sent {sent}, failed {failed}" if failed else f"Distributed to {sent} teams",
+                }
+            )
+            + "\n"
+        )
+
+    def stream_resend_failed(self, packet: Packet) -> Iterator[str]:
+        """Resend failed distributions with streaming progress."""
+        failed_dists = list(
+            PacketDistribution.objects.filter(packet=packet, email_status="failed").select_related("team")
+        )
+        total = len(failed_dists)
+
+        if total == 0:
+            yield json.dumps({"done": True, "success": True, "message": "No failed distributions to resend"}) + "\n"
+            return
+
+        # Reset to pending
+        PacketDistribution.objects.filter(packet=packet, email_status="failed").update(
+            email_status="pending", email_error_message=""
+        )
+
+        # Re-fetch after update
+        for dist in failed_dists:
+            dist.refresh_from_db()
+
+        sent = 0
+        still_failed = 0
+        for i, dist in enumerate(failed_dists, 1):
+            try:
+                self.send_packet_email(dist)
+                sent += 1
+                yield _progress(f"Resent to Team {dist.team.team_number}", i, total)
+            except Exception as e:
+                logger.error(f"Failed to resend to team {dist.team.team_number}: {e}")
+                dist.mark_as_failed(str(e))
+                still_failed += 1
+                yield _progress(f"Failed Team {dist.team.team_number}: {e}", i, total, ok=False)
+
+        if still_failed == 0:
+            packet.mark_as_completed()
+
+        yield (
+            json.dumps(
+                {
+                    "done": True,
+                    "success": still_failed == 0,
+                    "message": f"Resent {sent}, failed {still_failed}" if still_failed else f"Resent to {sent} teams",
+                }
+            )
+            + "\n"
+        )

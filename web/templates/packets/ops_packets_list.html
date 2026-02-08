@@ -1,74 +1,273 @@
 {% extends "admin/base.html" %}
 {% load cotton %}
 {% block title %}
-    Manage Team Packets - WCComps
+    Packets - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <c-page_header title="Team Packet Management" />
-    {% if messages %}
-        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
-    {% endif %}
-    <c-slot name="toolbar">
-    <c-link href="{% url 'ops_upload_packet' %}" variant="add">Upload New Team Packet</c-link>
-    <c-link href="{% url 'admin:packets_teampacket_changelist' %}">Django Admin</c-link>
-    </c-slot>
-    {% if packets_with_stats %}
-        <c-table aria_label="Team packets">
-        <c-slot name="headers">
-        <tr>
-            <c-table_header sortable="false">Title</c-table_header>
-            <c-table_header sortable="false">File</c-table_header>
-            <c-table_header sortable="false">Status</c-table_header>
-            <c-table_header sortable="false">Distribution Stats</c-table_header>
-            <c-table_header sortable="false">Created</c-table_header>
-            <c-table_header sortable="false">Actions</c-table_header>
-        </tr>
-        </c-slot>
-        {% for item in packets_with_stats %}
-            <tr>
-                <td>
-                    <strong>{{ item.packet.title }}</strong>
-                    {% if item.packet.notes %}
-                        <br>
-                        <small>{{ item.packet.notes|truncatewords:15 }}</small>
+    <div x-data="packetAdmin()">
+        <c-page_header title="Packets" />
+        {% if messages %}
+            {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+        {% endif %}
+        <!-- Active Packet -->
+        {% if active_packet %}
+            <c-fieldset heading="Active Packet">
+            <c-alert variant="{{ active_packet.status }}">
+            <div class="d-flex justify-between items-center flex-wrap gap-10">
+                <div class="d-flex items-center gap-10 flex-wrap">
+                    <c-badge status="{{ active_packet.status }}">{{ active_packet.get_status_display }}</c-badge>
+                    <strong>{{ active_packet.title }}</strong>
+                    <span class="text-muted">{{ active_packet.filename }} ({{ active_packet.file_size|filesizeformat }})</span>
+                    <span class="text-muted">|</span>
+                    <span>{{ active_stats.total }} teams</span>
+                    {% if active_stats.sent %}
+                        <span class="text-muted">|</span>
+                        <span>{{ active_stats.sent }} sent</span>
                     {% endif %}
-                </td>
-                <td>
-                    {{ item.packet.filename }}
-                    <br>
-                    <small>{{ item.packet.file_size|filesizeformat }}</small>
-                </td>
-                <td>
-                    <c-badge status="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
-                    <br>
-                    {% if item.packet.send_via_email %}<small>📧 Email</small>{% endif %}
-                    {% if item.packet.web_access_enabled %}<small>🌐 Web</small>{% endif %}
-                </td>
-                <td>
-                    <small>
-                        Total: {{ item.stats.total }}
-                        <br>
-                        Sent: {{ item.stats.sent }}
-                        <br>
-                        Downloaded: {{ item.stats.downloaded }}
-                        {% if item.stats.failed > 0 %}
-                            <br>
-                            <span class="text-danger">Failed: {{ item.stats.failed }}</span>
-                        {% endif %}
-                    </small>
-                </td>
-                <td>
-                    {{ item.packet.created_at|date:"Y-m-d H:i" }}
-                    <br>
-                    <small>by {{ item.packet.uploaded_by }}</small>
-                </td>
-                <td>
-                    <c-link href="{% url 'ops_packet_detail' item.packet.id %}" variant="change">View</c-link>
-                </td>
+                    {% if active_stats.failed > 0 %}
+                        <span class="text-muted">|</span>
+                        <span class="text-danger">{{ active_stats.failed }} failed</span>
+                    {% endif %}
+                    {% if active_stats.downloaded %}
+                        <span class="text-muted">|</span>
+                        <span>{{ active_stats.downloaded }} downloaded</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-10">
+                    {% if active_packet.status == "draft" %}
+                        <c-button variant="primary" @click="if(confirm('Distribute this packet to all teams now?')) doStreamAction('distribute')" ::disabled="loading">
+                        Distribute
+                        </c-button>
+                    {% endif %}
+                    {% if active_stats.failed > 0 %}
+                        <c-button variant="warning" @click="if(confirm('Resend to all failed teams?')) doStreamAction('resend_failed')" ::disabled="loading">
+                        Resend Failed
+                        </c-button>
+                    {% endif %}
+                    {% if active_packet.status not in "cancelled" %}
+                        <c-button variant="danger" @click="if(confirm('Cancel this packet distribution?')) doStreamAction('cancel')" ::disabled="loading">
+                        Cancel
+                        </c-button>
+                    {% endif %}
+                    <c-link href="{% url 'packet_detail' active_packet.id %}" variant="change">Distributions</c-link>
+                </div>
+            </div>
+            </c-alert>
+            <!-- Progress bar -->
+            <template x-if="progressTotal > 0">
+                <div class="mt-10">
+                    <div class="d-flex justify-between mb-5">
+                        <span class="text-sm" x-text="progressStep"></span>
+                        <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-bar__fill"
+                             :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
+                             :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
+                    </div>
+                    <template x-if="progressFailed > 0">
+                        <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
+                    </template>
+                </div>
+            </template>
+            <!-- Toast -->
+            <template x-if="message">
+                <div x-transition class="mt-10">
+                    <c-alert :variant="messageType">
+                    <span x-text="message"></span>
+                    </c-alert>
+                </div>
+            </template>
+            <!-- Test Email -->
+            <div class="d-flex gap-10 items-end mt-15">
+                <div>
+                    <label for="test-team" class="text-sm font-semibold d-block mb-5">Test Email</label>
+                    <select id="test-team" x-ref="testTeam" class="vTextField">
+                        {% for team in teams %}
+                            <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <input type="email"
+                           id="test-email"
+                           x-ref="testEmail"
+                           placeholder="test@example.com"
+                           class="vTextField">
+                </div>
+                <c-button variant="default" @click="doTestEmail()" ::disabled="loading">
+                Send Test
+                </c-button>
+            </div>
+            {% if active_packet.notes %}<p class="text-muted text-sm mt-10">{{ active_packet.notes }}</p>{% endif %}
+            </c-fieldset>
+        {% else %}
+            <c-fieldset heading="Active Packet">
+            <c-empty_state title="No active packet" description="Upload a packet to distribute to teams" />
+            </c-fieldset>
+        {% endif %}
+        <c-button_row>
+        <c-link href="{% url 'upload_packet' %}" variant="add">Upload New Packet</c-link>
+        </c-button_row>
+        <!-- History -->
+        {% if history %}
+            <c-fieldset heading="History">
+            <c-table aria_label="Past packets">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Title</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Stats</c-table_header>
+                <c-table_header sortable="false">Created</c-table_header>
             </tr>
-        {% endfor %}
-        </c-table>
+            </c-slot>
+            {% for item in history %}
+                <tr>
+                    <td>
+                        <c-link href="{% url 'packet_detail' item.packet.id %}">{{ item.packet.title }}</c-link>
+                        <br>
+                        <small class="text-muted">{{ item.packet.filename }} ({{ item.packet.file_size|filesizeformat }})</small>
+                    </td>
+                    <td>
+                        <c-badge status="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
+                    </td>
+                    <td>
+                        <small>{{ item.stats.sent }} sent, {{ item.stats.downloaded }} downloaded
+                            {% if item.stats.failed %}, <span class="text-danger">{{ item.stats.failed }} failed</span>{% endif %}
+                        </small>
+                    </td>
+                    <td>
+                        <small>{{ item.packet.created_at|date:"Y-m-d H:i" }} by {{ item.packet.uploaded_by }}</small>
+                    </td>
+                </tr>
+            {% endfor %}
+            </c-table>
+            </c-fieldset>
+        {% endif %}
+    </div>
+    {% if active_packet %}
+        <script>
+        function packetAdmin() {
+            return {
+                loading: false,
+                message: '',
+                messageType: 'success',
+                progressStep: '',
+                progressCurrent: 0,
+                progressTotal: 0,
+                progressFailed: 0,
+
+                async doStreamAction(action) {
+                    this.loading = true;
+                    this.message = '';
+                    this.progressStep = 'Starting...';
+                    this.progressCurrent = 0;
+                    this.progressTotal = 1;
+                    this.progressFailed = 0;
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('action', action);
+
+                        const response = await fetch('{% url "packet_action" active_packet.id %}', {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: formData
+                        });
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop();
+                            for (const line of lines) {
+                                if (!line.trim()) continue;
+                                const msg = JSON.parse(line);
+                                if (msg.done) {
+                                    this.message = msg.message;
+                                    this.messageType = msg.success ? 'success' : 'error';
+                                    if (msg.success) setTimeout(() => location.reload(), 2000);
+                                } else {
+                                    this.progressStep = msg.step;
+                                    this.progressCurrent = msg.current;
+                                    this.progressTotal = msg.total;
+                                    if (!msg.ok) this.progressFailed++;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        this.message = 'Request failed: ' + e.message;
+                        this.messageType = 'error';
+                    }
+
+                    this.loading = false;
+                    if (!this.message) {
+                        this.progressTotal = 0;
+                    }
+                    setTimeout(() => { this.message = ''; this.progressTotal = 0; }, 5000);
+                },
+
+                async doTestEmail() {
+                    const teamId = this.$refs.testTeam.value;
+                    const email = this.$refs.testEmail.value;
+                    if (!email) {
+                        this.message = 'Email address is required';
+                        this.messageType = 'error';
+                        setTimeout(() => this.message = '', 3000);
+                        return;
+                    }
+
+                    this.loading = true;
+                    this.message = '';
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('action', 'test_email');
+                        formData.append('team_id', teamId);
+                        formData.append('email', email);
+
+                        const response = await fetch('{% url "packet_action" active_packet.id %}', {
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                            body: formData
+                        });
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop();
+                            for (const line of lines) {
+                                if (!line.trim()) continue;
+                                const msg = JSON.parse(line);
+                                if (msg.done) {
+                                    this.message = msg.message;
+                                    this.messageType = msg.success ? 'success' : 'error';
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        this.message = 'Request failed: ' + e.message;
+                        this.messageType = 'error';
+                    }
+
+                    this.loading = false;
+                    setTimeout(() => this.message = '', 5000);
+                }
+            };
+        }
+        </script>
     {% else %}
-        <c-empty_state title="No packets uploaded yet" description="Upload a team packet to distribute to teams" />
+        <script>function packetAdmin() { return {}; }</script>
     {% endif %}
 {% endblock admin_content %}

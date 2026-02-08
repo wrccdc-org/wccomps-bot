@@ -7,11 +7,11 @@ from django.db.models import Count, Q, QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.utils.html import format_html
 
-from .models import PacketDistribution, TeamPacket
+from .models import Packet, PacketDistribution
 
 
-class AnnotatedTeamPacket(Protocol):
-    """Protocol for TeamPacket with annotated distribution stats."""
+class AnnotatedPacket(Protocol):
+    """Protocol for Packet with annotated distribution stats."""
 
     total_distributions: int
     sent_count: int
@@ -21,7 +21,7 @@ class AnnotatedTeamPacket(Protocol):
     def get_distribution_stats(self) -> dict[str, int]: ...
 
 
-class PacketDistributionInline(admin.TabularInline[PacketDistribution, TeamPacket]):
+class PacketDistributionInline(admin.TabularInline[PacketDistribution, Packet]):
     """Inline display of packet distributions."""
 
     model = PacketDistribution
@@ -41,12 +41,12 @@ class PacketDistributionInline(admin.TabularInline[PacketDistribution, TeamPacke
     ]
     can_delete = False
 
-    def has_add_permission(self, request: HttpRequest, obj: TeamPacket | None = None) -> bool:
+    def has_add_permission(self, request: HttpRequest, obj: Packet | None = None) -> bool:
         return False
 
 
-@admin.register(TeamPacket)
-class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
+@admin.register(Packet)
+class PacketAdmin(admin.ModelAdmin[Packet]):
     """Admin interface for team packets."""
 
     list_display = [
@@ -110,7 +110,7 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
     inlines = [PacketDistributionInline]
     actions = ["distribute_now", "mark_as_completed", "export_distribution_report"]
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet[TeamPacket]:
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Packet]:
         """Optimize queryset with distribution counts."""
         qs = super().get_queryset(request)
         qs = qs.annotate(
@@ -125,7 +125,7 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
         return qs
 
     @admin.display(description="File")
-    def file_info(self, obj: TeamPacket) -> str:
+    def file_info(self, obj: Packet) -> str:
         """Display file information."""
         size_kb = obj.file_size / 1024
         size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb / 1024:.1f} MB"
@@ -137,7 +137,7 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
         )
 
     @admin.display(description="Distribution Stats")
-    def distribution_stats_display(self, obj: AnnotatedTeamPacket) -> str:
+    def distribution_stats_display(self, obj: AnnotatedPacket) -> str:
         """Display distribution statistics."""
         if hasattr(obj, "total_distributions"):
             # From annotated queryset
@@ -166,7 +166,7 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
         )
 
     @admin.action(description="Distribute selected packets now")
-    def distribute_now(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> None:
+    def distribute_now(self, request: HttpRequest, queryset: QuerySet[Packet]) -> None:
         """Trigger immediate distribution of selected packets."""
         from .services import PacketDistributionService
 
@@ -183,13 +183,13 @@ class TeamPacketAdmin(admin.ModelAdmin[TeamPacket]):
         )
 
     @admin.action(description="Mark selected packets as completed")
-    def mark_as_completed(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> None:
+    def mark_as_completed(self, request: HttpRequest, queryset: QuerySet[Packet]) -> None:
         """Mark selected packets as completed."""
         count = queryset.update(status="completed")
         self.message_user(request, f"Marked {count} packet(s) as completed.")
 
     @admin.action(description="Export distribution report to CSV")
-    def export_distribution_report(self, request: HttpRequest, queryset: QuerySet[TeamPacket]) -> HttpResponse:
+    def export_distribution_report(self, request: HttpRequest, queryset: QuerySet[Packet]) -> HttpResponse:
         """Export distribution report as CSV."""
         import csv
 

@@ -1,46 +1,56 @@
 #!/bin/bash
-# Deployment script for wccomps-bot
 set -e
 
 REMOTE_HOST="root@10.0.0.10"
 REMOTE_PATH="/opt/stacks/wccomps-bot/"
+SECONDS=0
 
-fail() { echo -e "\n✗ $1\n"; exit 1; }
-ok() { echo "  ✓ $1"; }
+fail() {
+    echo ""
+    echo "  ✗ $1"
+    [ -n "${2:-}" ] && echo "" && echo "$2"
+    echo ""
+    exit 1
+}
+step() { echo "  ✓ $*"; }
+cleanup_test_db() { docker compose -f docker-compose.test.yml down -v || true; }
 
-# --- Local checks ---
+# Suppress stderr noise (progress bars, docker lifecycle) — errors go via stdout
+exec 3>&2 2>/dev/null
 
-echo "Checking code..."
+echo "deploy ── $(git branch --show-current) @ $(git rev-parse --short HEAD)"
+echo ""
+echo "Checks"
 
 uv lock --upgrade --quiet
 uv sync --quiet
-ok "Dependencies synced"
+step "deps"
 
 uv run ruff format . --quiet
-uv run ruff check --fix --quiet . 2>/dev/null || true
-uv run ruff check . || fail "ruff check failed"
-ok "Ruff passed"
+uv run ruff check --fix --quiet . || true
+if ! OUT=$(uv run ruff check . --quiet); then
+    fail "ruff" "$OUT"
+fi
+step "ruff"
 
-uv run djlint web/templates --reformat --quiet 2>/dev/null
-uv run djlint web/templates --lint --quiet 2>/dev/null || {
-    echo ""
-    uv run djlint web/templates --lint
-    fail "djlint failed"
-}
-ok "djlint passed"
+uv run djlint web/templates --reformat --quiet
+if ! OUT=$(uv run djlint web/templates --lint --quiet); then
+    exec 2>&3
+    fail "djlint" "$(uv run djlint web/templates --lint)"
+fi
+step "djlint"
 
-MYPY_OUTPUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ \
+if ! OUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ \
     --exclude 'bot/tests/.*' --exclude 'web/tests/.*' \
-    --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$' 2>&1) \
-    || { echo "$MYPY_OUTPUT"; fail "mypy failed"; }
-ok "mypy passed"
-
-# --- Tests (if Docker available) ---
+    --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$'); then
+    fail "mypy" "$OUT"
+fi
+step "mypy"
 
 if command -v docker &>/dev/null; then
-    docker compose -f docker-compose.test.yml down -v 2>/dev/null || true
-    docker compose -f docker-compose.test.yml up -d --wait 2>/dev/null \
-        || fail "Failed to start test database"
+    cleanup_test_db
+    docker compose -f docker-compose.test.yml up -d --wait \
+        || fail "test db"
 
     if [ -f .env.test ]; then
         set -a; source .env.test; set +a
@@ -53,54 +63,60 @@ if command -v docker &>/dev/null; then
     export DB_USER="${TEST_DB_USER:-test_user}"
     export DB_PASSWORD="${TEST_DB_PASSWORD:-test_password}"
 
-    (cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py migrate --noinput 2>&1) \
-        || { docker compose -f docker-compose.test.yml down -v; fail "Migrations failed"; }
+    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py migrate --noinput --verbosity 0); then
+        cleanup_test_db; fail "migrate" "$OUT"
+    fi
 
-    (cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py makemigrations --check --dry-run 2>&1) \
-        || { docker compose -f docker-compose.test.yml down -v; fail "Unapplied model changes detected"; }
+    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py makemigrations --check --dry-run --verbosity 0); then
+        cleanup_test_db; fail "migrate — unapplied model changes detected"
+    fi
 
-    (cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput 2>&1) >/dev/null \
-        || { docker compose -f docker-compose.test.yml down -v; fail "collectstatic failed"; }
+    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py collectstatic --noinput --verbosity 0); then
+        cleanup_test_db; fail "collectstatic" "$OUT"
+    fi
+    step "migrate"
 
-    PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest \
-        web/core/tests web/scoring/tests web/ticketing/tests web/team/tests bot/tests \
-        --tb=short -v
-    TESTS_EXIT=$?
+    if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest \
+        web/core/tests web/scoring/tests web/ticketing/tests \
+        web/team/tests web/packets/tests bot/tests \
+        --tb=short -q); then
+        cleanup_test_db; fail "tests" "$OUT"
+    fi
+    cleanup_test_db
 
-    docker compose -f docker-compose.test.yml down -v
-    [ $TESTS_EXIT -ne 0 ] && fail "Tests failed"
-    ok "Tests passed"
+    SUMMARY=$(echo "$OUT" | grep . | tail -1)
+    step "tests      $SUMMARY"
 else
-    echo "  - Skipping tests (no Docker)"
+    echo "  · tests      skipped (no docker)"
 fi
 
-# --- Deploy ---
-
 echo ""
-echo "Deploying to $REMOTE_HOST..."
+echo "Deploy"
 
-rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" 2>&1 \
-    | grep -v "^cannot delete" || true
-ok "Files transferred"
+rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" --quiet \
+    || fail "rsync"
+step "synced"
 
-BUILD_OUTPUT=$(ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web" 2>&1) \
-    || { echo "$BUILD_OUTPUT"; fail "Container build failed"; }
-ok "Containers built"
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build --quiet bot web" \
+    || fail "build"
+step "built"
 
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot" >/dev/null 2>&1 \
-    || fail "Failed to start containers"
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --quiet-pull web bot" \
+    || fail "start"
 
-echo "  Waiting for health checks..."
 for i in $(seq 1 30); do
-    if ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -q '\"Health\":\"healthy\"'" 2>/dev/null; then
-        ok "Deployed and healthy"
+    if ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -q '\"Health\":\"healthy\"'"; then
+        step "healthy"
         echo ""
-        echo "Deployment complete!"
+        echo "Done in ${SECONDS}s"
         exit 0
     fi
     sleep 2
 done
 
 echo ""
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=30 web" 2>/dev/null
-fail "Health checks timed out"
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=30 web"
+fail "health check timed out after 60s"

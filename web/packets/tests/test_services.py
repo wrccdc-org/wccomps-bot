@@ -8,7 +8,7 @@ from registration.models import Event, EventTeamAssignment, Season, TeamRegistra
 
 from team.models import SchoolInfo, Team
 
-from ..models import PacketDistribution, TeamPacket
+from ..models import Packet, PacketDistribution
 from ..services import PacketDistributionService
 
 
@@ -52,7 +52,7 @@ class PacketDistributionServiceTestCase(TestCase):
                 password_generated=f"TestPass{i}!",
             )
 
-        self.packet = TeamPacket.objects.create(
+        self.packet = Packet.objects.create(
             title="Test Packet",
             file_data=b"test file content",
             filename="test.pdf",
