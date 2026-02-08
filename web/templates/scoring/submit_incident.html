@@ -117,20 +117,7 @@
     {{ box_metadata|json_script:"box-metadata" }}
     <script>
         const boxMetadata = JSON.parse(document.getElementById('box-metadata').textContent);
-        let teamNumber = {
-            %
-            if team %
-        } {
-            {
-                team.team_number
-            }
-        } {
-            %
-            else %
-        }
-        null {
-            % endif %
-        };
+        let teamNumber = {% if team %}{{ team.team_number }}{% else %}null{% endif %};
 
         function getSelectedTeamNumber() {
             const teamSelect = document.getElementById('id_team');

@@ -121,6 +121,8 @@ class DiscordQueueProcessor:
                 await self._handle_assign_role_by_username(task)
             elif task.task_type == "broadcast_message":
                 await self._handle_broadcast_message(task)
+            elif task.task_type == "post_ticket_update":
+                await self._handle_post_ticket_update(task)
             else:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
@@ -506,6 +508,59 @@ class DiscordQueueProcessor:
         await save_message_id()
 
         logger.info(f"Posted comment {comment_id} to thread {thread.id} (message {message.id})")
+
+    async def _handle_post_ticket_update(self, task: DiscordTask) -> None:
+        """Post a ticket status update (resolve/claim/unclaim/reopen) to the Discord thread."""
+        action = task.payload.get("action", "")
+        actor = task.payload.get("actor", "Unknown")
+
+        @sync_to_async
+        def get_ticket() -> Ticket:
+            if task.ticket_id:
+                return Ticket.objects.get(id=task.ticket_id)
+            raise ValueError("No ticket linked to task")
+
+        ticket = await get_ticket()
+
+        if not ticket.discord_thread_id:
+            raise ValueError(f"Ticket {ticket.ticket_number} has no Discord thread")
+
+        thread = self.bot.get_channel(ticket.discord_thread_id)
+        if not thread:
+            try:
+                thread = await self.bot.fetch_channel(ticket.discord_thread_id)
+            except Exception as e:
+                raise ValueError(f"Could not find thread {ticket.discord_thread_id}: {e}") from e
+
+        if not isinstance(thread, (discord.TextChannel, discord.Thread)):
+            raise TypeError(f"Channel {ticket.discord_thread_id} is not a text channel or thread")
+
+        if action == "resolved":
+            notes = task.payload.get("resolution_notes", "")
+            points = task.payload.get("points_charged", 0)
+            embed = discord.Embed(
+                title="Ticket Resolved",
+                color=discord.Color.green(),
+            )
+            embed.add_field(name="Resolved By", value=actor, inline=True)
+            embed.add_field(name="Points Charged", value=str(points), inline=True)
+            if notes:
+                embed.add_field(name="Resolution Notes", value=notes[:1024], inline=False)
+            await thread.send(embed=embed)
+        elif action == "claimed":
+            await thread.send(f"Ticket claimed by **{actor}**")
+        elif action == "unclaimed":
+            await thread.send(f"Ticket unclaimed by **{actor}**")
+        elif action == "reopened":
+            reason = task.payload.get("reason", "")
+            msg = f"Ticket reopened by **{actor}**"
+            if reason:
+                msg += f"\nReason: {reason}"
+            await thread.send(msg)
+        else:
+            await thread.send(f"Ticket updated: {action} by **{actor}**")
+
+        logger.info(f"Posted ticket update ({action}) to thread {ticket.discord_thread_id}")
 
     async def _handle_add_user_to_thread(self, task: DiscordTask) -> None:
         """Add a user to a Discord thread."""

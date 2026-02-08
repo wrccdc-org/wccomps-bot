@@ -35,6 +35,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from core.models import UserGroups
 from scoring.calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
@@ -206,8 +207,9 @@ class TestLeaderboardAccess:
             pass
 
     def test_admin_can_access_leaderboard(self, social_app) -> None:
-        """System Admin (is_staff) should be able to access the leaderboard."""
-        user = User.objects.create_user(username="admin_user", password="test123", is_staff=True)
+        """System Admin (Gold Team) should be able to access the leaderboard."""
+        user = User.objects.create_user(username="admin_user", password="test123")
+        UserGroups.objects.create(user=user, authentik_id="admin_user-uid", groups=["WCComps_GoldTeam"])
         client = Client()
         client.force_login(user)
 
@@ -696,7 +698,8 @@ class TestIncidentListView:
 
     def test_admin_can_access_incident_list(self, social_app) -> None:
         """Admin users can access incident list."""
-        user = User.objects.create_user(username="admin_user", password="test123", is_staff=True)
+        user = User.objects.create_user(username="admin_user", password="test123")
+        UserGroups.objects.create(user=user, authentik_id="admin_user-uid", groups=["WCComps_GoldTeam"])
         client = Client()
         client.force_login(user)
 
@@ -976,18 +979,19 @@ class OrangeCheckTypeTests(TestCase):
 class TestDataExport:
     """Test data export functionality for admin users."""
 
-    def test_export_index_requires_admin(self, create_user_with_groups) -> None:
-        """Export index page requires admin (is_staff) access."""
-        non_admin = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+    def test_export_index_requires_gold_team(self, create_user_with_groups) -> None:
+        """Export index page requires Gold Team access."""
+        non_gold = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         client = Client()
-        client.force_login(non_admin)
+        client.force_login(non_gold)
 
         response = client.get(reverse("scoring:export_index"))
         assert response.status_code == 302
 
     def test_export_index_accessible_by_admin(self, social_app) -> None:
         """Admin can access export index page."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         client = Client()
         client.force_login(admin)
 
@@ -1006,7 +1010,8 @@ class TestDataExport:
 
     def test_red_findings_csv_export_contains_correct_headers(self, social_app) -> None:
         """Red findings CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         finding = RedTeamFinding.objects.create(
@@ -1036,7 +1041,8 @@ class TestDataExport:
 
     def test_red_findings_csv_export_contains_data(self, social_app) -> None:
         """Red findings CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         finding = RedTeamFinding.objects.create(
@@ -1060,7 +1066,8 @@ class TestDataExport:
         """Red findings JSON export returns valid JSON."""
         import json
 
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         finding = RedTeamFinding.objects.create(
@@ -1086,7 +1093,8 @@ class TestDataExport:
 
     def test_incidents_csv_export_contains_headers(self, social_app) -> None:
         """Incidents CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
 
         client = Client()
         client.force_login(admin)
@@ -1103,7 +1111,8 @@ class TestDataExport:
 
     def test_incidents_csv_export_contains_data(self, social_app) -> None:
         """Incidents CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         IncidentReport.objects.create(
@@ -1130,7 +1139,8 @@ class TestDataExport:
         """Incidents JSON export returns valid JSON."""
         import json
 
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         IncidentReport.objects.create(
@@ -1156,7 +1166,8 @@ class TestDataExport:
 
     def test_orange_adjustments_csv_export_contains_headers(self, social_app) -> None:
         """Orange adjustments CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
 
         client = Client()
         client.force_login(admin)
@@ -1172,7 +1183,8 @@ class TestDataExport:
 
     def test_orange_adjustments_csv_export_contains_data(self, social_app) -> None:
         """Orange adjustments CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         OrangeTeamBonus.objects.create(
@@ -1195,7 +1207,8 @@ class TestDataExport:
         """Orange adjustments JSON export returns valid JSON."""
         import json
 
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         OrangeTeamBonus.objects.create(
@@ -1220,7 +1233,8 @@ class TestDataExport:
 
     def test_inject_grades_csv_export_contains_headers(self, social_app) -> None:
         """Inject grades CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
 
         client = Client()
         client.force_login(admin)
@@ -1237,7 +1251,8 @@ class TestDataExport:
 
     def test_inject_grades_csv_export_contains_data(self, social_app) -> None:
         """Inject grades CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         InjectGrade.objects.create(
@@ -1262,7 +1277,8 @@ class TestDataExport:
         """Inject grades JSON export returns valid JSON."""
         import json
 
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         InjectGrade.objects.create(
@@ -1288,7 +1304,8 @@ class TestDataExport:
 
     def test_final_scores_csv_export_contains_headers(self, social_app) -> None:
         """Final scores CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
 
         client = Client()
         client.force_login(admin)
@@ -1305,7 +1322,8 @@ class TestDataExport:
 
     def test_final_scores_csv_export_contains_data(self, social_app) -> None:
         """Final scores CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         from .models import FinalScore
@@ -1334,7 +1352,8 @@ class TestDataExport:
         """Final scores JSON export returns valid JSON."""
         import json
 
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
         from .models import FinalScore
@@ -1361,7 +1380,8 @@ class TestDataExport:
 
     def test_export_defaults_to_csv_without_format_param(self, social_app) -> None:
         """Export endpoints default to CSV when format parameter is not provided."""
-        admin = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
 
         client = Client()
         client.force_login(admin)
@@ -1370,11 +1390,11 @@ class TestDataExport:
         assert response.status_code == 200
         assert response["Content-Type"] == "text/csv"
 
-    def test_non_admin_cannot_export_any_data(self, create_user_with_groups) -> None:
-        """Non-admin users cannot access any export endpoints."""
-        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+    def test_non_gold_team_cannot_export_any_data(self, create_user_with_groups) -> None:
+        """Non-Gold Team users cannot access any export endpoints."""
+        red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         client = Client()
-        client.force_login(gold_user)
+        client.force_login(red_user)
 
         endpoints = [
             "scoring:export_red_findings",

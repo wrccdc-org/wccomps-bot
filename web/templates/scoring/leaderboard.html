@@ -54,7 +54,7 @@
         </c-table>
         <div class="table-footer">
             <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
-            {% if user.is_staff %}
+            {% if is_gold_team or is_admin %}
                 <div class="d-flex gap-10">
                     <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
                         {% csrf_token %}

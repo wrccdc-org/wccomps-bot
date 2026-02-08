@@ -17,8 +17,8 @@ def create_user_with_groups(db: Any) -> Callable[..., User]:
     """Factory fixture to create users with Authentik groups and DiscordLink."""
     _discord_id_counter = [1000000000]
 
-    def _create(username: str, groups: list[str], is_staff: bool = False) -> User:
-        user = User.objects.create_user(username=username, password="testpass123", is_staff=is_staff)
+    def _create(username: str, groups: list[str]) -> User:
+        user = User.objects.create_user(username=username, password="testpass123")
         UserGroups.objects.create(
             user=user,
             authentik_id=f"{username}-uid",
@@ -93,8 +93,8 @@ def ticketing_admin_user(create_user_with_groups: Callable[..., User]) -> User:
 
 @pytest.fixture
 def admin_user(create_user_with_groups: Callable[..., User]) -> User:
-    """Create an admin user (is_staff + Discord_Admin group)."""
-    return create_user_with_groups("admin", ["WCComps_Discord_Admin"], is_staff=True)
+    """Create an admin user (Discord_Admin group)."""
+    return create_user_with_groups("admin", ["WCComps_Discord_Admin"])
 
 
 @pytest.fixture(autouse=True)

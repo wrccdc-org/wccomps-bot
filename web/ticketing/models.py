@@ -91,6 +91,12 @@ class Ticket(models.Model):
             models.Index(fields=["assigned_to"]),
             models.Index(fields=["discord_thread_id"]),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(ticket_number=""),
+                name="ticket_number_not_empty",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.ticket_number} - {self.team.team_name}"

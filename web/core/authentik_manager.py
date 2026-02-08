@@ -119,7 +119,7 @@ class AuthentikManager:
             return slugs
 
     def get_application_by_slug(self, slug: str) -> AuthentikApplication | None:
-        """Get application details by slug."""
+        """Get application details by exact slug match."""
         url = f"{self.base_url}/api/v3/core/applications/"
         try:
             self._log_request("GET", url, params={"slug": slug})
@@ -132,12 +132,14 @@ class AuthentikManager:
             response.raise_for_status()
             results: list[AuthentikApplication] = response.json().get("results", [])
 
-            if not results:
-                return None
+            # API does substring matching, so filter for exact slug
+            for app in results:
+                if app.get("slug") == slug:
+                    logger.info(f"Found application '{slug}' with pk={app.get('pk')}")
+                    return app
 
-            app: AuthentikApplication = results[0]
-            logger.info(f"Found application '{slug}' with pk={app.get('pk')}")
-            return app
+            logger.warning(f"No exact match for slug '{slug}' (got {len(results)} partial matches)")
+            return None
         except requests.exceptions.HTTPError as e:
             error = self._handle_response_error(e.response, f"Get application '{slug}'")
             logger.exception(str(error))
@@ -148,6 +150,23 @@ class AuthentikManager:
         except Exception as e:
             logger.error(f"Unexpected error getting application '{slug}': {e}", exc_info=True)
             return None
+
+    def list_blueteam_applications(self) -> list[str]:
+        """List only application slugs that have a BlueTeam group binding."""
+        all_slugs = self.list_applications()
+        bt_slugs: list[str] = []
+        for slug in all_slugs:
+            app = self.get_application_by_slug(slug)
+            if not app:
+                continue
+            binding, _ = self.get_blueteam_binding(app["pk"])
+            if binding:
+                bt_slugs.append(slug)
+                logger.info(f"App '{slug}' has BlueTeam binding")
+            else:
+                logger.debug(f"App '{slug}' has no BlueTeam binding, skipping")
+        logger.info(f"Found {len(bt_slugs)} apps with BlueTeam bindings: {bt_slugs}")
+        return bt_slugs
 
     def get_blueteam_binding(self, app_pk: str) -> tuple[AuthentikBinding | None, str | None]:
         """Get the BlueTeam group binding by querying application bindings.

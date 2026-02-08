@@ -37,7 +37,7 @@ class OrangeTeamPortalFilteringTests(TestCase):
         UserGroups.objects.create(user=self.gold_user, authentik_id="gold1-uid", groups=["WCComps_GoldTeam"])
 
         # Create Admin user
-        self.admin_user = User.objects.create_user(username="admin1", password="test123", is_staff=True)
+        self.admin_user = User.objects.create_user(username="admin1", password="test123")
         UserGroups.objects.create(user=self.admin_user, authentik_id="admin1-uid", groups=["WCComps_Discord_Admin"])
 
         # Create bonuses submitted by different users

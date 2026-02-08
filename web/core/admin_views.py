@@ -2,12 +2,14 @@
 
 import csv
 import io
+import json
 import logging
+from collections.abc import Iterator
 from typing import cast
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from scoring.models import QuotientMetadataCache
@@ -18,7 +20,7 @@ from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
     reset_blueteam_password,
-    toggle_all_blueteam_accounts_sync,
+    toggle_authentik_user,
 )
 from core.models import AuditLog, CompetitionConfig, DiscordTask, QueuedAnnouncement
 from team.models import DiscordLink, Team
@@ -101,7 +103,7 @@ def _action_set_start_time(request: HttpRequest, config: CompetitionConfig, auth
         start_time = parse_datetime_to_utc(datetime_str, tz_name)
 
         if not config.controlled_applications:
-            config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
+            config.ensure_controlled_applications()
 
         config.competition_start_time = start_time
         config.applications_enabled = False
@@ -132,7 +134,7 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         end_time = parse_datetime_to_utc(datetime_str, tz_name)
 
         if not config.controlled_applications:
-            config.controlled_applications = ["netbird", "scoring", "competitions-public", "competitions"]
+            config.ensure_controlled_applications()
 
         config.competition_end_time = end_time
         config.save()
@@ -150,30 +152,57 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         return JsonResponse({"error": "Invalid datetime format"}, status=400)
 
 
-def _action_start_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
-    """Handle start_competition action."""
-    if not config.controlled_applications:
-        return JsonResponse({"error": "No controlled applications configured"}, status=400)
+def _progress(step: str, current: int, total: int, ok: bool = True) -> str:
+    """Encode a single progress line as newline-delimited JSON."""
+    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
 
+
+def _stream_start_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
+    """Stream progress for starting the competition."""
+    apps = config.controlled_applications
+    total = len(apps) + 50 + 1  # apps + accounts + quotient sync
     auth_manager = AuthentikManager()
-    app_results = auth_manager.enable_applications(config.controlled_applications)
 
-    success_count, failed_count = toggle_all_blueteam_accounts_sync(is_active=True)
+    # Phase 1: Enable applications
+    app_ok = 0
+    app_fail = 0
+    for i, slug in enumerate(apps, 1):
+        success, error = auth_manager.enable_application(slug)
+        if success:
+            app_ok += 1
+            yield _progress(f"Enabled {slug}", i, total)
+        else:
+            app_fail += 1
+            yield _progress(f"Failed {slug}: {error}", i, total, ok=False)
 
-    config.applications_enabled = True
-    config.competition_start_time = None  # Clear start_time only, preserve end_time
-    config.save()
+    # Phase 2: Enable team accounts
+    acct_ok = 0
+    acct_fail = 0
+    for i in range(1, 51):
+        username = f"team{i:02d}"
+        success, _ = toggle_authentik_user(username, is_active=True)
+        idx = len(apps) + i
+        if success:
+            acct_ok += 1
+            yield _progress(f"Enabled {username}", idx, total)
+        else:
+            acct_fail += 1
+            yield _progress(f"Failed {username}", idx, total, ok=False)
 
-    # Sync Quotient metadata for new competition
+    # Phase 3: Quotient sync
     try:
         sync_quotient_metadata()
         quotient_synced = True
+        yield _progress("Quotient metadata synced", total, total)
     except Exception as e:
         logger.warning(f"Failed to sync Quotient metadata: {e}")
         quotient_synced = False
+        yield _progress(f"Quotient sync failed: {e}", total, total, ok=False)
 
-    success_apps = [app for app, (success, _) in app_results.items() if success]
-    failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
+    # Update config
+    config.applications_enabled = True
+    config.competition_start_time = None
+    config.save()
 
     AuditLog.objects.create(
         action="competition_started",
@@ -181,37 +210,78 @@ def _action_start_competition(request: HttpRequest, config: CompetitionConfig, a
         target_entity="competition_config",
         target_id=config.pk,
         details={
-            "apps_success": len(success_apps),
-            "apps_failed": len(failed_apps),
-            "accounts_enabled": success_count,
-            "accounts_failed": failed_count,
+            "apps_success": app_ok,
+            "apps_failed": app_fail,
+            "accounts_enabled": acct_ok,
+            "accounts_failed": acct_fail,
             "quotient_synced": quotient_synced,
         },
     )
 
-    app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
     quotient_msg = ", Quotient synced" if quotient_synced else ", Quotient sync failed"
-    return JsonResponse(
-        {"success": True, "message": f"Competition started. {app_msg}, Accounts: {success_count}/50{quotient_msg}"}
+    yield (
+        json.dumps(
+            {
+                "done": True,
+                "success": True,
+                "message": f"Competition started. Apps: {app_ok}/{len(apps)}, Accounts: {acct_ok}/50{quotient_msg}",
+            }
+        )
+        + "\n"
     )
 
 
-def _action_stop_competition(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
-    """Handle stop_competition action."""
+def _action_start_competition(
+    request: HttpRequest, config: CompetitionConfig, authentik_username: str
+) -> StreamingHttpResponse:
+    """Handle start_competition action with streaming progress."""
     if not config.controlled_applications:
-        return JsonResponse({"error": "No controlled applications configured"}, status=400)
+        return StreamingHttpResponse(
+            json.dumps({"done": True, "success": False, "message": "No controlled applications configured"}) + "\n",
+            content_type="application/x-ndjson",
+        )
+    return StreamingHttpResponse(
+        _stream_start_competition(config, authentik_username),
+        content_type="application/x-ndjson",
+    )
 
+
+def _stream_stop_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
+    """Stream progress for stopping the competition."""
+    apps = config.controlled_applications
+    total = len(apps) + 50  # apps + accounts
     auth_manager = AuthentikManager()
-    app_results = auth_manager.disable_applications(config.controlled_applications)
 
-    success_count, failed_count = toggle_all_blueteam_accounts_sync(is_active=False)
+    # Phase 1: Disable applications
+    app_ok = 0
+    app_fail = 0
+    for i, slug in enumerate(apps, 1):
+        success, error = auth_manager.disable_application(slug)
+        if success:
+            app_ok += 1
+            yield _progress(f"Disabled {slug}", i, total)
+        else:
+            app_fail += 1
+            yield _progress(f"Failed {slug}: {error}", i, total, ok=False)
 
+    # Phase 2: Disable team accounts
+    acct_ok = 0
+    acct_fail = 0
+    for i in range(1, 51):
+        username = f"team{i:02d}"
+        success, _ = toggle_authentik_user(username, is_active=False)
+        idx = len(apps) + i
+        if success:
+            acct_ok += 1
+            yield _progress(f"Disabled {username}", idx, total)
+        else:
+            acct_fail += 1
+            yield _progress(f"Failed {username}", idx, total, ok=False)
+
+    # Update config
     config.applications_enabled = False
-    config.competition_end_time = None  # Clear end_time only
+    config.competition_end_time = None
     config.save()
-
-    success_apps = [app for app, (success, _) in app_results.items() if success]
-    failed_apps = [(app, error) for app, (success, error) in app_results.items() if not success]
 
     AuditLog.objects.create(
         action="competition_stopped",
@@ -219,16 +289,37 @@ def _action_stop_competition(request: HttpRequest, config: CompetitionConfig, au
         target_entity="competition_config",
         target_id=config.pk,
         details={
-            "apps_disabled": len(success_apps),
-            "apps_failed": len(failed_apps),
-            "accounts_disabled": success_count,
-            "accounts_failed": failed_count,
+            "apps_disabled": app_ok,
+            "apps_failed": app_fail,
+            "accounts_disabled": acct_ok,
+            "accounts_failed": acct_fail,
         },
     )
 
-    app_msg = f"Apps: {len(success_apps)}/{len(config.controlled_applications)}"
-    return JsonResponse(
-        {"success": True, "message": f"Competition stopped. {app_msg}, Accounts disabled: {success_count}/50"}
+    yield (
+        json.dumps(
+            {
+                "done": True,
+                "success": True,
+                "message": f"Competition stopped. Apps: {app_ok}/{len(apps)}, Accounts disabled: {acct_ok}/50",
+            }
+        )
+        + "\n"
+    )
+
+
+def _action_stop_competition(
+    request: HttpRequest, config: CompetitionConfig, authentik_username: str
+) -> StreamingHttpResponse:
+    """Handle stop_competition action with streaming progress."""
+    if not config.controlled_applications:
+        return StreamingHttpResponse(
+            json.dumps({"done": True, "success": False, "message": "No controlled applications configured"}) + "\n",
+            content_type="application/x-ndjson",
+        )
+    return StreamingHttpResponse(
+        _stream_stop_competition(config, authentik_username),
+        content_type="application/x-ndjson",
     )
 
 
@@ -461,7 +552,7 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def admin_competition_action(request: HttpRequest) -> HttpResponse:
+def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
     """Handle competition management actions via dispatch."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)

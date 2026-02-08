@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Concatenate, ParamSpec, cast
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse, QueryDict
@@ -89,9 +89,6 @@ def require_role(
         @wraps(view_func)
         def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
             user = cast(User, request.user)
-            if user.is_staff:
-                return view_func(request, *args, **kwargs)
-
             if any(has_permission(user, perm) for perm in permission_names):
                 return view_func(request, *args, **kwargs)
 
@@ -124,9 +121,6 @@ def require_leaderboard_access[**P](
     @wraps(view_func)
     def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
         user = cast(User, request.user)
-
-        if user.is_staff:
-            return view_func(request, *args, **kwargs)
 
         if (
             has_permission(user, "gold_team")
@@ -169,7 +163,7 @@ def event_leaderboard(request: HttpRequest, event_id: int) -> HttpResponse:
     event = get_object_or_404(Event, id=event_id)
 
     user = cast(User, request.user)
-    is_gold_team = user.is_staff or has_permission(user, "gold_team")
+    is_gold_team = has_permission(user, "gold_team")
 
     # Only show scores after event is finalized (or to Gold Team)
     if not event.is_finalized and not is_gold_team:
@@ -260,7 +254,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
 
     user = cast(User, request.user)
-    is_gold_team = user.is_staff or has_permission(user, "gold_team")
+    is_gold_team = has_permission(user, "gold_team")
 
     # For bulk approve button visibility
     pending_findings = pending_count > 0
@@ -755,7 +749,7 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
     """Submit incident report (blue team or admin)."""
 
     user = cast(User, request.user)
-    is_admin = user.is_staff
+    is_admin = has_permission(user, "gold_team")
     team: Team | None = None
 
     if not is_admin:
@@ -840,7 +834,7 @@ def incident_list(request: HttpRequest) -> HttpResponse:
 
     user = cast(User, request.user)
 
-    if user.is_staff:
+    if has_permission(user, "gold_team"):
         incidents = IncidentReport.objects.all().select_related("team", "submitted_by").order_by("-created_at")
     else:
         user_team = _get_user_team(user)
@@ -864,7 +858,7 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
     incident = get_object_or_404(IncidentReport, id=incident_id)
 
     user = cast(User, request.user)
-    if not user.is_staff:
+    if not has_permission(user, "gold_team"):
         user_team = _get_user_team(user)
         if not user_team or incident.team != user_team:
             messages.error(request, "You do not have permission to view this incident report")
@@ -1211,7 +1205,7 @@ def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def scoring_config(request: HttpRequest) -> HttpResponse:
     """Scoring configuration (admin)."""
 
@@ -1246,7 +1240,7 @@ def scoring_config(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def sync_metadata(request: HttpRequest) -> HttpResponse:
     """Sync metadata from Quotient."""
@@ -1261,7 +1255,7 @@ def sync_metadata(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def sync_scores(request: HttpRequest) -> HttpResponse:
     """Sync service scores from Quotient."""
@@ -1274,7 +1268,7 @@ def sync_scores(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def recalculate_scores(request: HttpRequest) -> HttpResponse:
     """Recalculate all scores."""
@@ -1530,14 +1524,14 @@ def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_index(request: HttpRequest) -> HttpResponse:
     """Export data index page (admin only)."""
     return render(request, "scoring/export_index.html")
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_red_findings(request: HttpRequest) -> HttpResponse:
     """Export red team findings (admin only)."""
     from .export import export_red_findings_csv, export_red_findings_json
@@ -1549,7 +1543,7 @@ def export_red_findings(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_incidents(request: HttpRequest) -> HttpResponse:
     """Export incident reports (admin only)."""
     from .export import export_incidents_csv, export_incidents_json
@@ -1561,7 +1555,7 @@ def export_incidents(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
     """Export orange team adjustments (admin only)."""
     from .export import export_orange_adjustments_csv, export_orange_adjustments_json
@@ -1573,7 +1567,7 @@ def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_inject_grades(request: HttpRequest) -> HttpResponse:
     """Export inject grades (admin only)."""
     from .export import export_inject_grades_csv, export_inject_grades_json
@@ -1585,7 +1579,7 @@ def export_inject_grades(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_final_scores(request: HttpRequest) -> HttpResponse:
     """Export final scores (admin only)."""
     from .export import export_final_scores_csv, export_final_scores_json
@@ -1597,7 +1591,7 @@ def export_final_scores(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@require_role("gold_team", error_message="Only Gold Team members can access this")
 def export_all(request: HttpRequest) -> HttpResponse:
     """Export all scoring data as a zip file (admin only)."""
     from .export import export_all_zip
@@ -1758,9 +1752,9 @@ def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> Ht
 
     screenshot = get_object_or_404(IncidentScreenshot, id=screenshot_id)
 
-    # Check permission: must be staff or team member
+    # Check permission: must be gold_team/staff or the team that submitted it
     user = cast(User, request.user)
-    if not user.is_staff:
+    if not has_permission(user, "gold_team"):
         user_team = _get_user_team(user)
         if not user_team or screenshot.incident.team != user_team:
             return HttpResponseForbidden("You do not have permission to view this file")

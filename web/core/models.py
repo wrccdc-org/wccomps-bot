@@ -72,6 +72,7 @@ class DiscordTask(models.Model):
         ("remove_role", "Remove Team Role"),
         ("setup_team_infrastructure", "Setup Team Infrastructure"),
         ("log_to_channel", "Log to Ops Channel"),
+        ("post_ticket_update", "Post Ticket Update to Thread"),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES)
@@ -151,7 +152,7 @@ class CompetitionConfig(models.Model):
     # Application slugs to control
     controlled_applications = models.JSONField(
         default=list,
-        help_text="List of Authentik application slugs to enable/disable (e.g., ['netbird', 'scoring'])",
+        help_text="List of Authentik application slugs to enable/disable (e.g., ['scoring', 'quotient2', 'semaphore'])",
     )
 
     # Audit
@@ -190,6 +191,13 @@ class CompetitionConfig(models.Model):
         if not self.competition_end_time:
             return False
         return timezone.now() >= self.competition_end_time and self.applications_enabled
+
+    def ensure_controlled_applications(self) -> None:
+        """Populate controlled_applications from Authentik if empty (only apps with BlueTeam bindings)."""
+        if not self.controlled_applications:
+            from core.authentik_manager import AuthentikManager
+
+            self.controlled_applications = AuthentikManager().list_blueteam_applications()
 
     @classmethod
     def get_config(cls) -> "CompetitionConfig":

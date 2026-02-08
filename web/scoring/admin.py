@@ -64,8 +64,9 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     @admin.display(description="Boxes")
     def affected_boxes_display(self, obj: RedTeamFinding) -> str:
         if obj.affected_boxes:
-            boxes = obj.affected_boxes[:3]
-            suffix = "..." if len(obj.affected_boxes) > 3 else ""
+            items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
+            boxes = items[:3]
+            suffix = "..." if len(items) > 3 else ""
             return ", ".join(boxes) + suffix
         return "—"
 
@@ -181,8 +182,9 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
     @admin.display(description="Affected Boxes")
     def affected_boxes_display(self, obj: IncidentReport) -> str:
         if obj.affected_boxes:
-            boxes = obj.affected_boxes[:3]
-            suffix = "..." if len(obj.affected_boxes) > 3 else ""
+            items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
+            boxes = items[:3]
+            suffix = "..." if len(items) > 3 else ""
             return ", ".join(boxes) + suffix
         return "—"
 

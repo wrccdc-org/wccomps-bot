@@ -36,14 +36,14 @@ def team_packets_list(request: HttpRequest) -> HttpResponse:
     from core.auth_utils import has_permission
 
     user = cast(User, request.user)
-    is_staff = has_permission(user, "gold_team")
+    is_gold = has_permission(user, "gold_team")
 
-    if is_staff:
+    if is_gold:
         # Gold team sees all distributed packets
         packets = TeamPacket.objects.filter(status__in=["distributing", "completed"], web_access_enabled=True).order_by(
             "-created_at"
         )
-        context: dict[str, object] = {"packets": packets, "is_staff_view": True}
+        context: dict[str, object] = {"packets": packets, "is_gold_view": True}
         return render(request, "packets/team_packets_list.html", context)
 
     team_number = get_user_team_number(user)

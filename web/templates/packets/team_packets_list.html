@@ -10,7 +10,7 @@
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}
         <c-module>
-        {% if is_staff_view %}
+        {% if is_gold_view %}
             {% if packets %}
                 <c-table aria_label="Team packets">
                 <c-slot name="headers">

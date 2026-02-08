@@ -176,7 +176,8 @@ class IndividualOrangeApprovalTests(TestCase):
 
     def test_admin_can_approve_adjustment(self) -> None:
         """Admin users can approve adjustments."""
-        admin_user = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin_user = User.objects.create_user(username="admin", password="test123")
+        UserGroups.objects.create(user=admin_user, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         self.client.login(username="admin", password="test123")
         url = reverse("scoring:approve_orange_adjustment", args=[self.adjustment.id])
 
@@ -344,7 +345,7 @@ class OrangePortalApprovalUITests(TestCase):
         # Create users
         self.gold_user = User.objects.create_user(username="gold", password="test123")
         self.orange_user = User.objects.create_user(username="orange", password="test123")
-        self.admin_user = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        self.admin_user = User.objects.create_user(username="admin", password="test123")
 
         # Create UserGroups for permissions
         UserGroups.objects.create(user=self.gold_user, authentik_id="gold-uid", groups=["WCComps_GoldTeam"])

@@ -9,6 +9,7 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import UserGroups
 from team.models import Team
 
 from .models import InjectGrade
@@ -37,8 +38,9 @@ class TestInjectGradesReviewAccess:
         assert response.status_code == 200
 
     def test_admin_can_access_review(self, create_user_with_groups: Callable[..., User]) -> None:
-        """System Admin (is_staff) should be able to access inject grades review."""
-        user = User.objects.create_user(username="admin_user", password="test123", is_staff=True)
+        """System Admin (Gold Team) should be able to access inject grades review."""
+        user = User.objects.create_user(username="admin_user", password="test123")
+        UserGroups.objects.create(user=user, authentik_id="admin_user-uid", groups=["WCComps_GoldTeam"])
         client = Client()
         client.force_login(user)
 

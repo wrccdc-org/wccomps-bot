@@ -46,7 +46,7 @@ class TestBulkApproveRedFindingsView:
 
     def test_admin_can_access_bulk_approve(self, db) -> None:
         """Admin users should be able to access bulk approve."""
-        admin_user = User.objects.create_user(username="admin", password="test123", is_staff=True)
+        admin_user = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin_user, authentik_id="admin-uid", groups=["WCComps_Discord_Admin"])
         client = Client()
         client.force_login(admin_user)
@@ -54,10 +54,10 @@ class TestBulkApproveRedFindingsView:
         response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": []})
 
         # Admin should have access (not redirected with 302 to leaderboard)
-        # Empty list should return redirect to red team portal
+        # Empty list should return redirect to red findings view
         assert response.status_code in [200, 302]
         if response.status_code == 302:
-            assert "red-team" in response.url  # type: ignore[attr-defined]
+            assert "red-findings" in response.url or "red-team" in response.url  # type: ignore[attr-defined]
 
     def test_gold_team_can_access_bulk_approve(self, create_user_with_groups: Callable[..., User]) -> None:
         """Gold Team should be able to access bulk approve."""

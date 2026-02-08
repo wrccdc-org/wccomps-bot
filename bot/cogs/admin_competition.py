@@ -245,9 +245,11 @@ class AdminCompetitionCog(commands.Cog):
         # Get or create config
         config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
 
-        # Set default controlled applications if not already set
+        # Populate controlled applications from Authentik if not already set
         if not config.controlled_applications:
-            config.controlled_applications = ["netbird", "scoring"]
+            from asgiref.sync import sync_to_async
+
+            await sync_to_async(config.ensure_controlled_applications)()
 
         config.competition_start_time = start_time
         config.applications_enabled = False  # Reset to disabled
@@ -324,9 +326,11 @@ class AdminCompetitionCog(commands.Cog):
         # Get or create config
         config = await CompetitionConfig.objects.afirst() or await CompetitionConfig.objects.acreate()
 
-        # Set default controlled applications if not already set
+        # Populate controlled applications from Authentik if not already set
         if not config.controlled_applications:
-            config.controlled_applications = ["netbird", "scoring"]
+            from asgiref.sync import sync_to_async
+
+            await sync_to_async(config.ensure_controlled_applications)()
 
         config.competition_end_time = end_time
         await config.asave()

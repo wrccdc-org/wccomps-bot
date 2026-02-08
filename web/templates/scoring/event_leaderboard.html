@@ -33,7 +33,7 @@
             <c-table_header sortable="false" class="text-right">SLA</c-table_header>
             <c-table_header sortable="false" class="text-right">Adjustments</c-table_header>
             <c-table_header sortable="false" class="text-right">Total</c-table_header>
-            {% if user.is_staff or perms.gold_team %}<c-table_header sortable="false">Scorecard</c-table_header>{% endif %}
+            {% if is_gold_team or is_admin %}<c-table_header sortable="false">Scorecard</c-table_header>{% endif %}
         </tr>
         </c-slot>
         {% for score in scores %}
@@ -67,7 +67,7 @@
                 <td class="text-right">
                     <strong>{{ score.total_score|floatformat:2 }}</strong>
                 </td>
-                {% if user.is_staff or perms.gold_team %}
+                {% if is_gold_team or is_admin %}
                     <td>
                         {% if score.scorecard_sent_at %}
                             <c-badge variant="success" title="Sent {{ score.scorecard_sent_at|date:'Y-m-d H:i' }}">Sent</c-badge>
@@ -88,7 +88,7 @@
         </c-table>
         <div class="table-footer">
             <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
-            {% if user.is_staff or perms.gold_team %}
+            {% if is_gold_team or is_admin %}
                 <div class="flex gap-2">
                     <form method="post"
                           action="{% url 'scoring:recalculate_event_scores' event.id %}"

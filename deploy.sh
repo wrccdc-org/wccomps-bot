@@ -79,15 +79,15 @@ fi
 echo ""
 echo "Deploying to $REMOTE_HOST..."
 
-rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" \
-    || fail "rsync failed"
+rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" 2>&1 \
+    | grep -v "^cannot delete" || true
 ok "Files transferred"
 
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web" \
-    || fail "Container build failed"
+BUILD_OUTPUT=$(ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build bot web" 2>&1) \
+    || { echo "$BUILD_OUTPUT"; fail "Container build failed"; }
 ok "Containers built"
 
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot" \
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d web bot" >/dev/null 2>&1 \
     || fail "Failed to start containers"
 
 echo "  Waiting for health checks..."

@@ -214,7 +214,7 @@ Ticket administrators have elevated permissions for ticket management.
 
 ### System Admin
 
-**Identity**: Members of `WCComps_Discord_Admin` Authentik group with `is_staff` flag
+**Identity**: Members of `WCComps_Discord_Admin` Authentik group
 
 System administrators have full access to system configuration.
 
@@ -813,7 +813,7 @@ Defined in `templates/admin/base_site.html`:
 | Orange Team | `is_orange_team` or `is_admin` | `/scoring/orange-team/` |
 | Scoring | `is_gold_team` or `is_white_team` or `is_ticketing_admin` or `is_admin` | `/scoring/leaderboard/` |
 | School Info | `is_gold_team` or `is_admin` | `/ops/school-info/` |
-| Admin | `is_staff` | `/admin/` |
+| Admin | `is_admin` (Authentik group) | `/admin/` |
 | Comp Mgmt | `is_gold_team` or `is_admin` | `/ops/admin/competition/` |
 
 ### Scoring Sub-Navigation
@@ -859,7 +859,7 @@ When users access `/` or complete OAuth login, they are redirected based on role
 | `WCComps_BlackTeam` | Black Team (operations/support staff) |
 | `WCComps_Ticketing_Support` | Ticketing Support |
 | `WCComps_Ticketing_Admin` | Ticketing Admin |
-| `WCComps_Discord_Admin` | System Admin (+ is_staff, inherits Gold Team) |
+| `WCComps_Discord_Admin` | System Admin (inherits Gold Team) |
 
 ---
 

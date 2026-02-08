@@ -386,9 +386,11 @@ class RedTeamFinding(models.Model):
     @property
     def affected_boxes_display(self) -> str:
         """Return display string for affected boxes."""
-        if self.affected_boxes:
-            return ", ".join(self.affected_boxes)
-        return ""
+        if not self.affected_boxes:
+            return ""
+        if isinstance(self.affected_boxes, str):
+            return self.affected_boxes
+        return ", ".join(self.affected_boxes)
 
     def matches_source_ip(self, ip: str) -> bool:
         """Check if the given IP matches this finding's source (single or pool)."""
@@ -582,9 +584,11 @@ class IncidentReport(models.Model):
     @property
     def affected_boxes_display(self) -> str:
         """Return display string for affected boxes."""
-        if self.affected_boxes:
-            return ", ".join(self.affected_boxes)
-        return ""
+        if not self.affected_boxes:
+            return ""
+        if isinstance(self.affected_boxes, str):
+            return self.affected_boxes
+        return ", ".join(self.affected_boxes)
 
 
 class IncidentScreenshot(models.Model):

@@ -68,7 +68,7 @@ class TestLeaderboardPermissions:
         assert response.status_code == 200
 
     def test_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access leaderboard."""
+        """Admin (Gold Team) should access leaderboard."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:leaderboard"))
@@ -142,7 +142,7 @@ class TestRedTeamPortalPermissions:
         assert response.status_code == 302
 
     def test_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access Red Team Portal."""
+        """Admin (Gold Team) should access Red Team Portal."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:red_team_portal"))
@@ -173,12 +173,12 @@ class TestIncidentSubmissionPermissions:
         response = client.get(reverse("scoring:submit_incident_report"))
         assert response.status_code == 302
 
-    def test_gold_team_denied_without_team(self, gold_team_user):
-        """Gold Team should not submit incidents (not a blue team)."""
+    def test_gold_team_allowed_without_team(self, gold_team_user, mock_quotient_client):
+        """Gold Team can submit incidents as admin (team selection in form)."""
         client = Client()
         client.force_login(gold_team_user)
         response = client.get(reverse("scoring:submit_incident_report"))
-        assert response.status_code == 302
+        assert response.status_code == 200
 
     def test_white_team_denied_without_team(self, white_team_user):
         """White Team should not submit incidents (not a blue team)."""
@@ -195,7 +195,7 @@ class TestIncidentSubmissionPermissions:
         assert response.status_code == 302
 
     def test_admin_allowed(self, admin_user, mock_quotient_client):
-        """Admin (is_staff) should submit incidents."""
+        """Admin (Gold Team) should submit incidents."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:submit_incident_report"))
@@ -261,7 +261,7 @@ class TestOrangeTeamPortalPermissions:
         assert response.status_code == 302
 
     def test_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access Orange Team Portal."""
+        """Admin (Gold Team) should access Orange Team Portal."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:orange_team_portal"))
@@ -327,7 +327,7 @@ class TestInjectGradingPermissions:
         assert response.status_code == 302
 
     def test_admin_allowed(self, admin_user, mock_quotient_client):
-        """Admin (is_staff) should access Inject Grading."""
+        """Admin (Gold Team) should access Inject Grading."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:inject_grading"))
@@ -357,12 +357,12 @@ class TestExportViewsPermissions:
         response = client.get(reverse("scoring:export_index"))
         assert response.status_code == 302
 
-    def test_export_index_gold_team_denied(self, gold_team_user):
-        """Gold Team should not access export index (admin only)."""
+    def test_export_index_gold_team_allowed(self, gold_team_user):
+        """Gold Team should access export index."""
         client = Client()
         client.force_login(gold_team_user)
         response = client.get(reverse("scoring:export_index"))
-        assert response.status_code == 302
+        assert response.status_code == 200
 
     def test_export_index_white_team_denied(self, white_team_user):
         """White Team should not access export index (admin only)."""
@@ -379,7 +379,7 @@ class TestExportViewsPermissions:
         assert response.status_code == 302
 
     def test_export_index_admin_allowed(self, admin_user):
-        """Admin (is_staff) should access export index."""
+        """Admin (Gold Team) should access export index."""
         client = Client()
         client.force_login(admin_user)
         response = client.get(reverse("scoring:export_index"))

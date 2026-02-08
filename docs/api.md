@@ -8,7 +8,7 @@ All API endpoints require authentication via Django session cookies. Users must 
 
 API endpoints use role-based access control (RBAC):
 - Public API endpoints: Available to any authenticated user
-- Admin-only endpoints: Require Django staff (`is_staff=True`) permissions
+- Admin-only endpoints: Require Gold Team Authentik group
 
 ## API Endpoints
 
@@ -178,11 +178,11 @@ curl -X GET https://bot.wccomps.org/scoring/api/orange-check-types/ \
 
 ## Export Endpoints (Admin Only)
 
-These endpoints allow administrators to export competition data in CSV or JSON format. All export endpoints require staff permissions (`is_staff=True`).
+These endpoints allow administrators to export competition data in CSV or JSON format. All export endpoints require Gold Team permissions (Authentik group).
 
 ### Authentication
 
-All export endpoints use Django's `@user_passes_test(lambda u: u.is_staff)` decorator, requiring the user to have staff privileges.
+All export endpoints use Authentik group-based permissions, requiring the user to be in the `WCComps_GoldTeam` or `WCComps_Discord_Admin` group.
 
 ### Export Index
 
@@ -190,7 +190,7 @@ All export endpoints use Django's `@user_passes_test(lambda u: u.is_staff)` deco
 
 Landing page listing all available export endpoints.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Response:** HTML page with links to export endpoints
 
@@ -202,7 +202,7 @@ Landing page listing all available export endpoints.
 
 Export all Red Team findings.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Query Parameters:**
 - `format` (optional): Export format - `csv` or `json` (default: `csv`)
@@ -272,7 +272,7 @@ curl -X GET https://bot.wccomps.org/scoring/export/red-findings/?format=json \
 
 Export all Blue Team incident reports.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Query Parameters:**
 - `format` (optional): Export format - `csv` or `json` (default: `csv`)
@@ -345,7 +345,7 @@ curl -X GET https://bot.wccomps.org/scoring/export/incidents/?format=json \
 
 Export all Orange Team bonus point adjustments.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Query Parameters:**
 - `format` (optional): Export format - `csv` or `json` (default: `csv`)
@@ -406,7 +406,7 @@ curl -X GET https://bot.wccomps.org/scoring/export/orange-adjustments/?format=js
 
 Export all inject grading data.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Query Parameters:**
 - `format` (optional): Export format - `csv` or `json` (default: `csv`)
@@ -468,7 +468,7 @@ curl -X GET https://bot.wccomps.org/scoring/export/inject-grades/?format=json \
 
 Export final calculated scores with complete breakdown for all teams.
 
-**Authentication:** Admin only (`is_staff=True`)
+**Authentication:** Gold Team (Authentik group)
 
 **Query Parameters:**
 - `format` (optional): Export format - `csv` or `json` (default: `csv`)

@@ -993,10 +993,14 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     # Build query
     from django.db.models import Count, Max
 
-    query = Ticket.objects.select_related("team").annotate(
-        comment_count=Count("comments", distinct=True),
-        attachment_count=Count("attachments", distinct=True),
-        last_activity=Max("history__timestamp"),
+    query = (
+        Ticket.objects.select_related("team")
+        .exclude(ticket_number="")
+        .annotate(
+            comment_count=Count("comments", distinct=True),
+            attachment_count=Count("attachments", distinct=True),
+            last_activity=Max("history__timestamp"),
+        )
     )
 
     if status_filter != "all":
@@ -1304,6 +1308,11 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
                 },
                 status="pending",
             )
+        DiscordTask.objects.create(
+            task_type="post_ticket_update",
+            ticket=ticket,
+            payload={"action": "claimed", "actor": authentik_username},
+        )
 
     logger.info(f"Ticket {ticket_number} claimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1350,6 +1359,14 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     if error or ticket is None:
         messages.error(request, error or "Failed to unclaim ticket")
         return redirect("ops_ticket_detail", ticket_number=ticket_number)
+
+    # Post status update to Discord thread
+    if ticket.discord_thread_id:
+        DiscordTask.objects.create(
+            task_type="post_ticket_update",
+            ticket=ticket,
+            payload={"action": "unclaimed", "actor": authentik_username},
+        )
 
     logger.info(f"Ticket {ticket_number} unclaimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -1478,6 +1495,19 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
         messages.error(request, error or "Failed to resolve ticket")
         return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
+    # Post resolution to Discord thread
+    if ticket.discord_thread_id:
+        DiscordTask.objects.create(
+            task_type="post_ticket_update",
+            ticket=ticket,
+            payload={
+                "action": "resolved",
+                "actor": authentik_username,
+                "resolution_notes": resolution_notes,
+                "points_charged": ticket.points_charged,
+            },
+        )
+
     logger.info(f"Ticket {ticket_number} resolved by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
@@ -1530,6 +1560,17 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
         action="reopened",
         details=details,
     )
+
+    # Post status update to Discord thread
+    if ticket.discord_thread_id:
+        payload: dict[str, object] = {"action": "reopened", "actor": authentik_username}
+        if reopen_reason:
+            payload["reason"] = reopen_reason
+        DiscordTask.objects.create(
+            task_type="post_ticket_update",
+            ticket=ticket,
+            payload=payload,
+        )
 
     logger.info(
         f"Ticket {ticket_number} reopened by {authentik_username}" + (f": {reopen_reason}" if reopen_reason else "")

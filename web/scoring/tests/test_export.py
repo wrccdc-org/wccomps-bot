@@ -11,6 +11,7 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import UserGroups
 from scoring.models import (
     FinalScore,
     IncidentReport,
@@ -27,13 +28,13 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def admin_user():
     """Create an admin user."""
-    return User.objects.create_user(
+    user = User.objects.create_user(
         username="admin",
         email="admin@example.com",
         password="admin123",
-        is_staff=True,
-        is_superuser=True,
     )
+    UserGroups.objects.create(user=user, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
+    return user
 
 
 @pytest.fixture
@@ -43,7 +44,6 @@ def regular_user():
         username="regular",
         email="regular@example.com",
         password="regular123",
-        is_staff=False,
     )
 
 

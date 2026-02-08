@@ -20,7 +20,7 @@ from .models import (
 
 # Custom admin site with Authentik group-based permissions
 class AuthentikAdminSite(admin.AdminSite):
-    """Admin site that checks Authentik groups instead of is_staff."""
+    """Admin site that checks Authentik groups for access."""
 
     site_header = "WCComps Administration"
     site_title = "WCComps Admin"
@@ -28,7 +28,7 @@ class AuthentikAdminSite(admin.AdminSite):
     site_url = "/ops/tickets/"
 
     def has_permission(self, request: HttpRequest) -> bool:
-        """Check admin access via Authentik groups instead of is_staff."""
+        """Check admin access via Authentik groups."""
         if not request.user.is_active or not request.user.is_authenticated:
             return False
 
@@ -151,8 +151,8 @@ class CompetitionConfigAdmin(admin.ModelAdmin[CompetitionConfig]):
             {
                 "fields": ("controlled_applications",),
                 "description": (
-                    "List of Authentik application slugs to control (e.g., ['netbird', 'scoring', 'competitions-public'"
-                    ", 'competitions']). These applications will be enabled/disabled based on competition timing."
+                    "List of Authentik application slugs to control (e.g., ['scoring', 'quotient2', 'semaphore'])."
+                    " These applications will be enabled/disabled based on competition timing."
                 ),
             },
         ),

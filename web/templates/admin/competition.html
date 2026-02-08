@@ -37,25 +37,32 @@
             </c-badge>
         </div>
         <div class="text-sm">
-            <strong>Team Accounts:</strong>
+            <strong>Teams:</strong> {{ active_teams }}/{{ total_teams }} registered
+            &nbsp;•&nbsp; <strong>Users:</strong> {{ linked_users }} linked
+            &nbsp;•&nbsp; <strong>Max Members:</strong> {{ config.max_team_members }}
+            {% if config.controlled_applications %}
+                &nbsp;•&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|length }} configured
+            {% endif %}
+            &nbsp;•&nbsp; <strong>Accounts:</strong>
             {% if config.applications_enabled %}
                 Enabled
             {% else %}
                 Disabled
             {% endif %}
-            (50 teams)
-            {% if config.controlled_applications %}
-                &nbsp;•&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|length }} configured
-            {% endif %}
-            {% if config.competition_start_time %}
-                &nbsp;•&nbsp; <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')"
-       x-text="formatted"></span>
-            {% endif %}
-            {% if config.competition_end_time %}
-                &nbsp;•&nbsp; <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')"
-       x-text="formatted"></span>
-            {% endif %}
         </div>
+        {% if config.competition_start_time or config.competition_end_time %}
+            <div class="text-sm mt-5">
+                {% if config.competition_start_time %}
+                    <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')"
+       x-text="formatted"></span>
+                {% endif %}
+                {% if config.competition_end_time %}
+                    {% if config.competition_start_time %}&nbsp;•&nbsp;{% endif %}
+                    <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')"
+       x-text="formatted"></span>
+                {% endif %}
+            </div>
+        {% endif %}
         </c-alert>
         <!-- Section 1: Pre-Competition Setup -->
         <c-fieldset heading="Pre-Competition Setup" class="mb-20">
@@ -101,11 +108,6 @@
                         <c-button type="submit" variant="default" ::disabled="loading || !newApp">Add</c-button>
                     </form>
                 </div>
-                <p class="help-text mt-10">
-                    <strong>{{ active_teams }}/{{ total_teams }}</strong> teams active •
-                    <strong>{{ linked_users }}</strong> users linked •
-                    <strong>{{ config.max_team_members }}</strong> max members
-                </p>
             </div>
             <!-- Schedule -->
             <div>
@@ -160,6 +162,22 @@
             Stop Competition
             </c-button>
         </div>
+        <template x-if="progressTotal > 0">
+            <div class="mt-10">
+                <div class="d-flex justify-between mb-5">
+                    <span class="text-sm" x-text="progressStep"></span>
+                    <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar__fill"
+                         :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
+                         :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
+                </div>
+                <template x-if="progressFailed > 0">
+                    <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
+                </template>
+            </div>
+        </template>
         </c-fieldset>
         <!-- Section 2.5: Quotient Integration -->
         <c-fieldset heading="Quotient Integration" class="mb-20">
@@ -260,6 +278,10 @@ function competitionAdmin() {
         loading: false,
         message: '',
         messageType: 'success',
+        progressStep: '',
+        progressCurrent: 0,
+        progressTotal: 0,
+        progressFailed: 0,
         maxMembers: {{ config.max_team_members }},
         apps: [{% for app in config.controlled_applications %}'{{ app }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
         newApp: '',
@@ -309,15 +331,70 @@ function competitionAdmin() {
             setTimeout(() => this.message = '', 5000);
         },
 
+        async doStreamAction(action) {
+            this.loading = true;
+            this.message = '';
+            this.progressStep = 'Starting...';
+            this.progressCurrent = 0;
+            this.progressTotal = 1;
+            this.progressFailed = 0;
+
+            try {
+                const formData = new FormData();
+                formData.append('action', action);
+
+                const response = await fetch('{% url "admin_competition_action" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: formData
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        const msg = JSON.parse(line);
+                        if (msg.done) {
+                            this.message = msg.message;
+                            this.messageType = msg.success ? 'success' : 'error';
+                            if (msg.success) setTimeout(() => location.reload(), 2000);
+                        } else {
+                            this.progressStep = msg.step;
+                            this.progressCurrent = msg.current;
+                            this.progressTotal = msg.total;
+                            if (!msg.ok) this.progressFailed++;
+                        }
+                    }
+                }
+            } catch (e) {
+                this.message = 'Request failed: ' + e.message;
+                this.messageType = 'error';
+            }
+
+            this.loading = false;
+            if (!this.message) {
+                this.progressTotal = 0;
+            }
+            setTimeout(() => { this.message = ''; this.progressTotal = 0; }, 5000);
+        },
+
         startCompetition() {
             if (confirm('Start the competition?\n\nThis will enable all controlled applications and team accounts.')) {
-                this.doAction('start_competition');
+                this.doStreamAction('start_competition');
             }
         },
 
         stopCompetition() {
             if (confirm('Stop the competition?\n\nThis will disable all applications and team accounts.\nYou can restart later.')) {
-                this.doAction('stop_competition');
+                this.doStreamAction('stop_competition');
             }
         },
 

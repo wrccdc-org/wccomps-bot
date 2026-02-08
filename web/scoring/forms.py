@@ -207,7 +207,8 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
 
         # Set initial value for affected_boxes if editing (convert list to comma-separated)
         if self.instance and self.instance.pk and self.instance.affected_boxes:
-            self.initial["affected_boxes"] = ", ".join(self.instance.affected_boxes)
+            boxes = self.instance.affected_boxes
+            self.initial["affected_boxes"] = boxes if isinstance(boxes, str) else ", ".join(boxes)
 
         # Service is optional - use text input for flexibility (suggestions shown in template)
         self.fields["affected_service"].widget = forms.TextInput(
@@ -347,7 +348,8 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
 
         # Set initial value for affected_boxes if editing (convert list to comma-separated)
         if self.instance and self.instance.pk and self.instance.affected_boxes:
-            self.initial["affected_boxes"] = ", ".join(self.instance.affected_boxes)
+            boxes = self.instance.affected_boxes
+            self.initial["affected_boxes"] = boxes if isinstance(boxes, str) else ", ".join(boxes)
 
     def save(self, commit: bool = True) -> IncidentReport:
         """Save the form, including the affected_boxes field."""

@@ -606,6 +606,25 @@ button[type="submit"]:hover {
 }
 
 /* ============================================
+   PROGRESS BAR
+   ============================================ */
+.progress-bar {
+    height: 8px;
+    background: var(--darkened-bg, #e0e0e0);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.progress-bar__fill {
+    height: 100%;
+    background: var(--success-fg);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.progress-bar__fill--warn {
+    background: var(--warning-fg);
+}
+
+/* ============================================
    SCORE VALUE COLORS
    ============================================ */
 .score-positive { color: var(--success-fg); }

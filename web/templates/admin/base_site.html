@@ -35,7 +35,7 @@
             <a href="{% url 'scoring:leaderboard' %}"
                {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring</a>
         {% endif %}
-        {% if user.is_staff %}
+        {% if is_admin %}
             <a href="{% url 'admin:index' %}"
                {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
         {% endif %}
