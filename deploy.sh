@@ -14,6 +14,7 @@ fail() {
 }
 step() { echo "  ✓ $*"; }
 cleanup_test_db() { docker compose -f docker-compose.test.yml down -v || true; }
+remote() { ssh "$REMOTE_HOST" "cd $REMOTE_PATH && $1"; }
 
 # Suppress stderr noise (progress bars, docker lifecycle) — errors go via stdout
 exec 3>&2 2>/dev/null
@@ -93,30 +94,82 @@ else
     echo "  · tests      skipped (no docker)"
 fi
 
+# --- Deploy ---
+
 echo ""
 echo "Deploy"
 
+# Dry-run rsync to see what files changed — determines deploy strategy
+CHANGES=$(rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" \
+    --dry-run --itemize-changes || echo "first-deploy")
+
+# Actual sync
 rsync -az --delete --exclude-from=.rsyncignore -e ssh . "$REMOTE_HOST:$REMOTE_PATH" --quiet \
     || fail "rsync"
 step "synced"
 
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose build --quiet bot web" \
-    || fail "build"
-step "built"
+# Classify what changed
+INFRA_CHANGED=false
+BOT_CHANGED=false
+echo "$CHANGES" | grep -qE 'pyproject\.toml|uv\.lock|Dockerfile|docker-compose\.yml|entrypoint\.sh' && INFRA_CHANGED=true
+echo "$CHANGES" | grep -q 'bot/' && BOT_CHANGED=true
 
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose up -d --quiet-pull web bot" \
-    || fail "start"
+# Only take the fast path if web is running AND healthy
+WEB_HEALTHY=$(remote "docker compose ps web --format json | grep -c '\"healthy\"'" || echo "0")
 
-for i in $(seq 1 30); do
-    if ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose ps web --format json | grep -q '\"Health\":\"healthy\"'"; then
-        step "healthy"
-        echo ""
-        echo "Done in ${SECONDS}s"
-        exit 0
+if $INFRA_CHANGED || [ "$WEB_HEALTHY" = "0" ]; then
+    # Full rebuild: infra changed, container not running, or container unhealthy
+    REASON="infra changed"
+    $INFRA_CHANGED || REASON="web not healthy"
+
+    remote "docker compose build --quiet web bot" \
+        || fail "build"
+    step "built"
+
+    # Pre-run migrations on new image (skip entrypoint) so container startup is fast
+    remote "docker compose run --rm --no-deps --entrypoint '' web uv run --no-sync python manage.py migrate --noinput --verbosity 0" \
+        || fail "migrate"
+
+    remote "docker compose up -d --quiet-pull web bot" \
+        || fail "start"
+
+    for i in $(seq 1 30); do
+        if remote "docker compose ps web --format json | grep -q '\"Health\":\"healthy\"'"; then
+            step "healthy"
+            echo ""
+            echo "Done in ${SECONDS}s (rebuild — $REASON)"
+            exit 0
+        fi
+        sleep 2
+    done
+
+    echo ""
+    remote "docker compose logs --tail=30 web"
+    fail "health check timed out after 60s"
+else
+    # Code-only — zero downtime via gunicorn graceful reload.
+    # Bind mount (./web:/app/web) means rsync already updated the running code.
+    # Migrate + collectstatic in the running container, then SIGHUP gunicorn.
+    # If new code fails to import, old workers keep serving and Docker health checks
+    # (10s interval) will catch it — Traefik stops routing to unhealthy containers.
+
+    remote "docker compose exec -T web uv run --no-sync python manage.py migrate --noinput --verbosity 0" \
+        || fail "migrate"
+    remote "docker compose exec -T web uv run --no-sync python manage.py collectstatic --noinput --verbosity 0" \
+        || fail "collectstatic"
+    step "migrate"
+
+    remote "docker compose kill -s HUP web" \
+        || fail "reload"
+    step "reloaded"
+
+    # Only restart bot if bot code actually changed
+    if $BOT_CHANGED; then
+        remote "docker compose up -d --force-recreate bot" \
+            || echo "  · bot restart failed"
+        step "bot"
     fi
-    sleep 2
-done
 
-echo ""
-ssh "$REMOTE_HOST" "cd $REMOTE_PATH && docker compose logs --tail=30 web"
-fail "health check timed out after 60s"
+    echo ""
+    echo "Done in ${SECONDS}s (reload)"
+fi
