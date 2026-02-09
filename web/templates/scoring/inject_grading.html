@@ -9,10 +9,7 @@
         <p class="mb-0">Unable to connect to Quotient. Check the API URL and credentials.</p>
         </c-alert>
     {% elif no_injects %}
-        <c-alert variant="info">
-        <strong>No Injects</strong>
-        <p class="mb-0">No injects are configured in Quotient yet.</p>
-        </c-alert>
+        <c-empty_state title="No injects" description="No injects are configured in Quotient yet." />
     {% else %}
         <c-form_field label="Select Inject" id="inject-select">
         <select id="inject-select"

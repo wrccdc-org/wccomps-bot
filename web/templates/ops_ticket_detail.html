@@ -16,9 +16,9 @@
         <!-- Ticket Details -->
         <c-fieldset heading="Ticket Information">
         {% if not ticket.discord_thread_id %}
-            <c-alert variant="warning">
-            <strong>Discord Thread Missing</strong> - Team can only interact via web interface. Comments won't sync to Discord.
-            </c-alert>
+            <p class="text-warning">
+                <strong>Discord Thread Missing</strong> — Team can only interact via web interface. Comments won't sync to Discord.
+            </p>
         {% endif %}
         <dl class="detail-list">
             <dt>Team</dt>
@@ -168,9 +168,9 @@
                     {% endif %}
                 </div>
             {% else %}
-                <c-alert variant="info">
-                This ticket is assigned to <strong>{{ ticket.assigned_to.username }}</strong>. Only they or an administrator can resolve it.
-                </c-alert>
+                <p class="text-muted">
+                    This ticket is assigned to <strong>{{ ticket.assigned_to.username }}</strong>. Only they or an administrator can resolve it.
+                </p>
             {% endif %}
         {% elif ticket.status == 'resolved' and is_ticketing_admin %}
             <c-fieldset heading="Actions">

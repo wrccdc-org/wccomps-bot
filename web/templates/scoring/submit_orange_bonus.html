@@ -37,9 +37,7 @@
                required>
         </c-form_field>
         </c-fieldset>
-        <c-alert variant="info" class="mt-20">
-        <strong>Note:</strong> Use positive numbers to award points, negative numbers to deduct points.
-        </c-alert>
+        <p class="help-text mt-20">Use positive numbers to award points, negative numbers to deduct points.</p>
         <c-button_row class="mt-20 justify-end">
         <c-link href="{% url 'scoring:orange_team_portal' %}">Cancel</c-link>
         <c-button type="submit" variant="primary">Submit Adjustment</c-button>

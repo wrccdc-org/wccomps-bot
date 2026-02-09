@@ -60,12 +60,9 @@
         <c-module>
         <h2 class="module-header module-header-success">Review & Match</h2>
         {% if suggested_findings %}
-            <c-alert variant="info">
-            <strong>Suggested Matches ({{ suggested_findings|length }})</strong>
-            <p class="mb-0">
-                <small>Based on source IP, affected box, and service</small>
+            <p class="mb-5">
+                <strong>Suggested Matches ({{ suggested_findings|length }})</strong> <span class="text-muted text-sm">— based on source IP, affected box, and service</span>
             </p>
-            </c-alert>
             <div class="mb-15">
                 <h3 class="text-md mt-0">Potential Red Team Findings:</h3>
                 {% for finding in suggested_findings %}
@@ -90,10 +87,9 @@
                 {% endfor %}
             </div>
         {% else %}
-            <c-alert variant="warning">
-            <strong>No Automatic Matches Found</strong>
-            <p class="mb-0">No red team findings match this incident's source IP, box, or service for this team.</p>
-            </c-alert>
+            <p class="text-muted">
+                <strong>No Automatic Matches Found</strong> — No red team findings match this incident's source IP, box, or service for this team.
+            </p>
         {% endif %}
         <form method="post">
             {% csrf_token %}
@@ -114,15 +110,15 @@
             {{ form.reviewer_notes }}
             </c-form_field>
             </c-fieldset>
-            <c-alert variant="info" class="text-sm">
-            <strong>Review Guidelines:</strong>
-            <ul class="mb-0">
-                <li>Verify evidence shows IP addresses and timestamps</li>
-                <li>Match to corresponding red team finding if applicable</li>
-                <li>Award points based on detection quality and mitigation</li>
-                <li>Leave unmatched if no corresponding red finding exists</li>
-            </ul>
-            </c-alert>
+            <div class="text-muted text-sm">
+                <strong>Review Guidelines:</strong>
+                <ul class="mb-0">
+                    <li>Verify evidence shows IP addresses and timestamps</li>
+                    <li>Match to corresponding red team finding if applicable</li>
+                    <li>Award points based on detection quality and mitigation</li>
+                    <li>Leave unmatched if no corresponding red finding exists</li>
+                </ul>
+            </div>
             <c-button_row class="mt-20 justify-end">
             <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
             <c-button type="submit" variant="primary">Complete Review</c-button>

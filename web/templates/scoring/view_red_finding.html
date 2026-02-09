@@ -137,8 +137,7 @@
     {% endif %}
     </c-fieldset>
     {% if finding.is_approved %}
-        <c-alert variant="success">
-        <h3 class="mt-0">Approval Status</h3>
+        <c-fieldset heading="Approval Status">
         <c-detail_grid>
         <dt>Approved By</dt>
         <dd>
@@ -149,11 +148,9 @@
             {{ finding.approved_at|date:"Y-m-d H:i:s" }}
         </dd>
         </c-detail_grid>
-        </c-alert>
+        </c-fieldset>
     {% else %}
-        <c-alert variant="warning">
-        This finding is pending Gold Team review.
-        </c-alert>
+        <p class="text-muted">This finding is pending Gold Team review.</p>
     {% endif %}
     <c-button_row class="mt-20 justify-end">
     {% if can_delete %}

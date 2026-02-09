@@ -52,9 +52,7 @@
             </tbody>
         </table>
     {% else %}
-        <c-alert variant="info">
-        No IP pools created yet. Create a pool to use rotating source IPs in your findings.
-        </c-alert>
+        <c-empty_state title="No IP pools" description="Create a pool to use rotating source IPs in your findings." />
     {% endif %}
     </c-module>
 {% endblock red_content %}

@@ -105,8 +105,7 @@
         {% endif %}
         </c-fieldset>
         {% if incident.gold_team_reviewed %}
-            <c-alert variant="success">
-            <h3 class="mt-0">Review Status</h3>
+            <c-fieldset heading="Review Status">
             <c-detail_grid>
             <dt>Reviewed By</dt>
             <dd>
@@ -127,11 +126,9 @@
                 <strong><c-score_value :value="incident.points_returned" format="signed" /></strong>
             </dd>
             </c-detail_grid>
-            </c-alert>
+            </c-fieldset>
         {% else %}
-            <c-alert variant="warning">
-            This incident is pending gold team review.
-            </c-alert>
+            <p class="text-muted">This incident is pending gold team review.</p>
         {% endif %}
         <c-button_row class="mt-20 justify-end">
         {% if can_delete %}

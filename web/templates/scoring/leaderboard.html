@@ -70,9 +70,7 @@
             {% endif %}
         </div>
     {% else %}
-        <c-alert variant="info">
-        No scores calculated yet. Sync service scores from Quotient, then recalculate.
-        </c-alert>
+        <c-empty_state title="No scores yet" description="Sync service scores from Quotient, then recalculate." />
         {% if is_gold_team or is_admin %}
             <div class="d-flex gap-10 mt-10">
                 <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">

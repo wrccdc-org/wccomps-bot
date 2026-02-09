@@ -249,15 +249,15 @@
         {{ form.notes }}
         </c-form_field>
         </c-fieldset>
-        <c-alert variant="info" class="mb-20">
-        <h3 class="mt-0 text-lg">Submission Guidelines</h3>
-        <ul class="mb-0">
-            <li>Provide detailed technical information about the vulnerability or attack</li>
-            <li>Include all relevant IP addresses visible in screenshots</li>
-            <li>Select all teams that were successfully compromised</li>
-            <li>Gold Team will review and assign point values</li>
-        </ul>
-        </c-alert>
+        <div class="text-muted mb-20">
+            <h3 class="mt-0 text-lg">Submission Guidelines</h3>
+            <ul class="mb-0">
+                <li>Provide detailed technical information about the vulnerability or attack</li>
+                <li>Include all relevant IP addresses visible in screenshots</li>
+                <li>Select all teams that were successfully compromised</li>
+                <li>Gold Team will review and assign point values</li>
+            </ul>
+        </div>
         <c-button_row class="justify-end">
         <c-link href="{% url 'scoring:red_team_findings' %}">Cancel</c-link>
         <c-button type="submit" variant="primary">Submit Finding</c-button>

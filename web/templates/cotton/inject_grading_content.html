@@ -55,13 +55,8 @@
         </form>
         </c-fieldset>
     {% elif inject_choices %}
-        <c-alert variant="info">
-        Select an inject above to grade teams.
-        </c-alert>
+        <c-empty_state title="No inject selected" description="Select an inject above to grade teams." />
     {% else %}
-        <c-alert variant="info">
-        <h3 class="mt-0">No Published Injects</h3>
-        <p class="mb-0">No injects are currently published in Quotient. Injects must be published before grading.</p>
-        </c-alert>
+        <c-empty_state title="No published injects" description="No injects are currently published in Quotient. Injects must be published before grading." />
     {% endif %}
 </div>

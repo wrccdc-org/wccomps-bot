@@ -108,9 +108,7 @@
             {% endif %}
         </div>
     {% else %}
-        <c-alert variant="info">
-        No scores calculated yet for this event. Assign teams and run score calculation.
-        </c-alert>
+        <c-empty_state title="No scores yet" description="Assign teams and run score calculation." />
     {% endif %}
     </c-module>
 {% endblock scoring_content %}
