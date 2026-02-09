@@ -28,7 +28,7 @@
                   x-ref="bulkResolveForm">
                 {% csrf_token %}
                 <input type="hidden" name="ticket_numbers" :value="selectedTickets" />
-                <c-button type="submit" variant="success">Resolve Selected</c-button>
+                <c-button type="submit" variant="primary">Resolve Selected</c-button>
             </form>
         </div>
     </div>
@@ -118,7 +118,7 @@
                                       action="{% url 'ops_ticket_resolve' item.ticket.ticket_number %}"
                                       class="d-inline">
                                     {% csrf_token %}
-                                    <c-button type="submit" variant="success">Resolve</c-button>
+                                    <c-button type="submit" variant="primary">Resolve</c-button>
                                 </form>
                                 {% if item.ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
                                     <form method="post"

@@ -13,7 +13,7 @@
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:inject_grades_review' %}" hx_target="#inject-grades-content" hx_swap="outerHTML" hx_push_url="true">
         {% if has_unapproved %}
             <c-slot name="actions">
-            <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-approve-grades'))" variant="success">Approve Selected</c-button>
+            <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-approve-grades'))" variant="primary">Approve Selected</c-button>
             </c-slot>
         {% endif %}
         <c-filter_field label="Status" id="id_status">

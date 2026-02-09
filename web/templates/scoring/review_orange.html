@@ -8,7 +8,7 @@
     <c-module>
     {% if bonuses %}
         <c-slot name="toolbar">
-        <c-button type="submit" form="bulk-approve-form" variant="success">Approve Selected</c-button>
+        <c-button type="submit" form="bulk-approve-form" variant="primary">Approve Selected</c-button>
         </c-slot>
         <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}" x-data="{ selected: [], selectableIds: [
             {% for bonus in bonuses %}
@@ -82,7 +82,7 @@
                               action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
                               class="d-inline">
                             {% csrf_token %}
-                            <c-button type="submit" variant="success" size="sm">Approve</c-button>
+                            <c-button type="submit" variant="primary" size="sm">Approve</c-button>
                         </form>
                         <form method="post"
                               action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"

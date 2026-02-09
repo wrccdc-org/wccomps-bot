@@ -9,7 +9,7 @@
     <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:red_team_portal' %}" hx_target="#red-findings-content" hx_swap="outerHTML" hx_push_url="true">
     {% if pending_findings %}
         <c-slot name="actions">
-        <c-button type="button" id="bulk-approve-btn" onclick="document.dispatchEvent(new CustomEvent('bulk-approve'))" variant="success">Approve Selected</c-button>
+        <c-button type="button" id="bulk-approve-btn" onclick="document.dispatchEvent(new CustomEvent('bulk-approve'))" variant="primary">Approve Selected</c-button>
         </c-slot>
     {% endif %}
     <c-filter_field label="Status" id="id_status">

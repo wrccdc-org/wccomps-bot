@@ -527,11 +527,6 @@ button[type="submit"]:hover {
     color: white !important;
     border-color: var(--error-fg, #ba2121) !important;
 }
-.btn-success {
-    background: var(--success-fg) !important;
-    color: white !important;
-    border-color: var(--success-fg) !important;
-}
 
 /* ============================================
    BADGE COMPONENT STYLES
