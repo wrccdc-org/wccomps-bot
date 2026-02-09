@@ -107,6 +107,21 @@
         </c-button_row>
     </form>
     </c-module>
+    <c-module>
+    <h2>Quotient Sync</h2>
+    <div class="d-flex gap-10">
+        <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
+            {% csrf_token %}
+            <c-button type="submit" variant="default">Sync Service Scores</c-button>
+        </form>
+        <form method="post"
+              action="{% url 'scoring:recalculate_scores' %}"
+              class="m-0">
+            {% csrf_token %}
+            <c-button type="submit" variant="primary">Recalculate Scores</c-button>
+        </form>
+    </div>
+    </c-module>
     <style>
         .weight-grid {
             display: grid;

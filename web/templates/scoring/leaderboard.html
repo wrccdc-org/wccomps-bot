@@ -71,8 +71,22 @@
         </div>
     {% else %}
         <c-alert variant="info">
-        No scores calculated yet. Run the recalculate scores command or sync data from Quotient.
+        No scores calculated yet. Sync service scores from Quotient, then recalculate.
         </c-alert>
+        {% if is_gold_team or is_admin %}
+            <div class="d-flex gap-10 mt-10">
+                <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
+                    {% csrf_token %}
+                    <c-button type="submit" variant="default">Sync Service Scores</c-button>
+                </form>
+                <form method="post"
+                      action="{% url 'scoring:recalculate_scores' %}"
+                      class="m-0">
+                    {% csrf_token %}
+                    <c-button type="submit" variant="primary">Recalculate Scores</c-button>
+                </form>
+            </div>
+        {% endif %}
     {% endif %}
     </c-module>
 {% endblock scoring_content %}
