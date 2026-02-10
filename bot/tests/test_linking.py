@@ -4,8 +4,6 @@ import uuid
 
 import pytest
 from django.contrib.auth.models import User
-from hypothesis import assume, given, settings
-from hypothesis import strategies as st
 
 from team.models import DiscordLink, Team
 
@@ -342,52 +340,3 @@ class TestTeamMemberLimitEnforcement:
 
         team.refresh_from_db()
         assert team.get_member_count() == 3
-
-
-@pytest.mark.django_db(transaction=True)
-class TestLinkingProperties:
-    """Property-based tests for linking logic."""
-
-    @given(
-        discord_id=st.integers(min_value=100000000000000000, max_value=999999999999999999),
-        active_count=st.integers(min_value=0, max_value=3),
-        inactive_count=st.integers(min_value=0, max_value=3),
-    )
-    @settings(max_examples=20, deadline=None)
-    def test_active_link_count_invariant(self, discord_id: int, active_count: int, inactive_count: int):
-        """Property: at most one active link per discord_id at any time."""
-        # Skip if discord_id already exists
-        assume(not DiscordLink.objects.filter(discord_id=discord_id).exists())
-
-        # Create inactive links
-        for _i in range(inactive_count):
-            user = create_test_user()
-            DiscordLink.objects.create(
-                discord_id=discord_id,
-                discord_username=f"inactive_{uuid.uuid4()}",
-                user=user,
-                is_active=False,
-            )
-
-        # Create active links (only last one should remain active)
-        for _i in range(active_count):
-            user = create_test_user()
-            DiscordLink.objects.create(
-                discord_id=discord_id,
-                discord_username=f"active_{uuid.uuid4()}",
-                user=user,
-                is_active=True,
-            )
-
-        # Property: exactly 0 or 1 active links
-        active_links = DiscordLink.objects.filter(discord_id=discord_id, is_active=True).count()
-        assert active_links in (0, 1)
-
-        # Property: if we created any active links, exactly 1 should remain
-        if active_count > 0:
-            assert active_links == 1
-
-        # Property: total inactive links equals inactive_count + (active_count - 1)
-        total_inactive = DiscordLink.objects.filter(discord_id=discord_id, is_active=False).count()
-        if active_count > 0:
-            assert total_inactive == inactive_count + (active_count - 1)

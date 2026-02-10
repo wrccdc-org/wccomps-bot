@@ -292,8 +292,13 @@ class TestCheckGroupsForPermissionProperties:
     @given(groups=st.lists(st.text(min_size=1, max_size=50), max_size=10))
     @settings(max_examples=30)
     def test_direct_group_check_works(self, groups: list[str]):
-        """Direct group name check should work for any group."""
+        """Direct group name check should work for any group not in PERMISSION_MAP."""
+        from core.auth_utils import PERMISSION_MAP
+
         for group in groups:
+            # Skip names that collide with PERMISSION_MAP keys or blue_team (special-cased)
+            if group in PERMISSION_MAP or group == "blue_team":
+                continue
             result = check_groups_for_permission(groups, group)
             assert result is True
 

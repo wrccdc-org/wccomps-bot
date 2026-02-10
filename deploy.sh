@@ -27,25 +27,31 @@ uv lock --upgrade --quiet
 uv sync --quiet
 step "deps"
 
+# Auto-fix formatting first (must complete before lint checks)
 uv run ruff format . --quiet
 uv run ruff check --fix --quiet . || true
-if ! OUT=$(uv run ruff check . --quiet); then
-    fail "ruff" "$OUT"
-fi
-step "ruff"
-
 uv run djlint web/templates --reformat --quiet
-if ! OUT=$(uv run djlint web/templates --lint --quiet); then
-    exec 2>&3
-    fail "djlint" "$(uv run djlint web/templates --lint)"
-fi
-step "djlint"
 
-if ! OUT=$(DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ \
+# Run all lint checks in parallel
+RUFF_RC=0 DJLINT_RC=0 MYPY_RC=0
+
+uv run ruff check . --quiet > /tmp/deploy_ruff 2>&1 || RUFF_RC=$?
+{ uv run djlint web/templates --lint --quiet > /tmp/deploy_djlint 2>&1 || DJLINT_RC=$?; } &
+PID_DJLINT=$!
+{ DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ \
     --exclude 'bot/tests/.*' --exclude 'web/tests/.*' \
-    --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$'); then
-    fail "mypy" "$OUT"
-fi
+    --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$' \
+    > /tmp/deploy_mypy 2>&1 || MYPY_RC=$?; } &
+PID_MYPY=$!
+
+wait $PID_DJLINT
+wait $PID_MYPY
+
+[ $RUFF_RC -ne 0 ] && fail "ruff" "$(cat /tmp/deploy_ruff)"
+step "ruff"
+[ $DJLINT_RC -ne 0 ] && { exec 2>&3; fail "djlint" "$(uv run djlint web/templates --lint)"; }
+step "djlint"
+[ $MYPY_RC -ne 0 ] && fail "mypy" "$(cat /tmp/deploy_mypy)"
 step "mypy"
 
 if command -v docker &>/dev/null; then
@@ -83,7 +89,7 @@ if command -v docker &>/dev/null; then
     if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest \
         web/core/tests web/scoring/tests \
         web/team/tests web/packets/tests bot/tests \
-        --tb=short -q); then
+        --tb=short -q -n auto); then
         cleanup_test_db; fail "tests" "$OUT"
     fi
     cleanup_test_db
