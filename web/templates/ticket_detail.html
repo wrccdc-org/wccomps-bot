@@ -117,7 +117,9 @@
                           class="w-full p-8 border rounded font-mono"
                           placeholder="Type your comment here..."
                           required></textarea>
-                <c-button type="submit" variant="primary" class="mt-10">Post Comment</c-button>
+                <c-button_row class="mt-10">
+                <c-button type="submit" variant="primary">Post Comment</c-button>
+                </c-button_row>
             </form>
             </c-action_box>
         {% endif %}
@@ -170,7 +172,9 @@
                 <c-form_field label="File" id="attachment" help_text="Max file size: 10MB">
                 <input type="file" name="attachment" required>
                 </c-form_field>
+                <c-button_row>
                 <c-button type="submit" variant="primary">Upload File</c-button>
+                </c-button_row>
             </form>
             </c-action_box>
         {% endif %}

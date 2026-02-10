@@ -6,12 +6,10 @@
     {% load cotton %}
     <c-page_header title="IP Pools" subtitle="Manage your rotating source IP pools" />
     <c-module>
-    <div class="d-flex justify-between items-center mb-20">
-        <div>
-            {% if pools %}<span class="text-muted">{{ pools|length }} pool(s)</span>{% endif %}
-        </div>
-        <c-link href="{% url 'scoring:ip_pool_create' %}" variant="primary">Create Pool</c-link>
-    </div>
+    <c-slot name="toolbar">
+    {% if pools %}<span class="text-muted">{{ pools|length }} pool(s)</span>{% endif %}
+    <c-link href="{% url 'scoring:ip_pool_create' %}" variant="add">Create Pool</c-link>
+    </c-slot>
     {% if pools %}
         <table class="table">
             <thead>

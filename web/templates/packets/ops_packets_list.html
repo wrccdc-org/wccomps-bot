@@ -106,9 +106,6 @@
             <c-empty_state title="No active packet" description="Upload a packet to distribute to teams" />
             </c-fieldset>
         {% endif %}
-        <c-button_row>
-        <c-link href="{% url 'upload_packet' %}" variant="add">Upload New Packet</c-link>
-        </c-button_row>
         <!-- History -->
         {% if history %}
             <c-fieldset heading="History">
@@ -144,6 +141,9 @@
             </c-table>
             </c-fieldset>
         {% endif %}
+        <c-button_row>
+        <c-link href="{% url 'upload_packet' %}" variant="add">Upload New Packet</c-link>
+        </c-button_row>
     </div>
     {% if active_packet %}
         <script>
