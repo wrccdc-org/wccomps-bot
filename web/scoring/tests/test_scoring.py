@@ -225,10 +225,10 @@ class TestLeaderboardAccess:
 
         response = client.get(reverse("scoring:leaderboard"))
 
-        assert response.status_code == 403
+        assert response.status_code == 302
 
-    def test_red_team_redirected_to_findings(self, create_user_with_groups) -> None:
-        """Red Team members should be redirected to their findings portal."""
+    def test_red_team_denied_access(self, create_user_with_groups) -> None:
+        """Red Team members should be denied access to the leaderboard."""
         user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         client = Client()
         client.force_login(user)
@@ -236,10 +236,9 @@ class TestLeaderboardAccess:
         response = client.get(reverse("scoring:leaderboard"))
 
         assert response.status_code == 302
-        assert response.url == reverse("scoring:red_team_findings")
 
-    def test_orange_team_redirected_to_portal(self, create_user_with_groups) -> None:
-        """Orange Team members should be redirected to their portal."""
+    def test_orange_team_denied_access(self, create_user_with_groups) -> None:
+        """Orange Team members should be denied access to the leaderboard."""
         user = create_user_with_groups("orange_user", ["WCComps_OrangeTeam"])
         client = Client()
         client.force_login(user)
@@ -247,7 +246,6 @@ class TestLeaderboardAccess:
         response = client.get(reverse("scoring:leaderboard"))
 
         assert response.status_code == 302
-        assert response.url == reverse("scoring:orange_team_portal")
 
     def test_user_with_no_groups_denied_access(self, create_user_with_groups) -> None:
         """Users with no groups should be denied access to the leaderboard."""
@@ -257,7 +255,7 @@ class TestLeaderboardAccess:
 
         response = client.get(reverse("scoring:leaderboard"))
 
-        assert response.status_code == 403
+        assert response.status_code == 302
 
     def test_user_with_multiple_allowed_groups_can_access(self, create_user_with_groups) -> None:
         """Users with multiple groups including an allowed one should be able to access."""

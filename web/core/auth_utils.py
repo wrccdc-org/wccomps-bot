@@ -111,14 +111,22 @@ def get_user_team_number(user: User) -> int | None:
 
 
 def require_permission(
-    permission_name: str,
+    *permission_names: str,
+    error_message: str = "You don't have permission to access this page.",
+    redirect_url: str = "/",
 ) -> Callable[[ViewFunc[P]], ViewFunc[P]]:
     """
-    Decorator to require a specific permission for a view.
+    Decorator to require one or more permissions for a view.
+
+    Grants access if user has ANY of the listed permissions.
 
     Usage:
         @require_permission('ticketing_admin')
         def my_view(request):
+            ...
+
+        @require_permission('red_team', 'gold_team')
+        def multi_role_view(request):
             ...
     """
     from functools import wraps
@@ -129,9 +137,11 @@ def require_permission(
     def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
         @wraps(view_func)
         def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
-            if not request.user.is_authenticated or not has_permission(request.user, permission_name):
-                messages.error(request, "You don't have permission to access this page.")
-                return redirect("/")
+            if not request.user.is_authenticated or not any(
+                has_permission(request.user, perm) for perm in permission_names
+            ):
+                messages.error(request, error_message)
+                return redirect(redirect_url)
             return view_func(request, *args, **kwargs)
 
         return wrapped  # type: ignore[return-value]

@@ -21,15 +21,14 @@ class TestLeaderboardPermissions:
         client = Client()
         client.force_login(blue_team_user)
         response = client.get(reverse("scoring:leaderboard"))
-        assert response.status_code == 403
+        assert response.status_code == 302
 
-    def test_red_team_redirected_to_findings(self, red_team_user):
-        """Red Team should be redirected to their findings page."""
+    def test_red_team_denied(self, red_team_user):
+        """Red Team should not access leaderboard."""
         client = Client()
         client.force_login(red_team_user)
         response = client.get(reverse("scoring:leaderboard"))
         assert response.status_code == 302
-        assert "/scoring/red-team/findings/" in response.url
 
     def test_gold_team_allowed(self, gold_team_user):
         """Gold Team should access leaderboard."""
@@ -45,20 +44,19 @@ class TestLeaderboardPermissions:
         response = client.get(reverse("scoring:leaderboard"))
         assert response.status_code == 200
 
-    def test_orange_team_redirected_to_portal(self, orange_team_user):
-        """Orange Team should be redirected to their portal."""
+    def test_orange_team_denied(self, orange_team_user):
+        """Orange Team should not access leaderboard."""
         client = Client()
         client.force_login(orange_team_user)
         response = client.get(reverse("scoring:leaderboard"))
         assert response.status_code == 302
-        assert "/scoring/orange-team/" in response.url
 
     def test_ticketing_support_denied(self, ticketing_support_user):
         """Ticketing Support should not access leaderboard."""
         client = Client()
         client.force_login(ticketing_support_user)
         response = client.get(reverse("scoring:leaderboard"))
-        assert response.status_code == 403
+        assert response.status_code == 302
 
     def test_ticketing_admin_allowed(self, ticketing_admin_user):
         """Ticketing Admin should access leaderboard."""
@@ -90,7 +88,6 @@ class TestRedTeamPortalPermissions:
         client.force_login(blue_team_user)
         response = client.get(reverse("scoring:red_team_portal"))
         assert response.status_code == 302
-        assert "/scoring/" in response.url
 
     def test_red_team_denied(self, red_team_user):
         """Red Team should not access Gold Team review portal."""

@@ -1,9 +1,7 @@
 """Views for scoring system."""
 
-from collections.abc import Callable
 from decimal import Decimal
-from functools import wraps
-from typing import Concatenate, ParamSpec, cast
+from typing import cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -15,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from registration.models import Event
 
-from core.auth_utils import has_permission
+from core.auth_utils import has_permission, require_permission
 from team.models import Team
 
 from .calculator import (
@@ -49,9 +47,6 @@ from .models import (
 )
 from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
-P = ParamSpec("P")
-type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
-
 
 def _normalize_red_finding_post(post_data: QueryDict) -> QueryDict:
     """Normalize legacy field names in red team finding POST data.
@@ -79,26 +74,6 @@ def _normalize_red_finding_post(post_data: QueryDict) -> QueryDict:
     return normalized
 
 
-def require_role(
-    *permission_names: str, error_message: str = "You do not have permission to access this page"
-) -> Callable[[ViewFunc[P]], ViewFunc[P]]:
-    """Decorator to require specific permissions based on Authentik groups."""
-
-    def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
-        @wraps(view_func)
-        def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
-            user = cast(User, request.user)
-            if any(has_permission(user, perm) for perm in permission_names):
-                return view_func(request, *args, **kwargs)
-
-            messages.error(request, error_message)
-            return redirect("scoring:leaderboard")
-
-        return wrapped_view  # type: ignore[return-value]
-
-    return decorator
-
-
 def _get_user_team(user: User) -> Team | None:
     """Get team for a user based on their Authentik groups."""
     from core.auth_utils import get_user_team_number
@@ -109,38 +84,7 @@ def _get_user_team(user: User) -> Team | None:
     return Team.objects.filter(team_number=team_number).first()
 
 
-def require_leaderboard_access[**P](
-    view_func: Callable[Concatenate[HttpRequest, P], HttpResponse],
-) -> Callable[Concatenate[HttpRequest, P], HttpResponse]:
-    """Decorator to restrict leaderboard access to Gold/White Team, Ticketing Admin, and System Admin.
-
-    Redirects Red Team and Orange Team to their respective portals.
-    """
-
-    @wraps(view_func)
-    def wrapped_view(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
-        user = cast(User, request.user)
-
-        if (
-            has_permission(user, "gold_team")
-            or has_permission(user, "white_team")
-            or has_permission(user, "ticketing_admin")
-        ):
-            return view_func(request, *args, **kwargs)
-
-        # Redirect team-specific users to their portals
-        if has_permission(user, "red_team"):
-            return redirect("scoring:red_team_findings")
-
-        if has_permission(user, "orange_team"):
-            return redirect("scoring:orange_team_portal")
-
-        return HttpResponseForbidden("You do not have permission to access this page")
-
-    return wrapped_view  # type: ignore[return-value]
-
-
-@require_leaderboard_access
+@require_permission("gold_team", "white_team", "ticketing_admin")
 def leaderboard(request: HttpRequest) -> HttpResponse:
     """Restricted leaderboard view - accessible only by Gold/White Team, Ticketing Admin, and System Admin."""
     scores = get_leaderboard()
@@ -151,7 +95,7 @@ def leaderboard(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/leaderboard.html", context)
 
 
-@require_leaderboard_access
+@require_permission("gold_team", "white_team", "ticketing_admin")
 def event_leaderboard(request: HttpRequest, event_id: int) -> HttpResponse:
     """Event-scoped leaderboard view - shows scores for a specific event.
 
@@ -177,7 +121,7 @@ def event_leaderboard(request: HttpRequest, event_id: int) -> HttpResponse:
     return render(request, "scoring/event_leaderboard.html", context)
 
 
-@require_role("gold_team", error_message="Only Gold Team members can recalculate event scores")
+@require_permission("gold_team", error_message="Only Gold Team members can recalculate event scores")
 @require_http_methods(["POST"])
 def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpResponse:
     """Recalculate all scores for a specific event."""
@@ -187,7 +131,7 @@ def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpRe
     return redirect("scoring:event_leaderboard", event_id=event_id)
 
 
-@require_role(
+@require_permission(
     "gold_team",
     "Only Gold Team members can review findings",
 )
@@ -280,7 +224,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_red_findings.html", context)
 
 
-@require_role(
+@require_permission(
     "red_team",
     error_message="Only Red Team members can view findings",
 )
@@ -357,7 +301,7 @@ def red_team_findings(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/red_team_portal.html", context)
 
 
-@require_role(
+@require_permission(
     "gold_team",
     "Only Gold Team members can bulk approve findings",
 )
@@ -407,7 +351,7 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:red_team_portal")
 
 
-@require_role("red_team", error_message="Only Red Team members can submit findings")
+@require_permission("red_team", error_message="Only Red Team members can submit findings")
 @transaction.atomic
 def submit_red_finding(request: HttpRequest) -> HttpResponse:
     """Submit red team finding with deduplication."""
@@ -520,7 +464,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/submit_red_finding.html", context)
 
 
-@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can view findings")
+@require_permission("red_team", "gold_team", error_message="Only Red Team or Gold Team can view findings")
 def view_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     """View red team finding details with screenshot previews."""
     finding = get_object_or_404(
@@ -541,7 +485,7 @@ def view_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     return render(request, "scoring/view_red_finding.html", context)
 
 
-@require_role("red_team", error_message="Only Red Team members can delete findings")
+@require_permission("red_team", error_message="Only Red Team members can delete findings")
 @transaction.atomic
 @require_http_methods(["POST"])
 def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
@@ -565,7 +509,7 @@ def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     return redirect("scoring:red_team_findings")
 
 
-@require_role("red_team", error_message="Only Red Team members can leave findings")
+@require_permission("red_team", error_message="Only Red Team members can leave findings")
 @transaction.atomic
 @require_http_methods(["POST"])
 def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
@@ -602,7 +546,7 @@ def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
 
 
 # IP Pool Management Views
-@require_role("red_team", error_message="Only Red Team members can manage IP pools")
+@require_permission("red_team", error_message="Only Red Team members can manage IP pools")
 def ip_pool_list(request: HttpRequest) -> HttpResponse:
     """List user's IP pools."""
     from .models import RedTeamIPPool
@@ -616,7 +560,7 @@ def ip_pool_list(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/ip_pool_list.html", context)
 
 
-@require_role("red_team", error_message="Only Red Team members can manage IP pools")
+@require_permission("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 def ip_pool_create(request: HttpRequest) -> HttpResponse:
     """Create a new IP pool."""
@@ -657,7 +601,7 @@ def ip_pool_create(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/ip_pool_form.html", context)
 
 
-@require_role("red_team", error_message="Only Red Team members can manage IP pools")
+@require_permission("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 def ip_pool_edit(request: HttpRequest, pool_id: int) -> HttpResponse:
     """Edit an IP pool."""
@@ -684,7 +628,7 @@ def ip_pool_edit(request: HttpRequest, pool_id: int) -> HttpResponse:
     return render(request, "scoring/ip_pool_form.html", context)
 
 
-@require_role("red_team", error_message="Only Red Team members can manage IP pools")
+@require_permission("red_team", error_message="Only Red Team members can manage IP pools")
 @transaction.atomic
 @require_http_methods(["POST"])
 def ip_pool_delete(request: HttpRequest, pool_id: int) -> HttpResponse:
@@ -705,7 +649,7 @@ def ip_pool_delete(request: HttpRequest, pool_id: int) -> HttpResponse:
     return redirect("scoring:ip_pool_list")
 
 
-@require_role("red_team", error_message="Only Red Team members can view IP pools")
+@require_permission("red_team", error_message="Only Red Team members can view IP pools")
 def api_user_ip_pools(request: HttpRequest) -> JsonResponse:
     """API endpoint to get user's IP pools for dropdown."""
     from .models import RedTeamIPPool
@@ -878,7 +822,9 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
     return redirect("scoring:incident_list")
 
 
-@require_role("orange_team", "gold_team", error_message="Only Orange Team or Gold Team members can access this page")
+@require_permission(
+    "orange_team", "gold_team", error_message="Only Orange Team or Gold Team members can access this page"
+)
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
     """Orange team portal - list user's own submitted bonuses."""
     user = cast(User, request.user)
@@ -886,14 +832,14 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses})
 
 
-@require_role("gold_team", error_message="Only Gold Team members can review orange team")
+@require_permission("gold_team", error_message="Only Gold Team members can review orange team")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Gold team review page for orange team."""
     bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
-@require_role("orange_team", error_message="Only Orange Team members can submit bonuses")
+@require_permission("orange_team", error_message="Only Orange Team members can submit bonuses")
 @transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     """Submit orange team bonus."""
@@ -920,7 +866,7 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/submit_orange_bonus.html", context)
 
 
-@require_role("orange_team", error_message="Only Orange Team can manage check types")
+@require_permission("orange_team", error_message="Only Orange Team can manage check types")
 def manage_check_types(request: HttpRequest) -> HttpResponse:
     """Manage orange check types."""
     check_types = OrangeCheckType.objects.all().order_by("name")
@@ -940,7 +886,7 @@ def manage_check_types(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/manage_check_types.html", context)
 
 
-@require_role("orange_team", error_message="Only Orange Team can manage check types")
+@require_permission("orange_team", error_message="Only Orange Team can manage check types")
 def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Edit an orange check type."""
     check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
@@ -961,7 +907,7 @@ def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     return render(request, "scoring/edit_check_type.html", context)
 
 
-@require_role("orange_team", error_message="Only Orange Team can manage check types")
+@require_permission("orange_team", error_message="Only Orange Team can manage check types")
 @require_http_methods(["POST"])
 def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Delete an orange check type."""
@@ -972,7 +918,7 @@ def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     return redirect("scoring:manage_check_types")
 
 
-@require_role("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
+@require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
 @transaction.atomic
 def inject_grading(request: HttpRequest) -> HttpResponse:
     """Inject grading interface - select inject, grade all teams."""
@@ -1057,7 +1003,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/inject_grading.html", context)
 
 
-@require_role(
+@require_permission(
     "gold_team", "white_team", error_message="Only Gold Team or White Team members can review incident reports"
 )
 def review_incidents(request: HttpRequest) -> HttpResponse:
@@ -1134,7 +1080,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_incidents.html", context)
 
 
-@require_role(
+@require_permission(
     "gold_team", "white_team", error_message="Only Gold Team or White Team members can match incident reports"
 )
 @transaction.atomic
@@ -1175,7 +1121,7 @@ def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
     return render(request, "scoring/match_incident.html", context)
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def scoring_config(request: HttpRequest) -> HttpResponse:
     """Scoring configuration (admin)."""
 
@@ -1209,7 +1155,7 @@ def scoring_config(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/scoring_config.html", context)
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def sync_metadata(request: HttpRequest) -> HttpResponse:
     """Sync metadata from Quotient."""
@@ -1223,7 +1169,7 @@ def sync_metadata(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:scoring_config")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def sync_scores(request: HttpRequest) -> HttpResponse:
     """Sync service scores from Quotient."""
@@ -1235,7 +1181,7 @@ def sync_scores(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:scoring_config")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 @require_http_methods(["POST"])
 def recalculate_scores(request: HttpRequest) -> HttpResponse:
     """Recalculate all scores."""
@@ -1244,7 +1190,7 @@ def recalculate_scores(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:leaderboard")
 
 
-@require_leaderboard_access
+@require_permission("gold_team", "white_team", "ticketing_admin")
 def api_scores(request: HttpRequest) -> JsonResponse:
     """API endpoint for scores."""
     scores = get_leaderboard()
@@ -1266,7 +1212,7 @@ def api_scores(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"scores": data})
 
 
-@require_leaderboard_access
+@require_permission("gold_team", "white_team", "ticketing_admin")
 def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
     """API endpoint for team detail."""
     team = get_object_or_404(Team, team_number=team_number)
@@ -1280,7 +1226,7 @@ def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
     )
 
 
-@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can access attack suggestions")
+@require_permission("red_team", "gold_team", error_message="Only Red Team or Gold Team can access attack suggestions")
 def api_attack_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for attack type suggestions."""
     # Get distinct attack vectors from previous findings
@@ -1309,7 +1255,7 @@ def api_orange_check_types(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"check_types": data})
 
 
-@require_role("gold_team", error_message="Only Gold Team members can review inject grades")
+@require_permission("gold_team", error_message="Only Gold Team members can review inject grades")
 def inject_grades_review(request: HttpRequest) -> HttpResponse:
     """Review and approve inject grades (Gold Team)."""
     import statistics
@@ -1436,7 +1382,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_inject_grades.html", context)
 
 
-@require_role("gold_team", error_message="Only Gold Team members can approve inject grades")
+@require_permission("gold_team", error_message="Only Gold Team members can approve inject grades")
 @transaction.atomic
 @require_http_methods(["POST"])
 def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
@@ -1484,13 +1430,13 @@ def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:inject_grades_review")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_index(request: HttpRequest) -> HttpResponse:
     """Export data index page (admin only)."""
     return render(request, "scoring/export_index.html")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_red_findings(request: HttpRequest) -> HttpResponse:
     """Export red team findings (admin only)."""
     from .export import export_red_findings_csv, export_red_findings_json
@@ -1501,7 +1447,7 @@ def export_red_findings(request: HttpRequest) -> HttpResponse:
     return export_red_findings_csv()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_incidents(request: HttpRequest) -> HttpResponse:
     """Export incident reports (admin only)."""
     from .export import export_incidents_csv, export_incidents_json
@@ -1512,7 +1458,7 @@ def export_incidents(request: HttpRequest) -> HttpResponse:
     return export_incidents_csv()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
     """Export orange team adjustments (admin only)."""
     from .export import export_orange_adjustments_csv, export_orange_adjustments_json
@@ -1523,7 +1469,7 @@ def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
     return export_orange_adjustments_csv()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_inject_grades(request: HttpRequest) -> HttpResponse:
     """Export inject grades (admin only)."""
     from .export import export_inject_grades_csv, export_inject_grades_json
@@ -1534,7 +1480,7 @@ def export_inject_grades(request: HttpRequest) -> HttpResponse:
     return export_inject_grades_csv()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_final_scores(request: HttpRequest) -> HttpResponse:
     """Export final scores (admin only)."""
     from .export import export_final_scores_csv, export_final_scores_json
@@ -1545,7 +1491,7 @@ def export_final_scores(request: HttpRequest) -> HttpResponse:
     return export_final_scores_csv()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can access this")
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_all(request: HttpRequest) -> HttpResponse:
     """Export all scoring data as a zip file (admin only)."""
     from .export import export_all_zip
@@ -1553,7 +1499,7 @@ def export_all(request: HttpRequest) -> HttpResponse:
     return export_all_zip()
 
 
-@require_role("gold_team", error_message="Only Gold Team members can approve adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can approve adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
@@ -1569,7 +1515,7 @@ def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpR
     return redirect("scoring:orange_team_portal")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can reject adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can reject adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
@@ -1585,7 +1531,7 @@ def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpRe
     return redirect("scoring:orange_team_portal")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can bulk approve adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can bulk approve adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
@@ -1615,7 +1561,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:orange_team_portal")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can bulk reject adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can bulk reject adjustments")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
@@ -1645,7 +1591,7 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:orange_team_portal")
 
 
-@require_role("gold_team", error_message="Only Gold Team members can send scorecards")
+@require_permission("gold_team", error_message="Only Gold Team members can send scorecards")
 @require_http_methods(["POST"])
 def send_scorecards_batch_view(request: HttpRequest, event_id: int) -> HttpResponse:
     """Send scorecards to all teams for an event."""
@@ -1670,7 +1616,7 @@ def send_scorecards_batch_view(request: HttpRequest, event_id: int) -> HttpRespo
     return redirect("scoring:event_leaderboard", event_id=event_id)
 
 
-@require_role("gold_team", error_message="Only Gold Team members can send scorecards")
+@require_permission("gold_team", error_message="Only Gold Team members can send scorecards")
 @require_http_methods(["POST"])
 def send_scorecard_single_view(request: HttpRequest, event_score_id: int) -> HttpResponse:
     """Send scorecard to a single team."""
@@ -1714,7 +1660,7 @@ def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> Ht
     return response
 
 
-@require_role("red_team", "gold_team", error_message="Only Red Team or Gold Team can view this")
+@require_permission("red_team", "gold_team", error_message="Only Red Team or Gold Team can view this")
 def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
     """Serve red team screenshot from database."""
     from django.http import Http404
