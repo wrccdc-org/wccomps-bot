@@ -467,15 +467,25 @@
             return input.value.split(',').map(b => b.trim()).filter(b => b);
         }
 
-        // Add a box to the text input
-        function addBox(boxName) {
+        // Toggle a box in the text input
+        function toggleBox(boxName) {
             const input = document.getElementById('id_affected_boxes');
-            const boxes = getBoxNames();
-            if (!boxes.includes(boxName)) {
+            let boxes = getBoxNames();
+            if (boxes.includes(boxName)) {
+                boxes = boxes.filter(b => b !== boxName);
+            } else {
                 boxes.push(boxName);
-                input.value = boxes.join(', ');
-                updateIPAndServices();
             }
+            input.value = boxes.join(', ');
+            updateIPAndServices();
+            updateBoxButtons();
+        }
+
+        function updateBoxButtons() {
+            const boxes = getBoxNames();
+            document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+                btn.classList.toggle('default', boxes.includes(btn.dataset.box));
+            });
         }
 
         // Set the service field
@@ -609,13 +619,13 @@
             // Setup box text input handler for auto-populating IP
             const boxInput = document.getElementById('id_affected_boxes');
             if (boxInput) {
-                boxInput.addEventListener('input', updateIPAndServices);
+                boxInput.addEventListener('input', function() { updateIPAndServices(); updateBoxButtons(); });
             }
 
             // Handle quick-add box buttons
             document.querySelectorAll('.box-suggestion').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    addBox(this.dataset.box);
+                    toggleBox(this.dataset.box);
                 });
             });
 
@@ -627,6 +637,7 @@
             });
 
             // Initialize on page load if any boxes already entered
+            updateBoxButtons();
             if (getBoxNames().length > 0) {
                 updateIPAndServices();
             }

@@ -143,14 +143,24 @@
             }
         }
 
-        function addBox(boxName) {
+        function toggleBox(boxName) {
             const input = document.getElementById('id_affected_boxes');
-            const boxes = getBoxNames();
-            if (!boxes.includes(boxName)) {
+            let boxes = getBoxNames();
+            if (boxes.includes(boxName)) {
+                boxes = boxes.filter(b => b !== boxName);
+            } else {
                 boxes.push(boxName);
-                input.value = boxes.join(', ');
-                updateIP();
             }
+            input.value = boxes.join(', ');
+            updateIP();
+            updateBoxButtons();
+        }
+
+        function updateBoxButtons() {
+            const boxes = getBoxNames();
+            document.querySelectorAll('.box-suggestion').forEach(function(btn) {
+                btn.classList.toggle('default', boxes.includes(btn.dataset.box));
+            });
         }
 
         function setService(serviceName) {
@@ -190,13 +200,13 @@
 
             // Update IP when box input changes
             if (boxInput) {
-                boxInput.addEventListener('input', updateIP);
+                boxInput.addEventListener('input', function() { updateIP(); updateBoxButtons(); });
             }
 
             // Handle quick-add box buttons
             document.querySelectorAll('.box-suggestion').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    addBox(this.dataset.box);
+                    toggleBox(this.dataset.box);
                 });
             });
 
@@ -209,6 +219,7 @@
 
             // Initial update
             updateIP();
+            updateBoxButtons();
 
             if (teamSelect) {
                 teamSelect.addEventListener('change', updateIP);
