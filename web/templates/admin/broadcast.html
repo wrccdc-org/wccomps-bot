@@ -32,9 +32,9 @@
                       rows="6"
                       placeholder="Enter your message here..."></textarea>
             </c-filter_field>
-            <div class="form-check">
+            <div class="mb-5">
                 <input type="checkbox" id="mention_team" x-model="mentionTeam">
-                <label for="mention_team" class="form-check-label">Mention @Blueteam role</label>
+                <label for="mention_team">Mention @Blueteam role</label>
             </div>
             <c-button type="submit" variant="primary" ::disabled="loading || !message.trim()">Send Broadcast</c-button>
         </form>

@@ -125,7 +125,7 @@
                     {% csrf_token %}
                     <div class="d-flex gap-20 flex-wrap items-end mb-15">
                         <div class="flex-1 min-w-200">
-                            <label for="resolution_notes" class="form-label required">Resolution Notes:</label>
+                            <label for="resolution_notes" class="font-semibold text-sm d-block mb-5">Resolution Notes:</label>
                             <textarea name="resolution_notes"
                                       id="resolution_notes"
                                       rows="3"
@@ -134,7 +134,7 @@
                                       class="w-full"></textarea>
                         </div>
                         <div class="min-w-150">
-                            <label for="points_override" class="form-label">Points Override:</label>
+                            <label for="points_override" class="font-semibold text-sm d-block mb-5">Points Override:</label>
                             <input type="number"
                                    name="points_override"
                                    id="points_override"
@@ -178,7 +178,7 @@
                   action="{% url 'ops_ticket_reopen' ticket.ticket_number %}">
                 {% csrf_token %}
                 <div class="mb-15">
-                    <label for="reopen_reason" class="form-label">Reopen Reason (Optional):</label>
+                    <label for="reopen_reason" class="font-semibold text-sm d-block mb-5">Reopen Reason (Optional):</label>
                     <textarea name="reopen_reason"
                               id="reopen_reason"
                               rows="2"

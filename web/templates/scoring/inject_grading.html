@@ -13,7 +13,7 @@
     {% else %}
         <c-form_field label="Select Inject" id="inject-select">
         <select id="inject-select"
-                class="form-select"
+                class="vTextField"
                 hx-get="{% url 'scoring:inject_grading' %}"
                 hx-target="#inject-grading-content"
                 hx-swap="outerHTML"

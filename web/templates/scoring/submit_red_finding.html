@@ -15,12 +15,12 @@
         </c-form_field>
         <!-- Source IP Selection -->
         <div class="source-ip-section">
-            <label class="form-label required">Source IP</label>
+            <label class="font-semibold text-sm d-block mb-5">Source IP</label>
             <div class="d-flex gap-20 mb-10">
                 {% for radio in form.source_ip_type %}
-                    <div class="form-check">
+                    <div class="d-inline">
                         {{ radio.tag }}
-                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        <label for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
                     </div>
                 {% endfor %}
             </div>
@@ -59,9 +59,7 @@
                 <small class="text-muted">Quick add:</small>
                 <div class="d-flex flex-wrap gap-10 mt-10">
                     {% for value, label in form.box_choices %}
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary box-suggestion"
-                                data-box="{{ value }}">{{ label }}</button>
+                        <button type="button" class="button box-suggestion" data-box="{{ value }}">{{ label }}</button>
                     {% endfor %}
                 </div>
             </div>
@@ -77,7 +75,7 @@
                 <small class="text-muted">Quick add:</small>
                 {% for value, label in form.service_choices %}
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary service-suggestion ms-5"
+                            class="button service-suggestion ml-5"
                             data-service="{{ value }}">{{ label }}</button>
                 {% endfor %}
             </div>
@@ -91,20 +89,16 @@
         </c-fieldset>
         <!-- Attack Characteristics Section -->
         <c-fieldset legend="Attack Characteristics">
-        <div class="form-check mb-2">
+        <div class="mb-5">
             {{ form.universally_attempted }}
-            <label class="form-check-label"
-                   for="{{ form.universally_attempted.id_for_label }}">{{ form.universally_attempted.label }}</label>
+            <label for="{{ form.universally_attempted.id_for_label }}">{{ form.universally_attempted.label }}</label>
             {% if form.universally_attempted.help_text %}
                 <div class="help-text">{{ form.universally_attempted.help_text }}</div>
             {% endif %}
         </div>
-        <div class="form-check mb-2">
+        <div class="mb-5">
             {{ form.persistence_established }}
-            <label class="form-check-label"
-                   for="{{ form.persistence_established.id_for_label }}">
-                {{ form.persistence_established.label }}
-            </label>
+            <label for="{{ form.persistence_established.id_for_label }}">{{ form.persistence_established.label }}</label>
             {% if form.persistence_established.help_text %}
                 <div class="help-text">{{ form.persistence_established.help_text }}</div>
             {% endif %}
@@ -114,78 +108,69 @@
         <c-fieldset legend="Attack Outcomes">
         <div class="d-flex flex-wrap gap-10 mb-15">
             <div>
-                <label class="form-label">Access Level</label>
-                <div class="form-check mb-2">
+                <label class="font-semibold text-sm d-block mb-5">Access Level</label>
+                <div class="mb-5">
                     {{ form.root_access }}
-                    <label class="form-check-label"
-                           for="{{ form.root_access.id_for_label }}"
+                    <label for="{{ form.root_access.id_for_label }}"
                            title="Root/Administrator level access obtained">
                         Root access <span class="text-muted">-100</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.user_access }}
-                    <label class="form-check-label"
-                           for="{{ form.user_access.id_for_label }}"
+                    <label for="{{ form.user_access.id_for_label }}"
                            title="User level access obtained (not scored if root access)">
                         User access <span class="text-muted">-25</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.privilege_escalation }}
-                    <label class="form-check-label"
-                           for="{{ form.privilege_escalation.id_for_label }}"
+                    <label for="{{ form.privilege_escalation.id_for_label }}"
                            title="User escalated to Root/Admin (additional penalty)">
                         Priv esc <span class="text-muted">-100</span>
                     </label>
                 </div>
             </div>
             <div>
-                <label class="form-label">Data Recovery</label>
-                <div class="form-check mb-2">
+                <label class="font-semibold text-sm d-block mb-5">Data Recovery</label>
+                <div class="mb-5">
                     {{ form.credentials_recovered }}
-                    <label class="form-check-label"
-                           for="{{ form.credentials_recovered.id_for_label }}"
+                    <label for="{{ form.credentials_recovered.id_for_label }}"
                            title="User IDs and passwords recovered">
                         Credentials <span class="text-muted">-50</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.sensitive_files_recovered }}
-                    <label class="form-check-label"
-                           for="{{ form.sensitive_files_recovered.id_for_label }}"
+                    <label for="{{ form.sensitive_files_recovered.id_for_label }}"
                            title="Config files, corporate data recovered">
                         Sensitive files <span class="text-muted">-25</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.credit_cards_recovered }}
-                    <label class="form-check-label"
-                           for="{{ form.credit_cards_recovered.id_for_label }}"
+                    <label for="{{ form.credit_cards_recovered.id_for_label }}"
                            title="Customer credit card numbers recovered">
                         Credit cards <span class="text-muted">-50</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.pii_recovered }}
-                    <label class="form-check-label"
-                           for="{{ form.pii_recovered.id_for_label }}"
+                    <label for="{{ form.pii_recovered.id_for_label }}"
                            title="PII recovered: name, address, credit card number">
                         PII <span class="text-muted">-200</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.encrypted_db_recovered }}
-                    <label class="form-check-label"
-                           for="{{ form.encrypted_db_recovered.id_for_label }}"
+                    <label for="{{ form.encrypted_db_recovered.id_for_label }}"
                            title="Encrypted customer data/database recovered">
                         Encrypted DB <span class="text-muted">-25</span>
                     </label>
                 </div>
-                <div class="form-check mb-2">
+                <div class="mb-5">
                     {{ form.db_decrypted }}
-                    <label class="form-check-label"
-                           for="{{ form.db_decrypted.id_for_label }}"
+                    <label for="{{ form.db_decrypted.id_for_label }}"
                            title="Database was decrypted (additional penalty)">
                         DB decrypted <span class="text-muted">-25</span>
                     </label>
@@ -199,13 +184,13 @@
         <!-- Affected Teams Section -->
         <c-fieldset legend="Affected Teams">
         <div class="d-flex justify-between items-center mb-10">
-            <label class="form-label required mb-0">{{ form.affected_teams.label }}</label>
+            <label class="font-semibold text-sm d-block mb-0">{{ form.affected_teams.label }}</label>
             <div class="d-flex gap-10">
                 <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
                 <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
             </div>
         </div>
-        {% if form.affected_teams.help_text %}<div class="help-text mb-2">{{ form.affected_teams.help_text }}</div>{% endif %}
+        {% if form.affected_teams.help_text %}<div class="help-text mb-5">{{ form.affected_teams.help_text }}</div>{% endif %}
         <!-- Hidden checkboxes for form submission -->
         <div class="d-none" id="teamCheckboxes">
             {% for checkbox in form.affected_teams %}{{ checkbox.tag }}{% endfor %}
@@ -235,7 +220,7 @@
         <c-fieldset legend="Evidence">
         <c-form_field label="Upload Files" id="screenshots" help_text="Upload screenshots, logs, or other evidence. Maximum 20 files, 50MB per file.">
         <input type="file"
-               class="form-control"
+               class="vTextField"
                id="screenshots"
                name="screenshots"
                multiple
@@ -275,9 +260,9 @@
             <div class="modal-body">
                 <form id="createPoolForm">
                     <div class="mb-15">
-                        <label class="form-label required" for="poolName">Pool Name</label>
+                        <label class="font-semibold text-sm d-block mb-5" for="poolName">Pool Name</label>
                         <input type="text"
-                               class="form-control"
+                               class="vTextField"
                                id="poolName"
                                name="name"
                                placeholder="e.g., Rotation Pool A"
@@ -285,8 +270,8 @@
                         <div class="help-text">A memorable name for this pool of IPs</div>
                     </div>
                     <div class="mb-15">
-                        <label class="form-label required" for="poolIps">IP Addresses</label>
-                        <textarea class="form-control"
+                        <label class="font-semibold text-sm d-block mb-5" for="poolIps">IP Addresses</label>
+                        <textarea class="vTextField"
                                   id="poolIps"
                                   name="ip_addresses"
                                   rows="8"
