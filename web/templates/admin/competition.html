@@ -242,16 +242,16 @@
             <p class="help-text mb-10">
                 Deactivates Discord links and clears queued announcements. Competition must be stopped first.
             </p>
-            <c-button variant="danger" @click="cleanupCompetition()" ::disabled="loading">
+            <c-link href="#" variant="danger" @click.prevent="cleanupCompetition()" ::class="loading && 'disabled'">
             Cleanup Competition
-            </c-button>
+            </c-link>
         </div>
         <!-- Danger Zone -->
         <c-action_box variant="warning" heading="Danger Zone">
         <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
-        <c-button variant="danger" @click="wipeCompetition()" ::disabled="loading" class="btn-danger-dark">
+        <c-link href="#" variant="danger" @click.prevent="wipeCompetition()" ::class="loading && 'disabled'">
         Wipe All Data
-        </c-button>
+        </c-link>
         </c-action_box>
         </c-fieldset>
         <!-- Toast Notification -->

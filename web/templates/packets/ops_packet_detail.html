@@ -35,9 +35,9 @@
                     </c-button>
                 {% endif %}
                 {% if packet.status not in "cancelled" %}
-                    <c-button variant="danger" @click="if(confirm('Cancel this packet distribution?')) doStreamAction('cancel')" ::disabled="loading">
+                    <c-link href="#" variant="danger" @click.prevent="if(confirm('Cancel this packet distribution?')) doStreamAction('cancel')" ::class="loading && 'disabled'">
                     Cancel
-                    </c-button>
+                    </c-link>
                 {% endif %}
             </div>
         </div>

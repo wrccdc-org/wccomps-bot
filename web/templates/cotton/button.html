@@ -8,6 +8,6 @@
         {% if value %}value="{{ value }}"{% endif %}
         {% if onclick %}onclick="{{ onclick }}"{% endif %}
         {{ attrs }}
-        class="button {{ class }} {% if variant == 'primary' %}default {% elif variant == 'danger' %}deletelink btn-danger {% elif variant == 'cancel' %}cancel-link {% endif %}">
+        class="button {{ class }} {% if variant == 'primary' %}default {% elif variant == 'danger' %}deletelink {% elif variant == 'cancel' %}cancel-link {% endif %}">
     {{ slot }}
 </button>

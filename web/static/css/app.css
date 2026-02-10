@@ -520,15 +520,6 @@ button[type="submit"]:hover {
 }
 
 /* ============================================
-   BUTTON VARIANTS
-   ============================================ */
-.btn-danger {
-    background: var(--error-fg, #ba2121) !important;
-    color: white !important;
-    border-color: var(--error-fg, #ba2121) !important;
-}
-
-/* ============================================
    BADGE COMPONENT STYLES
    ============================================ */
 .badge {

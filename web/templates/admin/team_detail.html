@@ -42,9 +42,9 @@
                     Activate Team
                     </c-button>
                 {% endif %}
-                <c-button variant="danger" class="w-full" @click="resetTeam()" ::disabled="loading">
+                <c-link href="#" variant="danger" class="w-full" @click.prevent="resetTeam()" ::class="loading && 'disabled'">
                 Reset Team (Unlink All + New Password)
-                </c-button>
+                </c-link>
                 <c-button variant="default" class="w-full" @click="teamAction('recreate_channels')" ::disabled="loading">
                 Recreate Discord Channels
                 </c-button>
