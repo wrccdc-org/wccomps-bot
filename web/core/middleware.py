@@ -37,18 +37,33 @@ class AuthentikRequiredMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
-        # Paths that don't require authentication
-        self.whitelist = [
-            "/auth/",  # OAuth endpoints (login, callback, logout, link)
+        # Prefix paths that don't require authentication
+        self.whitelist_prefixes = [
             "/static/",  # Static files
+        ]
+        # Exact paths
+        self.whitelist_exact = [
             "/health/",  # Health check endpoint for monitoring
             "/register/",  # Public registration form
+            "/auth/login/",  # OAuth login initiation
+            "/auth/callback/",  # OAuth callback
+            "/auth/logout/",  # Logout
+            "/auth/link",  # Discord account linking (token-based)
+        ]
+        # Startswith for token-based public pages
+        self.whitelist_startswith = [
+            "/register/edit/",  # Token-based registration editing
         ]
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # Skip if path is whitelisted
-        for path in self.whitelist:
-            if request.path.startswith(path):
+        for prefix in self.whitelist_prefixes:
+            if request.path.startswith(prefix):
+                return self.get_response(request)
+        if request.path in self.whitelist_exact:
+            return self.get_response(request)
+        for prefix in self.whitelist_startswith:
+            if request.path.startswith(prefix):
                 return self.get_response(request)
 
         # Require authentication for all other paths

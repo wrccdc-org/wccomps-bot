@@ -5,7 +5,6 @@ import logging
 from typing import Protocol, cast
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
@@ -133,7 +132,6 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
     return redirect(f"/auth/login/?next=/auth/link-callback?token={link_token.token}")
 
 
-@login_required
 def link_callback(request: HttpRequest) -> HttpResponse:
     """Handle OAuth callback after Authentik authentication."""
     # Clear any django-allauth success messages (we show our own)
