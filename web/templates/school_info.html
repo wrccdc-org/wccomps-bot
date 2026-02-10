@@ -8,7 +8,7 @@
         <c-page_header title="School Information" />
         <c-module id="changelist">
         <c-slot name="toolbar">
-        <c-link href="{% url 'school_info_import' %}" variant="addlink">Import from CSV</c-link>
+        <c-link href="{% url 'school_info_import' %}" variant="add">Import from CSV</c-link>
         <form method="post"
               action="{% url 'school_info_clear' %}"
               class="d-inline"
