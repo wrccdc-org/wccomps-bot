@@ -7,7 +7,6 @@ import logging
 from collections.abc import Iterator
 from typing import cast
 
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
@@ -507,7 +506,6 @@ _COMPETITION_ACTION_HANDLERS = {
 }
 
 
-@login_required
 def admin_competition(request: HttpRequest) -> HttpResponse:
     """Competition management dashboard."""
     user = cast(User, request.user)
@@ -551,7 +549,6 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/competition.html", context)
 
 
-@login_required
 def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
     """Handle competition management actions via dispatch."""
     if request.method != "POST":
@@ -572,7 +569,6 @@ def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
     return handler(request, config, user.username)
 
 
-@login_required
 def admin_teams(request: HttpRequest) -> HttpResponse:
     """Teams management dashboard."""
     user = cast(User, request.user)
@@ -608,7 +604,6 @@ def admin_teams(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/teams.html", context)
 
 
-@login_required
 def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
     """View detailed team info."""
     user = cast(User, request.user)
@@ -639,7 +634,6 @@ def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
     return render(request, "admin/team_detail.html", context)
 
 
-@login_required
 def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
     """Handle team management actions."""
     if request.method != "POST":
@@ -778,7 +772,6 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
     return JsonResponse({"error": "Unknown action"}, status=400)
 
 
-@login_required
 def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
     """Handle bulk team actions."""
     if request.method != "POST":
@@ -844,7 +837,6 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
     return JsonResponse({"error": "Unknown action"}, status=400)
 
 
-@login_required
 def admin_broadcast(request: HttpRequest) -> HttpResponse:
     """Broadcast message page."""
     user = cast(User, request.user)
@@ -867,7 +859,6 @@ def admin_broadcast(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/broadcast.html", context)
 
 
-@login_required
 def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
     """Handle broadcast action."""
     if request.method != "POST":
@@ -910,7 +901,6 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
     return JsonResponse({"success": True, "message": "Broadcast task queued for Discord bot"})
 
 
-@login_required
 def admin_sync_roles(request: HttpRequest) -> HttpResponse:
     """Sync roles page."""
     user = cast(User, request.user)
@@ -930,7 +920,6 @@ def admin_sync_roles(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/sync_roles.html", context)
 
 
-@login_required
 def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     """Handle role sync action."""
     if request.method != "POST":
@@ -969,7 +958,6 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def admin_task_status(request: HttpRequest, task_id: int) -> HttpResponse:
     """Check status of an async task."""
     user = cast(User, request.user)

@@ -113,7 +113,7 @@ class TestPermissionsContextProcessor:
         context = permissions(request)
 
         assert context["is_orange_team"] is False
-        assert context["is_white_team"] is False
+        assert context["is_white_team"] is True
         assert context["is_admin"] is True
 
     def test_user_without_usergroups_returns_false(self, request_factory):

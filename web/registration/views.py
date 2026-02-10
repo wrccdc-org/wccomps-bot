@@ -3,7 +3,6 @@
 import random
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -87,7 +86,6 @@ def registration_edit(request: HttpRequest, token: str) -> HttpResponse:
     return render(request, "registration/edit.html", {"form": form, "registration": registration})
 
 
-@login_required
 @require_permission("gold_team")
 def review_list(request: HttpRequest) -> HttpResponse:
     """Admin review list of all registrations (Gold Team and Admin only)."""
@@ -110,7 +108,6 @@ def review_list(request: HttpRequest) -> HttpResponse:
     return render(request, "registration/review_list.html", context)
 
 
-@login_required
 @require_permission("gold_team")
 def approve_registration(request: HttpRequest, registration_id: int) -> HttpResponse:
     """Approve a registration (Gold Team and Admin only)."""
@@ -125,7 +122,6 @@ def approve_registration(request: HttpRequest, registration_id: int) -> HttpResp
     return redirect("registration_review_list")
 
 
-@login_required
 @require_permission("gold_team")
 def reject_registration(request: HttpRequest, registration_id: int) -> HttpResponse:
     """Reject a registration (Gold Team and Admin only)."""
@@ -146,7 +142,6 @@ def reject_registration(request: HttpRequest, registration_id: int) -> HttpRespo
     return render(request, "registration/reject_confirm.html", context)
 
 
-@login_required
 @require_permission("gold_team")
 def mark_paid(request: HttpRequest, registration_id: int) -> HttpResponse:
     """Mark a registration as paid (Gold Team only)."""
@@ -163,7 +158,6 @@ def mark_paid(request: HttpRequest, registration_id: int) -> HttpResponse:
 # Season views
 
 
-@login_required
 @require_permission("gold_team")
 def season_list(request: HttpRequest) -> HttpResponse:
     """List all seasons (Gold Team only)."""
@@ -171,7 +165,6 @@ def season_list(request: HttpRequest) -> HttpResponse:
     return render(request, "registration/seasons/list.html", {"seasons": seasons, "subnav_active": "seasons"})
 
 
-@login_required
 @require_permission("gold_team")
 def season_create(request: HttpRequest) -> HttpResponse:
     """Create a new season (Gold Team only)."""
@@ -189,7 +182,6 @@ def season_create(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 @require_permission("gold_team")
 def season_edit(request: HttpRequest, season_id: int) -> HttpResponse:
     """Edit a season (Gold Team only)."""
@@ -211,7 +203,6 @@ def season_edit(request: HttpRequest, season_id: int) -> HttpResponse:
     )
 
 
-@login_required
 @require_permission("gold_team")
 def season_delete(request: HttpRequest, season_id: int) -> HttpResponse:
     """Delete a season (Gold Team only)."""
@@ -229,7 +220,6 @@ def season_delete(request: HttpRequest, season_id: int) -> HttpResponse:
 # Event views
 
 
-@login_required
 @require_permission("gold_team")
 def event_list(request: HttpRequest, season_id: int) -> HttpResponse:
     """List events for a season (Gold Team only)."""
@@ -241,7 +231,6 @@ def event_list(request: HttpRequest, season_id: int) -> HttpResponse:
     )
 
 
-@login_required
 @require_permission("gold_team")
 def event_create(request: HttpRequest, season_id: int) -> HttpResponse:
     """Create a new event (Gold Team only)."""
@@ -265,7 +254,6 @@ def event_create(request: HttpRequest, season_id: int) -> HttpResponse:
     )
 
 
-@login_required
 @require_permission("gold_team")
 def event_edit(request: HttpRequest, event_id: int) -> HttpResponse:
     """Edit an event (Gold Team only)."""
@@ -287,7 +275,6 @@ def event_edit(request: HttpRequest, event_id: int) -> HttpResponse:
     )
 
 
-@login_required
 @require_permission("gold_team")
 def event_delete(request: HttpRequest, event_id: int) -> HttpResponse:
     """Delete an event (Gold Team only)."""
@@ -303,7 +290,6 @@ def event_delete(request: HttpRequest, event_id: int) -> HttpResponse:
     return render(request, "registration/events/delete_confirm.html", {"event": event, "subnav_active": "seasons"})
 
 
-@login_required
 @require_permission("gold_team")
 def event_detail(request: HttpRequest, event_id: int) -> HttpResponse:
     """View event details with enrolled registrations and team assignments (Gold Team only)."""
@@ -343,7 +329,6 @@ def event_detail(request: HttpRequest, event_id: int) -> HttpResponse:
     return render(request, "registration/events/detail.html", context)
 
 
-@login_required
 @require_permission("gold_team")
 def assign_teams(request: HttpRequest, event_id: int) -> HttpResponse:
     """Randomly assign team numbers to all eligible registrations for an event (Gold Team only)."""
@@ -394,7 +379,6 @@ def assign_teams(request: HttpRequest, event_id: int) -> HttpResponse:
     return redirect("registration_event_detail", event_id=event_id)
 
 
-@login_required
 @require_permission("gold_team")
 def unassign_team(request: HttpRequest, assignment_id: int) -> HttpResponse:
     """Remove a team assignment (Gold Team only)."""

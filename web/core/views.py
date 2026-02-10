@@ -67,7 +67,6 @@ def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploade
     return None
 
 
-@login_required
 def home(request: HttpRequest) -> HttpResponse:
     """Home page - redirect to appropriate dashboard based on user role."""
     user = cast(User, request.user)
@@ -424,7 +423,6 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def team_tickets(request: HttpRequest) -> HttpResponse:
     """View all tickets for user's team."""
     # Get user's team from Authentik groups
@@ -479,7 +477,6 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
     return render(request, "team_tickets.html", context)
 
 
-@login_required
 def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """View details of a specific ticket."""
     # Get user's team from Authentik groups
@@ -533,7 +530,6 @@ def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     )
 
 
-@login_required
 def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """Post a comment to a ticket from web UI."""
     if request.method != "POST":
@@ -591,7 +587,6 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
     return redirect("ticket_detail", ticket_id=ticket.id)
 
 
-@login_required
 def create_ticket(request: HttpRequest) -> HttpResponse:
     """Create a new support ticket (web form alternative to Discord command)."""
     # Get user's team
@@ -795,7 +790,6 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """Cancel an open ticket (team members only)."""
     if request.method != "POST":
@@ -860,7 +854,6 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
     return redirect("team_tickets")
 
 
-@login_required
 def ticket_attachment_upload(
     request: HttpRequest, ticket_id: int | None = None, ticket_number: str | None = None
 ) -> HttpResponse:
@@ -904,7 +897,6 @@ def ticket_attachment_upload(
     return redirect("ticket_detail", ticket_id=ticket.id)
 
 
-@login_required
 def ticket_attachment_download(
     request: HttpRequest,
     attachment_id: int,
@@ -956,7 +948,6 @@ def ticket_attachment_download(
     return response
 
 
-@login_required
 def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     """List all tickets with filtering for operations team."""
     from django.core.paginator import Paginator
@@ -1107,7 +1098,6 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_ticket_list.html", context)
 
 
-@login_required
 def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """View detailed ticket information for operations team."""
     # Get user's permissions
@@ -1183,7 +1173,6 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     )
 
 
-@login_required
 def ops_ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Return dynamic ticket content (comments/history) for HTMX polling."""
     user = cast(User, request.user)
@@ -1210,7 +1199,6 @@ def ops_ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpR
     )
 
 
-@login_required
 def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Post a comment to a ticket from ops UI."""
     if request.method != "POST":
@@ -1263,7 +1251,6 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
     return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
 
-@login_required
 def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Claim a ticket (operations team only)."""
     if request.method != "POST":
@@ -1321,7 +1308,6 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Unclaim a ticket (operations team only)."""
     if request.method != "POST":
@@ -1375,7 +1361,6 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Reassign a ticket to another support member (operations team only)."""
     if request.method != "POST":
@@ -1439,7 +1424,6 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Resolve a ticket (operations team only)."""
     if request.method != "POST":
@@ -1515,7 +1499,6 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Reopen a resolved ticket (operations team only)."""
     if request.method != "POST":
@@ -1581,7 +1564,6 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Change ticket category."""
     if request.method != "POST":
@@ -1647,7 +1629,6 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
     return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
 
-@login_required
 def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     """Bulk claim tickets (operations team only)."""
     if request.method != "POST":
@@ -1692,7 +1673,6 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     """Bulk resolve tickets (operations team only)."""
     if request.method != "POST":
@@ -1738,7 +1718,6 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     return redirect("ops_ticket_list")
 
 
-@login_required
 def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
     """Clear all tickets and reset counters (admin only)."""
     if request.method != "POST":
@@ -1789,7 +1768,6 @@ def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
     return redirect("ops_ticket_list")
 
 
-@login_required
 def school_info(request: HttpRequest) -> HttpResponse:
     """View and edit school information (GoldTeam only)."""
     # Get user's permissions
@@ -1831,7 +1809,6 @@ def school_info(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def school_info_clear(request: HttpRequest) -> HttpResponse:
     """Clear all school info assignments (GoldTeam only)."""
     user = cast(User, request.user)
@@ -1851,7 +1828,6 @@ def school_info_clear(request: HttpRequest) -> HttpResponse:
     return redirect("school_info")
 
 
-@login_required
 def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     """Edit school information for a team (GoldTeam only)."""
     # Get user's permissions
@@ -1950,7 +1926,6 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     )
 
 
-@login_required
 def school_info_import(request: HttpRequest) -> HttpResponse:
     """Import school information from CSV file (GoldTeam only)."""
     from team.forms import CSVUploadForm, apply_csv_import, parse_csv_file, validate_csv_data
@@ -2072,7 +2047,6 @@ def school_info_import(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     """View team membership status and linked users (GoldTeam only)."""
     # Get user's permissions
@@ -2127,7 +2101,6 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_group_role_mappings.html", context)
 
 
-@login_required
 def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     """Review resolved tickets for point verification (admin only)."""
     from django.core.paginator import Paginator
@@ -2237,7 +2210,6 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_review_tickets.html", context)
 
 
-@login_required
 def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Verify ticket points (admin only)."""
     if request.method != "POST":
@@ -2299,7 +2271,6 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return redirect("ops_review_tickets")
 
 
-@login_required
 def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
     """Batch verify all unverified resolved ticket points (admin only)."""
     if request.method != "POST":

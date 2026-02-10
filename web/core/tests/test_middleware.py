@@ -4,7 +4,8 @@ import pytest
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
-from django.test import RequestFactory
+from django.test import Client, RequestFactory
+from django.urls import URLPattern, URLResolver, get_resolver
 
 from core.middleware import AuthentikRequiredMiddleware, SubdomainRedirectMiddleware
 
@@ -231,3 +232,68 @@ class TestAuthentikRequiredMiddleware:
         response = middleware(request)
 
         assert response.status_code == 200
+
+
+MIDDLEWARE_WHITELIST = ["/auth/", "/static/", "/health/", "/register/"]
+
+
+def _collect_url_paths(resolver: URLResolver | None = None, prefix: str = "/") -> list[str]:
+    """Recursively collect all concrete URL paths from the URL resolver."""
+    if resolver is None:
+        resolver = get_resolver()
+
+    paths: list[str] = []
+    for pattern in resolver.url_patterns:
+        if isinstance(pattern, URLResolver):
+            new_prefix = prefix + str(pattern.pattern)
+            paths.extend(_collect_url_paths(pattern, new_prefix))
+        elif isinstance(pattern, URLPattern):
+            route = prefix + str(pattern.pattern)
+            # Skip patterns with unconvertible captures (e.g. <pk>, <slug>)
+            # Fill in dummy values for common converter types
+            concrete = route
+            concrete = concrete.replace("<int:", "<").replace("<str:", "<").replace("<slug:", "<")
+            # Replace <name> captures with dummy values
+            import re
+
+            concrete = re.sub(
+                r"<(\w+)>",
+                lambda m: (
+                    "1" if m.group(1).endswith("id") or m.group(1) == "pk" or m.group(1).endswith("number") else "test"
+                ),
+                concrete,
+            )
+            # Skip Django admin (has its own auth)
+            if concrete.startswith("/admin/"):
+                continue
+            paths.append(concrete)
+    return paths
+
+
+class TestAllEndpointsRequireAuth:
+    """Verify every URL endpoint requires authentication via middleware."""
+
+    def test_every_endpoint_requires_auth_or_is_whitelisted(self) -> None:
+        """Every URL that is not in the middleware whitelist must redirect unauthenticated users to login."""
+        client = Client()
+        all_paths = _collect_url_paths()
+        unprotected: list[str] = []
+
+        for path in all_paths:
+            is_whitelisted = any(path.startswith(w) for w in MIDDLEWARE_WHITELIST)
+            if is_whitelisted:
+                continue
+
+            response = client.get(path)
+            # Middleware should redirect to /auth/login/ (302)
+            # Some views may also return 405 for GET on POST-only endpoints
+            if response.status_code not in (302, 405):
+                unprotected.append(f"{path} -> {response.status_code}")
+            elif response.status_code == 302 and "/auth/login/" not in response.url:
+                # Redirects somewhere other than login — still protected by middleware
+                # as long as the final destination also requires auth
+                pass
+
+        assert unprotected == [], "The following endpoints are accessible without authentication:\n" + "\n".join(
+            f"  {p}" for p in unprotected
+        )

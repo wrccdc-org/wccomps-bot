@@ -8,7 +8,6 @@ import re
 from typing import TypedDict, cast
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBase, StreamingHttpResponse
@@ -76,7 +75,6 @@ def team_packet(request: HttpRequest) -> HttpResponse:
     return render(request, "packets/team_packet.html", context)
 
 
-@login_required
 @require_GET
 def download_packet(request: HttpRequest, packet_id: int) -> HttpResponse:
     """Download a packet file."""
@@ -282,7 +280,6 @@ def packet_detail(request: HttpRequest, packet_id: int) -> HttpResponse:
     return render(request, "packets/ops_packet_detail.html", context)
 
 
-@login_required
 @require_POST
 def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
     """Dispatch packet actions (distribute, resend_failed, cancel, test_email)."""
