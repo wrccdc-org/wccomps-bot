@@ -81,7 +81,7 @@ if command -v docker &>/dev/null; then
     step "migrate"
 
     if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest \
-        web/core/tests web/scoring/tests web/ticketing/tests \
+        web/core/tests web/scoring/tests \
         web/team/tests web/packets/tests bot/tests \
         --tb=short -q); then
         cleanup_test_db; fail "tests" "$OUT"

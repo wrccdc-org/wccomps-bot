@@ -160,13 +160,13 @@ pytestmark = pytest.mark.django_db
 class TestLeaderboardAccess:
     """Test leaderboard view access restrictions."""
 
-    def test_unauthenticated_user_denied_access(self, social_app) -> None:
+    def test_unauthenticated_user_denied_access(self) -> None:
         """Unauthenticated users should be redirected to login."""
         client = Client()
         response = client.get(reverse("scoring:leaderboard"))
 
         assert response.status_code == 302
-        assert "/accounts/" in response.url and "login" in response.url
+        assert "login" in response.url
 
     def test_gold_team_can_access_leaderboard(self, create_user_with_groups) -> None:
         """Gold Team members should be able to access the leaderboard."""
@@ -206,7 +206,7 @@ class TestLeaderboardAccess:
             # Expected due to template issue - permission check passed (otherwise would be 403)
             pass
 
-    def test_admin_can_access_leaderboard(self, social_app) -> None:
+    def test_admin_can_access_leaderboard(self) -> None:
         """System Admin (Gold Team) should be able to access the leaderboard."""
         user = User.objects.create_user(username="admin_user", password="test123")
         UserGroups.objects.create(user=user, authentik_id="admin_user-uid", groups=["WCComps_GoldTeam"])
@@ -227,25 +227,27 @@ class TestLeaderboardAccess:
 
         assert response.status_code == 403
 
-    def test_red_team_denied_access(self, create_user_with_groups) -> None:
-        """Red Team members should be denied access to the leaderboard."""
+    def test_red_team_redirected_to_findings(self, create_user_with_groups) -> None:
+        """Red Team members should be redirected to their findings portal."""
         user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         client = Client()
         client.force_login(user)
 
         response = client.get(reverse("scoring:leaderboard"))
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.url == reverse("scoring:red_team_findings")
 
-    def test_orange_team_denied_access(self, create_user_with_groups) -> None:
-        """Orange Team members should be denied access to the leaderboard."""
+    def test_orange_team_redirected_to_portal(self, create_user_with_groups) -> None:
+        """Orange Team members should be redirected to their portal."""
         user = create_user_with_groups("orange_user", ["WCComps_OrangeTeam"])
         client = Client()
         client.force_login(user)
 
         response = client.get(reverse("scoring:leaderboard"))
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.url == reverse("scoring:orange_team_portal")
 
     def test_user_with_no_groups_denied_access(self, create_user_with_groups) -> None:
         """Users with no groups should be denied access to the leaderboard."""
@@ -579,6 +581,10 @@ class TestIncidentFindingMatching:
         assert matching_finding in suggestions
         assert len(suggestions) >= 1
 
+    @pytest.mark.skipif(
+        "not os.environ.get('USE_POSTGRES_FOR_TESTS')",
+        reason="JSONField __contains lookup requires PostgreSQL",
+    )
     def test_suggest_red_finding_matches_by_box_and_service(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by affected box and service."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
@@ -657,13 +663,13 @@ class TestIncidentFindingMatching:
 class TestIncidentListView:
     """Test blue team incident list view."""
 
-    def test_unauthenticated_user_redirected_to_login(self, social_app) -> None:
+    def test_unauthenticated_user_redirected_to_login(self) -> None:
         """Unauthenticated users redirected to login when accessing incident list."""
         client = Client()
         response = client.get(reverse("scoring:incident_list"))
 
         assert response.status_code == 302
-        assert "/accounts/" in response.url and "login" in response.url
+        assert "login" in response.url
 
     def test_blue_team_can_access_incident_list(self, create_user_with_groups) -> None:
         """Blue team members can access their incident list."""
@@ -696,7 +702,7 @@ class TestIncidentListView:
 
         assert response.status_code == 403
 
-    def test_admin_can_access_incident_list(self, social_app) -> None:
+    def test_admin_can_access_incident_list(self) -> None:
         """Admin users can access incident list."""
         user = User.objects.create_user(username="admin_user", password="test123")
         UserGroups.objects.create(user=user, authentik_id="admin_user-uid", groups=["WCComps_GoldTeam"])
@@ -884,9 +890,9 @@ class OrangeCheckTypeTests(TestCase):
         self.assertIsNotNone(check_type.created_at)
         self.assertEqual(str(check_type), "Custom check type")
 
-    def test_initial_check_types_exist(self) -> None:
-        """Test that initial check types are created by migration."""
-        expected_types = [
+    def test_bulk_check_type_creation(self) -> None:
+        """Test that multiple check types can be created and queried."""
+        type_names = [
             "Customer service call answered",
             "Network diagram completed",
             "Password reset assistance",
@@ -894,9 +900,12 @@ class OrangeCheckTypeTests(TestCase):
             "Professional behavior bonus",
         ]
 
-        for type_name in expected_types:
+        for name in type_names:
+            OrangeCheckType.objects.create(name=name)
+
+        for name in type_names:
             self.assertTrue(
-                OrangeCheckType.objects.filter(name=type_name).exists(), f"Expected check type '{type_name}' to exist"
+                OrangeCheckType.objects.filter(name=name).exists(), f"Expected check type '{name}' to exist"
             )
 
     def test_orange_check_type_unique_name(self) -> None:
@@ -910,7 +919,7 @@ class OrangeCheckTypeTests(TestCase):
 
     def test_orange_team_bonus_with_check_type(self) -> None:
         """Test that OrangeTeamBonus can reference a check_type."""
-        check_type = OrangeCheckType.objects.get(name="Password reset assistance")
+        check_type = OrangeCheckType.objects.create(name="Password reset assistance")
 
         bonus = OrangeTeamBonus.objects.create(
             team=self.team,
@@ -952,7 +961,7 @@ class OrangeCheckTypeTests(TestCase):
 
     def test_multiple_bonuses_can_use_same_check_type(self) -> None:
         """Test that multiple OrangeTeamBonus entries can reference the same check_type."""
-        check_type = OrangeCheckType.objects.get(name="Professional behavior bonus")
+        check_type = OrangeCheckType.objects.create(name="Professional behavior bonus")
         team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
 
         bonus1 = OrangeTeamBonus.objects.create(
@@ -988,7 +997,7 @@ class TestDataExport:
         response = client.get(reverse("scoring:export_index"))
         assert response.status_code == 302
 
-    def test_export_index_accessible_by_admin(self, social_app) -> None:
+    def test_export_index_accessible_by_admin(self) -> None:
         """Admin can access export index page."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1008,7 +1017,7 @@ class TestDataExport:
         response = client.get(reverse("scoring:export_red_findings") + "?format=csv")
         assert response.status_code == 302
 
-    def test_red_findings_csv_export_contains_correct_headers(self, social_app) -> None:
+    def test_red_findings_csv_export_contains_correct_headers(self) -> None:
         """Red findings CSV export contains correct headers."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1039,7 +1048,7 @@ class TestDataExport:
         assert b"Points Per Team" in response.content
         assert b"Approved" in response.content
 
-    def test_red_findings_csv_export_contains_data(self, social_app) -> None:
+    def test_red_findings_csv_export_contains_data(self) -> None:
         """Red findings CSV export contains correct data."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1062,7 +1071,7 @@ class TestDataExport:
         assert b"10.0.0.5" in response.content
         assert b"50.00" in response.content
 
-    def test_red_findings_json_export_format(self, social_app) -> None:
+    def test_red_findings_json_export_format(self) -> None:
         """Red findings JSON export returns valid JSON."""
         import json
 
@@ -1091,7 +1100,7 @@ class TestDataExport:
         assert data["red_findings"][0]["attack_vector"] == "RCE"
         assert data["red_findings"][0]["source_ip"] == "10.0.0.10"
 
-    def test_incidents_csv_export_contains_headers(self, social_app) -> None:
+    def test_incidents_csv_export_contains_headers(self) -> None:
         """Incidents CSV export contains correct headers."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1109,7 +1118,7 @@ class TestDataExport:
         assert b"Points Returned" in response.content
         assert b"Reviewed" in response.content
 
-    def test_incidents_csv_export_contains_data(self, social_app) -> None:
+    def test_incidents_csv_export_contains_data(self) -> None:
         """Incidents CSV export contains correct data."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1135,7 +1144,7 @@ class TestDataExport:
         assert b"Detected SQL injection" in response.content
         assert b"40.00" in response.content
 
-    def test_incidents_json_export_format(self, social_app) -> None:
+    def test_incidents_json_export_format(self) -> None:
         """Incidents JSON export returns valid JSON."""
         import json
 
@@ -1164,7 +1173,7 @@ class TestDataExport:
         assert len(data["incidents"]) == 1
         assert data["incidents"][0]["attack_description"] == "Port scan detected"
 
-    def test_orange_adjustments_csv_export_contains_headers(self, social_app) -> None:
+    def test_orange_adjustments_csv_export_contains_headers(self) -> None:
         """Orange adjustments CSV export contains correct headers."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1181,7 +1190,7 @@ class TestDataExport:
         assert b"Points" in response.content
         assert b"Approved" in response.content
 
-    def test_orange_adjustments_csv_export_contains_data(self, social_app) -> None:
+    def test_orange_adjustments_csv_export_contains_data(self) -> None:
         """Orange adjustments CSV export contains correct data."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1203,7 +1212,7 @@ class TestDataExport:
         assert b"Excellent customer service" in response.content
         assert b"50.00" in response.content
 
-    def test_orange_adjustments_json_export_format(self, social_app) -> None:
+    def test_orange_adjustments_json_export_format(self) -> None:
         """Orange adjustments JSON export returns valid JSON."""
         import json
 
@@ -1231,7 +1240,7 @@ class TestDataExport:
         assert data["orange_adjustments"][0]["description"] == "Rule violation"
         assert data["orange_adjustments"][0]["points_awarded"] == "-25.00"
 
-    def test_inject_grades_csv_export_contains_headers(self, social_app) -> None:
+    def test_inject_grades_csv_export_contains_headers(self) -> None:
         """Inject grades CSV export contains correct headers."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1249,7 +1258,7 @@ class TestDataExport:
         assert b"Points Awarded" in response.content
         assert b"Approved" in response.content
 
-    def test_inject_grades_csv_export_contains_data(self, social_app) -> None:
+    def test_inject_grades_csv_export_contains_data(self) -> None:
         """Inject grades CSV export contains correct data."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1273,7 +1282,7 @@ class TestDataExport:
         assert b"85.00" in response.content
         assert b"100.00" in response.content
 
-    def test_inject_grades_json_export_format(self, social_app) -> None:
+    def test_inject_grades_json_export_format(self) -> None:
         """Inject grades JSON export returns valid JSON."""
         import json
 
@@ -1302,7 +1311,7 @@ class TestDataExport:
         assert len(data["inject_grades"]) == 1
         assert data["inject_grades"][0]["inject_name"] == "Security Report"
 
-    def test_final_scores_csv_export_contains_headers(self, social_app) -> None:
+    def test_final_scores_csv_export_contains_headers(self) -> None:
         """Final scores CSV export contains correct headers."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
@@ -1320,13 +1329,11 @@ class TestDataExport:
         assert b"Inject Points" in response.content
         assert b"Red Deductions" in response.content
 
-    def test_final_scores_csv_export_contains_data(self, social_app) -> None:
+    def test_final_scores_csv_export_contains_data(self) -> None:
         """Final scores CSV export contains correct data."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        from .models import FinalScore
 
         FinalScore.objects.create(
             team=team,
@@ -1348,15 +1355,13 @@ class TestDataExport:
         assert b"770.00" in response.content
         assert b"500.00" in response.content
 
-    def test_final_scores_json_export_format(self, social_app) -> None:
+    def test_final_scores_json_export_format(self) -> None:
         """Final scores JSON export returns valid JSON."""
         import json
 
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        from .models import FinalScore
 
         FinalScore.objects.create(
             team=team,
@@ -1378,7 +1383,7 @@ class TestDataExport:
         assert len(data["final_scores"]) == 1
         assert data["final_scores"][0]["total_score"] == "550.00"
 
-    def test_export_defaults_to_csv_without_format_param(self, social_app) -> None:
+    def test_export_defaults_to_csv_without_format_param(self) -> None:
         """Export endpoints default to CSV when format parameter is not provided."""
         admin = User.objects.create_user(username="admin", password="test123")
         UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])

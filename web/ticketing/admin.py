@@ -48,9 +48,15 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
     list_filter = ["status", "category", "team"]
     search_fields = ["ticket_number", "title", "hostname", "service_name"]
     ordering = ["-created_at"]
-    readonly_fields = ["ticket_number", "created_at", "updated_at"]
+    readonly_fields = ["created_at", "updated_at"]
     inlines = [TicketAttachmentInline, TicketCommentInline, TicketHistoryInline]
     actions = ["export_as_csv"]
+
+    def get_readonly_fields(self, request: HttpRequest, obj: Ticket | None = None) -> list[str]:
+        """Make ticket_number read-only on existing tickets."""
+        if obj:
+            return [*self.readonly_fields, "ticket_number"]
+        return list(self.readonly_fields)
 
     fieldsets = (
         ("Identity", {"fields": ("ticket_number", "team", "status")}),
@@ -101,6 +107,20 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
         ),
         ("Audit", {"fields": ("created_at", "updated_at")}),
     )
+
+    def save_model(self, request: HttpRequest, obj: Ticket, form: object, change: bool) -> None:
+        """Auto-generate ticket number for new tickets created via admin."""
+        if not change and not obj.ticket_number:
+            from django.db.models import F
+
+            from team.models import Team
+
+            team = Team.objects.select_for_update().get(pk=obj.team_id)
+            team.ticket_counter = F("ticket_counter") + 1
+            team.save(update_fields=["ticket_counter"])
+            team.refresh_from_db()
+            obj.ticket_number = f"T{team.team_number:03d}-{team.ticket_counter:03d}"
+        super().save_model(request, obj, form, change)
 
     @admin.display(description="Assigned To")
     def get_assigned_to_display(self, obj: Ticket) -> str:
