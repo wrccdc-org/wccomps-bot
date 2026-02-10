@@ -72,21 +72,21 @@ def home(request: HttpRequest) -> HttpResponse:
     groups = get_authentik_groups(user)
     _team, _, is_team = get_team_from_groups(groups)
 
-    # Check roles in priority order (same as oauth._get_role_based_landing)
+    # Check roles in priority order — admin/ops first, then team-specific portals
+    if (
+        has_permission(user, "admin")
+        or has_permission(user, "ticketing_admin")
+        or has_permission(user, "ticketing_support")
+    ):
+        return redirect("ops_ticket_list")
+    if has_permission(user, "gold_team"):
+        return redirect("scoring:leaderboard")
     if has_permission(user, "red_team"):
         return redirect("scoring:submit_red_finding")
     if has_permission(user, "orange_team"):
         return redirect("scoring:orange_team_portal")
     if is_team:
         return redirect("team_tickets")
-    if (
-        has_permission(user, "ticketing_support")
-        or has_permission(user, "ticketing_admin")
-        or has_permission(user, "admin")
-    ):
-        return redirect("ops_ticket_list")
-    if has_permission(user, "gold_team"):
-        return redirect("scoring:leaderboard")
 
     # Fallback - redirect to leaderboard (public view)
     return redirect("scoring:leaderboard")

@@ -274,19 +274,21 @@ def _get_role_based_landing(groups: list[str]) -> str:
     """Determine landing page based on user's Authentik groups."""
     from django.urls import reverse
 
-    # Check roles in priority order
+    # Check roles in priority order — admin/ops first, then team-specific portals
+    if (
+        check_groups_for_permission(groups, "admin")
+        or check_groups_for_permission(groups, "ticketing_admin")
+        or check_groups_for_permission(groups, "ticketing_support")
+    ):
+        return reverse("ops_ticket_list")
+    if check_groups_for_permission(groups, "gold_team"):
+        return reverse("scoring:leaderboard")
     if check_groups_for_permission(groups, "red_team"):
         return reverse("scoring:submit_red_finding")
     if check_groups_for_permission(groups, "orange_team"):
         return reverse("scoring:orange_team_portal")
     if check_groups_for_permission(groups, "blue_team"):
         return reverse("scoring:submit_incident_report")
-    if check_groups_for_permission(groups, "ticketing_support") or check_groups_for_permission(
-        groups, "ticketing_admin"
-    ):
-        return reverse("ops_ticket_list")
-    if check_groups_for_permission(groups, "gold_team"):
-        return reverse("scoring:leaderboard")
 
     return "/"
 

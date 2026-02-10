@@ -102,8 +102,8 @@ class TestPermissionsContextProcessor:
         assert context["is_orange_team"] is False
         assert context["is_gold_team"] is True
 
-    def test_non_orange_team_user_has_is_orange_team_false(self, request_factory):
-        """User not in WCComps_OrangeTeam group should have is_orange_team = False."""
+    def test_admin_user_has_all_team_flags(self, request_factory):
+        """Admin user should have all team permission flags True."""
         user = User.objects.create_user(username="admin", password="test")
         UserGroups.objects.create(user=user, authentik_id="admin-uid", groups=["WCComps_Discord_Admin"])
 
@@ -112,7 +112,8 @@ class TestPermissionsContextProcessor:
 
         context = permissions(request)
 
-        assert context["is_orange_team"] is False
+        assert context["is_orange_team"] is True
+        assert context["is_red_team"] is True
         assert context["is_white_team"] is True
         assert context["is_admin"] is True
 
