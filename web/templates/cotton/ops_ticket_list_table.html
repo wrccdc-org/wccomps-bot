@@ -95,7 +95,7 @@
                         <td class="field-team">{{ item.ticket.team.team_name }}</td>
                         <td class="field-category">{{ item.category_name }}</td>
                         <td class="field-status" role="gridcell">
-                            <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
+                            <c-badge variant="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
                         </td>
                         <td class="field-assigned">
                             {% if item.ticket.assigned_to %}

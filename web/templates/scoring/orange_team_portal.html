@@ -30,9 +30,9 @@
                 <td>{{ bonus.team.team_name }}</td>
                 <td>
                     {% if bonus.check_type %}
-                        <c-badge status="claimed">{{ bonus.check_type.name }}</c-badge>
+                        <c-badge variant="claimed">{{ bonus.check_type.name }}</c-badge>
                     {% else %}
-                        <c-badge status="cancelled">Uncategorized</c-badge>
+                        <c-badge variant="cancelled">Uncategorized</c-badge>
                     {% endif %}
                 </td>
                 <td>{{ bonus.description|truncatechars:60 }}</td>
@@ -41,9 +41,9 @@
                 </td>
                 <td>
                     {% if bonus.is_approved %}
-                        <c-badge status="resolved">Approved</c-badge>
+                        <c-badge variant="resolved">Approved</c-badge>
                     {% else %}
-                        <c-badge status="claimed">Pending</c-badge>
+                        <c-badge variant="claimed">Pending</c-badge>
                     {% endif %}
                 </td>
                 <td>

@@ -76,10 +76,10 @@
                                   action="{% url 'scoring:send_scorecard_single' score.id %}"
                                   class="m-0 inline">
                                 {% csrf_token %}
-                                <c-button type="submit" variant="secondary" size="small">Send</c-button>
+                                <c-button type="submit" variant="default" size="small">Send</c-button>
                             </form>
                         {% else %}
-                            <c-badge variant="secondary">Pending</c-badge>
+                            <c-badge variant="default">Pending</c-badge>
                         {% endif %}
                     </td>
                 {% endif %}
@@ -101,7 +101,7 @@
                               action="{% url 'scoring:send_scorecards_batch' event.id %}"
                               class="m-0">
                             {% csrf_token %}
-                            <c-button type="submit" variant="secondary">Send All Scorecards</c-button>
+                            <c-button type="submit" variant="default">Send All Scorecards</c-button>
                         </form>
                     {% endif %}
                 </div>

@@ -86,7 +86,7 @@
                             </td>
                             <td class="field-evidence">
                                 {% if finding.screenshots.exists %}
-                                    <c-badge status="success">{{ finding.screenshots.count }} files</c-badge>
+                                    <c-badge variant="success">{{ finding.screenshots.count }} files</c-badge>
                                 {% else %}
                                     <span class="text-muted">None</span>
                                 {% endif %}
@@ -104,9 +104,9 @@
                             {% endif %}
                             <td class="field-status">
                                 {% if finding.is_approved %}
-                                    <c-badge status="resolved">✓ Reviewed</c-badge>
+                                    <c-badge variant="resolved">✓ Reviewed</c-badge>
                                 {% else %}
-                                    <c-badge status="claimed">⏳ Pending</c-badge>
+                                    <c-badge variant="claimed">⏳ Pending</c-badge>
                                 {% endif %}
                             </td>
                             <td class="field-actions">

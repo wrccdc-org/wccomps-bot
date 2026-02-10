@@ -15,7 +15,7 @@
             <c-alert variant="{{ active_packet.status }}">
             <div class="d-flex justify-between items-center flex-wrap gap-10">
                 <div class="d-flex items-center gap-10 flex-wrap">
-                    <c-badge status="{{ active_packet.status }}">{{ active_packet.get_status_display }}</c-badge>
+                    <c-badge variant="{{ active_packet.status }}">{{ active_packet.get_status_display }}</c-badge>
                     <strong>{{ active_packet.title }}</strong>
                     <span class="text-muted">{{ active_packet.filename }} ({{ active_packet.file_size|filesizeformat }})</span>
                     <span class="text-muted">|</span>
@@ -126,7 +126,7 @@
                         <small class="text-muted">{{ item.packet.filename }} ({{ item.packet.file_size|filesizeformat }})</small>
                     </td>
                     <td>
-                        <c-badge status="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
+                        <c-badge variant="{{ item.packet.status }}">{{ item.packet.get_status_display }}</c-badge>
                     </td>
                     <td>
                         <small>{{ item.stats.sent }} sent, {{ item.stats.downloaded }} downloaded

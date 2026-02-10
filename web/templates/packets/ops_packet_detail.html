@@ -10,7 +10,7 @@
         <c-alert variant="{{ packet.status }}">
         <div class="d-flex justify-between items-center flex-wrap gap-10">
             <div class="d-flex items-center gap-10 flex-wrap">
-                <c-badge status="{{ packet.status }}">{{ packet.get_status_display }}</c-badge>
+                <c-badge variant="{{ packet.status }}">{{ packet.get_status_display }}</c-badge>
                 <span>{{ packet.filename }} ({{ packet.file_size|filesizeformat }})</span>
                 <span class="text-muted">|</span>
                 <span>{{ stats.total }} teams</span>
@@ -90,7 +90,7 @@
                         {% csrf_token %}
                         <td>Team {{ dist.team.team_number }}: {{ dist.team.team_name }}</td>
                         <td>
-                            <c-badge status="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
+                            <c-badge variant="{{ dist.email_status }}">{{ dist.get_email_status_display }}</c-badge>
                         </td>
                         <td>
                             <input type="email"
@@ -106,7 +106,7 @@
                         <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td>
                             {% if dist.downloaded_at %}
-                                <c-badge status="success">{{ dist.download_count }}x</c-badge>
+                                <c-badge variant="success">{{ dist.download_count }}x</c-badge>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}

@@ -90,10 +90,10 @@ Props: `href`, `variant` (default|history|add|change)
 #### `<c-badge>`
 Status indicators with color coding.
 ```django
-<c-badge status="open">Open</c-badge>
-<c-badge status="claimed">Claimed</c-badge>
-<c-badge status="resolved">Resolved</c-badge>
-<c-badge status="cancelled">Cancelled</c-badge>
+<c-badge variant="open">Open</c-badge>
+<c-badge variant="claimed">Claimed</c-badge>
+<c-badge variant="resolved">Resolved</c-badge>
+<c-badge variant="cancelled">Cancelled</c-badge>
 ```
 
 #### `<c-alert>`

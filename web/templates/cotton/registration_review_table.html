@@ -17,7 +17,7 @@
             <td>{{ registration.contact_email }}</td>
             <td>{{ registration.phone }}</td>
             <td>
-                <c-badge status="
+                <c-badge variant="
                 {% if registration.status == 'approved' %}
                     resolved
                 {% elif registration.status == 'rejected' %}

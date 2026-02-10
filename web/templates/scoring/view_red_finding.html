@@ -8,9 +8,9 @@
     <c-module>
     <c-slot name="toolbar">
     {% if finding.is_approved %}
-        <c-badge status="resolved">Approved</c-badge>
+        <c-badge variant="resolved">Approved</c-badge>
     {% else %}
-        <c-badge status="claimed">Pending Review</c-badge>
+        <c-badge variant="claimed">Pending Review</c-badge>
     {% endif %}
     </c-slot>
     <div class="grid-2 gap-20">

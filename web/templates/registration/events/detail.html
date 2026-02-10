@@ -41,13 +41,13 @@
             <p>
                 <strong>Status:</strong>
                 {% if event.is_finalized %}
-                    <c-badge status="neutral">Finalized</c-badge>
+                    <c-badge variant="neutral">Finalized</c-badge>
                 {% elif event.is_active %}
-                    <c-badge status="success">Active</c-badge>
+                    <c-badge variant="success">Active</c-badge>
                 {% elif event.registration_open %}
-                    <c-badge status="info">Registration Open</c-badge>
+                    <c-badge variant="info">Registration Open</c-badge>
                 {% else %}
-                    <c-badge status="warning">Registration Closed</c-badge>
+                    <c-badge variant="warning">Registration Closed</c-badge>
                 {% endif %}
             </p>
         </div>
@@ -82,15 +82,15 @@
                         <td>{{ item.registration.school_name }}</td>
                         <td>
                             {% if item.registration.status == "pending" %}
-                                <c-badge status="warning">Pending</c-badge>
+                                <c-badge variant="warning">Pending</c-badge>
                             {% elif item.registration.status == "approved" %}
-                                <c-badge status="info">Approved</c-badge>
+                                <c-badge variant="info">Approved</c-badge>
                             {% elif item.registration.status == "paid" %}
-                                <c-badge status="success">Paid</c-badge>
+                                <c-badge variant="success">Paid</c-badge>
                             {% elif item.registration.status == "credentials_sent" %}
-                                <c-badge status="neutral">Credentials Sent</c-badge>
+                                <c-badge variant="neutral">Credentials Sent</c-badge>
                             {% elif item.registration.status == "rejected" %}
-                                <c-badge status="danger">Rejected</c-badge>
+                                <c-badge variant="danger">Rejected</c-badge>
                             {% endif %}
                         </td>
                         <td>

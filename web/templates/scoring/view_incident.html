@@ -9,9 +9,9 @@
         <c-module>
         <c-slot name="toolbar">
         {% if incident.gold_team_reviewed %}
-            <c-badge status="resolved">Reviewed</c-badge>
+            <c-badge variant="resolved">Reviewed</c-badge>
         {% else %}
-            <c-badge status="claimed">Pending Review</c-badge>
+            <c-badge variant="claimed">Pending Review</c-badge>
         {% endif %}
         </c-slot>
         <div class="grid-2 gap-20">

@@ -52,13 +52,13 @@
                         <td>{{ event.enrollment_count|default:0 }} / {{ event.max_teams }}</td>
                         <td>
                             {% if event.is_finalized %}
-                                <c-badge status="neutral">Finalized</c-badge>
+                                <c-badge variant="neutral">Finalized</c-badge>
                             {% elif event.is_active %}
-                                <c-badge status="success">Active</c-badge>
+                                <c-badge variant="success">Active</c-badge>
                             {% elif event.registration_open %}
-                                <c-badge status="info">Open</c-badge>
+                                <c-badge variant="info">Open</c-badge>
                             {% else %}
-                                <c-badge status="warning">Closed</c-badge>
+                                <c-badge variant="warning">Closed</c-badge>
                             {% endif %}
                         </td>
                         <td>

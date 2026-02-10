@@ -156,6 +156,11 @@ button[type="submit"]:hover {
     opacity: 0.85;
 }
 
+.button.warning {
+    background: var(--warning-fg);
+    color: #fff;
+}
+
 /* Team status in mappings page */
 .field-status > div:first-child {
     font-weight: 700;

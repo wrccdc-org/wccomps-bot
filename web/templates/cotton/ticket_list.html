@@ -19,7 +19,7 @@
             </th>
             <td class="field-category" role="gridcell">{{ item.category_name }}</td>
             <td class="field-status" role="gridcell">
-                <c-badge status="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
+                <c-badge variant="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
             </td>
             <td class="field-created" role="gridcell">{{ item.ticket.created_at|timesince }} ago</td>
         </tr>

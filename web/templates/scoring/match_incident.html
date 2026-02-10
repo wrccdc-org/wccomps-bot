@@ -70,7 +70,7 @@
                         <div class="d-flex justify-between items-start">
                             <div>
                                 <strong>Finding #{{ finding.id }}</strong>
-                                {% if finding.source_ip == incident.source_ip %}<c-badge status="success" class="ml-5">IP Match</c-badge>{% endif %}
+                                {% if finding.source_ip == incident.source_ip %}<c-badge variant="success" class="ml-5">IP Match</c-badge>{% endif %}
                                 <br>
                                 <small>{{ finding.attack_vector|truncatechars:60 }}</small>
                                 <br>
@@ -80,7 +80,7 @@
                                     Source IP: <code>{{ finding.source_ip }}</code>
                                 </small>
                             </div>
-                            <c-badge status="danger">-{{ finding.points_per_team }} pts</c-badge>
+                            <c-badge variant="danger">-{{ finding.points_per_team }} pts</c-badge>
                         </div>
                         <small class="text-muted d-block mt-10">Submitted: {{ finding.created_at|date:"m/d H:i" }}</small>
                     </div>
