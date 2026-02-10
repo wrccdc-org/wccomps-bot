@@ -25,7 +25,6 @@ dependencies = [
     "xkcdpass>=1.19.9",
     "django-smart-ratelimit>=0.8.11",
     "httpx>=0.28.1",
-    "weasyprint>=67.0",
 ]
 
 [project.optional-dependencies]

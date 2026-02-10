@@ -1114,7 +1114,6 @@ element.classList.add('modal--open');
 
 **Exceptions:**
 - Email templates (`templates/emails/`) - inline styles required for email clients
-- PDF templates (`*_pdf.html`) - inline styles required for WeasyPrint
 - Cotton component definitions (`templates/cotton/`) - may need inline styles for component implementation
 
 This is enforced by `TestInlineStyles.test_no_inline_display_styles_in_html`.

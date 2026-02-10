@@ -1,4 +1,4 @@
-"""Scoring services for score card distribution."""
+"""Scoring services for scorecard distribution."""
 
 import logging
 from dataclasses import dataclass
@@ -9,7 +9,6 @@ from registration.models import Event, RegistrationContact
 from core.email import get_email_service
 
 from .models import EventScore
-from .pdf import generate_scorecard_filename, generate_scorecard_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ def get_scorecard_recipient_emails(event_score: EventScore) -> list[str]:
 
 def send_scorecard_single(event_score: EventScore) -> ScorecardSendResult:
     """
-    Generate and send PDF scorecard to a single team.
+    Send scorecard email to a single team.
 
     Args:
         event_score: EventScore to send scorecard for
@@ -72,19 +71,6 @@ def send_scorecard_single(event_score: EventScore) -> ScorecardSendResult:
             team_number=team_number,
             school_name=school_name,
             error="No email recipients found",
-        )
-
-    # Generate PDF
-    try:
-        pdf_data = generate_scorecard_pdf(event_score)
-        pdf_filename = generate_scorecard_filename(event_score)
-    except Exception as e:
-        logger.exception("Failed to generate scorecard PDF for team %d", team_number)
-        return ScorecardSendResult(
-            success=False,
-            team_number=team_number,
-            school_name=school_name,
-            error=f"PDF generation failed: {e}",
         )
 
     # Get total teams for context
@@ -112,9 +98,7 @@ def send_scorecard_single(event_score: EventScore) -> ScorecardSendResult:
             "total_score": event_score.total_score,
             "rank": event_score.rank or "-",
             "total_teams": total_teams,
-            "scorecard_attached": True,
         },
-        attachments=[(pdf_filename, pdf_data, "application/pdf")],
     )
 
     if not email_sent:

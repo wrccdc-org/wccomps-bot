@@ -17,8 +17,6 @@ Score Summary:
 Total Score: {{ total_score }}
 Rank: {{ rank }} of {{ total_teams }}
 
-{% if scorecard_attached %}A detailed score card PDF is attached to this email.{% endif %}
-
 Thank you for participating in {{ event_name }}!
 
 ---
