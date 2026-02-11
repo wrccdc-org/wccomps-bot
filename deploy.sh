@@ -165,6 +165,8 @@ else
         || fail "collectstatic"
     step "migrate"
 
+    # Clear bytecode cache so new workers load fresh source
+    remote "docker compose exec -T web find /app/web -type d -name __pycache__ -exec rm -rf {} + || true"
     remote "docker compose kill -s HUP web" \
         || fail "reload"
     step "reloaded"
