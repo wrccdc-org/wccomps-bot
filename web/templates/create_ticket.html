@@ -15,6 +15,60 @@
         .dynamic-field.show {
             display: block;
         }
+
+        .box-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .box-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--hairline-color, #ddd);
+            background: var(--body-bg, white);
+            color: var(--body-fg, #333);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .box-btn:hover {
+            background: var(--darkened-bg, #f5f5f5);
+        }
+
+        .box-btn--selected {
+            background: var(--primary, #417690);
+            border-color: var(--primary, #417690);
+            color: white;
+        }
+
+        .points-callout {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .points-callout--cost {
+            background: var(--warning-alert-bg);
+            border-left: 4px solid var(--warning-alert-border);
+            color: var(--warning-alert-fg);
+        }
+
+        .points-callout--free {
+            background: var(--success-bg);
+            border-left: 4px solid var(--success-fg);
+            color: var(--success-fg);
+        }
+
+        .points-callout .points-value {
+            font-size: 20px;
+        }
     </style>
 {% endblock extra_css %}
 {% block content %}
@@ -32,119 +86,125 @@
             {% if error %}<c-alert variant="error">{{ error }}</c-alert>{% endif %}
             <c-fieldset>
             {% if teams %}
-                <div class="form-row">
-                    <div>
-                        <label class="required" for="team_id">Team:</label>
-                        <select name="team_id" id="team_id" required>
-                            <option value="">Select a team...</option>
-                            {% for t in teams %}
-                                <option value="{{ t.id }}"
-                                        {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
-                                    Team {{ t.team_number }} - {{ t.team_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
+                <c-form_field label="Team" required="true" id="team_id">
+                <select name="team_id" id="team_id" required>
+                    <option value="">Select a team...</option>
+                    {% for t in teams %}
+                        <option value="{{ t.id }}"
+                                {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
+                            Team {{ t.team_number }} - {{ t.team_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                </c-form_field>
             {% endif %}
-            <div class="form-row">
-                <div>
-                    <label class="required" for="category">Category:</label>
-                    <select name="category"
-                            id="category"
-                            required
-                            x-model="selectedCategory"
-                            @change="onCategoryChange()">
-                        <option value="">Select a category...</option>
-                        {% for cat_key, cat_info in categories.items %}
-                            <option value="{{ cat_key }}"
-                                    data-points="{{ cat_info.points }}"
-                                    {% if form_data.category == cat_key %}selected{% endif %}>
-                                {{ cat_info.display_name }} - {{ cat_info.points }} points
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
+            <c-form_field label="Category" required="true" id="category">
+            <select name="category"
+                    id="category"
+                    required
+                    x-model="selectedCategory"
+                    @change="onCategoryChange()">
+                <option value="">Select a category...</option>
+                {% for cat_key, cat_info in categories.items %}
+                    <option value="{{ cat_key }}"
+                            data-points="{{ cat_info.points }}"
+                            {% if form_data.category == cat_key %}selected{% endif %}>
+                        {{ cat_info.display_name }}
+                    </option>
+                {% endfor %}
+            </select>
+            </c-form_field>
+            <!-- Points cost callout -->
+            <template x-if="selectedCategory && categoryPoints > 0">
+                <div class="points-callout points-callout--cost">
+                    <span class="points-value" x-text="categoryPoints + 'pt'"></span>
+                    <span>will be charged to your team</span>
                 </div>
-            </div>
-            <div class="form-row">
-                <div>
-                    <label class="required" for="title">Title:</label>
-                    <input type="text"
-                           name="title"
-                           id="title"
-                           required
-                           maxlength="200"
-                           value="{{ form_data.title }}"
-                           placeholder="Brief summary of the issue">
+            </template>
+            <template x-if="selectedCategory && categoryPoints === 0">
+                <div class="points-callout points-callout--free">
+                    <span class="points-value">Free</span>
+                    <span>no points charged</span>
                 </div>
-            </div>
-            <div class="form-row dynamic-field"
+            </template>
+            <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
+            <c-form_field label="Title" required="true" id="title" help_text="Brief summary of the issue">
+            <input type="text"
+                   name="title"
+                   id="title"
+                   class="vTextField"
+                   required
+                   maxlength="200"
+                   value="{{ form_data.title }}"
+                   placeholder="Brief summary of the issue">
+            </c-form_field>
+            <!-- Hostname with quick-add buttons -->
+            <div class="dynamic-field"
                  :class="{ 'show': visibleFields.includes('hostname') }"
                  id="field-hostname">
-                <div>
-                    <label for="hostname">
-                        Hostname: <span class="text-danger" x-show="requiredFields.includes('hostname')">*</span>
-                    </label>
-                    <input type="text"
-                           name="hostname"
-                           id="hostname"
-                           x-model="selectedHostname"
-                           @input="onHostnameChange()"
-                           list="hostname-list"
-                           :required="requiredFields.includes('hostname')"
-                           placeholder="Select or enter hostname..."
-                           value="{{ form_data.hostname }}">
-                    <datalist id="hostname-list">
-                        {% for box_name in box_names %}<option value="{{ box_name }}"></option>{% endfor %}
-                    </datalist>
+                <c-form_field label="Hostname" id="hostname">
+                <span class="text-danger" x-show="requiredFields.includes('hostname')">* Required</span>
+                <div class="box-buttons">
+                    {% for box_name in box_names %}
+                        <button type="button"
+                                class="box-btn"
+                                :class="selectedHostname === '{{ box_name }}' && 'box-btn--selected'"
+                                @click="selectedHostname = '{{ box_name }}'; onHostnameChange()">
+                            {{ box_name }}
+                        </button>
+                    {% endfor %}
                 </div>
+                <input type="hidden"
+                       name="hostname"
+                       id="hostname"
+                       x-model="selectedHostname"
+                       :required="requiredFields.includes('hostname')">
+                </c-form_field>
             </div>
-            <div class="form-row dynamic-field"
+            <!-- IP Address (auto-filled) -->
+            <div class="dynamic-field"
                  :class="{ 'show': visibleFields.includes('ip_address') }"
                  id="field-ip_address">
-                <div>
-                    <label for="ip_address">
-                        IP Address: <span class="text-danger" x-show="requiredFields.includes('ip_address')">*</span>
-                    </label>
-                    <input type="text"
-                           name="ip_address"
-                           id="ip_address"
-                           x-model="ipAddress"
-                           :required="requiredFields.includes('ip_address')"
-                           placeholder="Enter IP address or select hostname above">
-                </div>
+                <c-form_field label="IP Address" id="ip_address" help_text="Auto-filled from hostname selection">
+                <span class="text-danger" x-show="requiredFields.includes('ip_address')">* Required</span>
+                <input type="text"
+                       name="ip_address"
+                       id="ip_address"
+                       class="vTextField"
+                       x-model="ipAddress"
+                       :required="requiredFields.includes('ip_address')"
+                       placeholder="Select a hostname above">
+                </c-form_field>
             </div>
-            <div class="form-row dynamic-field"
+            <!-- Service -->
+            <div class="dynamic-field"
                  :class="{ 'show': visibleFields.includes('service_name') }"
                  id="field-service_name">
-                <div>
-                    <label for="service_name">
-                        Service: <span class="text-danger" x-show="requiredFields.includes('service_name')">*</span>
-                    </label>
-                    <select name="service_name"
-                            id="service_name"
-                            x-ref="serviceSelect"
-                            x-model="selectedService"
-                            @change="onServiceChange()"
-                            :required="requiredFields.includes('service_name')">
-                        <option value="">Select a service...</option>
-                    </select>
-                </div>
+                <c-form_field label="Service" id="service_name">
+                <span class="text-danger" x-show="requiredFields.includes('service_name')">* Required</span>
+                <select name="service_name"
+                        id="service_name"
+                        x-ref="serviceSelect"
+                        x-model="selectedService"
+                        @change="onServiceChange()"
+                        :required="requiredFields.includes('service_name')">
+                    <option value="">Select a service...</option>
+                </select>
+                </c-form_field>
             </div>
-            <div class="form-row dynamic-field"
+            <!-- Description -->
+            <div class="dynamic-field"
                  :class="{ 'show': visibleFields.includes('description') }"
                  id="field-description">
-                <div>
-                    <label for="description">
-                        Description: <span class="text-danger" x-show="requiredFields.includes('description')">*</span>
-                    </label>
-                    <textarea name="description"
-                              id="description"
-                              rows="5"
-                              :required="requiredFields.includes('description')"
-                              placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
-                </div>
+                <c-form_field label="Description" id="description">
+                <span class="text-danger" x-show="requiredFields.includes('description')">* Required</span>
+                <textarea name="description"
+                          id="description"
+                          class="vLargeTextField"
+                          rows="5"
+                          :required="requiredFields.includes('description')"
+                          placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
+                </c-form_field>
             </div>
             </c-fieldset>
             <c-button_row class="justify-end">
@@ -169,6 +229,7 @@
                     selectedService: '{{ form_data.service_name|default:"" }}',
                     ipAddress: '{{ form_data.ip_address|default:"" }}',
                     categoryWarning: '',
+                    categoryPoints: 0,
                     visibleFields: [],
                     requiredFields: [],
 
@@ -214,10 +275,12 @@
                             this.visibleFields = [];
                             this.requiredFields = [];
                             this.categoryWarning = '';
+                            this.categoryPoints = 0;
                             return;
                         }
 
                         this.categoryWarning = catData.warning || '';
+                        this.categoryPoints = catData.points || 0;
                         this.requiredFields = catData.required_fields || [];
                         this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
                     },
@@ -228,7 +291,6 @@
                         } else {
                             this.ipAddress = '';
                         }
-                        // Clear service if it doesn't match the new hostname
                         if (this.selectedService) {
                             const svc = allServiceChoices.find(s => s.value === this.selectedService);
                             if (svc && svc.box_name !== this.selectedHostname) {
@@ -253,7 +315,6 @@
                     },
 
                     validateForm(event) {
-                        // Form validation is handled by HTML5 required attributes
                         return true;
                     }
                 };

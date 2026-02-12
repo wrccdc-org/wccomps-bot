@@ -6,6 +6,45 @@
 {% block home_url %}
     {% url 'team_tickets' %}
 {% endblock home_url %}
+{% block extra_css %}
+    <style>
+        .comment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .comment-item {
+            padding: 10px 15px;
+            border-radius: 4px;
+            background: var(--darkened-bg, #f8f8f8);
+            border: 1px solid var(--hairline-color, #ddd);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: var(--body-fg, #333);
+        }
+
+        .comment-time {
+            color: var(--body-quiet-color, #666);
+        }
+
+        .comment-body {
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+{% endblock extra_css %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="Ticket {{ ticket.ticket_number }}" subtitle="{{ team.team_name }}" />
@@ -23,13 +62,27 @@
         <dd>
             {{ ticket.ticket_number }}
         </dd>
+        <dt>Title</dt>
+        <dd>
+            {{ ticket.title }}
+        </dd>
         <dt>Category</dt>
         <dd>
             {{ category_name }}
         </dd>
         <dt>Status</dt>
         <dd>
-            {{ status_display }}
+            <c-badge variant="
+            {% if ticket.status == 'open' %}
+                info
+            {% elif ticket.status == 'claimed' %}
+                warning
+            {% elif ticket.status == 'resolved' %}
+                success
+            {% else %}
+                neutral
+            {% endif %}
+            ">{{ status_display }}</c-badge>
         </dd>
         {% if ticket.assigned_to %}
             <dt>Assigned To</dt>
@@ -63,12 +116,12 @@
         {% endif %}
         <dt>Created</dt>
         <dd>
-            {{ ticket.created_at|date:"Y-m-d H:i:s" }} UTC
+            {{ ticket.created_at|timesince }} ago
         </dd>
         {% if ticket.resolved_at %}
             <dt>Resolved</dt>
             <dd>
-                {{ ticket.resolved_at|date:"Y-m-d H:i:s" }} UTC
+                {{ ticket.resolved_at|timesince }} ago
             </dd>
         {% endif %}
         {% if ticket.resolution_notes %}
@@ -82,30 +135,25 @@
         <!-- Comments -->
         <c-fieldset heading="Comments">
         {% if comments %}
-            <c-table aria_label="Ticket comments">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Author</c-table_header>
-                <c-table_header sortable="false">Comment</c-table_header>
-                <c-table_header sortable="false">Posted</c-table_header>
-            </tr>
-            </c-slot>
-            {% for comment in comments %}
-                <tr class="{% cycle 'row1' 'row2' %}">
-                    <td>
-                        {% if comment.author %}
-                            {{ comment.author }}
-                        {% else %}
-                            Unknown
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-pre-wrap">{{ comment.comment_text }}</td>
-                    <td>{{ comment.posted_at|date:"Y-m-d H:i:s" }}</td>
-                </tr>
-            {% endfor %}
-            </c-table>
+            <div class="comment-list">
+                {% for comment in comments %}
+                    <div class="comment-item">
+                        <div class="comment-header">
+                            <span class="comment-author">
+                                {% if comment.author %}
+                                    {{ comment.author }}
+                                {% else %}
+                                    Unknown
+                                {% endif %}
+                            </span>
+                            <span class="comment-time">{{ comment.posted_at|timesince }} ago</span>
+                        </div>
+                        <div class="comment-body">{{ comment.comment_text }}</div>
+                    </div>
+                {% endfor %}
+            </div>
         {% else %}
-            <c-empty_state title="No comments yet" description="Comments from the ticket thread will appear here" />
+            <c-empty_state title="No comments yet" description="Comments will appear here" />
         {% endif %}
         <!-- Add Comment Form -->
         {% if ticket.status != 'resolved' and ticket.status != 'cancelled' %}

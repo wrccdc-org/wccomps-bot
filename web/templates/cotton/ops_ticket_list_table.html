@@ -36,14 +36,15 @@
         <table id="result_list" role="grid" aria-label="Tickets list">
             {# djlint:off H021 #}
             <colgroup>
-                <col style="width: 5%;">
+                <col style="width: 4%;">
+                <col style="width: 9%;">
+                <col style="width: 20%;">
+                <col style="width: 9%;">
+                <col style="width: 13%;">
+                <col style="width: 8%;">
+                <col style="width: 9%;">
                 <col style="width: 10%;">
-                <col style="width: 10%;">
-                <col style="width: 15%;">
-                <col style="width: 10%;">
-                <col style="width: 10%;">
-                <col style="width: 10%;">
-                <col style="width: 30%;">
+                <col style="width: 18%;">
             </colgroup>
             {# djlint:on #}
             <thead>
@@ -57,6 +58,9 @@
                     </th>
                     <th scope="col">
                         <div class="text">Ticket</div>
+                    </th>
+                    <th scope="col">
+                        <div class="text">Title</div>
                     </th>
                     <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Team</c-table_header>
                     <c-table_header sort_field="category" current_sort=sort_by query_params="&status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&page_size={{ page_size }}">Category</c-table_header>
@@ -82,16 +86,20 @@
                             <a href="{% url 'ops_ticket_detail' ticket_number=item.ticket.ticket_number %}?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page={{ page_obj.number }}&page_size={{ page_size }}">
                                 {{ item.ticket.ticket_number }}
                             </a>
-                            {% if item.is_stale %}<span>STALE</span>{% endif %}
-                            <div>
-                                {% if item.ticket.comment_count > 0 %}
-                                    <span title="{{ item.ticket.comment_count }} comment(s)">Comments: {{ item.ticket.comment_count }}</span>
-                                {% endif %}
-                                {% if item.ticket.attachment_count > 0 %}
-                                    <span title="{{ item.ticket.attachment_count }} attachment(s)">Attachments: {{ item.ticket.attachment_count }}</span>
-                                {% endif %}
-                            </div>
+                            {% if item.is_stale %}<c-badge variant="danger">STALE</c-badge>{% endif %}
+                            {% if item.ticket.comment_count > 0 or item.ticket.attachment_count > 0 %}
+                                <div class="text-xs text-muted">
+                                    {% if item.ticket.comment_count > 0 %}
+                                        {{ item.ticket.comment_count }} comment{{ item.ticket.comment_count|pluralize }}
+                                    {% endif %}
+                                    {% if item.ticket.comment_count > 0 and item.ticket.attachment_count > 0 %},{% endif %}
+                                    {% if item.ticket.attachment_count > 0 %}
+                                        {{ item.ticket.attachment_count }} file{{ item.ticket.attachment_count|pluralize }}
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </th>
+                        <td>{{ item.ticket.title|truncatechars:50 }}</td>
                         <td class="field-team">{{ item.ticket.team.team_name }}</td>
                         <td class="field-category">{{ item.category_name }}</td>
                         <td class="field-status" role="gridcell">
@@ -133,7 +141,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center p-20">
+                        <td colspan="9" class="text-center p-20">
                             {% if search_query or status_filter != 'all' or category_filter != 'all' or team_filter or assignee_filter %}
                                 No tickets match your filters. Try <a href="{% url 'ops_ticket_list' %}">clearing all filters</a>
                             {% else %}

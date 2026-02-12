@@ -2,11 +2,16 @@
 {# Usage: <c-ticket_list :tickets="tickets" :status_filter="status_filter" /> #}
 {# Props: tickets (list), status_filter (str), show_paginator (bool) #}
 <c-vars show_paginator="true" />
-<div id="ticket-list-content">
+<div id="ticket-list-content"
+     hx-get="{% url 'team_tickets' %}?status={{ status_filter }}"
+     hx-trigger="every 30s"
+     hx-select="#ticket-list-content"
+     hx-swap="outerHTML">
     <c-table id="result_list" aria_label="Your tickets">
     <c-slot name="headers">
     <tr role="row">
         <c-table_header sortable="false">Ticket</c-table_header>
+        <c-table_header sortable="false">Title</c-table_header>
         <c-table_header sortable="false">Category</c-table_header>
         <c-table_header sortable="false">Status</c-table_header>
         <c-table_header sortable="false">Created</c-table_header>
@@ -17,6 +22,7 @@
             <th class="field-ticket_number" role="gridcell">
                 <c-link href="{% url 'ticket_detail' item.ticket.id %}">{{ item.ticket.ticket_number }}</c-link>
             </th>
+            <td role="gridcell">{{ item.ticket.title|truncatechars:60 }}</td>
             <td class="field-category" role="gridcell">{{ item.category_name }}</td>
             <td class="field-status" role="gridcell">
                 <c-badge variant="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>
@@ -25,7 +31,7 @@
         </tr>
     {% empty %}
         <tr>
-            <td colspan="4">
+            <td colspan="5">
                 {% if status_filter != 'all' %}
                     <c-empty_state title="No tickets match your filter">
                     Try <c-link href="{% url 'team_tickets' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
