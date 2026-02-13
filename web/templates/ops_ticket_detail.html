@@ -135,11 +135,19 @@
                                       class="w-full"></textarea>
                         </div>
                         <div class="min-w-150">
-                            <label for="points_override" class="font-semibold text-sm d-block mb-5">Points Override:</label>
+                            <label for="points_override" class="font-semibold text-sm d-block mb-5">
+                                {% if variable_points %}
+                                    Points:
+                                {% else %}
+                                    Points Override:
+                                {% endif %}
+                            </label>
                             <input type="number"
                                    name="points_override"
                                    id="points_override"
-                                   placeholder="{{ ticket.points_charged }}pt default"
+                                   placeholder="{% if variable_points %}Enter points{% else %}{{ ticket.points_charged }}pt default{% endif %}"
+                                   {% if variable_points %}required{% endif %}
+                                   min="0"
                                    class="w-full">
                         </div>
                     </div>

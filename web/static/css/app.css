@@ -699,6 +699,14 @@ label.required::after {
     color: var(--error-fg, #ba2121);
 }
 
+/* Form row inputs - consistent full width */
+.form-row select,
+.form-row input[type="text"],
+.form-row textarea {
+    width: 100%;
+    max-width: 600px;
+}
+
 /* ============================================
    FILTER FIELD COMPONENT
    ============================================ */

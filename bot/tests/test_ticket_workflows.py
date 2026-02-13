@@ -217,7 +217,7 @@ class TestTicketResolutionWorkflow:
         history = history_entries[-1]
         assert history.action == "resolved"
         assert history.details["notes"] == "All fixed"
-        assert history.details["point_penalty"] == 0
+        assert history.details["point_penalty"] == 10
 
     async def test_ticket_resolution_calls_dashboard_update(
         self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any

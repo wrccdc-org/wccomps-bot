@@ -285,19 +285,23 @@ class AdminTicketsCog(commands.Cog):
         # Determine point penalty
         if cat_info.get("variable_points", False):
             if points is None:
-                min_pts = cat_info.get("min_points", 0)
-                max_pts = cat_info.get("max_points", 0)
                 await interaction.response.send_message(
-                    f"This category requires a point value between {min_pts} and {max_pts}",
+                    "This category requires an explicit point value.",
                     ephemeral=True,
                 )
                 return
 
             min_pts = cast(int, cat_info.get("min_points", 0))
             max_pts = cast(int, cat_info.get("max_points", 0))
-            if points < min_pts or points > max_pts:
+            if points < min_pts:
                 await interaction.response.send_message(
-                    f"Point value must be between {min_pts} and {max_pts}",
+                    f"Point value must be at least {min_pts}.",
+                    ephemeral=True,
+                )
+                return
+            if max_pts and points > max_pts:
+                await interaction.response.send_message(
+                    f"Point value must be at most {max_pts}.",
                     ephemeral=True,
                 )
                 return

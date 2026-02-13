@@ -9,6 +9,9 @@ class TicketCategoryConfig(TypedDict, total=False):
     required_fields: list[str]
     optional_fields: list[str]
     variable_cost_note: str
+    variable_points: bool
+    min_points: int
+    max_points: int
 
 
 TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
@@ -43,6 +46,7 @@ TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
     "other": {
         "display_name": "Other / General Issue",
         "points": 0,
+        "variable_points": True,
         "required_fields": ["description"],
     },
 }

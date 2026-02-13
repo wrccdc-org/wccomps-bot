@@ -1153,6 +1153,7 @@ def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
         {
             "ticket": ticket,
             "category_name": cat_info.get("display_name", ticket.category),
+            "variable_points": cat_info.get("variable_points", False),
             "categories": TICKET_CATEGORIES,
             "comments": comments,
             "history": history,

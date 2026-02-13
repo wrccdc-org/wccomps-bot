@@ -81,7 +81,9 @@
                             data-points="{{ cat_info.points }}"
                             {% if form_data.category == cat_key %}selected{% endif %}>
                         {{ cat_info.display_name }} (
-                        {% if cat_info.points %}
+                        {% if cat_info.variable_points %}
+                            Variable
+                        {% elif cat_info.points %}
                             {{ cat_info.points }}pt
                         {% else %}
                             Free
@@ -106,13 +108,12 @@
                  :class="{ 'show': visibleFields.includes('hostname') }"
                  id="field-hostname">
                 <c-form_field label="Hostname" id="hostname">
-                <span class="text-danger" x-show="requiredFields.includes('hostname')">* Required</span>
                 <div class="box-buttons">
                     {% for box_name in box_names %}
                         <button type="button"
                                 class="box-btn"
                                 :class="selectedHostname === '{{ box_name }}' && 'box-btn--selected'"
-                                @click="selectedHostname = '{{ box_name }}'; onHostnameChange()">
+                                @click="selectedHostname = selectedHostname === '{{ box_name }}' ? '' : '{{ box_name }}'; onHostnameChange()">
                             {{ box_name }}
                         </button>
                     {% endfor %}
@@ -129,7 +130,6 @@
                  :class="{ 'show': visibleFields.includes('ip_address') }"
                  id="field-ip_address">
                 <c-form_field label="IP Address" id="ip_address" help_text="Auto-filled from hostname selection">
-                <span class="text-danger" x-show="requiredFields.includes('ip_address')">* Required</span>
                 <input type="text"
                        name="ip_address"
                        id="ip_address"
@@ -144,7 +144,6 @@
                  :class="{ 'show': visibleFields.includes('service_name') }"
                  id="field-service_name">
                 <c-form_field label="Service" id="service_name">
-                <span class="text-danger" x-show="requiredFields.includes('service_name')">* Required</span>
                 <select name="service_name"
                         id="service_name"
                         x-ref="serviceSelect"
@@ -160,11 +159,10 @@
                  :class="{ 'show': visibleFields.includes('description') }"
                  id="field-description">
                 <c-form_field label="Description" id="description">
-                <span class="text-danger" x-show="requiredFields.includes('description')">* Required</span>
                 <textarea name="description"
                           id="description"
-                          class="vLargeTextField"
-                          rows="5"
+                          class="w-full"
+                          rows="8"
                           :required="requiredFields.includes('description')"
                           placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
                 </c-form_field>

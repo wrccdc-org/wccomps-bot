@@ -67,13 +67,11 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
 
     # Point impact
     points = cat_info.get("points", 0)
-    if points > 0:
-        if cat_info.get("variable_points", False):
-            min_pts = cat_info.get("min_points", 0)
-            max_pts = cat_info.get("max_points", 0)
-            point_text = f"{min_pts}-{max_pts} points (variable)"
-        else:
-            point_text = f"{points} points"
+    if cat_info.get("variable_points", False):
+        point_text = "Variable"
+        embed.add_field(name="Point Impact", value=point_text, inline=True)
+    elif points > 0:
+        point_text = f"{points} points"
         embed.add_field(name="Point Impact", value=point_text, inline=True)
 
     # Resolution info
@@ -374,9 +372,10 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         if cat_info.get("variable_points", False):
             min_pts = cat_info.get("min_points", 0)
             max_pts = cat_info.get("max_points", 0)
+            placeholder = f"Enter points ({min_pts}-{max_pts})" if max_pts else f"Enter points (min {min_pts})"
             self.points = discord.ui.TextInput(
-                label="Points Override",
-                placeholder=f"Enter points ({min_pts}-{max_pts})",
+                label="Points",
+                placeholder=placeholder,
                 required=True,
                 max_length=5,
             )
@@ -411,9 +410,15 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
             if cat_info.get("variable_points", False):
                 min_pts = cast(int, cat_info.get("min_points", 0))
                 max_pts = cast(int, cat_info.get("max_points", 0))
-                if points_override < min_pts or points_override > max_pts:
+                if points_override < min_pts:
                     await interaction.response.send_message(
-                        f"Point value must be between {min_pts} and {max_pts}.",
+                        f"Point value must be at least {min_pts}.",
+                        ephemeral=True,
+                    )
+                    return
+                if max_pts and points_override > max_pts:
+                    await interaction.response.send_message(
+                        f"Point value must be at most {max_pts}.",
                         ephemeral=True,
                     )
                     return
