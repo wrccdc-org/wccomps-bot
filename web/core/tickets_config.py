@@ -8,7 +8,6 @@ class TicketCategoryConfig(TypedDict, total=False):
     points: int
     required_fields: list[str]
     optional_fields: list[str]
-    warning: str
     variable_cost_note: str
 
 
@@ -18,7 +17,6 @@ TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
         "points": 0,
         "required_fields": ["service_name"],
         "optional_fields": ["description"],
-        "warning": "Free initially, tracked for abuse (5pt penalty if misused)",
     },
     "box-reset": {
         "display_name": "Box Reset / Scrub",
@@ -46,6 +44,5 @@ TICKET_CATEGORIES: dict[str, TicketCategoryConfig] = {
         "display_name": "Other / General Issue",
         "points": 0,
         "required_fields": ["description"],
-        "warning": "Free initially - ticket lead will manually adjust points if needed",
     },
 }

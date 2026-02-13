@@ -43,32 +43,6 @@
             border-color: var(--primary, #417690);
             color: white;
         }
-
-        .points-callout {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 15px;
-            margin-top: 10px;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .points-callout--cost {
-            background: var(--warning-alert-bg);
-            border-left: 4px solid var(--warning-alert-border);
-            color: var(--warning-alert-fg);
-        }
-
-        .points-callout--free {
-            background: var(--success-bg);
-            border-left: 4px solid var(--success-fg);
-            color: var(--success-fg);
-        }
-
-        .points-callout .points-value {
-            font-size: 20px;
-        }
     </style>
 {% endblock extra_css %}
 {% block content %}
@@ -106,25 +80,17 @@
                     <option value="{{ cat_key }}"
                             data-points="{{ cat_info.points }}"
                             {% if form_data.category == cat_key %}selected{% endif %}>
-                        {{ cat_info.display_name }}
+                        {{ cat_info.display_name }} (
+                        {% if cat_info.points %}
+                            {{ cat_info.points }}pt
+                        {% else %}
+                            Free
+                        {% endif %}
+                        )
                     </option>
                 {% endfor %}
             </select>
             </c-form_field>
-            <!-- Points cost callout -->
-            <template x-if="selectedCategory && categoryPoints > 0">
-                <div class="points-callout points-callout--cost">
-                    <span class="points-value" x-text="categoryPoints + 'pt'"></span>
-                    <span>will be charged to your team</span>
-                </div>
-            </template>
-            <template x-if="selectedCategory && categoryPoints === 0">
-                <div class="points-callout points-callout--free">
-                    <span class="points-value">Free</span>
-                    <span>no points charged</span>
-                </div>
-            </template>
-            <div class="warning-box" x-show="categoryWarning" x-text="categoryWarning"></div>
             <c-form_field label="Title" required="true" id="title" help_text="Brief summary of the issue">
             <input type="text"
                    name="title"
@@ -225,8 +191,6 @@
                     selectedHostname: '{{ form_data.hostname|default:"" }}',
                     selectedService: '{{ form_data.service_name|default:"" }}',
                     ipAddress: '{{ form_data.ip_address|default:"" }}',
-                    categoryWarning: '',
-                    categoryPoints: 0,
                     visibleFields: [],
                     requiredFields: [],
 
@@ -271,13 +235,9 @@
                         if (!catData) {
                             this.visibleFields = [];
                             this.requiredFields = [];
-                            this.categoryWarning = '';
-                            this.categoryPoints = 0;
                             return;
                         }
 
-                        this.categoryWarning = catData.warning || '';
-                        this.categoryPoints = catData.points || 0;
                         this.requiredFields = catData.required_fields || [];
                         this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
                     },

@@ -95,6 +95,9 @@ nav[role="navigation"] {
 }
 
 /* Table improvements - better density for scanning 50+ rows */
+#result_list {
+    width: 100%;
+}
 #result_list td,
 #result_list th {
     padding: 10px 12px;
