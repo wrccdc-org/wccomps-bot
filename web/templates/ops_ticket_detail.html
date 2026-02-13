@@ -44,42 +44,42 @@
 {% endblock extra_css %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Ticket {{ ticket.ticket_number }}" subtitle="{{ ticket.title }}" />
+        <c-page_header title="{{ ticket.ticket_number }} — {{ ticket.title }}" subtitle="{{ ticket.team.team_name }}" />
         {% if messages %}
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}
         <c-module>
-        <c-slot name="toolbar">
-        <c-link href="/ops/tickets/?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_filter }}&sort={{ sort_filter }}&page={{ page_filter }}&page_size={{ page_size }}" variant="history">Back to Ticket List</c-link>
-        </c-slot>
         <!-- Status bar with primary actions -->
-        <c-alert variant="
-        {% if ticket.status == 'open' %}
-            info
-        {% elif ticket.status == 'claimed' %}
-            warning
-        {% elif ticket.status == 'resolved' %}
-            success
-        {% else %}
-            default
-        {% endif %}
-        ">
+        {# djlint:off #}
+        <c-alert variant="{% if ticket.status == 'open' %}info{% elif ticket.status == 'claimed' %}warning{% elif ticket.status == 'resolved' %}success{% else %}default{% endif %}">
+        {# djlint:on #}
         <div class="d-flex justify-between items-center flex-wrap gap-10">
             <div class="d-flex items-center gap-10 flex-wrap">
-                <c-badge variant="
-                {% if ticket.status == 'open' %}
-                    info
-                {% elif ticket.status == 'claimed' %}
-                    warning
-                {% elif ticket.status == 'resolved' %}
-                    success
+                {# djlint:off #}
+                <c-badge variant="{% if ticket.status == 'open' %}info{% elif ticket.status == 'claimed' %}warning{% elif ticket.status == 'resolved' %}success{% else %}neutral{% endif %}">{{ status_display }}</c-badge>
+                {# djlint:on #}
+                {% if ticket.status == 'claimed' and ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
+                    <form method="post"
+                          action="{% url 'ops_ticket_change_category' ticket.ticket_number %}"
+                          class="d-inline-block m-0"
+                          x-data="{ newCat: '{{ ticket.category }}' }"
+                          @submit="if (!confirm('Change category? This may change points charged.')) $event.preventDefault()">
+                        {% csrf_token %}
+                        <select name="new_category"
+                                x-model="newCat"
+                                @change="$el.closest('form').requestSubmit()"
+                                class="py-5 px-10">
+                            {% for cat_id, cat_info in categories.items %}
+                                <option value="{{ cat_id }}"
+                                        {% if cat_id == ticket.category %}selected{% endif %}>
+                                    {{ cat_info.display_name }} ({{ cat_info.points }}pt)
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
                 {% else %}
-                    neutral
+                    <span>{{ category_name }}</span>
                 {% endif %}
-                ">{{ status_display }}</c-badge>
-                <strong>{{ ticket.team.team_name }} (Team #{{ ticket.team.team_number }})</strong>
-                <span class="text-muted">|</span>
-                <span>{{ category_name }}</span>
                 {% if ticket.points_charged is not None %}
                     <span class="text-muted">|</span>
                     <span>{{ ticket.points_charged }}pt charged</span>
@@ -171,37 +171,6 @@
         <!-- Ticket Details -->
         <c-fieldset heading="Ticket Information">
         <c-detail_grid>
-        <dt>Category</dt>
-        <dd>
-            {% if ticket.status == 'claimed' and ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
-                <form method="post"
-                      action="{% url 'ops_ticket_change_category' ticket.ticket_number %}"
-                      class="d-inline-block"
-                      x-data="{ newCat: '{{ ticket.category }}' }"
-                      @submit="if (!confirm('Change category? This may change points charged.')) $event.preventDefault()">
-                    {% csrf_token %}
-                    <select name="new_category"
-                            x-model="newCat"
-                            @change="$el.closest('form').requestSubmit()"
-                            class="py-5 px-10">
-                        {% for cat_id, cat_info in categories.items %}
-                            <option value="{{ cat_id }}"
-                                    {% if cat_id == ticket.category %}selected{% endif %}>
-                                {{ cat_info.display_name }} ({{ cat_info.points }}pt)
-                            </option>
-                        {% endfor %}
-                    </select>
-                </form>
-            {% else %}
-                {{ category_name }}
-            {% endif %}
-        </dd>
-        {% if ticket.points_charged is not None %}
-            <dt>Points Charged</dt>
-            <dd>
-                {{ ticket.points_charged }}
-            </dd>
-        {% endif %}
         {% if ticket.service_name %}
             <dt>Service Name</dt>
             <dd>

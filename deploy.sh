@@ -117,8 +117,10 @@ step "synced"
 # Classify what changed
 INFRA_CHANGED=false
 BOT_CHANGED=false
+STATIC_CHANGED=false
 echo "$CHANGES" | grep -qE 'pyproject\.toml|uv\.lock|Dockerfile|docker-compose\.yml|entrypoint\.sh' && INFRA_CHANGED=true
 echo "$CHANGES" | grep -q 'bot/' && BOT_CHANGED=true
+echo "$CHANGES" | grep -q 'web/static/' && STATIC_CHANGED=true
 
 # Only take the fast path if web is running AND healthy
 WEB_HEALTHY=$(remote "docker compose ps web --format json | grep -c '\"healthy\"'" || echo "0")
@@ -161,15 +163,22 @@ else
 
     remote "docker compose exec -T web uv run --no-sync python manage.py migrate --noinput --verbosity 0" \
         || fail "migrate"
-    remote "docker compose exec -T web uv run --no-sync python manage.py collectstatic --noinput --verbosity 0" \
+    remote "docker compose exec -T web uv run --no-sync python manage.py collectstatic --clear --noinput --verbosity 0" \
         || fail "collectstatic"
     step "migrate"
 
     # Clear bytecode cache so new workers load fresh source
     remote "docker compose exec -T web find /app/web -type d -name __pycache__ -exec rm -rf {} + || true"
-    remote "docker compose kill -s HUP web" \
-        || fail "reload"
-    step "reloaded"
+    if $STATIC_CHANGED; then
+        # Static files changed — restart to reload the staticfiles manifest
+        remote "docker compose restart web" \
+            || fail "restart"
+        step "restarted (static changed)"
+    else
+        remote "docker compose kill -s HUP web" \
+            || fail "reload"
+        step "reloaded"
+    fi
 
     # Only restart bot if bot code actually changed
     if $BOT_CHANGED; then

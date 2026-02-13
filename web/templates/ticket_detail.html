@@ -52,9 +52,6 @@
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}
         <c-module>
-        <c-slot name="toolbar">
-        <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
-        </c-slot>
         <!-- Ticket Details -->
         <c-fieldset heading="Ticket Information">
         <c-detail_grid>
@@ -72,17 +69,9 @@
         </dd>
         <dt>Status</dt>
         <dd>
-            <c-badge variant="
-            {% if ticket.status == 'open' %}
-                info
-            {% elif ticket.status == 'claimed' %}
-                warning
-            {% elif ticket.status == 'resolved' %}
-                success
-            {% else %}
-                neutral
-            {% endif %}
-            ">{{ status_display }}</c-badge>
+            {# djlint:off #}
+            <c-badge variant="{% if ticket.status == 'open' %}info{% elif ticket.status == 'claimed' %}warning{% elif ticket.status == 'resolved' %}success{% else %}neutral{% endif %}">{{ status_display }}</c-badge>
+            {# djlint:on #}
         </dd>
         {% if ticket.assigned_to %}
             <dt>Assigned To</dt>

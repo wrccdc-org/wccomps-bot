@@ -80,9 +80,6 @@
               @submit="validateForm($event)">
             {% csrf_token %}
             <c-module>
-            <c-slot name="toolbar">
-            <c-link href="{% url 'team_tickets' %}" variant="history">Back to Tickets</c-link>
-            </c-slot>
             {% if error %}<c-alert variant="error">{{ error }}</c-alert>{% endif %}
             <c-fieldset>
             {% if teams %}

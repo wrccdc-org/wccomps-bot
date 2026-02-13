@@ -513,15 +513,20 @@ button[type="submit"]:hover {
 .detail-list {
     display: grid;
     grid-template-columns: max-content 1fr;
-    gap: 8px 16px;
+    margin: 0;
+}
+.detail-list dt,
+.detail-list dd {
+    padding: 6px 10px;
     margin: 0;
 }
 .detail-list dt {
     font-weight: 600;
     color: var(--body-quiet-color, #666);
 }
-.detail-list dd {
-    margin: 0;
+.detail-list dt:nth-of-type(odd),
+.detail-list dd:nth-of-type(odd) {
+    background: var(--darkened-bg, #f8f8f8);
 }
 
 /* ============================================
