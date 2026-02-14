@@ -16,6 +16,7 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import include, path
 
 from core import admin_views, oauth, views
@@ -56,116 +57,43 @@ urlpatterns = [
     ),
     path("scoring/", include("scoring.urls")),
     path("register/", include("registration.urls")),
-    # Ticketing routes
-    path("tickets/", views.team_tickets, name="team_tickets"),
+    # Ticketing routes (unified under /tickets/)
+    path("tickets/", views.ticket_list, name="ticket_list"),
     path("tickets/create/", views.create_ticket, name="create_ticket"),
-    path("tickets/<int:ticket_id>/", views.ticket_detail, name="ticket_detail"),
+    path("tickets/bulk-claim/", views.ops_tickets_bulk_claim, name="tickets_bulk_claim"),
+    path("tickets/bulk-resolve/", views.ops_tickets_bulk_resolve, name="tickets_bulk_resolve"),
+    path("tickets/clear-all/", views.ops_tickets_clear_all, name="tickets_clear_all"),
+    path("tickets/notifications/", views.ops_ticket_notifications, name="ticket_notifications"),
+    path("tickets/<str:ticket_number>/", views.ticket_detail, name="ticket_detail"),
+    path("tickets/<str:ticket_number>/dynamic/", views.ops_ticket_detail_dynamic, name="ticket_detail_dynamic"),
+    path("tickets/<str:ticket_number>/comment/", views.ticket_comment, name="ticket_comment"),
+    path("tickets/<str:ticket_number>/cancel/", views.ticket_cancel, name="ticket_cancel"),
+    path("tickets/<str:ticket_number>/claim/", views.ops_ticket_claim, name="ticket_claim"),
+    path("tickets/<str:ticket_number>/unclaim/", views.ops_ticket_unclaim, name="ticket_unclaim"),
+    path("tickets/<str:ticket_number>/reassign/", views.ops_ticket_reassign, name="ticket_reassign"),
+    path("tickets/<str:ticket_number>/resolve/", views.ops_ticket_resolve, name="ticket_resolve"),
+    path("tickets/<str:ticket_number>/reopen/", views.ops_ticket_reopen, name="ticket_reopen"),
+    path("tickets/<str:ticket_number>/change-category/", views.ops_ticket_change_category, name="ticket_change_category"),
     path(
-        "tickets/<int:ticket_id>/comment/",
-        views.ticket_comment,
-        name="ticket_comment",
-    ),
-    path("tickets/<int:ticket_id>/cancel/", views.ticket_cancel, name="ticket_cancel"),
-    path(
-        "tickets/<int:ticket_id>/attachment/upload/",
+        "tickets/<str:ticket_number>/attachment/upload/",
         views.ticket_attachment_upload,
         name="ticket_attachment_upload",
     ),
     path(
-        "tickets/<int:ticket_id>/attachment/<int:attachment_id>/",
+        "tickets/<str:ticket_number>/attachment/<int:attachment_id>/",
         views.ticket_attachment_download,
         name="ticket_attachment_download",
     ),
-    path("ops/tickets/", views.ops_ticket_list, name="ops_ticket_list"),
-    path(
-        "ops/tickets/bulk-claim/",
-        views.ops_tickets_bulk_claim,
-        name="ops_tickets_bulk_claim",
-    ),
-    path(
-        "ops/tickets/bulk-resolve/",
-        views.ops_tickets_bulk_resolve,
-        name="ops_tickets_bulk_resolve",
-    ),
-    path(
-        "ops/tickets/clear-all/",
-        views.ops_tickets_clear_all,
-        name="ops_tickets_clear_all",
-    ),
+    # Scoring routes (stay under /ops/)
+    path("ops/review-tickets/", views.ops_review_tickets, name="ops_review_tickets"),
+    path("ops/ticket/<str:ticket_number>/verify/", views.ops_verify_ticket, name="ops_verify_ticket"),
+    path("ops/tickets/batch-verify-points/", views.ops_batch_verify_tickets, name="ops_batch_verify_tickets"),
+    # Backwards-compat redirects for old /ops/tickets/ URLs
+    path("ops/tickets/", lambda r: redirect("ticket_list", permanent=True), name="ops_ticket_list_redirect"),
     path(
         "ops/ticket/<str:ticket_number>/",
-        views.ops_ticket_detail,
-        name="ops_ticket_detail",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/dynamic/",
-        views.ops_ticket_detail_dynamic,
-        name="ops_ticket_detail_dynamic",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/comment/",
-        views.ops_ticket_comment,
-        name="ops_ticket_comment",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/claim/",
-        views.ops_ticket_claim,
-        name="ops_ticket_claim",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/unclaim/",
-        views.ops_ticket_unclaim,
-        name="ops_ticket_unclaim",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/reassign/",
-        views.ops_ticket_reassign,
-        name="ops_ticket_reassign",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/resolve/",
-        views.ops_ticket_resolve,
-        name="ops_ticket_resolve",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/reopen/",
-        views.ops_ticket_reopen,
-        name="ops_ticket_reopen",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/change-category/",
-        views.ops_ticket_change_category,
-        name="ops_ticket_change_category",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/attachment/upload/",
-        views.ticket_attachment_upload,
-        name="ops_ticket_attachment_upload",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/attachment/<int:attachment_id>/",
-        views.ticket_attachment_download,
-        name="ops_ticket_attachment_download",
-    ),
-    path(
-        "ops/review-tickets/",
-        views.ops_review_tickets,
-        name="ops_review_tickets",
-    ),
-    path(
-        "ops/ticket/<str:ticket_number>/verify/",
-        views.ops_verify_ticket,
-        name="ops_verify_ticket",
-    ),
-    path(
-        "ops/tickets/batch-verify-points/",
-        views.ops_batch_verify_tickets,
-        name="ops_batch_verify_tickets",
-    ),
-    path(
-        "ops/tickets/notifications/",
-        views.ops_ticket_notifications,
-        name="ops_ticket_notifications",
+        lambda r, ticket_number: redirect("ticket_detail", ticket_number=ticket_number, permanent=True),
+        name="ops_ticket_detail_redirect",
     ),
     # Admin management routes
     path("ops/admin/competition/", admin_views.admin_competition, name="admin_competition"),
