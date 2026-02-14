@@ -111,23 +111,23 @@ class TestOpsTicketListHtmx:
         client = Client()
         client.force_login(ticketing_support_user)
         response = client.get(
-            reverse("ops_ticket_list") + "?status=all",
+            reverse("ticket_list") + "?status=all",
             HTTP_HX_REQUEST="true",
         )
         assert response.status_code == 200
         content = response.content.decode()
-        assert 'id="ops-ticket-list-content"' in content
+        assert 'id="ticket-list-content"' in content
         assert "<title>" not in content
 
     def test_regular_request_returns_full_page(self, ticketing_support_user):
         """Regular request returns full page."""
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_ticket_list"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 200
         content = response.content.decode()
         assert "<title>" in content
-        assert "Ticket List" in content
+        assert "Support Tickets" in content
 
 
 class TestTeamTicketsHtmx:
@@ -138,7 +138,7 @@ class TestTeamTicketsHtmx:
         client = Client()
         client.force_login(team_with_link)
         response = client.get(
-            reverse("team_tickets") + "?status=all",
+            reverse("ticket_list") + "?status=all",
             HTTP_HX_REQUEST="true",
         )
         assert response.status_code == 200
@@ -150,7 +150,7 @@ class TestTeamTicketsHtmx:
         """Regular request returns full page."""
         client = Client()
         client.force_login(team_with_link)
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 200
         content = response.content.decode()
         assert "<title>" in content

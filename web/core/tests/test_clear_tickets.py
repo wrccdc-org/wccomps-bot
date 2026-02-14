@@ -187,12 +187,12 @@ class TestClearTicketsWebView:
 
         # Support user should be denied
         client.force_login(setup_users_and_auth["support_user"])
-        response = client.post("/ops/tickets/clear-all/")
+        response = client.post("/tickets/clear-all/")
         assert response.status_code == 403
 
         # Team user should be denied
         client.force_login(setup_users_and_auth["team_user"])
-        response = client.post("/ops/tickets/clear-all/")
+        response = client.post("/tickets/clear-all/")
         assert response.status_code == 403
 
     def test_clear_requires_post_method(
@@ -202,7 +202,7 @@ class TestClearTicketsWebView:
         client = Client()
         client.force_login(setup_users_and_auth["admin_user"])
 
-        response = client.get("/ops/tickets/clear-all/")
+        response = client.get("/tickets/clear-all/")
         assert response.status_code == 405
 
     def test_clear_deletes_all_tickets(
@@ -218,11 +218,11 @@ class TestClearTicketsWebView:
         assert team1.ticket_counter == 5
         assert team2.ticket_counter == 3
 
-        response = client.post("/ops/tickets/clear-all/")
+        response = client.post("/tickets/clear-all/")
 
         # Should redirect to ticket list
         assert response.status_code == 302
-        assert response["Location"] == "/ops/tickets/"
+        assert response["Location"] == "/tickets/"
 
         # Verify all tickets deleted
         assert Ticket.objects.count() == 0

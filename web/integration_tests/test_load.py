@@ -100,7 +100,7 @@ class TestConnectionPoolLimits:
             client = Client()
             try:
                 # Ops tickets page performs many queries
-                response = client.get(reverse("ops_ticket_list"))
+                response = client.get(reverse("ticket_list"))
                 return (response.status_code, None)
             except Exception as e:
                 return (None, str(e))
@@ -201,7 +201,7 @@ class TestConcurrentTicketOperations:
             try:
                 response = client.post(
                     reverse(
-                        "ops_ticket_claim",
+                        "ticket_claim",
                         kwargs={"ticket_number": ticket.ticket_number},
                     )
                 )
@@ -255,7 +255,7 @@ class TestConcurrentTicketOperations:
                 connection.queries_log.clear()
 
                 # Make request
-                response = client.get(reverse("ops_ticket_list"))
+                response = client.get(reverse("ticket_list"))
 
                 # Count queries
                 num_queries = len(connection.queries)
@@ -369,7 +369,7 @@ class TestDatabaseQueryPerformance:
 
             # Query ticket list (should handle 100 tickets efficiently)
             start = time.time()
-            response = client.get(reverse("ops_ticket_list"))
+            response = client.get(reverse("ticket_list"))
             elapsed = time.time() - start
 
             assert response.status_code in [200, 302]

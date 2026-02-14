@@ -280,7 +280,7 @@ def _get_role_based_landing(groups: list[str]) -> str:
         or check_groups_for_permission(groups, "ticketing_admin")
         or check_groups_for_permission(groups, "ticketing_support")
     ):
-        return reverse("ops_ticket_list")
+        return reverse("ticket_list")
     if check_groups_for_permission(groups, "gold_team"):
         return reverse("scoring:leaderboard")
     if check_groups_for_permission(groups, "red_team"):

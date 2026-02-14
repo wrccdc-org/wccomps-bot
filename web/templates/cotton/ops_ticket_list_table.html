@@ -83,7 +83,7 @@
                                    aria-label="Select ticket {{ item.ticket.ticket_number }}" />
                         </td>
                         <th class="field-ticket_number">
-                            <a href="{% url 'ops_ticket_detail' ticket_number=item.ticket.ticket_number %}?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page={{ page_obj.number }}&page_size={{ page_size }}">
+                            <a href="{% url 'ticket_detail' ticket_number=item.ticket.ticket_number %}?status={{ status_filter }}&category={{ category_filter }}&team={{ team_filter }}&assignee={{ assignee_filter }}&search={{ search_query }}&sort={{ sort_by }}&page={{ page_obj.number }}&page_size={{ page_size }}">
                                 {{ item.ticket.ticket_number }}
                             </a>
                             {% if item.is_stale %}<c-badge variant="danger">STALE</c-badge>{% endif %}
@@ -116,21 +116,21 @@
                         <td class="field-actions">
                             {% if item.ticket.status == "open" %}
                                 <form method="post"
-                                      action="{% url 'ops_ticket_claim' item.ticket.ticket_number %}"
+                                      action="{% url 'ticket_claim' item.ticket.ticket_number %}"
                                       class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit" variant="primary">Claim</c-button>
                                 </form>
                             {% elif item.ticket.status == "claimed" %}
                                 <form method="post"
-                                      action="{% url 'ops_ticket_resolve' item.ticket.ticket_number %}"
+                                      action="{% url 'ticket_resolve' item.ticket.ticket_number %}"
                                       class="d-inline">
                                     {% csrf_token %}
                                     <c-button type="submit" variant="primary">Resolve</c-button>
                                 </form>
                                 {% if item.ticket.assigned_to.username == authentik_username or is_ticketing_admin %}
                                     <form method="post"
-                                          action="{% url 'ops_ticket_unclaim' item.ticket.ticket_number %}"
+                                          action="{% url 'ticket_unclaim' item.ticket.ticket_number %}"
                                           class="d-inline">
                                         {% csrf_token %}
                                         <c-button type="submit" variant="default">Unclaim</c-button>
@@ -143,7 +143,7 @@
                     <tr>
                         <td colspan="9" class="text-center p-20">
                             {% if search_query or status_filter != 'all' or category_filter != 'all' or team_filter or assignee_filter %}
-                                No tickets match your filters. Try <a href="{% url 'ops_ticket_list' %}">clearing all filters</a>
+                                No tickets match your filters. Try <a href="{% url 'ticket_list' %}">clearing all filters</a>
                             {% else %}
                                 No tickets yet. Either everything is working, or teams haven't found the help button.
                             {% endif %}

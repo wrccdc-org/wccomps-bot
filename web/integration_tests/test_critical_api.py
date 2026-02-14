@@ -261,7 +261,7 @@ class TestTicketOperations:
         """Ticket claim should require authentication."""
         client = Client()
 
-        response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
+        response = client.post(reverse("ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
         # Should redirect to login (not 500)
         assert response.status_code in [302, 401, 403]
@@ -271,7 +271,7 @@ class TestTicketOperations:
         client = Client()
         client.force_login(support_user)
 
-        response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
+        response = client.post(reverse("ticket_claim", kwargs={"ticket_number": test_ticket.ticket_number}))
 
         # Should succeed or redirect (not 500)
         assert response.status_code in [200, 302]
@@ -288,7 +288,7 @@ class TestTicketOperations:
 
         response = client.post(
             reverse(
-                "ops_ticket_resolve",
+                "ticket_resolve",
                 kwargs={"ticket_number": test_ticket.ticket_number},
             ),
             data={"resolution": "Test resolution"},
@@ -309,7 +309,7 @@ class TestTicketOperations:
 
         response = client.post(
             reverse(
-                "ops_ticket_resolve",
+                "ticket_resolve",
                 kwargs={"ticket_number": test_ticket.ticket_number},
             ),
             data={
@@ -355,7 +355,7 @@ class TestTicketOperations:
 
         response = client.post(
             reverse(
-                "ops_ticket_resolve",
+                "ticket_resolve",
                 kwargs={"ticket_number": test_ticket.ticket_number},
             ),
             data={
@@ -449,7 +449,7 @@ class TestConcurrentOperations:
 
             response = client.post(
                 reverse(
-                    "ops_ticket_claim",
+                    "ticket_claim",
                     kwargs={"ticket_number": test_ticket.ticket_number},
                 )
             )

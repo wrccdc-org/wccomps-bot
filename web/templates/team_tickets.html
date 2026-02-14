@@ -4,7 +4,7 @@
     Tickets - {{ team.team_name }}
 {% endblock title %}
 {% block home_url %}
-    {% url 'team_tickets' %}
+    {% url 'ticket_list' %}
 {% endblock home_url %}
 {% block content %}
     <div id="content-main">
@@ -13,7 +13,7 @@
         <c-slot name="toolbar">
         <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
         </c-slot>
-        <c-filter_toolbar form_id="filter-form" hx_get="{% url 'team_tickets' %}" hx_target="#ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
+        <c-filter_toolbar form_id="filter-form" hx_get="{% url 'ticket_list' %}" hx_target="#ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
         <c-filter_field label="Status" id="id_status">
         <select name="status" id="id_status" aria-label="Filter by status">
             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>

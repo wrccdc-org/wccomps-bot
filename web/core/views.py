@@ -78,7 +78,7 @@ def home(request: HttpRequest) -> HttpResponse:
         or has_permission(user, "ticketing_admin")
         or has_permission(user, "ticketing_support")
     ):
-        return redirect("ops_ticket_list")
+        return redirect("ticket_list")
     if has_permission(user, "gold_team"):
         return redirect("scoring:leaderboard")
     if has_permission(user, "red_team"):
@@ -86,7 +86,7 @@ def home(request: HttpRequest) -> HttpResponse:
     if has_permission(user, "orange_team"):
         return redirect("scoring:orange_team_portal")
     if is_team:
-        return redirect("team_tickets")
+        return redirect("ticket_list")
 
     # Fallback - redirect to leaderboard (public view)
     return redirect("scoring:leaderboard")
@@ -557,9 +557,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page)
 
     # Get unique assignees for filter dropdown (ops only)
-    assignees = (
-        User.objects.filter(assigned_tickets__isnull=False).distinct().order_by("username") if is_ops else []
-    )
+    assignees = User.objects.filter(assigned_tickets__isnull=False).distinct().order_by("username") if is_ops else []
 
     is_ticketing_admin = has_permission(user, "ticketing_admin")
 
@@ -769,32 +767,36 @@ def _old_ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     )
 
 
-def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
-    """Post a comment to a ticket from web UI."""
+def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Post a comment to a ticket (team members on own tickets, ops on any)."""
     if request.method != "POST":
         return HttpResponse(status=405)
 
-    # Get user's team
     user = cast(User, request.user)
     authentik_username = user.username
     groups = get_authentik_groups(user)
     get_authentik_id(user)
     team, _team_number, is_team = get_team_from_groups(groups)
+    is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
-    if not is_team or not team:
+    if not is_team and not is_ops:
         return HttpResponse("Access denied", status=403)
 
-    # Get ticket (must belong to user's team)
+    # Look up ticket by ticket_number
     try:
-        ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
+
+    # Access check: ops can access any ticket, team can only access their own
+    if not is_ops and (not is_team or not team or ticket.team != team):
+        return HttpResponse("Access denied", status=403)
 
     # Get comment text
     comment_text = request.POST.get("comment", "").strip()
     if not comment_text:
         messages.error(request, "Comment cannot be empty")
-        return redirect("ticket_detail", ticket_id=ticket.id)
+        return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
     # Check rate limit
     from ticketing.models import CommentRateLimit
@@ -821,9 +823,9 @@ def ticket_comment(request: HttpRequest, ticket_id: int) -> HttpResponse:
         status="pending",
     )
 
-    logger.info(f"Comment posted on ticket #{ticket.id} by {authentik_username} (web)")
+    logger.info(f"Comment posted on ticket {ticket.ticket_number} by {authentik_username} (web)")
 
-    return redirect("ticket_detail", ticket_id=ticket.id)
+    return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
 
 def create_ticket(request: HttpRequest) -> HttpResponse:
@@ -992,7 +994,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
 
             logger.info(f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}")
 
-            return redirect("ticket_detail", ticket_id=ticket.id)
+            return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
         except Exception as e:
             logger.error(f"Failed to create ticket: {e}", exc_info=True)
@@ -1029,7 +1031,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     )
 
 
-def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
+def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Cancel an open ticket (team members only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1052,14 +1054,14 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
 
     # Get ticket (must belong to user's team)
     try:
-        ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number, team=team)
     except Ticket.DoesNotExist:
         return render(
             request,
             "tickets_error.html",
             {
                 "error": "Ticket not found",
-                "message": f"Ticket #{ticket_id} does not exist or does not belong to your team.",
+                "message": f"Ticket {ticket_number} does not exist or does not belong to your team.",
             },
         )
 
@@ -1070,7 +1072,7 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
             "tickets_error.html",
             {
                 "error": "Cannot cancel",
-                "message": f"Ticket #{ticket_id} is already {ticket.status}. Only open tickets can be cancelled.",
+                "message": f"Ticket {ticket_number} is already {ticket.status}. Only open tickets can be cancelled.",
             },
         )
 
@@ -1088,14 +1090,12 @@ def ticket_cancel(request: HttpRequest, ticket_id: int) -> HttpResponse:
         details={"reason": "Cancelled by team member via web (unclaimed)", "cancelled_by": authentik_username},
     )
 
-    logger.info(f"Ticket #{ticket_id} cancelled by {authentik_username} via web")
+    logger.info(f"Ticket {ticket_number} cancelled by {authentik_username} via web")
 
-    return redirect("team_tickets")
+    return redirect("ticket_list")
 
 
-def ticket_attachment_upload(
-    request: HttpRequest, ticket_id: int | None = None, ticket_number: str | None = None
-) -> HttpResponse:
+def ticket_attachment_upload(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Upload an attachment to a ticket."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1110,37 +1110,26 @@ def ticket_attachment_upload(
         return HttpResponse("Access denied", status=403)
 
     try:
-        if ticket_number:
-            if not is_ops:
-                return HttpResponse("Access denied", status=403)
-            ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
-        elif ticket_id:
-            if is_team and team:
-                ticket = Ticket.objects.select_related("team").get(id=ticket_id, team=team)
-            elif is_ops:
-                ticket = Ticket.objects.select_related("team").get(id=ticket_id)
-            else:
-                return HttpResponse("Access denied", status=403)
-        else:
-            return HttpResponse("Ticket identifier required", status=400)
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
+
+    # Access check: ops can access any ticket, team can only access their own
+    if not is_ops and (not is_team or not team or ticket.team != team):
+        return HttpResponse("Access denied", status=403)
 
     if error := _save_attachment(ticket, request.FILES.get("attachment"), authentik_username):
         return error
 
     logger.info(f"Attachment uploaded to ticket {ticket.ticket_number} by {authentik_username}")
 
-    if ticket_number:
-        return redirect("ops_ticket_detail", ticket_number=ticket.ticket_number)
-    return redirect("ticket_detail", ticket_id=ticket.id)
+    return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
 
 def ticket_attachment_download(
     request: HttpRequest,
     attachment_id: int,
-    ticket_id: int | None = None,
-    ticket_number: str | None = None,
+    ticket_number: str,
 ) -> HttpResponse:
     """Download an attachment from a ticket."""
     user = cast(User, request.user)
@@ -1152,27 +1141,15 @@ def ticket_attachment_download(
         return HttpResponse("Access denied", status=403)
 
     try:
-        if ticket_number:
-            if not is_ops:
-                return HttpResponse("Access denied", status=403)
-            attachment = TicketAttachment.objects.select_related("ticket").get(
-                id=attachment_id, ticket__ticket_number=ticket_number
-            )
-        elif ticket_id:
-            if is_team and team:
-                attachment = TicketAttachment.objects.select_related("ticket", "ticket__team").get(
-                    id=attachment_id, ticket_id=ticket_id, ticket__team=team
-                )
-            elif is_ops:
-                attachment = TicketAttachment.objects.select_related("ticket").get(
-                    id=attachment_id, ticket_id=ticket_id
-                )
-            else:
-                return HttpResponse("Access denied", status=403)
-        else:
-            return HttpResponse("Ticket identifier required", status=400)
+        attachment = TicketAttachment.objects.select_related("ticket", "ticket__team").get(
+            id=attachment_id, ticket__ticket_number=ticket_number
+        )
     except TicketAttachment.DoesNotExist:
         return HttpResponse("Attachment not found", status=404)
+
+    # Access check: ops can access any ticket, team can only access their own
+    if not is_ops and (not is_team or not team or attachment.ticket.team != team):
+        return HttpResponse("Access denied", status=403)
 
     # Only allow inline viewing for safe MIME types (images, PDFs)
     # Force download for everything else to prevent XSS via HTML/SVG
@@ -1413,7 +1390,7 @@ def _old_ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResp
     )
 
 
-def ops_ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Return dynamic ticket content (comments/history) for HTMX polling."""
     user = cast(User, request.user)
 
@@ -1491,7 +1468,7 @@ def ops_ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse
     return redirect("ops_ticket_detail", ticket_number=ticket_number)
 
 
-def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Claim a ticket (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1520,7 +1497,7 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     if error or ticket is None:
         messages.error(request, error or "Failed to claim ticket")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Add volunteer to thread if they have Discord linked and ticket has a thread
     if ticket.discord_thread_id:
@@ -1545,10 +1522,10 @@ def ops_ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Unclaim a ticket (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1571,7 +1548,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     if not is_admin and not has_claimed:
         messages.error(request, "You can only unclaim tickets you have claimed")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic unclaim function
     from ticketing.utils import unclaim_ticket_atomic
@@ -1584,7 +1561,7 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     if error or ticket is None:
         messages.error(request, error or "Failed to unclaim ticket")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Post status update to Discord thread
     if ticket.discord_thread_id:
@@ -1598,10 +1575,10 @@ def ops_ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Reassign a ticket to another support member (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1622,13 +1599,13 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     new_assignee_username = request.POST.get("new_assignee_username", "").strip()
     if not new_assignee_username:
         messages.error(request, "New assignee username is required")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Find the user to assign
     new_assignee_user = User.objects.filter(username=new_assignee_username).first()
     if not new_assignee_user:
         messages.error(request, f"User '{new_assignee_username}' not found")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic reassign function
     from ticketing.utils import reassign_ticket_atomic
@@ -1641,7 +1618,7 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
 
     if error or ticket is None:
         messages.error(request, error or "Failed to reassign ticket")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Add new assignee to thread if they have Discord linked and ticket has a thread
     if ticket.discord_thread_id:
@@ -1661,10 +1638,10 @@ def ops_ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpRespons
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Resolve a ticket (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1702,7 +1679,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
             points_override = int(points_override_str)
         except ValueError:
             messages.error(request, "Invalid points value. Must be a number.")
-            return redirect("ops_ticket_detail", ticket_number=ticket_number)
+            return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Use shared atomic resolve function
     from ticketing.utils import resolve_ticket_atomic
@@ -1717,7 +1694,7 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
 
     if error or ticket is None:
         messages.error(request, error or "Failed to resolve ticket")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Post resolution to Discord thread
     if ticket.discord_thread_id:
@@ -1736,10 +1713,10 @@ def ops_ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Reopen a resolved ticket (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1759,7 +1736,7 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     # Only allow reopening resolved tickets
     if ticket.status != "resolved":
         messages.error(request, f"Cannot reopen - ticket is {ticket.status}")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     reopen_reason = request.POST.get("reopen_reason", "").strip()
 
@@ -1801,10 +1778,10 @@ def ops_ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
     referer = request.META.get("HTTP_REFERER", "")
     if referer and url_has_allowed_host_and_scheme(referer, allowed_hosts={request.get_host()}):
         return redirect(referer)
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Change ticket category."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1827,17 +1804,17 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
 
     if not is_admin and not has_claimed:
         messages.error(request, "You must claim the ticket first")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Get new category
     new_category = request.POST.get("new_category", "").strip()
     if not new_category or new_category not in TICKET_CATEGORIES:
         messages.error(request, "Invalid category")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     old_category = ticket.category
     if old_category == new_category:
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     old_cat_info = TICKET_CATEGORIES.get(old_category, {})
     new_cat_info = TICKET_CATEGORIES.get(new_category, {})
@@ -1866,10 +1843,10 @@ def ops_ticket_change_category(request: HttpRequest, ticket_number: str) -> Http
         f"{old_cat_info.get('display_name', old_category)} → {new_cat_info.get('display_name', new_category)}"
     )
 
-    return redirect("ops_ticket_detail", ticket_number=ticket_number)
+    return redirect("ticket_detail", ticket_number=ticket_number)
 
 
-def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
+def tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     """Bulk claim tickets (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1910,10 +1887,10 @@ def ops_tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
                 continue
 
     logger.info(f"Bulk claimed {claimed_count} tickets by {authentik_username}")
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
+def tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     """Bulk resolve tickets (operations team only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -1955,10 +1932,10 @@ def ops_tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
                 continue
 
     logger.info(f"Bulk resolved {resolved_count} tickets by {authentik_username}")
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
-def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
+def tickets_clear_all(request: HttpRequest) -> HttpResponse:
     """Clear all tickets and reset counters (admin only)."""
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -2005,7 +1982,7 @@ def ops_tickets_clear_all(request: HttpRequest) -> HttpResponse:
         )
 
     logger.info(f"Cleared all tickets ({ticket_count}) by {authentik_username}")
-    return redirect("ops_ticket_list")
+    return redirect("ticket_list")
 
 
 def school_info(request: HttpRequest) -> HttpResponse:
@@ -2470,7 +2447,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     # Only allow verifying resolved tickets
     if ticket.status != "resolved":
         messages.error(request, f"Cannot verify - ticket is {ticket.status}, must be resolved")
-        return redirect("ops_ticket_detail", ticket_number=ticket_number)
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Get form data
     points_adjustment_str = request.POST.get("points_adjustment", "").strip()
@@ -2483,7 +2460,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
             ticket.points_charged = adjusted_points
         except ValueError:
             messages.error(request, "Invalid points value. Must be a number.")
-            return redirect("ops_ticket_detail", ticket_number=ticket_number)
+            return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Mark as verified
     ticket.points_verified = True
@@ -2591,7 +2568,7 @@ def health_check(request: HttpRequest) -> HttpResponse:
     )
 
 
-def ops_ticket_notifications(request: HttpRequest) -> JsonResponse:
+def ticket_notifications(request: HttpRequest) -> JsonResponse:
     """JSON endpoint for ticket notification polling (ops staff only)."""
     user = cast(User, request.user)
     if not (

@@ -33,7 +33,7 @@ class TestHomeView:
         response = client.get(reverse("home"))
 
         assert response.status_code == 302
-        assert response.url == reverse("team_tickets")
+        assert response.url == reverse("ticket_list")
 
     def test_admin_user_redirected_to_ops_tickets(self, admin_user):
         """Admin users without team should be redirected to ops ticket list."""
@@ -43,7 +43,7 @@ class TestHomeView:
         response = client.get(reverse("home"))
 
         assert response.status_code == 302
-        assert response.url == reverse("ops_ticket_list")
+        assert response.url == reverse("ticket_list")
 
     def test_ticketing_support_redirected_to_ops_tickets(self, ticketing_support_user):
         """Ticketing support users should be redirected to ops ticket list."""
@@ -53,7 +53,7 @@ class TestHomeView:
         response = client.get(reverse("home"))
 
         assert response.status_code == 302
-        assert response.url == reverse("ops_ticket_list")
+        assert response.url == reverse("ticket_list")
 
 
 class TestTeamTicketsView:
@@ -71,7 +71,7 @@ class TestTeamTicketsView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
 
         assert response.status_code == 200
         # Template shows ticket number, not title
@@ -96,32 +96,31 @@ class TestTeamTicketsView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("team_tickets") + "?status=resolved")
+        response = client.get(reverse("ticket_list") + "?status=resolved")
 
         assert response.status_code == 200
         # Template shows ticket numbers
         assert b"T002" in response.content
 
-    def test_non_team_user_gets_error(self, ticketing_support_user):
-        """Non-team users should see an error or redirect."""
+    def test_support_user_without_team_sees_ops_view(self, ticketing_support_user):
+        """Support users without a team see the ops ticket list."""
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
 
-        # Support users without a team see error page
+        # Unified view shows ops ticket list for support users
         assert response.status_code == 200
-        assert b"not associated with a team" in response.content or b"Invalid" in response.content
 
-    def test_admin_without_team_redirected_to_create_ticket(self, admin_user):
-        """Admins without a team should be redirected to create ticket page."""
+    def test_admin_without_team_sees_ops_view(self, admin_user):
+        """Admins without a team see the ops ticket list."""
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
 
-        assert response.status_code == 302
-        assert response.url == reverse("create_ticket")
+        # Unified view shows ops ticket list for admin users
+        assert response.status_code == 200
 
 
 class TestTicketDetailView:
@@ -140,7 +139,7 @@ class TestTicketDetailView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ticket_detail", args=[ticket.id]))
+        response = client.get(reverse("ticket_detail", args=[ticket.ticket_number]))
 
         assert response.status_code == 200
         # Template shows ticket number in title
@@ -158,17 +157,16 @@ class TestTicketDetailView:
         client = Client()
         client.force_login(blue_team_02_user)
 
-        response = client.get(reverse("ticket_detail", args=[ticket.id]))
+        response = client.get(reverse("ticket_detail", args=[ticket.ticket_number]))
 
-        assert response.status_code == 200
-        assert b"Ticket not found" in response.content or b"does not belong" in response.content
+        assert response.status_code == 403
 
     def test_nonexistent_ticket_shows_error(self, blue_team_user, team1):
         """Accessing nonexistent ticket should show error."""
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ticket_detail", args=[99999]))
+        response = client.get(reverse("ticket_detail", args=["T999-999"]))
 
         assert response.status_code == 200
         assert b"Ticket not found" in response.content or b"does not exist" in response.content
@@ -189,7 +187,7 @@ class TestTicketCommentView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ticket_comment", args=[ticket.id]))
+        response = client.get(reverse("ticket_comment", args=[ticket.ticket_number]))
 
         assert response.status_code == 405
 
@@ -205,7 +203,7 @@ class TestTicketCommentView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.post(reverse("ticket_comment", args=[ticket.id]), {"comment": ""})
+        response = client.post(reverse("ticket_comment", args=[ticket.ticket_number]), {"comment": ""})
 
         assert response.status_code == 302  # Redirect back with error message
 
@@ -222,7 +220,7 @@ class TestTicketCommentView:
         client.force_login(blue_team_user)
 
         response = client.post(
-            reverse("ticket_comment", args=[ticket.id]),
+            reverse("ticket_comment", args=[ticket.ticket_number]),
             {"comment": "This is a test comment"},
         )
 
@@ -242,7 +240,7 @@ class TestTicketCommentView:
         client.force_login(blue_team_02_user)
 
         response = client.post(
-            reverse("ticket_comment", args=[ticket.id]),
+            reverse("ticket_comment", args=[ticket.ticket_number]),
             {"comment": "Unauthorized comment"},
         )
 
@@ -297,18 +295,19 @@ class TestOpsTicketListView:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_list"))
+        response = client.get(reverse("ticket_list"))
 
         assert response.status_code == 200
 
-    def test_blue_team_gets_forbidden(self, blue_team_user, team1):
-        """Blue team members should get 403 Forbidden."""
+    def test_blue_team_sees_their_tickets(self, blue_team_user, team1):
+        """Blue team members see their own tickets via unified ticket_list."""
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ops_ticket_list"))
+        response = client.get(reverse("ticket_list"))
 
-        assert response.status_code == 403
+        # Unified view shows team tickets for blue team members
+        assert response.status_code == 200
 
 
 class TestOpsTicketClaimView:
@@ -326,7 +325,7 @@ class TestOpsTicketClaimView:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.post(reverse("ops_ticket_claim", args=[ticket.ticket_number]))
+        response = client.post(reverse("ticket_claim", args=[ticket.ticket_number]))
 
         assert response.status_code == 302
         ticket.refresh_from_db()
@@ -344,7 +343,7 @@ class TestOpsTicketClaimView:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.post(reverse("ops_ticket_claim", args=[ticket.ticket_number]))
+        response = client.post(reverse("ticket_claim", args=[ticket.ticket_number]))
 
         assert response.status_code == 403
         ticket.refresh_from_db()
@@ -416,7 +415,7 @@ class TestAttachmentViews:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.post(reverse("ticket_attachment_upload", args=[ticket.id]))
+        response = client.post(reverse("ticket_attachment_upload", args=[ticket.ticket_number]))
 
         assert response.status_code == 400
 
@@ -432,7 +431,7 @@ class TestAttachmentViews:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ticket_attachment_download", args=[ticket.id, 99999]))
+        response = client.get(reverse("ticket_attachment_download", args=[ticket.ticket_number, 99999]))
 
         assert response.status_code == 404
 
@@ -451,7 +450,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications"))
+        response = client.get(reverse("ticket_notifications"))
         data = response.json()
 
         assert response.status_code == 200
@@ -464,7 +463,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications") + f"?since_id={t1.id}")
+        response = client.get(reverse("ticket_notifications") + f"?since_id={t1.id}")
         data = response.json()
 
         assert len(data["new_tickets"]) == 1
@@ -478,7 +477,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        response = client.get(reverse("ticket_notifications") + "?since_id=0")
         data = response.json()
 
         assert data["new_tickets"][0]["category_display"] == "unknown-cat"
@@ -492,7 +491,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        response = client.get(reverse("ticket_notifications") + "?since_id=0")
         data = response.json()
 
         assert len(data["new_tickets"]) == 10
@@ -504,7 +503,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications") + "?since_id=abc")
+        response = client.get(reverse("ticket_notifications") + "?since_id=abc")
         data = response.json()
 
         assert data["open_count"] == 1
@@ -515,7 +514,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(blue_team_user)
 
-        response = client.get(reverse("ops_ticket_notifications"))
+        response = client.get(reverse("ticket_notifications"))
 
         assert response.status_code == 403
 
@@ -526,7 +525,7 @@ class TestTicketNotifications:
         client = Client()
         client.force_login(ticketing_support_user)
 
-        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        response = client.get(reverse("ticket_notifications") + "?since_id=0")
         data = response.json()
 
         assert len(data["new_tickets"]) == 1

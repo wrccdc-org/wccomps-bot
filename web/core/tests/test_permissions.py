@@ -99,13 +99,13 @@ class TestTicketViewsPermissions:
 
     def test_team_tickets_unauthenticated_redirects(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
-        response = unauthenticated_client.get(reverse("team_tickets"))
+        response = unauthenticated_client.get(reverse("ticket_list"))
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
     def test_ops_tickets_unauthenticated_redirects(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
-        response = unauthenticated_client.get(reverse("ops_ticket_list"))
+        response = unauthenticated_client.get(reverse("ticket_list"))
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
@@ -124,7 +124,7 @@ class TestTicketViewsPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("ops_ticket_list"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 403, f"{user_fixture} should get 403"
 
     @pytest.mark.parametrize(
@@ -136,5 +136,5 @@ class TestTicketViewsPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("ops_ticket_list"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 200, f"{user_fixture} should have access"

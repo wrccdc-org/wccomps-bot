@@ -6,7 +6,7 @@
 {% endblock title %}
 {% block branding %}
     <h1 id="site-name">
-        <a href="{% url 'ops_ticket_list' %}">WCComps</a>
+        <a href="{% url 'ticket_list' %}">WCComps</a>
     </h1>
 {% endblock branding %}
 {% block breadcrumbs %}
@@ -16,7 +16,7 @@
 {% block nav-global %}
     <nav class="primary-navigation">
         {% if is_ticketing_support or is_ticketing_admin %}
-            <a href="{% url 'ops_ticket_list' %}"
+            <a href="{% url 'ticket_list' %}"
                {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets
                 <span class="notif-count"
                       x-data=""
@@ -347,7 +347,7 @@
 
                 async poll() {
                     try {
-                        const resp = await fetch('{% url "ops_ticket_notifications" %}?since_id=' + this._lastSeenId);
+                        const resp = await fetch('{% url "ticket_notifications" %}?since_id=' + this._lastSeenId);
                         if (!resp.ok) return;
                         const data = await resp.json();
                         this.openCount = data.open_count || 0;

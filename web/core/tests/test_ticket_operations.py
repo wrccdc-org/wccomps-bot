@@ -71,7 +71,7 @@ class TestTeamTicketList:
     def test_unauthenticated_redirects_to_login(self, team_with_tickets):
         """Unauthenticated users should be redirected."""
         client = Client()
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 302
         assert "login" in response.url or "accounts" in response.url
 
@@ -80,7 +80,7 @@ class TestTeamTicketList:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
         assert response.status_code == 200
         content = response.content.decode()
         assert "T001-001" in content
@@ -91,7 +91,7 @@ class TestTeamTicketList:
         """Team member should not see other team's tickets."""
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
         content = response.content.decode()
         assert "T002-001" not in content
 
@@ -99,7 +99,7 @@ class TestTeamTicketList:
         """Status filter should filter tickets."""
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("team_tickets") + "?status=open")
+        response = client.get(reverse("ticket_list") + "?status=open")
         assert response.status_code == 200
         content = response.content.decode()
         assert "T001-001" in content  # open
@@ -111,7 +111,7 @@ class TestTeamTicketList:
         client = Client()
         client.force_login(blue_team_user)
         response = client.get(
-            reverse("team_tickets") + "?status=open",
+            reverse("ticket_list") + "?status=open",
             HTTP_HX_REQUEST="true",
         )
         assert response.status_code == 200
@@ -128,7 +128,7 @@ class TestTeamTicketList:
         """Non-team users without team association get error."""
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("team_tickets"))
+        response = client.get(reverse("ticket_list"))
         # Should redirect to create_ticket for admins or show error
         assert response.status_code in [200, 302]
 
@@ -141,7 +141,7 @@ class TestTeamTicketDetail:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("ticket_detail", args=[tickets[0].id]))
+        response = client.get(reverse("ticket_detail", args=[tickets[0].ticket_number]))
         assert response.status_code == 200
 
     def test_team_cannot_view_other_team_ticket(self, blue_team_user, other_team_ticket, team_with_tickets):
@@ -149,11 +149,8 @@ class TestTeamTicketDetail:
         other_team, ticket = other_team_ticket
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("ticket_detail", args=[ticket.id]))
-        assert response.status_code == 200
-        # Team 2 ticket should not be viewable by Team 1 user
-        assert b"T002-001" not in response.content  # Other team's ticket number
-        assert b"unable to access" in response.content.lower() or b"invalid" in response.content.lower()
+        response = client.get(reverse("ticket_detail", args=[ticket.ticket_number]))
+        assert response.status_code == 403
 
 
 class TestTicketCancel:
@@ -164,7 +161,7 @@ class TestTicketCancel:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("ticket_cancel", args=[tickets[0].id]))
+        response = client.get(reverse("ticket_cancel", args=[tickets[0].ticket_number]))
         assert response.status_code == 405
 
     def test_team_can_cancel_open_ticket(self, blue_team_user, team_with_tickets):
@@ -173,7 +170,7 @@ class TestTicketCancel:
         open_ticket = tickets[0]
         client = Client()
         client.force_login(blue_team_user)
-        response = client.post(reverse("ticket_cancel", args=[open_ticket.id]))
+        response = client.post(reverse("ticket_cancel", args=[open_ticket.ticket_number]))
         assert response.status_code == 302  # Redirect after cancel
 
         open_ticket.refresh_from_db()
@@ -185,7 +182,7 @@ class TestTicketCancel:
         claimed_ticket = tickets[1]
         client = Client()
         client.force_login(blue_team_user)
-        response = client.post(reverse("ticket_cancel", args=[claimed_ticket.id]))
+        response = client.post(reverse("ticket_cancel", args=[claimed_ticket.ticket_number]))
         assert response.status_code == 200
         assert b"cannot cancel" in response.content.lower() or b"already" in response.content.lower()
 
@@ -197,7 +194,7 @@ class TestTicketCancel:
         other_team, ticket = other_team_ticket
         client = Client()
         client.force_login(blue_team_user)
-        response = client.post(reverse("ticket_cancel", args=[ticket.id]))
+        response = client.post(reverse("ticket_cancel", args=[ticket.ticket_number]))
         # Should show error (ticket not found for their team)
         assert b"unable to access" in response.content.lower() or b"invalid" in response.content.lower()
 
@@ -210,7 +207,7 @@ class TestOpsTicketClaim:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_ticket_claim", args=[tickets[0].ticket_number]))
+        response = client.get(reverse("ticket_claim", args=[tickets[0].ticket_number]))
         assert response.status_code == 405
 
     def test_blue_team_cannot_claim(self, blue_team_user, team_with_tickets):
@@ -218,7 +215,7 @@ class TestOpsTicketClaim:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(blue_team_user)
-        response = client.post(reverse("ops_ticket_claim", args=[tickets[0].ticket_number]))
+        response = client.post(reverse("ticket_claim", args=[tickets[0].ticket_number]))
         assert response.status_code == 403
 
     def test_support_can_claim_open_ticket(self, ticketing_support_user, team_with_tickets):
@@ -227,7 +224,7 @@ class TestOpsTicketClaim:
         open_ticket = tickets[0]
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.post(reverse("ops_ticket_claim", args=[open_ticket.ticket_number]))
+        response = client.post(reverse("ticket_claim", args=[open_ticket.ticket_number]))
         assert response.status_code == 302  # Redirect after claim
 
         open_ticket.refresh_from_db()
@@ -240,7 +237,7 @@ class TestOpsTicketClaim:
         claimed_ticket = tickets[1]
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.post(reverse("ops_ticket_claim", args=[claimed_ticket.ticket_number]))
+        response = client.post(reverse("ticket_claim", args=[claimed_ticket.ticket_number]))
         # Now redirects with flash message instead of returning 400
         assert response.status_code == 302
 
@@ -253,7 +250,7 @@ class TestOpsTicketUnclaim:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_ticket_unclaim", args=[tickets[1].ticket_number]))
+        response = client.get(reverse("ticket_unclaim", args=[tickets[1].ticket_number]))
         assert response.status_code == 405
 
     def test_support_can_unclaim_own_ticket(self, ticketing_support_user, team_with_tickets):
@@ -264,11 +261,11 @@ class TestOpsTicketUnclaim:
         # First claim it
         client = Client()
         client.force_login(ticketing_support_user)
-        client.post(reverse("ops_ticket_claim", args=[open_ticket.ticket_number]))
+        client.post(reverse("ticket_claim", args=[open_ticket.ticket_number]))
         open_ticket.refresh_from_db()
 
         # Then unclaim it
-        response = client.post(reverse("ops_ticket_unclaim", args=[open_ticket.ticket_number]))
+        response = client.post(reverse("ticket_unclaim", args=[open_ticket.ticket_number]))
         assert response.status_code == 302
 
         open_ticket.refresh_from_db()
@@ -283,13 +280,13 @@ class TestOpsTicketUnclaim:
         # Support claims ticket
         client = Client()
         client.force_login(ticketing_support_user)
-        client.post(reverse("ops_ticket_claim", args=[open_ticket.ticket_number]))
+        client.post(reverse("ticket_claim", args=[open_ticket.ticket_number]))
         open_ticket.refresh_from_db()
         assert open_ticket.status == "claimed"
 
         # Admin unclaims it
         client.force_login(ticketing_admin_user)
-        response = client.post(reverse("ops_ticket_unclaim", args=[open_ticket.ticket_number]))
+        response = client.post(reverse("ticket_unclaim", args=[open_ticket.ticket_number]))
         assert response.status_code == 302
 
         open_ticket.refresh_from_db()
@@ -304,7 +301,7 @@ class TestOpsTicketResolve:
         team, tickets = team_with_tickets
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("ops_ticket_resolve", args=[tickets[1].ticket_number]))
+        response = client.get(reverse("ticket_resolve", args=[tickets[1].ticket_number]))
         assert response.status_code == 405
 
     def test_support_can_resolve_claimed_ticket(self, ticketing_support_user, team_with_tickets):
@@ -315,11 +312,11 @@ class TestOpsTicketResolve:
         # First claim it
         client = Client()
         client.force_login(ticketing_support_user)
-        client.post(reverse("ops_ticket_claim", args=[open_ticket.ticket_number]))
+        client.post(reverse("ticket_claim", args=[open_ticket.ticket_number]))
 
         # Then resolve it
         response = client.post(
-            reverse("ops_ticket_resolve", args=[open_ticket.ticket_number]),
+            reverse("ticket_resolve", args=[open_ticket.ticket_number]),
             {"resolution_notes": "Fixed the issue"},
         )
         assert response.status_code == 302
@@ -338,7 +335,7 @@ class TestOpsTicketResolve:
         # Support claims ticket
         client = Client()
         client.force_login(ticketing_support_user)
-        client.post(reverse("ops_ticket_claim", args=[open_ticket.ticket_number]))
+        client.post(reverse("ticket_claim", args=[open_ticket.ticket_number]))
 
         # Different support tries to resolve
         from django.contrib.auth.models import User
@@ -352,7 +349,7 @@ class TestOpsTicketResolve:
 
         client.force_login(other_support)
         response = client.post(
-            reverse("ops_ticket_resolve", args=[open_ticket.ticket_number]),
+            reverse("ticket_resolve", args=[open_ticket.ticket_number]),
             {"resolution_notes": "Trying to resolve"},
         )
         assert response.status_code == 403
@@ -367,7 +364,7 @@ class TestOpsTicketReopen:
         resolved_ticket = tickets[2]
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.post(reverse("ops_ticket_reopen", args=[resolved_ticket.ticket_number]))
+        response = client.post(reverse("ticket_reopen", args=[resolved_ticket.ticket_number]))
         assert response.status_code == 403
 
     def test_admin_can_reopen_resolved_ticket(self, ticketing_admin_user, team_with_tickets):
@@ -377,7 +374,7 @@ class TestOpsTicketReopen:
         client = Client()
         client.force_login(ticketing_admin_user)
         response = client.post(
-            reverse("ops_ticket_reopen", args=[resolved_ticket.ticket_number]),
+            reverse("ticket_reopen", args=[resolved_ticket.ticket_number]),
             {"reopen_reason": "Need to verify the fix"},
         )
         assert response.status_code == 302
@@ -391,7 +388,7 @@ class TestOpsTicketReopen:
         open_ticket = tickets[0]
         client = Client()
         client.force_login(ticketing_admin_user)
-        response = client.post(reverse("ops_ticket_reopen", args=[open_ticket.ticket_number]))
+        response = client.post(reverse("ticket_reopen", args=[open_ticket.ticket_number]))
         # Now redirects with flash message instead of returning 400
         assert response.status_code == 302
 
@@ -406,7 +403,7 @@ class TestTicketHistoryCreation:
 
         client = Client()
         client.force_login(blue_team_user)
-        client.post(reverse("ticket_cancel", args=[open_ticket.id]))
+        client.post(reverse("ticket_cancel", args=[open_ticket.ticket_number]))
 
         history = TicketHistory.objects.filter(ticket=open_ticket, action="cancelled")
         assert history.exists()
@@ -419,7 +416,7 @@ class TestTicketHistoryCreation:
         client = Client()
         client.force_login(ticketing_admin_user)
         client.post(
-            reverse("ops_ticket_reopen", args=[resolved_ticket.ticket_number]),
+            reverse("ticket_reopen", args=[resolved_ticket.ticket_number]),
             {"reopen_reason": "Testing history"},
         )
 

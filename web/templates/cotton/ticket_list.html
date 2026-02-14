@@ -3,7 +3,7 @@
 {# Props: tickets (list), status_filter (str), show_paginator (bool) #}
 <c-vars show_paginator="true" />
 <div id="ticket-list-content"
-     hx-get="{% url 'team_tickets' %}?status={{ status_filter }}"
+     hx-get="{% url 'ticket_list' %}?status={{ status_filter }}"
      hx-trigger="every 30s"
      hx-select="#ticket-list-content"
      hx-swap="outerHTML">
@@ -34,7 +34,7 @@
             <td colspan="5">
                 {% if status_filter != 'all' %}
                     <c-empty_state title="No tickets match your filter">
-                    Try <c-link href="{% url 'team_tickets' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
+                    Try <c-link href="{% url 'ticket_list' %}">clearing the filter</c-link> or <c-link href="{% url 'create_ticket' %}" variant="add">create a new ticket</c-link>
                     </c-empty_state>
                 {% else %}
                     <c-empty_state title="No tickets yet" description="Either everything is working perfectly, or nobody knows how to ask for help.">

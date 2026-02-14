@@ -52,7 +52,7 @@ class TestFileUploadConstraints:
         uploaded_file = SimpleUploadedFile(name="large.txt", content=large_content)
 
         factory = RequestFactory()
-        request = factory.post(f"/tickets/{ticket.id}/upload", {"attachment": uploaded_file})
+        request = factory.post(f"/tickets/{ticket.ticket_number}/upload", {"attachment": uploaded_file})
         request.user = Mock()
         request.user.is_authenticated = True
 
@@ -61,7 +61,7 @@ class TestFileUploadConstraints:
             patch("core.views.get_team_from_groups", return_value=(team, 1, True)),
             patch("core.views.has_permission", return_value=False),
         ):
-            response = ticket_attachment_upload(request, ticket_id=ticket.id)
+            response = ticket_attachment_upload(request, ticket_number=ticket.ticket_number)
 
         assert response.status_code == 400
         assert b"too large" in response.content.lower() or b"size" in response.content.lower()
@@ -113,7 +113,7 @@ class TestFileUploadAuthorizationBypass:
         team1, team2, ticket1, ticket2, attachment1 = setup_teams
 
         factory = RequestFactory()
-        request = factory.get(f"/tickets/{ticket1.id}/attachments/{attachment1.id}")
+        request = factory.get(f"/tickets/{ticket1.ticket_number}/attachment/{attachment1.id}")
         request.user = Mock()
         request.user.is_authenticated = True
 
@@ -122,7 +122,9 @@ class TestFileUploadAuthorizationBypass:
             patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
             patch("core.views.has_permission", return_value=False),
         ):
-            response = ticket_attachment_download(request, attachment_id=attachment1.id, ticket_id=ticket1.id)
+            response = ticket_attachment_download(
+                request, attachment_id=attachment1.id, ticket_number=ticket1.ticket_number
+            )
 
         assert response.status_code in [403, 404]
 
@@ -136,7 +138,7 @@ class TestFileUploadAuthorizationBypass:
         )
 
         factory = RequestFactory()
-        request = factory.post(f"/tickets/{ticket1.id}/upload", {"attachment": uploaded_file})
+        request = factory.post(f"/tickets/{ticket1.ticket_number}/upload", {"attachment": uploaded_file})
         request.user = Mock()
         request.user.is_authenticated = True
 
@@ -145,7 +147,7 @@ class TestFileUploadAuthorizationBypass:
             patch("core.views.get_team_from_groups", return_value=(team2, 2, True)),
             patch("core.views.has_permission", return_value=False),
         ):
-            response = ticket_attachment_upload(request, ticket_id=ticket1.id)
+            response = ticket_attachment_upload(request, ticket_number=ticket1.ticket_number)
 
         assert response.status_code in [403, 404]
         assert not TicketAttachment.objects.filter(ticket=ticket1, filename="malicious.txt").exists()

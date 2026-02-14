@@ -101,13 +101,13 @@ class TestTeamAttachmentUpload:
         test_file = SimpleUploadedFile("test.txt", file_content, content_type="text/plain")
 
         response = client.post(
-            f"/tickets/{data['ticket1'].id}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {"attachment": test_file},
         )
 
         # Should redirect to ticket detail
         assert response.status_code == 302
-        assert response["Location"] == f"/tickets/{data['ticket1'].id}/"
+        assert response["Location"] == f"/tickets/{data['ticket1'].ticket_number}/"
 
         # Check attachment was created
         attachment = TicketAttachment.objects.filter(ticket=data["ticket1"]).first()
@@ -128,7 +128,7 @@ class TestTeamAttachmentUpload:
         large_file = SimpleUploadedFile("large.bin", large_content)
 
         response = client.post(
-            f"/tickets/{data['ticket1'].id}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {"attachment": large_file},
         )
 
@@ -145,7 +145,7 @@ class TestTeamAttachmentUpload:
         client.force_login(data["team1_user"])
 
         response = client.post(
-            f"/tickets/{data['ticket1'].id}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {},
         )
 
@@ -162,11 +162,11 @@ class TestTeamAttachmentUpload:
         test_file = SimpleUploadedFile("test.txt", b"content", content_type="text/plain")
 
         response = client.post(
-            f"/tickets/{data['ticket2'].id}/attachment/upload/",
+            f"/tickets/{data['ticket2'].ticket_number}/attachment/upload/",
             {"attachment": test_file},
         )
 
-        assert response.status_code == 404
+        assert response.status_code == 403
         assert TicketAttachment.objects.filter(ticket=data["ticket2"]).count() == 0
 
     def test_upload_method_not_allowed(self, setup_tickets: dict[str, Any]) -> None:
@@ -175,7 +175,7 @@ class TestTeamAttachmentUpload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/upload/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/")
 
         assert response.status_code == 405
 
@@ -186,7 +186,7 @@ class TestTeamAttachmentUpload:
 
         test_file = SimpleUploadedFile("test.txt", b"content")
         response = client.post(
-            f"/tickets/{data['ticket1'].id}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {"attachment": test_file},
         )
 
@@ -216,7 +216,7 @@ class TestTeamAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         assert response["Content-Type"] == "application/pdf"
@@ -241,9 +241,9 @@ class TestTeamAttachmentDownload:
         client.force_login(data["team1_user"])
 
         # Try to download team2's attachment
-        response = client.get(f"/tickets/{data['ticket2'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket2'].ticket_number}/attachment/{attachment.id}/")
 
-        assert response.status_code == 404
+        assert response.status_code == 403
 
     def test_download_attachment_not_found(self, setup_tickets: dict[str, Any]) -> None:
         """Test download fails when attachment doesn't exist."""
@@ -251,7 +251,7 @@ class TestTeamAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/99999/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/99999/")
 
         assert response.status_code == 404
 
@@ -271,7 +271,7 @@ class TestTeamAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Django's content_disposition_header should properly escape the filename
@@ -292,13 +292,13 @@ class TestOpsAttachmentUpload:
         test_file = SimpleUploadedFile("ops_file.txt", file_content, content_type="text/plain")
 
         response = client.post(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {"attachment": test_file},
         )
 
         # Should redirect to ops ticket detail
         assert response.status_code == 302
-        assert f"/ops/ticket/{data['ticket1'].ticket_number}/" in response["Location"]
+        assert f"/tickets/{data['ticket1'].ticket_number}/" in response["Location"]
 
         # Check attachment was created
         attachment = TicketAttachment.objects.filter(ticket=data["ticket1"]).first()
@@ -315,7 +315,7 @@ class TestOpsAttachmentUpload:
         # Upload to team1's ticket
         test_file1 = SimpleUploadedFile("file1.txt", b"content1")
         response1 = client.post(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/upload/",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
             {"attachment": test_file1},
         )
         assert response1.status_code == 302
@@ -323,7 +323,7 @@ class TestOpsAttachmentUpload:
         # Upload to team2's ticket
         test_file2 = SimpleUploadedFile("file2.txt", b"content2")
         response2 = client.post(
-            f"/ops/ticket/{data['ticket2'].ticket_number}/attachment/upload/",
+            f"/tickets/{data['ticket2'].ticket_number}/attachment/upload/",
             {"attachment": test_file2},
         )
         assert response2.status_code == 302
@@ -331,15 +331,15 @@ class TestOpsAttachmentUpload:
         assert TicketAttachment.objects.filter(ticket=data["ticket1"]).count() == 1
         assert TicketAttachment.objects.filter(ticket=data["ticket2"]).count() == 1
 
-    def test_ops_upload_access_denied_for_team_member(self, setup_tickets: dict[str, Any]) -> None:
-        """Test regular team member cannot access ops upload endpoint."""
+    def test_ops_upload_denied_for_other_team(self, setup_tickets: dict[str, Any]) -> None:
+        """Test regular team member cannot upload to another team's ticket."""
         data = setup_tickets
         client = Client()
         client.force_login(data["team1_user"])
 
         test_file = SimpleUploadedFile("test.txt", b"content")
         response = client.post(
-            f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/upload/",
+            f"/tickets/{data['ticket2'].ticket_number}/attachment/upload/",
             {"attachment": test_file},
         )
 
@@ -353,7 +353,7 @@ class TestOpsAttachmentUpload:
 
         test_file = SimpleUploadedFile("test.txt", b"content")
         response = client.post(
-            "/ops/ticket/T999-999/attachment/upload/",
+            "/tickets/T999-999/attachment/upload/",
             {"attachment": test_file},
         )
 
@@ -380,7 +380,7 @@ class TestOpsAttachmentDownload:
         client = Client()
         client.force_login(data["ops_user"])
 
-        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         assert response["Content-Type"] == "application/pdf"
@@ -412,21 +412,21 @@ class TestOpsAttachmentDownload:
         client.force_login(data["ops_user"])
 
         # Download from team1
-        response1 = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{att1.id}/")
+        response1 = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{att1.id}/")
         assert response1.status_code == 200
         assert response1.content == b"Team1 file"
 
         # Download from team2
-        response2 = client.get(f"/ops/ticket/{data['ticket2'].ticket_number}/attachment/{att2.id}/")
+        response2 = client.get(f"/tickets/{data['ticket2'].ticket_number}/attachment/{att2.id}/")
         assert response2.status_code == 200
         assert response2.content == b"Team2 file"
 
-    def test_ops_download_access_denied_for_team_member(self, setup_tickets: dict[str, Any]) -> None:
-        """Test regular team member cannot access ops download endpoint."""
+    def test_ops_download_denied_for_other_team(self, setup_tickets: dict[str, Any]) -> None:
+        """Test regular team member cannot download another team's attachment."""
         data = setup_tickets
 
         attachment = TicketAttachment.objects.create(
-            ticket=data["ticket1"],
+            ticket=data["ticket2"],
             file_data=b"Content",
             filename="file.txt",
             mime_type="text/plain",
@@ -436,7 +436,7 @@ class TestOpsAttachmentDownload:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket2'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 403
 
@@ -446,7 +446,7 @@ class TestOpsAttachmentDownload:
         client = Client()
         client.force_login(data["ops_user"])
 
-        response = client.get(f"/ops/ticket/{data['ticket1'].ticket_number}/attachment/99999/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/99999/")
 
         assert response.status_code == 404
 
@@ -475,7 +475,7 @@ class TestAttachmentSecurity:
         # This should raise BadHeaderError from Django, resulting in 500
         # or the content_disposition_header function should sanitize it
         try:
-            response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+            response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
             # If it doesn't error, check that headers are safe
             disposition = response.get("Content-Disposition", "")
             # Should not contain literal newlines
@@ -502,7 +502,7 @@ class TestAttachmentSecurity:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Content-Disposition should force download, not inline rendering
@@ -526,7 +526,7 @@ class TestAttachmentSecurity:
         client = Client()
         client.force_login(data["team1_user"])
 
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         assert response.status_code == 200
         # Should still work despite long filename
@@ -553,7 +553,7 @@ class TestAttachmentSecurity:
             test_file = SimpleUploadedFile(malicious_filename, file_content, content_type="text/plain")
 
             response = client.post(
-                f"/tickets/{data['ticket1'].id}/attachment/upload/",
+                f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
                 {"attachment": test_file},
             )
 
@@ -590,9 +590,9 @@ class TestAttachmentSecurity:
         # Try to access with various malicious attachment IDs
         # (These should all fail because the ID doesn't exist or doesn't belong to the team)
         malicious_attempts = [
-            f"/tickets/{data['ticket1'].id}/attachment/../../../etc/passwd",
-            f"/tickets/{data['ticket1'].id}/attachment/../../settings.py",
-            f"/tickets/{data['ticket1'].id}/attachment/999999999",  # Non-existent ID
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/../../../etc/passwd",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/../../settings.py",
+            f"/tickets/{data['ticket1'].ticket_number}/attachment/999999999",  # Non-existent ID
         ]
 
         for malicious_path in malicious_attempts:
@@ -631,7 +631,7 @@ class TestAttachmentSecurity:
         client.force_login(data["team1_user"])
 
         # Download the attachment
-        response = client.get(f"/tickets/{data['ticket1'].id}/attachment/{attachment.id}/")
+        response = client.get(f"/tickets/{data['ticket1'].ticket_number}/attachment/{attachment.id}/")
 
         # Should succeed - we're serving from database, not filesystem
         assert response.status_code == 200
@@ -662,7 +662,7 @@ class TestAttachmentSecurity:
             test_file = SimpleUploadedFile(abs_path, b"Overwrite attempt", content_type="text/html")
 
             response = client.post(
-                f"/tickets/{data['ticket1'].id}/attachment/upload/",
+                f"/tickets/{data['ticket1'].ticket_number}/attachment/upload/",
                 {"attachment": test_file},
             )
 

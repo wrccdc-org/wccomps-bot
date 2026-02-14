@@ -4,7 +4,7 @@
     Create Ticket - {{ team.team_name }}
 {% endblock title %}
 {% block home_url %}
-    {% url 'team_tickets' %}
+    {% url 'ticket_list' %}
 {% endblock home_url %}
 {% block extra_css %}
     <style>
@@ -169,7 +169,7 @@
             </div>
             </c-fieldset>
             <c-button_row class="justify-end">
-            <c-link href="{% url 'team_tickets' %}">Cancel</c-link>
+            <c-link href="{% url 'ticket_list' %}">Cancel</c-link>
             <c-button type="submit" variant="primary">Create Ticket</c-button>
             </c-button_row>
             </c-module>

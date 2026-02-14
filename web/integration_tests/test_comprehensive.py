@@ -69,7 +69,7 @@ class TestFullTicketWorkflow:
             assert ticket.assigned_to is None
 
             # Claim ticket
-            response = client.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
+            response = client.post(reverse("ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
             assert response.status_code in [200, 302]
 
             ticket.refresh_from_db()
@@ -79,13 +79,13 @@ class TestFullTicketWorkflow:
 
             # Add comment
             response = client.post(
-                reverse("ops_ticket_comment", kwargs={"ticket_number": ticket.ticket_number}),
+                reverse("ticket_comment", kwargs={"ticket_number": ticket.ticket_number}),
                 data={"comment": "Working on this ticket"},
             )
             assert response.status_code in [200, 302]
 
             response = client.post(
-                reverse("ops_ticket_resolve", kwargs={"ticket_number": ticket.ticket_number}),
+                reverse("ticket_resolve", kwargs={"ticket_number": ticket.ticket_number}),
                 data={
                     "resolution_notes": "Issue resolved successfully",
                     "points": "10",
@@ -227,7 +227,7 @@ class TestAttachmentHandling:
             # Download attachment
             response = client.get(
                 reverse(
-                    "ops_ticket_attachment_download",
+                    "ticket_attachment_download",
                     kwargs={
                         "ticket_number": test_ticket.ticket_number,
                         "attachment_id": attachment.id,
@@ -252,7 +252,7 @@ class TestEdgeCases:
 
         client = Client()
 
-        response = client.get(reverse("ops_ticket_detail", kwargs={"ticket_number": "T-NONEXISTENT-999"}))
+        response = client.get(reverse("ticket_detail", kwargs={"ticket_number": "T-NONEXISTENT-999"}))
 
         # Should be 404 or 302 (redirect to login), not 500
         assert response.status_code in [404, 302]
@@ -313,13 +313,13 @@ class TestEdgeCases:
             # User 1 claims
             client1 = Client()
             client1.force_login(user1)
-            response = client1.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
+            response = client1.post(reverse("ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
             assert response.status_code in [200, 302]
 
             # User 2 tries to claim
             client2 = Client()
             client2.force_login(user2)
-            response = client2.post(reverse("ops_ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
+            response = client2.post(reverse("ticket_claim", kwargs={"ticket_number": ticket.ticket_number}))
 
             # Should handle gracefully (not 500)
             assert response.status_code in [200, 302, 400, 409]
