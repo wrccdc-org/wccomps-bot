@@ -10,8 +10,6 @@
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_ticket_list' %}" hx_target="#ops-ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
         <c-slot name="actions">
         <c-link href="{% url 'create_ticket' %}" variant="primary">Create Ticket</c-link>
-        <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-claim'))" variant="default">Claim Selected</c-button>
-        <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-resolve'))" variant="default">Resolve Selected</c-button>
         </c-slot>
         <c-filter_field label="Search" id="id_search" min_width="200px">
         <input type="text"
