@@ -71,9 +71,15 @@
              x-transition:leave-start="toast-leave-end"
              x-transition:leave-end="toast-enter-start"
              x-cloak
+             role="status"
+             aria-live="polite"
+             :aria-label="'New ticket: ' + $store.ticketNotifs.toastNumber + ', ' + $store.ticketNotifs.toastTitle + '. Click to view.'"
              @click="window.location.href = $store.ticketNotifs.toastUrl">
-            <strong x-text="$store.ticketNotifs.toastNumber"></strong>
-            <span x-text="$store.ticketNotifs.toastTitle"></span>
+            <div class="toast-line1">
+                <strong x-text="$store.ticketNotifs.toastNumber"></strong>
+                <span x-text="$store.ticketNotifs.toastTitle"></span>
+            </div>
+            <div class="toast-line2" x-text="$store.ticketNotifs.toastCategory"></div>
         </div>
     {% endif %}
 {% endblock nav-global %}
@@ -222,23 +228,32 @@
             cursor: pointer;
             z-index: 9999;
             max-width: 360px;
-            display: flex;
-            gap: 8px;
-            align-items: baseline;
         }
 
         .ticket-toast:hover {
             background: var(--darkened-bg, #f5f5f5);
         }
 
-        .ticket-toast strong {
+        .toast-line1 {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        .toast-line1 strong {
             white-space: nowrap;
         }
 
-        .ticket-toast span {
+        .toast-line1 span {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .toast-line2 {
+            font-size: 12px;
+            color: var(--body-quiet-color, #666);
+            margin-top: 2px;
         }
 
         .toast-enter {
@@ -259,6 +274,23 @@
             transition: all 0.2s ease-in;
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            .toast-enter, .toast-leave {
+                transition: none;
+            }
+            .toast-enter-start {
+                transform: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ticket-toast {
+                max-width: calc(100vw - 40px);
+                bottom: 12px;
+                right: 12px;
+            }
+        }
+
         [x-cloak] {
             display: none !important;
         }
@@ -272,9 +304,12 @@
                 showToast: false,
                 toastNumber: '',
                 toastTitle: '',
+                toastCategory: '',
                 toastUrl: '',
                 _lastSeenId: parseInt(localStorage.getItem('ticketLastSeenId') || '0', 10),
+                _queue: [],
                 _timer: null,
+                _showing: false,
 
                 init() {
                     this.poll();
@@ -283,20 +318,58 @@
 
                 async poll() {
                     try {
-                        const resp = await fetch('{% url "ops_ticket_notifications" %}');
+                        const resp = await fetch('{% url "ops_ticket_notifications" %}?since_id=' + this._lastSeenId);
                         if (!resp.ok) return;
                         const data = await resp.json();
                         this.openCount = data.open_count || 0;
-                        if (data.latest_id && data.latest_id > this._lastSeenId) {
-                            this._lastSeenId = data.latest_id;
-                            localStorage.setItem('ticketLastSeenId', String(data.latest_id));
-                            this.toastNumber = data.latest_number;
-                            this.toastTitle = data.latest_title;
-                            this.toastUrl = '/ops/ticket/' + data.latest_number + '/';
-                            this.showToast = true;
-                            setTimeout(() => { this.showToast = false; }, 8000);
+                        if (data.new_tickets && data.new_tickets.length > 0) {
+                            const maxId = data.new_tickets[data.new_tickets.length - 1].id;
+                            this._lastSeenId = maxId;
+                            localStorage.setItem('ticketLastSeenId', String(maxId));
+                            for (const t of data.new_tickets) {
+                                if (this._queue.length < 10) {
+                                    this._queue.push(t);
+                                }
+                            }
+                            if (!this._showing) this._showNext();
                         }
                     } catch { /* network error, skip */ }
+                },
+
+                _showNext() {
+                    if (this._queue.length === 0) {
+                        this._showing = false;
+                        return;
+                    }
+                    this._showing = true;
+                    const t = this._queue.shift();
+                    this.toastNumber = t.number;
+                    this.toastTitle = t.title;
+                    this.toastCategory = t.category_display;
+                    this.toastUrl = '/ops/ticket/' + t.number + '/';
+                    this.showToast = true;
+                    this._playAudio();
+                    setTimeout(() => {
+                        this.showToast = false;
+                        setTimeout(() => this._showNext(), 1000);
+                    }, 6000);
+                },
+
+                _playAudio() {
+                    if (localStorage.getItem('ticketAudioEnabled') !== 'true') return;
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.frequency.value = 880;
+                        osc.type = 'sine';
+                        gain.gain.value = 0.15;
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 0.2);
+                    } catch { /* audio not available, skip */ }
                 }
             });
         });
