@@ -641,7 +641,82 @@ def team_tickets(request: HttpRequest) -> HttpResponse:
     return render(request, "team_tickets.html", context)
 
 
-def ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
+def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Unified ticket detail view for both team members and ops staff."""
+    user = cast(User, request.user)
+    authentik_username = user.username
+
+    # Determine user role
+    is_ops = (
+        has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+        or has_permission(user, "admin")
+    )
+    groups = get_authentik_groups(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
+    is_ticketing_admin = has_permission(user, "ticketing_admin")
+    is_ticketing_support = has_permission(user, "ticketing_support")
+
+    # Look up ticket by ticket_number
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Ticket not found",
+                "message": f"Ticket {ticket_number} does not exist.",
+            },
+        )
+
+    # Access check
+    if is_ops:
+        pass  # ops can view any ticket
+    elif is_team and team and ticket.team == team:
+        pass  # team member can view own team's tickets
+    else:
+        return HttpResponseForbidden("You do not have permission to view this ticket.")
+
+    # Fetch common data
+    cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+    comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
+    attachments = TicketAttachment.objects.filter(ticket=ticket).order_by("uploaded_at")
+
+    context: dict[str, object] = {
+        "is_ops": is_ops,
+        "is_ticketing_admin": is_ticketing_admin,
+        "is_ticketing_support": is_ticketing_support,
+        "authentik_username": authentik_username,
+        "team": team,
+        "ticket": ticket,
+        "category_name": cat_info.get("display_name", ticket.category),
+        "comments": comments,
+        "attachments": attachments,
+        "status_display": ticket.status.upper().replace("_", " "),
+    }
+
+    # Ops-specific data
+    if is_ops:
+        history = TicketHistory.objects.filter(ticket=ticket).order_by("-timestamp")[:20]
+        context["variable_points"] = cat_info.get("variable_points", False)
+        context["categories"] = TICKET_CATEGORIES
+        context["history"] = history
+
+        # Preserve filter state from referrer for back navigation
+        context["status_filter"] = request.GET.get("status", "")
+        context["category_filter"] = request.GET.get("category", "")
+        context["team_filter"] = request.GET.get("team", "")
+        context["assignee_filter"] = request.GET.get("assignee", "")
+        context["search_filter"] = request.GET.get("search", "")
+        context["sort_filter"] = request.GET.get("sort", "")
+        context["page_filter"] = request.GET.get("page", "")
+        context["page_size"] = request.GET.get("page_size", "")
+
+    return render(request, "ticket_detail.html", context)
+
+
+def _old_ticket_detail(request: HttpRequest, ticket_id: int) -> HttpResponse:
     """View details of a specific ticket."""
     # Get user's team from Authentik groups
     user = cast(User, request.user)
@@ -1262,7 +1337,7 @@ def ops_ticket_list(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_ticket_list.html", context)
 
 
-def ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
+def _old_ops_ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """View detailed ticket information for operations team."""
     # Get user's permissions
     user = cast(User, request.user)
