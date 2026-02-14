@@ -177,7 +177,8 @@ button[type="submit"]:hover {
 }
 
 /* Make checkbox column narrower */
-.action-checkbox-column {
+.action-checkbox-column,
+.action-checkbox {
     width: 40px;
     text-align: center;
 }
