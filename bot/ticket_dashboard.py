@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
 
 import discord
 from asgiref.sync import sync_to_async
@@ -408,8 +407,8 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
 
             # Validate range for variable categories
             if cat_info.get("variable_points", False):
-                min_pts = cast(int, cat_info.get("min_points", 0))
-                max_pts = cast(int, cat_info.get("max_points", 0))
+                min_pts = int(cat_info.get("min_points", 0))
+                max_pts = int(cat_info.get("max_points", 0))
                 if points_override < min_pts:
                     await interaction.response.send_message(
                         f"Point value must be at least {min_pts}.",

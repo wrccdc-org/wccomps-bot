@@ -162,6 +162,11 @@ urlpatterns = [
         views.ops_batch_verify_tickets,
         name="ops_batch_verify_tickets",
     ),
+    path(
+        "ops/tickets/notifications/",
+        views.ops_ticket_notifications,
+        name="ops_ticket_notifications",
+    ),
     # Admin management routes
     path("ops/admin/competition/", admin_views.admin_competition, name="admin_competition"),
     path("ops/admin/competition/action/", admin_views.admin_competition_action, name="admin_competition_action"),

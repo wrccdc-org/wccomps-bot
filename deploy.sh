@@ -167,18 +167,11 @@ else
         || fail "collectstatic"
     step "migrate"
 
-    # Clear bytecode cache so new workers load fresh source
+    # Clear bytecode cache and restart so new workers load fresh source
     remote "docker compose exec -T web find /app/web -type d -name __pycache__ -exec rm -rf {} + || true"
-    if $STATIC_CHANGED; then
-        # Static files changed — restart to reload the staticfiles manifest
-        remote "docker compose restart web" \
-            || fail "restart"
-        step "restarted (static changed)"
-    else
-        remote "docker compose kill -s HUP web" \
-            || fail "reload"
-        step "reloaded"
-    fi
+    remote "docker compose restart web" \
+        || fail "restart"
+    step "restarted"
 
     # Only restart bot if bot code actually changed
     if $BOT_CHANGED; then

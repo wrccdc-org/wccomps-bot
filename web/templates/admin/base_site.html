@@ -17,7 +17,13 @@
     <nav class="primary-navigation">
         {% if is_ticketing_support or is_ticketing_admin %}
             <a href="{% url 'ops_ticket_list' %}"
-               {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets</a>
+               {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets
+                <span class="notif-count"
+                      x-data=""
+                      x-text="$store.ticketNotifs.openCount"
+                      x-show="$store.ticketNotifs.openCount > 0"
+                      x-cloak></span>
+            </a>
         {% endif %}
         {% if is_blue_team or is_admin %}
             <a href="{% url 'scoring:submit_incident_report' %}"
@@ -54,6 +60,22 @@
         <span class="nav-user">{{ authentik_username|default:user.username }}</span>
         <a href="{% url 'oauth_logout' %}">Log out</a>
     </nav>
+    {% if is_ticketing_support or is_ticketing_admin %}
+        <div class="ticket-toast"
+             x-data=""
+             x-show="$store.ticketNotifs.showToast"
+             x-transition:enter="toast-enter"
+             x-transition:enter-start="toast-enter-start"
+             x-transition:enter-end="toast-enter-end"
+             x-transition:leave="toast-leave"
+             x-transition:leave-start="toast-leave-end"
+             x-transition:leave-end="toast-enter-start"
+             x-cloak
+             @click="window.location.href = $store.ticketNotifs.toastUrl">
+            <strong x-text="$store.ticketNotifs.toastNumber"></strong>
+            <span x-text="$store.ticketNotifs.toastTitle"></span>
+        </div>
+    {% endif %}
 {% endblock nav-global %}
 {% block extrastyle %}
     {{ block.super }}
@@ -172,7 +194,112 @@
         html[data-theme="dark"] .dark-mode-toggle .light-icon {
             display: none;
         }
+
+        /* Ticket notification badge */
+        .notif-count {
+            background: var(--error-fg, #dc3545);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            vertical-align: top;
+        }
+
+        /* Ticket toast notification */
+        .ticket-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--body-bg, #fff);
+            color: var(--body-fg, #333);
+            border: 1px solid var(--hairline-color, #ddd);
+            border-left: 4px solid var(--info-fg, #1976d2);
+            border-radius: 4px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            z-index: 9999;
+            max-width: 360px;
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        .ticket-toast:hover {
+            background: var(--darkened-bg, #f5f5f5);
+        }
+
+        .ticket-toast strong {
+            white-space: nowrap;
+        }
+
+        .ticket-toast span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .toast-enter {
+            transition: all 0.3s ease-out;
+        }
+
+        .toast-enter-start {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+
+        .toast-enter-end {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast-leave {
+            transition: all 0.2s ease-in;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
+    <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('ticketNotifs', {
+                openCount: 0,
+                showToast: false,
+                toastNumber: '',
+                toastTitle: '',
+                toastUrl: '',
+                _lastSeenId: parseInt(localStorage.getItem('ticketLastSeenId') || '0', 10),
+                _timer: null,
+
+                init() {
+                    this.poll();
+                    this._timer = setInterval(() => this.poll(), 15000);
+                },
+
+                async poll() {
+                    try {
+                        const resp = await fetch('{% url "ops_ticket_notifications" %}');
+                        if (!resp.ok) return;
+                        const data = await resp.json();
+                        this.openCount = data.open_count || 0;
+                        if (data.latest_id && data.latest_id > this._lastSeenId) {
+                            this._lastSeenId = data.latest_id;
+                            localStorage.setItem('ticketLastSeenId', String(data.latest_id));
+                            this.toastNumber = data.latest_number;
+                            this.toastTitle = data.latest_title;
+                            this.toastUrl = '/ops/ticket/' + data.latest_number + '/';
+                            this.showToast = true;
+                            setTimeout(() => { this.showToast = false; }, 8000);
+                        }
+                    } catch { /* network error, skip */ }
+                }
+            });
+        });
+    </script>
     <script>
         function toggleDarkMode() {
             const html = document.documentElement;

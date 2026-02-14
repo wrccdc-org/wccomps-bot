@@ -2,7 +2,6 @@
 
 import logging
 from datetime import timedelta
-from typing import cast
 
 import discord
 from discord import app_commands
@@ -291,8 +290,8 @@ class AdminTicketsCog(commands.Cog):
                 )
                 return
 
-            min_pts = cast(int, cat_info.get("min_points", 0))
-            max_pts = cast(int, cat_info.get("max_points", 0))
+            min_pts = int(cat_info.get("min_points", 0))
+            max_pts = int(cat_info.get("max_points", 0))
             if points < min_pts:
                 await interaction.response.send_message(
                     f"Point value must be at least {min_pts}.",

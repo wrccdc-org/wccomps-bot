@@ -2348,3 +2348,24 @@ def health_check(request: HttpRequest) -> HttpResponse:
         content_type="application/json",
         status=200,
     )
+
+
+def ops_ticket_notifications(request: HttpRequest) -> JsonResponse:
+    """JSON endpoint for ticket notification polling (ops staff only)."""
+    user = cast(User, request.user)
+    if not (
+        has_permission(user, "admin")
+        or has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+    ):
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    open_count = Ticket.objects.filter(status="open").count()
+    latest = Ticket.objects.filter(status="open").order_by("-id").first()
+    data: dict[str, str | int | None] = {"open_count": open_count}
+    if latest:
+        data["latest_id"] = latest.id
+        data["latest_number"] = latest.ticket_number
+        data["latest_title"] = latest.title
+        data["latest_category"] = latest.category
+    return JsonResponse(data)

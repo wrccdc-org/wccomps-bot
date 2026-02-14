@@ -1,7 +1,5 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
-from typing import cast
-
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -276,8 +274,8 @@ def resolve_ticket_atomic(
         if points_override is not None:
             # For variable categories, validate range if bounds are set
             if cat_info.get("variable_points", False):
-                min_pts = cast(int, cat_info.get("min_points", 0))
-                max_pts = cast(int, cat_info.get("max_points", 0))
+                min_pts = int(cat_info.get("min_points", 0))
+                max_pts = int(cat_info.get("max_points", 0))
                 if points_override < min_pts:
                     return None, f"Point value must be at least {min_pts}."
                 if max_pts and points_override > max_pts:
