@@ -421,6 +421,172 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     )
 
 
+def ticket_list(request: HttpRequest) -> HttpResponse:
+    """Unified ticket list view for both team members and ops staff."""
+    from datetime import timedelta
+
+    from django.core.paginator import Paginator
+    from django.db.models import Count, Max, Q
+
+    user = cast(User, request.user)
+    authentik_username = user.username
+
+    # Determine user role
+    is_ops = (
+        has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+        or has_permission(user, "admin")
+    )
+    groups = get_authentik_groups(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
+
+    # Access check
+    if not is_ops and not is_team:
+        return HttpResponseForbidden("You do not have permission to view tickets.")
+
+    # Get filter parameters (always)
+    status_filter = request.GET.get("status", "all") or "all"
+    category_filter = request.GET.get("category", "all") or "all"
+    search_query = request.GET.get("search", "").strip()
+    sort_by = request.GET.get("sort", "-created_at")
+    page_size_str = request.GET.get("page_size", "50")
+    page = request.GET.get("page", "1")
+
+    # Ops-only filter parameters
+    team_filter = request.GET.get("team", "") if is_ops else ""
+    assignee_filter = request.GET.get("assignee", "") if is_ops else ""
+
+    try:
+        page_size = int(page_size_str)
+        if page_size not in [25, 50, 100, 200]:
+            page_size = 50
+    except ValueError:
+        page_size = 50
+
+    # Build base query
+    if is_ops:
+        query = (
+            Ticket.objects.select_related("team")
+            .exclude(ticket_number="")
+            .annotate(
+                comment_count=Count("comments", distinct=True),
+                attachment_count=Count("attachments", distinct=True),
+                last_activity=Max("history__timestamp"),
+            )
+        )
+    else:
+        query = (
+            Ticket.objects.select_related("team")
+            .filter(team=team)
+            .annotate(
+                comment_count=Count("comments", distinct=True),
+                attachment_count=Count("attachments", distinct=True),
+                last_activity=Max("history__timestamp"),
+            )
+        )
+
+    # Apply shared filters
+    if status_filter != "all":
+        query = query.filter(status=status_filter)
+
+    if category_filter != "all":
+        query = query.filter(category=category_filter)
+
+    if search_query:
+        query = query.filter(
+            Q(title__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(ticket_number__icontains=search_query)
+            | Q(hostname__icontains=search_query)
+            | Q(service_name__icontains=search_query)
+        )
+
+    # Apply ops-only filters
+    if is_ops and team_filter:
+        with contextlib.suppress(ValueError):
+            query = query.filter(team__team_number=int(team_filter))
+
+    if is_ops and assignee_filter:
+        if assignee_filter == "unassigned":
+            query = query.filter(assigned_to__isnull=True)
+        else:
+            with contextlib.suppress(ValueError):
+                query = query.filter(assigned_to_id=int(assignee_filter))
+
+    # Validate and apply sort
+    valid_sort_fields = [
+        "created_at",
+        "-created_at",
+        "status",
+        "-status",
+        "team__team_number",
+        "-team__team_number",
+        "category",
+        "-category",
+        "assigned_to__username",
+        "-assigned_to__username",
+    ]
+    if sort_by not in valid_sort_fields:
+        sort_by = "-created_at"
+
+    query = query.order_by(sort_by)
+
+    # Enrich tickets with category info and stale status
+    thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
+
+    tickets_with_info = []
+    for ticket in query:
+        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        is_stale = (
+            is_ops
+            and ticket.status == "claimed"
+            and ticket.assigned_at is not None
+            and ticket.assigned_at < thirty_minutes_ago
+        )
+        tickets_with_info.append(
+            {
+                "ticket": ticket,
+                "category_name": cat_info.get("display_name", ticket.category),
+                "is_stale": is_stale,
+                "status_display": ticket.status.upper().replace("_", " "),
+            }
+        )
+
+    # Paginate
+    paginator = Paginator(tickets_with_info, page_size)
+    page_obj = paginator.get_page(page)
+
+    # Get unique assignees for filter dropdown (ops only)
+    assignees = (
+        User.objects.filter(assigned_tickets__isnull=False).distinct().order_by("username") if is_ops else []
+    )
+
+    is_ticketing_admin = has_permission(user, "ticketing_admin")
+
+    context = {
+        "is_ops": is_ops,
+        "is_ticketing_admin": is_ticketing_admin,
+        "team": team,
+        "authentik_username": authentik_username,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+        "category_filter": category_filter,
+        "search_query": search_query,
+        "sort_by": sort_by,
+        "page_size": page_size,
+        "team_filter": team_filter,
+        "assignee_filter": assignee_filter,
+        "assignees": assignees,
+        "categories": TICKET_CATEGORIES,
+    }
+
+    # Return partial for HTMX requests
+    if request.headers.get("HX-Request"):
+        return render(request, "cotton/ticket_list_table.html", context)
+
+    return render(request, "ticket_list.html", context)
+
+
 def team_tickets(request: HttpRequest) -> HttpResponse:
     """View all tickets for user's team."""
     # Get user's team from Authentik groups
