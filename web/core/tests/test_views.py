@@ -435,3 +435,97 @@ class TestAttachmentViews:
         response = client.get(reverse("ticket_attachment_download", args=[ticket.id, 99999]))
 
         assert response.status_code == 404
+
+
+class TestTicketNotifications:
+    """Tests for ops_ticket_notifications endpoint."""
+
+    @pytest.fixture
+    def team1(self):
+        return Team.objects.create(team_number=1, team_name="Team 01", is_active=True)
+
+    def test_returns_open_count(self, ticketing_support_user, team1):
+        """Should return count of open tickets."""
+        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="A", status="open")
+        Ticket.objects.create(team=team1, ticket_number="T002", category="other", title="B", status="resolved")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications"))
+        data = response.json()
+
+        assert response.status_code == 200
+        assert data["open_count"] == 1
+
+    def test_returns_new_tickets_since_id(self, ticketing_support_user, team1):
+        """Should return tickets with id > since_id."""
+        t1 = Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="Old", status="open")
+        t2 = Ticket.objects.create(team=team1, ticket_number="T002", category="box-reset", title="New", status="open")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications") + f"?since_id={t1.id}")
+        data = response.json()
+
+        assert len(data["new_tickets"]) == 1
+        assert data["new_tickets"][0]["id"] == t2.id
+        assert data["new_tickets"][0]["number"] == "T002"
+        assert data["new_tickets"][0]["category_display"] == "Box Reset / Scrub"
+
+    def test_category_display_fallback(self, ticketing_support_user, team1):
+        """Unknown categories should fall back to the raw slug."""
+        Ticket.objects.create(team=team1, ticket_number="T001", category="unknown-cat", title="X", status="open")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        data = response.json()
+
+        assert data["new_tickets"][0]["category_display"] == "unknown-cat"
+
+    def test_caps_at_10_results(self, ticketing_support_user, team1):
+        """Should return at most 10 new tickets."""
+        for i in range(15):
+            Ticket.objects.create(team=team1, ticket_number=f"T{i:03}", category="other", title=f"Ticket {i}", status="open")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        data = response.json()
+
+        assert len(data["new_tickets"]) == 10
+        assert data["open_count"] == 15
+
+    def test_invalid_since_id_treated_as_zero(self, ticketing_support_user, team1):
+        """Invalid since_id should be treated as 0."""
+        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="A", status="open")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications") + "?since_id=abc")
+        data = response.json()
+
+        assert data["open_count"] == 1
+        assert len(data["new_tickets"]) == 1
+
+    def test_forbidden_for_unprivileged_user(self, blue_team_user):
+        """Blue team users should get 403."""
+        client = Client()
+        client.force_login(blue_team_user)
+
+        response = client.get(reverse("ops_ticket_notifications"))
+
+        assert response.status_code == 403
+
+    def test_only_returns_open_tickets_in_new_tickets(self, ticketing_support_user, team1):
+        """Resolved/cancelled tickets should not appear in new_tickets."""
+        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="Open", status="open")
+        Ticket.objects.create(team=team1, ticket_number="T002", category="other", title="Resolved", status="resolved")
+        client = Client()
+        client.force_login(ticketing_support_user)
+
+        response = client.get(reverse("ops_ticket_notifications") + "?since_id=0")
+        data = response.json()
+
+        assert len(data["new_tickets"]) == 1
+        assert data["new_tickets"][0]["number"] == "T001"

@@ -2360,12 +2360,21 @@ def ops_ticket_notifications(request: HttpRequest) -> JsonResponse:
     ):
         return JsonResponse({"error": "forbidden"}, status=403)
 
+    try:
+        since_id = int(request.GET.get("since_id", "0"))
+    except (ValueError, TypeError):
+        since_id = 0
+
     open_count = Ticket.objects.filter(status="open").count()
-    latest = Ticket.objects.filter(status="open").order_by("-id").first()
-    data: dict[str, str | int | None] = {"open_count": open_count}
-    if latest:
-        data["latest_id"] = latest.id
-        data["latest_number"] = latest.ticket_number
-        data["latest_title"] = latest.title
-        data["latest_category"] = latest.category
-    return JsonResponse(data)
+    new_tickets = list(
+        Ticket.objects.filter(status="open", id__gt=since_id)
+        .order_by("id")
+        .values("id", "ticket_number", "title", "category")[:10]
+    )
+
+    for ticket in new_tickets:
+        cat_config = TICKET_CATEGORIES.get(ticket["category"])
+        ticket["number"] = ticket.pop("ticket_number")
+        ticket["category_display"] = cat_config["display_name"] if cat_config else ticket["category"]
+
+    return JsonResponse({"open_count": open_count, "new_tickets": new_tickets})
