@@ -301,9 +301,12 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .toast-enter, .toast-leave {
+
+            .toast-enter,
+            .toast-leave {
                 transition: none;
             }
+
             .toast-enter-start {
                 transform: none;
             }
@@ -323,7 +326,7 @@
     </style>
     <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
     {% if is_ticketing_support or is_ticketing_admin %}
-    <script>
+        <script>
         document.addEventListener('alpine:init', () => {
             Alpine.store('ticketNotifs', {
                 openCount: 0,
@@ -399,7 +402,7 @@
                 }
             });
         });
-    </script>
+        </script>
     {% endif %}
     <script>
         function toggleDarkMode() {

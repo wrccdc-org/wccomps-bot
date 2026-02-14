@@ -486,7 +486,9 @@ class TestTicketNotifications:
     def test_caps_at_10_results(self, ticketing_support_user, team1):
         """Should return at most 10 new tickets."""
         for i in range(15):
-            Ticket.objects.create(team=team1, ticket_number=f"T{i:03}", category="other", title=f"Ticket {i}", status="open")
+            Ticket.objects.create(
+                team=team1, ticket_number=f"T{i:03}", category="other", title=f"Ticket {i}", status="open"
+            )
         client = Client()
         client.force_login(ticketing_support_user)
 
