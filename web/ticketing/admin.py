@@ -8,6 +8,7 @@ from .models import (
     CommentRateLimit,
     Ticket,
     TicketAttachment,
+    TicketCategory,
     TicketComment,
     TicketHistory,
 )
@@ -32,6 +33,13 @@ class TicketHistoryInline(admin.TabularInline[TicketHistory, Ticket]):
     extra = 0
     readonly_fields = ["timestamp", "action", "actor"]
     fields = ["action", "actor", "details", "timestamp"]
+
+
+@admin.register(TicketCategory)
+class TicketCategoryAdmin(admin.ModelAdmin[TicketCategory]):
+    list_display = ["display_name", "points", "variable_points", "user_creatable", "sort_order"]
+    list_filter = ["variable_points", "user_creatable"]
+    ordering = ["sort_order", "display_name"]
 
 
 @admin.register(Ticket)

@@ -6,6 +6,27 @@ from django.db import models
 from django.utils import timezone
 
 
+class TicketCategory(models.Model):
+    """Configurable ticket category."""
+
+    display_name = models.CharField(max_length=100)
+    points = models.IntegerField(default=0)
+    required_fields = models.JSONField(default=list, blank=True)
+    optional_fields = models.JSONField(default=list, blank=True)
+    variable_points = models.BooleanField(default=False)
+    variable_cost_note = models.TextField(blank=True)
+    min_points = models.IntegerField(default=0)
+    max_points = models.IntegerField(default=0)
+    user_creatable = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "display_name"]
+
+    def __str__(self) -> str:
+        return self.display_name
+
+
 class Ticket(models.Model):
     """Support ticket from team."""
 
