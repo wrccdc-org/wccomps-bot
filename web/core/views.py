@@ -2199,15 +2199,20 @@ def ticket_notifications(request: HttpRequest) -> JsonResponse:
         since_id = 0
 
     open_count = Ticket.objects.filter(status="open").count()
-    new_tickets = list(
+    raw_tickets = (
         Ticket.objects.filter(status="open", id__gt=since_id)
         .order_by("id")
         .values("id", "ticket_number", "title", "category")[:10]
     )
 
-    for ticket in new_tickets:
-        cat_config = TICKET_CATEGORIES.get(ticket["category"])
-        ticket["number"] = ticket.pop("ticket_number")
-        ticket["category_display"] = cat_config["display_name"] if cat_config else ticket["category"]
+    new_tickets = []
+    for t in raw_tickets:
+        cat_config = TICKET_CATEGORIES.get(t["category"])
+        new_tickets.append({
+            "id": t["id"],
+            "number": t["ticket_number"],
+            "title": t["title"],
+            "category_display": cat_config["display_name"] if cat_config else t["category"],
+        })
 
     return JsonResponse({"open_count": open_count, "new_tickets": new_tickets})

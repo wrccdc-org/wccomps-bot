@@ -112,8 +112,8 @@ class Command(BaseCommand):
                 raise RuntimeError("auth_utils.has_permission is not callable")
             if not callable(views.home):
                 raise RuntimeError("views.home is not callable")
-            if not callable(views.team_tickets):
-                raise RuntimeError("views.team_tickets is not callable")
+            if not callable(views.ticket_list):
+                raise RuntimeError("views.ticket_list is not callable")
 
             self.stdout.write(self.style.SUCCESS("✓ View imports OK"))
         except Exception as e:
