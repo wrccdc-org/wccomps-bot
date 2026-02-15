@@ -107,4 +107,16 @@ urlpatterns = [
     path("ops/admin/sync-roles/", admin_views.admin_sync_roles, name="admin_sync_roles"),
     path("ops/admin/sync-roles/action/", admin_views.admin_sync_roles_action, name="admin_sync_roles_action"),
     path("ops/admin/task/<int:task_id>/status/", admin_views.admin_task_status, name="admin_task_status"),
+    path("ops/admin/categories/", admin_views.admin_categories, name="admin_categories"),
+    path("ops/admin/categories/create/", admin_views.admin_category_create, name="admin_category_create"),
+    path(
+        "ops/admin/categories/<int:category_id>/edit/",
+        admin_views.admin_category_edit,
+        name="admin_category_edit",
+    ),
+    path(
+        "ops/admin/categories/<int:category_id>/delete/",
+        admin_views.admin_category_delete,
+        name="admin_category_delete",
+    ),
 ]

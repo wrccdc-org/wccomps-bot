@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+{% block title %}
+    Delete Category - WCComps
+{% endblock title %}
+{% block admin_content %}
+    <c-page_header title="Delete Category" />
+    <c-module>
+    <c-alert variant="warning">
+    Are you sure you want to delete the category "{{ category.display_name }}"?
+    {% if ticket_count %}
+        This category has {{ ticket_count }} ticket(s). Deleting it will set their category to null.
+    {% endif %}
+    </c-alert>
+    <form method="post">
+        {% csrf_token %}
+        <c-button_row class="mt-20 justify-end">
+        <a href="{% url 'admin_categories' %}" class="btn btn-secondary">Cancel</a>
+        <c-button type="submit" variant="danger">Delete Category</c-button>
+        </c-button_row>
+    </form>
+    </c-module>
+{% endblock admin_content %}
