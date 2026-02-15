@@ -97,6 +97,38 @@ def admin_user(create_user_with_groups: Callable[..., User]) -> User:
     return create_user_with_groups("admin", ["WCComps_Discord_Admin"])
 
 
+@pytest.fixture
+def default_category(db):
+    """Get the seeded 'Other / General Issue' category (pk=6)."""
+    from ticketing.models import TicketCategory
+
+    return TicketCategory.objects.get(pk=6)
+
+
+@pytest.fixture
+def box_reset_category(db):
+    """Get the seeded 'Box Reset / Scrub' category (pk=2)."""
+    from ticketing.models import TicketCategory
+
+    return TicketCategory.objects.get(pk=2)
+
+
+@pytest.fixture
+def scoring_check_category(db):
+    """Get the seeded 'Scoring Service Check' category (pk=3)."""
+    from ticketing.models import TicketCategory
+
+    return TicketCategory.objects.get(pk=3)
+
+
+@pytest.fixture
+def phone_consult_category(db):
+    """Get the seeded 'Black Team Phone Consultation' category (pk=4)."""
+    from ticketing.models import TicketCategory
+
+    return TicketCategory.objects.get(pk=4)
+
+
 @pytest.fixture(autouse=True)
 def reset_quotient_client_cache():
     """Reset the QuotientClient LRU cache before each test for proper isolation."""

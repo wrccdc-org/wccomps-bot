@@ -9,7 +9,7 @@ from django.core.management import call_command
 
 from core.models import AuditLog, CompetitionConfig, DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, Team
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 pytestmark = pytest.mark.django_db
 
@@ -94,7 +94,7 @@ class TestWipeCompetitionCommand:
         ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -237,7 +237,7 @@ class TestClearTicketsCommand:
         Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test",
             status="open",
         )
@@ -255,7 +255,7 @@ class TestClearTicketsCommand:
         Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test",
             status="open",
         )

@@ -14,7 +14,7 @@ from django.test import RequestFactory
 
 from team.models import Team
 from ticketing.admin import CommentRateLimitAdmin, TicketAdmin
-from ticketing.models import CommentRateLimit, Ticket
+from ticketing.models import CommentRateLimit, Ticket, TicketCategory
 
 pytestmark = pytest.mark.django_db
 
@@ -43,7 +43,7 @@ def ticket(team: Team) -> Ticket:
     return Ticket.objects.create(
         ticket_number="T005-001",
         team=team,
-        category="operations",
+        category=TicketCategory.objects.get(pk=6),
         title="Test ticket",
         status="open",
     )
@@ -57,7 +57,7 @@ class TestTicketAdminCreate:
         request = RequestFactory().post("/admin/ticketing/ticket/add/")
         request.user = superuser
 
-        obj = Ticket(team=team, category="operations", title="Admin ticket")
+        obj = Ticket(team=team, category=TicketCategory.objects.get(pk=6), title="Admin ticket")
         ticket_admin.save_model(request, obj, form=None, change=False)
 
         assert obj.pk is not None
@@ -68,10 +68,10 @@ class TestTicketAdminCreate:
         request = RequestFactory().post("/admin/ticketing/ticket/add/")
         request.user = superuser
 
-        obj1 = Ticket(team=team, category="operations", title="First")
+        obj1 = Ticket(team=team, category=TicketCategory.objects.get(pk=6), title="First")
         ticket_admin.save_model(request, obj1, form=None, change=False)
 
-        obj2 = Ticket(team=team, category="operations", title="Second")
+        obj2 = Ticket(team=team, category=TicketCategory.objects.get(pk=6), title="Second")
         ticket_admin.save_model(request, obj2, form=None, change=False)
 
         assert obj1.ticket_number == "T005-001"
@@ -86,7 +86,7 @@ class TestTicketAdminCreate:
 
         obj = Ticket(
             team=team,
-            category="operations",
+            category=TicketCategory.objects.get(pk=6),
             title="Manual",
             ticket_number="CUSTOM-001",
         )

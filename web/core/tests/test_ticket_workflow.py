@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from team.models import DiscordLink, Team
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 pytestmark = pytest.mark.django_db
 
@@ -79,7 +79,7 @@ class TestTicketWorkflow:
         ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Need web server reset",
             description="Web server is not responding",
             status="open",
@@ -103,7 +103,7 @@ class TestTicketWorkflow:
         ticket = Ticket.objects.create(
             ticket_number="T001-002",
             team=team,
-            category="scoring-service-check",
+            category=TicketCategory.objects.get(pk=3),
             title="Service check issue",
             description="Service showing down but is up",
             status="open",
@@ -144,7 +144,7 @@ class TestTicketWorkflow:
         ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=team,
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Database server reset",
             description="Database is unresponsive",
             status="claimed",
@@ -191,7 +191,7 @@ class TestTicketWorkflow:
         ticket = Ticket.objects.create(
             ticket_number="T001-004",
             team=team,
-            category="blackteam-phone-consultation",
+            category=TicketCategory.objects.get(pk=4),
             title="Phone consultation",
             description="Need help with firewall rules",
             status="resolved",
@@ -247,7 +247,7 @@ class TestTicketWorkflow:
         ticket = Ticket.objects.create(
             ticket_number="T001-005",
             team=team,
-            category="scoring-service-check",
+            category=TicketCategory.objects.get(pk=3),
             title="Complete workflow test",
             description="Testing full lifecycle",
             status="open",
@@ -332,7 +332,7 @@ class TestTicketWorkflow:
         open_ticket = Ticket.objects.create(
             ticket_number="T001-010",
             team=team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Open ticket",
             status="open",
         )
@@ -340,7 +340,7 @@ class TestTicketWorkflow:
         resolved_unverified = Ticket.objects.create(
             ticket_number="T001-011",
             team=team,
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Resolved but not verified",
             status="resolved",
             points_charged=50,
@@ -351,7 +351,7 @@ class TestTicketWorkflow:
         resolved_verified = Ticket.objects.create(
             ticket_number="T001-012",
             team=team,
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Resolved and verified",
             status="resolved",
             points_charged=30,

@@ -5,7 +5,7 @@ from django.test import Client
 from django.urls import reverse
 
 from team.models import Team
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 pytestmark = pytest.mark.django_db
 
@@ -20,25 +20,28 @@ def team_with_tickets(blue_team_user):
         max_members=10,
         ticket_counter=3,
     )
+    box_reset = TicketCategory.objects.get(pk=2)
+    scoring_check = TicketCategory.objects.get(pk=3)
+    other = TicketCategory.objects.get(pk=6)
     tickets = [
         Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="box-reset",
+            category=box_reset,
             title="Open ticket",
             status="open",
         ),
         Ticket.objects.create(
             ticket_number="T001-002",
             team=team,
-            category="scoring-service-check",
+            category=scoring_check,
             title="Claimed ticket",
             status="claimed",
         ),
         Ticket.objects.create(
             ticket_number="T001-003",
             team=team,
-            category="other",
+            category=other,
             title="Resolved ticket",
             status="resolved",
             points_charged=50,
@@ -55,10 +58,11 @@ def other_team_ticket():
         team_name="Blue Team 02",
         max_members=10,
     )
+    other = TicketCategory.objects.get(pk=6)
     ticket = Ticket.objects.create(
         ticket_number="T002-001",
         team=team,
-        category="other",
+        category=other,
         title="Other team ticket",
         status="open",
     )

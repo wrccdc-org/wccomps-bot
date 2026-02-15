@@ -5,7 +5,7 @@ from django.test import Client
 from django.urls import reverse
 
 from team.models import Team
-from ticketing.models import Ticket
+from ticketing.models import Ticket, TicketCategory
 
 pytestmark = pytest.mark.django_db
 
@@ -64,7 +64,7 @@ class TestTeamTicketsView:
         Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket 1",
             status="open",
         )
@@ -82,14 +82,14 @@ class TestTeamTicketsView:
         Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Open Ticket",
             status="open",
         )
         Ticket.objects.create(
             team=team1,
             ticket_number="T002",
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Resolved Ticket",
             status="resolved",
         )
@@ -131,7 +131,7 @@ class TestTicketDetailView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             description="Test description",
             status="open",
@@ -150,7 +150,7 @@ class TestTicketDetailView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -180,7 +180,7 @@ class TestTicketCommentView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -196,7 +196,7 @@ class TestTicketCommentView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -212,7 +212,7 @@ class TestTicketCommentView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -232,7 +232,7 @@ class TestTicketCommentView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -318,7 +318,7 @@ class TestOpsTicketClaimView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -336,7 +336,7 @@ class TestOpsTicketClaimView:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -408,7 +408,7 @@ class TestAttachmentViews:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -424,7 +424,7 @@ class TestAttachmentViews:
         ticket = Ticket.objects.create(
             team=team1,
             ticket_number="T001",
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -445,8 +445,12 @@ class TestTicketNotifications:
 
     def test_returns_open_count(self, ticketing_support_user, team1):
         """Should return count of open tickets."""
-        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="A", status="open")
-        Ticket.objects.create(team=team1, ticket_number="T002", category="other", title="B", status="resolved")
+        Ticket.objects.create(
+            team=team1, ticket_number="T001", category=TicketCategory.objects.get(pk=6), title="A", status="open"
+        )
+        Ticket.objects.create(
+            team=team1, ticket_number="T002", category=TicketCategory.objects.get(pk=6), title="B", status="resolved"
+        )
         client = Client()
         client.force_login(ticketing_support_user)
 
@@ -458,8 +462,12 @@ class TestTicketNotifications:
 
     def test_returns_new_tickets_since_id(self, ticketing_support_user, team1):
         """Should return tickets with id > since_id."""
-        t1 = Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="Old", status="open")
-        t2 = Ticket.objects.create(team=team1, ticket_number="T002", category="box-reset", title="New", status="open")
+        t1 = Ticket.objects.create(
+            team=team1, ticket_number="T001", category=TicketCategory.objects.get(pk=6), title="Old", status="open"
+        )
+        t2 = Ticket.objects.create(
+            team=team1, ticket_number="T002", category=TicketCategory.objects.get(pk=2), title="New", status="open"
+        )
         client = Client()
         client.force_login(ticketing_support_user)
 
@@ -472,21 +480,25 @@ class TestTicketNotifications:
         assert data["new_tickets"][0]["category_display"] == "Box Reset / Scrub"
 
     def test_category_display_fallback(self, ticketing_support_user, team1):
-        """Unknown categories should fall back to the raw slug."""
-        Ticket.objects.create(team=team1, ticket_number="T001", category="unknown-cat", title="X", status="open")
+        """Null category should fall back to 'Unknown'."""
+        Ticket.objects.create(team=team1, ticket_number="T001", category=None, title="X", status="open")
         client = Client()
         client.force_login(ticketing_support_user)
 
         response = client.get(reverse("ticket_notifications") + "?since_id=0")
         data = response.json()
 
-        assert data["new_tickets"][0]["category_display"] == "unknown-cat"
+        assert data["new_tickets"][0]["category_display"] == "Unknown"
 
     def test_caps_at_10_results(self, ticketing_support_user, team1):
         """Should return at most 10 new tickets."""
         for i in range(15):
             Ticket.objects.create(
-                team=team1, ticket_number=f"T{i:03}", category="other", title=f"Ticket {i}", status="open"
+                team=team1,
+                ticket_number=f"T{i:03}",
+                category=TicketCategory.objects.get(pk=6),
+                title=f"Ticket {i}",
+                status="open",
             )
         client = Client()
         client.force_login(ticketing_support_user)
@@ -499,7 +511,9 @@ class TestTicketNotifications:
 
     def test_invalid_since_id_treated_as_zero(self, ticketing_support_user, team1):
         """Invalid since_id should be treated as 0."""
-        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="A", status="open")
+        Ticket.objects.create(
+            team=team1, ticket_number="T001", category=TicketCategory.objects.get(pk=6), title="A", status="open"
+        )
         client = Client()
         client.force_login(ticketing_support_user)
 
@@ -520,8 +534,16 @@ class TestTicketNotifications:
 
     def test_only_returns_open_tickets_in_new_tickets(self, ticketing_support_user, team1):
         """Resolved/cancelled tickets should not appear in new_tickets."""
-        Ticket.objects.create(team=team1, ticket_number="T001", category="other", title="Open", status="open")
-        Ticket.objects.create(team=team1, ticket_number="T002", category="other", title="Resolved", status="resolved")
+        Ticket.objects.create(
+            team=team1, ticket_number="T001", category=TicketCategory.objects.get(pk=6), title="Open", status="open"
+        )
+        Ticket.objects.create(
+            team=team1,
+            ticket_number="T002",
+            category=TicketCategory.objects.get(pk=6),
+            title="Resolved",
+            status="resolved",
+        )
         client = Client()
         client.force_login(ticketing_support_user)
 

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from bot.cogs.ticketing import TicketingCog
 from team.models import DiscordLink, Team
-from ticketing.models import Ticket, TicketComment, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketComment, TicketHistory
 
 
 @pytest.mark.asyncio
@@ -70,10 +70,11 @@ class TestTicketingCog:
     async def test_archive_threads_task_archives_expired_tickets(self, cog: TicketingCog, team: Team) -> None:
         """Test background task archives tickets after grace period."""
         # Create ticket with thread scheduled for archiving in the past
+        cat = await TicketCategory.objects.aget(pk=2)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-001",
             team=team,
-            category="box-reset",
+            category=cat,
             title="Test Ticket",
             description="Test",
             status="resolved",
@@ -105,10 +106,11 @@ class TestTicketingCog:
 
     async def test_archive_threads_task_skips_future_scheduled(self, cog: TicketingCog, team: Team) -> None:
         """Test background task skips tickets scheduled for future."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-002",
             team=team,
-            category="service-check",
+            category=cat,
             title="Future Archive",
             description="Test",
             status="resolved",
@@ -130,10 +132,11 @@ class TestTicketingCog:
 
     async def test_archive_threads_task_handles_missing_thread(self, cog: TicketingCog, team: Team) -> None:
         """Test background task handles thread not found."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-003",
             team=team,
-            category="service-check",
+            category=cat,
             title="Missing Thread",
             description="Test",
             status="resolved",
@@ -188,10 +191,11 @@ class TestTicketingCog:
 
     async def test_on_message_edit_updates_comment(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message_edit updates existing TicketComment."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-007",
             team=team,
-            category="service-check",
+            category=cat,
             title="Test Edit",
             description="Test",
             status="claimed",
@@ -232,10 +236,11 @@ class TestTicketingCog:
 
     async def test_on_message_delete_marks_comment_deleted(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message_delete soft-deletes TicketComment."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-008",
             team=team,
-            category="service-check",
+            category=cat,
             title="Test Delete",
             description="Test",
             status="claimed",
@@ -266,6 +271,7 @@ class TestTicketingCog:
     async def test_archive_threads_task_multiple_tickets(self, cog: TicketingCog, team: Team) -> None:
         """Test archiving multiple tickets with mixed expiration times."""
         # Create 5 tickets - 3 expired, 2 not expired
+        cat = await TicketCategory.objects.aget(pk=3)
         tickets = []
         for i in range(5):
             scheduled_at = timezone.now() - timedelta(seconds=120) if i < 3 else timezone.now() + timedelta(minutes=5)
@@ -273,7 +279,7 @@ class TestTicketingCog:
             ticket = await Ticket.objects.acreate(
                 ticket_number=f"T042-{200 + i}",
                 team=team,
-                category="service-check",
+                category=cat,
                 title=f"Test {i}",
                 description="Test",
                 status="resolved",
@@ -303,10 +309,11 @@ class TestTicketingCog:
 
     async def test_on_message_creates_comment(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message creates TicketComment for Discord messages."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-100",
             team=team,
-            category="service-check",
+            category=cat,
             title="Test Comment Sync",
             description="Test",
             status="open",
@@ -352,10 +359,11 @@ class TestTicketingCog:
 
     async def test_on_message_prevents_duplicate_comments(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message doesn't create duplicate comments."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-101",
             team=team,
-            category="service-check",
+            category=cat,
             title="Test Duplicate",
             description="Test",
             status="open",
@@ -389,10 +397,11 @@ class TestTicketingCog:
 
     async def test_on_message_ignores_empty_content(self, cog: TicketingCog, team: Team) -> None:
         """Test on_message ignores messages with no text content."""
+        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-102",
             team=team,
-            category="service-check",
+            category=cat,
             title="Test Empty",
             description="Test",
             status="open",
@@ -499,23 +508,20 @@ class TestTicketCommand:
         self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
     ) -> None:
         """Test /ticket with invalid category."""
-        from unittest.mock import patch
+        # Pass a non-existent category PK (string, since cog does int(category))
+        await cog.create_ticket.callback(cog, interaction, category="9999", description="test")
 
-        # Mock TICKET_CATEGORIES without the category
-        with patch("bot.cogs.ticketing.TICKET_CATEGORIES", {"valid-category": {"display_name": "Valid"}}):
-            await cog.create_ticket.callback(cog, interaction, category="invalid-category", description="test")
-
-            # Should send error message
-            interaction.response.send_message.assert_called_once()
-            args = interaction.response.send_message.call_args
-            assert "invalid" in args[0][0].lower()
+        # Should send error message
+        interaction.response.send_message.assert_called_once()
+        args = interaction.response.send_message.call_args
+        assert "invalid" in args[0][0].lower()
 
     async def test_create_ticket_box_reset_requires_hostname(
         self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
     ) -> None:
         """Test /ticket box-reset requires hostname parameter."""
         await cog.create_ticket.callback(
-            cog, interaction, category="box-reset", description="need reset", hostname=None, ip_address=None
+            cog, interaction, category="2", description="need reset", hostname=None, ip_address=None
         )
 
         # Should send error message about missing fields
@@ -527,9 +533,7 @@ class TestTicketCommand:
         self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
     ) -> None:
         """Test /ticket scoring-service-check requires service parameter."""
-        await cog.create_ticket.callback(
-            cog, interaction, category="scoring-service-check", description="check this", service=None
-        )
+        await cog.create_ticket.callback(cog, interaction, category="3", description="check this", service=None)
 
         # Should send error message about missing service
         interaction.response.send_message.assert_called_once()
@@ -563,7 +567,7 @@ class TestTicketCommand:
             await cog.create_ticket.callback(
                 cog,
                 interaction,
-                category="box-reset",
+                category="2",
                 description="please reset my web server",
                 hostname="webserver01",
                 ip_address="10.0.0.5",
@@ -623,7 +627,7 @@ class TestTicketCommand:
             await cog.create_ticket.callback(
                 cog,
                 interaction,
-                category="box-reset",
+                category="2",
                 description="please reset",
                 hostname="webserver01",
                 ip_address=None,  # Not provided - should be auto-populated
@@ -667,10 +671,11 @@ class TestRateLimiting:
     @pytest_asyncio.fixture
     async def ticket(self, team: Team) -> Ticket:
         """Create test ticket."""
+        cat = await TicketCategory.objects.aget(pk=3)
         return await Ticket.objects.acreate(
             ticket_number="T025-500",
             team=team,
-            category="service-check",
+            category=cat,
             title="Rate Limit Test",
             description="Test",
             status="open",
@@ -766,10 +771,11 @@ class TestAttachmentHandling:
     @pytest_asyncio.fixture
     async def ticket(self, team: Team) -> Ticket:
         """Create test ticket."""
+        cat = await TicketCategory.objects.aget(pk=3)
         return await Ticket.objects.acreate(
             ticket_number="T035-600",
             team=team,
-            category="service-check",
+            category=cat,
             title="Attachment Test",
             description="Test",
             status="open",

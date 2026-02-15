@@ -9,7 +9,7 @@ from django.test import Client
 
 from core.models import UserGroups
 from team.models import Team
-from ticketing.models import Ticket, TicketAttachment
+from ticketing.models import Ticket, TicketAttachment, TicketCategory
 
 pytestmark = pytest.mark.django_db
 
@@ -66,7 +66,7 @@ def setup_tickets(setup_users_and_auth: dict[str, Any]) -> dict[str, Any]:
     ticket1 = Ticket.objects.create(
         ticket_number="T001-001",
         team=data["team1"],
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Test Ticket 1",
         description="Test description",
         status="open",
@@ -75,7 +75,7 @@ def setup_tickets(setup_users_and_auth: dict[str, Any]) -> dict[str, Any]:
     ticket2 = Ticket.objects.create(
         ticket_number="T002-001",
         team=data["team2"],
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Test Ticket 2",
         description="Test description",
         status="open",

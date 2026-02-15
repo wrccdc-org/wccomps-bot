@@ -274,5 +274,5 @@ class TestScrollableLayout:
         """The c-table component must wrap tables in a .results div."""
         table_template = (TEMPLATES_DIR / "cotton" / "table.html").read_text()
         assert re.search(r'class="results"', table_template), (
-            "c-table component must wrap <table> in <div class=\"results\"> for scroll support"
+            'c-table component must wrap <table> in <div class="results"> for scroll support'
         )

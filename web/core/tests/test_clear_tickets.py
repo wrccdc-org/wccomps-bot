@@ -10,7 +10,7 @@ from django.test import Client
 
 from core.models import AuditLog, UserGroups
 from team.models import Team
-from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.models import Ticket, TicketAttachment, TicketCategory, TicketComment, TicketHistory
 
 pytestmark = pytest.mark.django_db
 
@@ -41,7 +41,7 @@ def setup_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, list[Tick
     ticket1 = Ticket.objects.create(
         ticket_number="T001-001",
         team=team1,
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Test Ticket 1",
         description="Test description",
         status="open",
@@ -50,7 +50,7 @@ def setup_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, list[Tick
     ticket2 = Ticket.objects.create(
         ticket_number="T001-002",
         team=team1,
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Test Ticket 2",
         description="Test description",
         status="claimed",
@@ -59,7 +59,7 @@ def setup_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, list[Tick
     ticket3 = Ticket.objects.create(
         ticket_number="T002-001",
         team=team2,
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Test Ticket 3",
         description="Test description",
         status="resolved",

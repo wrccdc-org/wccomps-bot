@@ -67,7 +67,7 @@ class TestCreateTicketTemplate:
         assert "rebuildServiceOptions" in content
 
     def test_create_ticket_passes_categories_to_template(self, blue_team_user, mock_quotient):
-        """Create ticket view should pass TICKET_CATEGORIES to template."""
+        """Create ticket view should pass categories to template."""
         team = Team.objects.create(team_number=1, team_name="Test Team", is_active=True)
         DiscordLink.objects.create(
             discord_id=123456789,
@@ -84,9 +84,9 @@ class TestCreateTicketTemplate:
         assert response.status_code == 200
         content = response.content.decode()
 
-        # Verify categories are in the dropdown
-        assert "scoring-service-check" in content
-        assert "box-reset" in content
+        # Verify categories are in the dropdown (by display name)
+        assert "Scoring Service Check" in content
+        assert "Box Reset / Scrub" in content
 
 
 @pytest.fixture

@@ -141,7 +141,9 @@ class TicketingCog(commands.Cog):
         service="Service name like 'web:http' (required for scoring validation, service check)",
         ip_address="IP address (auto-filled from hostname, or enter manually)",
     )
-    @app_commands.autocomplete(category=category_autocomplete, hostname=hostname_autocomplete, service=service_autocomplete)
+    @app_commands.autocomplete(
+        category=category_autocomplete, hostname=hostname_autocomplete, service=service_autocomplete
+    )
     @app_commands.check(check_blue_team)
     async def create_ticket(
         self,

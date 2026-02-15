@@ -12,7 +12,7 @@ from bot.ticket_dashboard import (
     update_ticket_dashboard,
 )
 from team.models import DiscordLink, Team
-from ticketing.models import Ticket
+from ticketing.models import Ticket, TicketCategory
 
 
 @pytest.mark.django_db(transaction=True)
@@ -30,13 +30,14 @@ class TicketDashboardTest(TestCase):
         """Test formatting ticket embeds with various states and categories."""
         from django.utils import timezone as tz
 
-        from core.tickets_config import TICKET_CATEGORIES
+        from core.tickets_config import get_all_categories
 
         # Test basic open ticket
+        box_reset = TicketCategory.objects.get(pk=2)
         open_ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=self.team,
-            category="box-reset",
+            category=box_reset,
             title="Test Open",
             description="Open description",
             status="open",
@@ -54,10 +55,11 @@ class TicketDashboardTest(TestCase):
         )
 
         # Test claimed ticket with assignment (assigned_to is now User, not DiscordLink)
+        scoring_check = TicketCategory.objects.get(pk=3)
         claimed_ticket = Ticket.objects.create(
             ticket_number="T001-002",
             team=self.team,
-            category="scoring-service-check",
+            category=scoring_check,
             title="Test Claimed",
             description="Claimed description",
             status="claimed",
@@ -76,10 +78,11 @@ class TicketDashboardTest(TestCase):
         )
 
         # Test resolved ticket with resolution info (resolved_by is now User, not DiscordLink)
+        other_cat = TicketCategory.objects.get(pk=6)
         resolved_ticket = Ticket.objects.create(
             ticket_number="T001-003",
             team=self.team,
-            category="other",
+            category=other_cat,
             title="Test Resolved",
             description="Resolved description",
             status="resolved",
@@ -93,12 +96,14 @@ class TicketDashboardTest(TestCase):
         self.assertIn("Resolved At", resolved_field_names)
 
         # Test that all ticket categories can be formatted
-        for idx, category_key in enumerate(TICKET_CATEGORIES.keys(), start=10):
+        all_categories = get_all_categories()
+        for idx, (cat_pk, cat_info) in enumerate(all_categories.items(), start=10):
+            cat_obj = TicketCategory.objects.get(pk=cat_pk)
             ticket = Ticket.objects.create(
                 ticket_number=f"T001-{idx:03d}",
                 team=self.team,
-                category=category_key,
-                title=f"Test {category_key}",
+                category=cat_obj,
+                title=f"Test {cat_info['display_name']}",
                 description="Test",
                 status="open",
             )
@@ -110,7 +115,7 @@ class TicketDashboardTest(TestCase):
         ticket = Ticket.objects.create(
             ticket_number="T001-099",
             team=self.team,
-            category="box-reset",
+            category=TicketCategory.objects.get(pk=2),
             title="Reset Request",
             description="Please reset my box",
             status="open",
@@ -134,7 +139,7 @@ class TicketDashboardTest(TestCase):
         ticket = Ticket.objects.create(
             ticket_number="T001-100",
             team=self.team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="General Question",
             description="Just a question",
             status="open",
@@ -159,11 +164,12 @@ class TestDashboardUpdate:
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
+        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=27, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T001",
             team=team,
-            category="box-reset",
+            category=cat,
             title="Test",
             description="Test",
             status="open",
@@ -178,11 +184,12 @@ class TestDashboardUpdate:
         bot = MagicMock()
         bot.unified_dashboard = None
 
+        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=28, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T002",
             team=team,
-            category="box-reset",
+            category=cat,
             title="Test",
             description="Test",
             status="open",
@@ -197,11 +204,12 @@ class TestDashboardUpdate:
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
+        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=29, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T003",
             team=team,
-            category="box-reset",
+            category=cat,
             title="Test",
             description="Test",
             status="open",

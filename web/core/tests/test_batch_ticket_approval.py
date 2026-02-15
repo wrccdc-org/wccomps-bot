@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from core.models import UserGroups
 from team.models import Team
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 pytestmark = pytest.mark.django_db
 
@@ -41,7 +41,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
     ticket1 = Ticket.objects.create(
         ticket_number="T001-001",
         team=team1,
-        category="box-reset",
+        category=TicketCategory.objects.get(pk=2),
         title="Box Reset",
         description="Test description",
         status="resolved",
@@ -53,7 +53,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
     ticket2 = Ticket.objects.create(
         ticket_number="T001-002",
         team=team1,
-        category="scoring-service-check",
+        category=TicketCategory.objects.get(pk=3),
         title="Service Check",
         description="Test description",
         status="resolved",
@@ -65,7 +65,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
     ticket3 = Ticket.objects.create(
         ticket_number="T002-001",
         team=team2,
-        category="blackteam-phone-consultation",
+        category=TicketCategory.objects.get(pk=4),
         title="Phone Consultation",
         description="Test description",
         status="resolved",
@@ -78,7 +78,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
     ticket4 = Ticket.objects.create(
         ticket_number="T002-002",
         team=team2,
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Other Issue",
         description="Test description",
         status="resolved",
@@ -91,7 +91,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
     ticket5 = Ticket.objects.create(
         ticket_number="T001-003",
         team=team1,
-        category="other",
+        category=TicketCategory.objects.get(pk=6),
         title="Open Ticket",
         description="Test description",
         status="open",
@@ -263,7 +263,7 @@ class TestBatchTicketApproval:
         Ticket.objects.create(
             ticket_number="T001-004",
             team=team1,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Claimed Ticket",
             status="claimed",
             points_verified=False,
@@ -272,7 +272,7 @@ class TestBatchTicketApproval:
         Ticket.objects.create(
             ticket_number="T001-005",
             team=team1,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Cancelled Ticket",
             status="cancelled",
             points_verified=False,

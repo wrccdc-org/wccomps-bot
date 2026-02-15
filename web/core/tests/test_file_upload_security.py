@@ -20,7 +20,7 @@ from django.test import RequestFactory
 
 from core.views import ticket_attachment_download, ticket_attachment_upload
 from team.models import Team
-from ticketing.models import Ticket, TicketAttachment
+from ticketing.models import Ticket, TicketAttachment, TicketCategory
 
 
 @pytest.mark.django_db
@@ -38,7 +38,7 @@ class TestFileUploadConstraints:
         ticket = Ticket.objects.create(
             ticket_number="T001-001",
             team=team,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Test Ticket",
             status="open",
         )
@@ -88,13 +88,13 @@ class TestFileUploadAuthorizationBypass:
         ticket1 = Ticket.objects.create(
             ticket_number="T001-001",
             team=team1,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Team 1 Ticket",
         )
         ticket2 = Ticket.objects.create(
             ticket_number="T002-001",
             team=team2,
-            category="other",
+            category=TicketCategory.objects.get(pk=6),
             title="Team 2 Ticket",
         )
 

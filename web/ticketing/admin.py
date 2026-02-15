@@ -172,7 +172,7 @@ class TicketAdmin(admin.ModelAdmin[Ticket]):
                     ticket.ticket_number,
                     ticket.team.team_name,
                     ticket.team.team_number,
-                    ticket.category,
+                    ticket.category.display_name if ticket.category else "",
                     ticket.title,
                     ticket.description,
                     ticket.status,
