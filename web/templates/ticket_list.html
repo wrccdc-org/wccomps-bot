@@ -50,7 +50,7 @@
             <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
             {% for cat_id, cat_info in categories.items %}
                 <option value="{{ cat_id }}"
-                        {% if category_filter == cat_id %}selected{% endif %}>{{ cat_info.display_name }}</option>
+                        {% if category_filter == cat_id|stringformat:"i" %}selected{% endif %}>{{ cat_info.display_name }}</option>
             {% endfor %}
         </select>
         </c-filter_field>

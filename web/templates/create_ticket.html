@@ -79,7 +79,7 @@
                 {% for cat_key, cat_info in categories.items %}
                     <option value="{{ cat_key }}"
                             data-points="{{ cat_info.points }}"
-                            {% if form_data.category == cat_key %}selected{% endif %}>
+                            {% if form_data.category == cat_key|stringformat:"i" %}selected{% endif %}>
                         {{ cat_info.display_name }} (
                         {% if cat_info.variable_points %}
                             Variable

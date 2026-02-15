@@ -66,7 +66,7 @@
                         <form method="post"
                               action="{% url 'ticket_change_category' ticket.ticket_number %}"
                               class="d-inline-block m-0"
-                              x-data="{ newCat: '{{ ticket.category }}' }"
+                              x-data="{ newCat: '{{ ticket.category_id }}' }"
                               @submit="if (!confirm('Change category? This may change points charged.')) $event.preventDefault()">
                             {% csrf_token %}
                             <select name="new_category"
@@ -75,7 +75,7 @@
                                     class="py-5 px-10">
                                 {% for cat_id, cat_info in categories.items %}
                                     <option value="{{ cat_id }}"
-                                            {% if cat_id == ticket.category %}selected{% endif %}>
+                                            {% if cat_id == ticket.category_id %}selected{% endif %}>
                                         {{ cat_info.display_name }} ({{ cat_info.points }}pt)
                                     </option>
                                 {% endfor %}
