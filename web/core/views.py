@@ -51,18 +51,23 @@ def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploade
         return HttpResponse("No file provided", status=400)
 
     if uploaded_file.size is None or uploaded_file.size > MAX_ATTACHMENT_SIZE:
+        uploaded_file.close()
         return HttpResponse("File too large (max 10MB)", status=400)
 
     if not uploaded_file.name:
+        uploaded_file.close()
         return HttpResponse("File must have a name", status=400)
 
-    TicketAttachment.objects.create(
-        ticket=ticket,
-        file_data=uploaded_file.read(),
-        filename=uploaded_file.name,
-        mime_type=uploaded_file.content_type or "application/octet-stream",
-        uploaded_by=uploaded_by,
-    )
+    try:
+        TicketAttachment.objects.create(
+            ticket=ticket,
+            file_data=uploaded_file.read(),
+            filename=uploaded_file.name,
+            mime_type=uploaded_file.content_type or "application/octet-stream",
+            uploaded_by=uploaded_by,
+        )
+    finally:
+        uploaded_file.close()
     return None
 
 
@@ -2208,11 +2213,13 @@ def ticket_notifications(request: HttpRequest) -> JsonResponse:
     new_tickets = []
     for t in raw_tickets:
         cat_config = TICKET_CATEGORIES.get(t["category"])
-        new_tickets.append({
-            "id": t["id"],
-            "number": t["ticket_number"],
-            "title": t["title"],
-            "category_display": cat_config["display_name"] if cat_config else t["category"],
-        })
+        new_tickets.append(
+            {
+                "id": t["id"],
+                "number": t["ticket_number"],
+                "title": t["title"],
+                "category_display": cat_config["display_name"] if cat_config else t["category"],
+            }
+        )
 
     return JsonResponse({"open_count": open_count, "new_tickets": new_tickets})

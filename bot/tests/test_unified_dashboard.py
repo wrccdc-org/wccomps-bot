@@ -47,7 +47,11 @@ class TestUnifiedDashboard:
             assert dashboard.task is mock_task
             mock_create_task.assert_called_once()
 
-            # Cleanup: stop the dashboard to prevent RuntimeWarning
+            # Close the coroutine that was passed to the mocked create_task
+            # to prevent "coroutine was never awaited" warning
+            coro = mock_create_task.call_args[0][0]
+            coro.close()
+
             dashboard.stop()
 
     async def test_stop_cancels_task(self) -> None:

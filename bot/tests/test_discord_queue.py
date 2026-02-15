@@ -79,6 +79,7 @@ class TestAssignRoleRetry:
         # Create processor and mock discord manager
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
         processor.discord_manager.assign_team_role = AsyncMock(return_value=True)
         processor.discord_manager.setup_team_infrastructure = AsyncMock()
 
@@ -102,6 +103,7 @@ class TestAssignRoleRetry:
         # Create processor
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Create a proper Forbidden error
         mock_response = MagicMock()
@@ -127,6 +129,7 @@ class TestAssignRoleRetry:
         """Test exponential backoff timing: 2s, 4s, 8s, 16s."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Create a proper Forbidden error
         mock_response = MagicMock()
@@ -185,6 +188,7 @@ class TestAssignRoleRetry:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Create a proper Forbidden error
         mock_response = MagicMock()
@@ -219,6 +223,7 @@ class TestAssignRoleRetry:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Create a proper Forbidden error
         mock_response = MagicMock()
@@ -253,6 +258,7 @@ class TestAssignRoleRetry:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Create rate limit error with retry_after
         rate_limit_error = discord.errors.RateLimited(60)  # 60 second retry
@@ -289,6 +295,7 @@ class TestAssignRoleRetry:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Process task
         await processor._process_task(task)
@@ -317,6 +324,7 @@ class TestAssignRoleRetry:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         # Process task
         await processor._process_task(task)
@@ -339,6 +347,7 @@ class TestDiscordQueueOrdering:
         """Test that tasks are fetched and processed in created_at order."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         now = timezone.now()
 
@@ -402,6 +411,7 @@ class TestDiscordQueueOrdering:
         """Test that tasks not ready for retry are skipped."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         now = timezone.now()
 
@@ -436,6 +446,7 @@ class TestDiscordQueueOrdering:
         """Test that only max 10 tasks are fetched per poll."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
 
         now = timezone.now()
 
@@ -468,6 +479,7 @@ class TestExponentialBackoff:
         """Test exponential backoff follows 2^retry_count formula."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
         processor.discord_manager.assign_team_role = AsyncMock(side_effect=Exception("Network error"))
         processor.discord_manager.setup_team_infrastructure = AsyncMock()
 
@@ -505,6 +517,7 @@ class TestExponentialBackoff:
         """Test that exponential backoff is capped at 300 seconds (5 minutes)."""
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
         processor.discord_manager.assign_team_role = AsyncMock(side_effect=Exception("Network error"))
         processor.discord_manager.setup_team_infrastructure = AsyncMock()
 
@@ -548,6 +561,7 @@ class TestPermanentFailure:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
         processor.discord_manager.assign_team_role = AsyncMock(side_effect=Exception("Network error"))
         processor.discord_manager.setup_team_infrastructure = AsyncMock()
 
@@ -587,6 +601,7 @@ class TestPermanentFailure:
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
+        processor.discord_manager.guild = mock_bot_with_guild.guilds[0]
         processor.discord_manager.assign_team_role = AsyncMock(side_effect=Exception("Critical error"))
         processor.discord_manager.setup_team_infrastructure = AsyncMock()
 

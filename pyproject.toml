@@ -138,13 +138,6 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 testpaths = ["bot/tests", "web/core/tests", "web/integration_tests"]
 addopts = ["-v", "--tb=short"]
-filterwarnings = [
-    "ignore::ResourceWarning",
-    "ignore::pytest.PytestUnraisableExceptionWarning",
-    "ignore::pytest.PytestWarning",
-    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
-    "ignore:coroutine .* was never awaited:RuntimeWarning",
-]
 markers = [
     "critical: Critical tests that must pass on every deployment",
     "integration: Integration tests with real database and APIs",

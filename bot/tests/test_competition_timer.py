@@ -41,7 +41,11 @@ class TestCompetitionTimer:
             assert timer.task is mock_task
             mock_create_task.assert_called_once()
 
-            # Cleanup: stop the timer to prevent RuntimeWarning
+            # Close the coroutine that was passed to the mocked create_task
+            # to prevent "coroutine was never awaited" warning
+            coro = mock_create_task.call_args[0][0]
+            coro.close()
+
             timer.stop()
 
     async def test_stop_cancels_task(self) -> None:
