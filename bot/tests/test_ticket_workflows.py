@@ -17,7 +17,7 @@ from ticketing.models import Ticket
 class TestTicketCreationWorkflow:
     """Test ticket creation via web UI and Discord queue."""
 
-    async def test_ticket_creation_end_to_end(self, db: Any) -> None:
+    async def test_ticket_creation_end_to_end(self, db: Any, box_reset_category: Any) -> None:
         """Test ticket creation from web UI through Discord thread creation."""
         # Setup team and ticket
         team = await Team.objects.acreate(
@@ -30,7 +30,7 @@ class TestTicketCreationWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T035-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Box Reset",
             description="Reset my box",
             status="open",
@@ -90,7 +90,7 @@ class TestTicketCreationWorkflow:
         assert ticket.discord_thread_id == 9001
         assert ticket.discord_channel_id == 3001
 
-    async def test_queue_processor_idempotent_thread_creation(self) -> None:
+    async def test_queue_processor_idempotent_thread_creation(self, db: Any, box_reset_category: Any) -> None:
         """Test that queue processor doesn't recreate thread if already exists."""
         team = await Team.objects.acreate(
             team_number=37,
@@ -102,7 +102,7 @@ class TestTicketCreationWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T037-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Box Reset",
             description="Help",
             status="open",
@@ -135,7 +135,7 @@ class TestTicketResolutionWorkflow:
     """Test ticket resolution via admin commands."""
 
     async def test_ticket_resolution_updates_status(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any, scoring_check_category: Any
     ) -> None:
         """Test that resolving ticket updates status and timestamps."""
         from bot.cogs.admin_tickets import AdminTicketsCog
@@ -151,7 +151,7 @@ class TestTicketResolutionWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T038-001",
             team=team,
-            category="scoring-service-check",
+            category=scoring_check_category,
             title="Service Check",
             description="Check my service",
             status="claimed",
@@ -178,7 +178,7 @@ class TestTicketResolutionWorkflow:
         assert ticket.points_charged == 10
 
     async def test_ticket_resolution_creates_history_log(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any, other_category: Any
     ) -> None:
         """Test that resolving ticket creates history entry."""
         from bot.cogs.admin_tickets import AdminTicketsCog
@@ -195,7 +195,7 @@ class TestTicketResolutionWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T039-001",
             team=team,
-            category="other",
+            category=other_category,
             title="General Issue",
             description="Problem",
             status="open",
@@ -220,7 +220,7 @@ class TestTicketResolutionWorkflow:
         assert history.details["point_penalty"] == 10
 
     async def test_ticket_resolution_calls_dashboard_update(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any, box_reset_category: Any
     ) -> None:
         """Test that resolving ticket calls dashboard update."""
         from bot.cogs.admin_tickets import AdminTicketsCog
@@ -236,7 +236,7 @@ class TestTicketResolutionWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T040-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Reset",
             description="Reset",
             status="open",
@@ -257,7 +257,7 @@ class TestTicketResolutionWorkflow:
             assert call_args[0][1] == ticket
 
     async def test_cannot_resolve_already_resolved_ticket(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any, box_reset_category: Any
     ) -> None:
         """Test that already resolved tickets cannot be re-resolved."""
         from django.utils import timezone
@@ -275,7 +275,7 @@ class TestTicketResolutionWorkflow:
         ticket = await Ticket.objects.acreate(
             ticket_number="T041-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Reset",
             description="Reset",
             status="resolved",

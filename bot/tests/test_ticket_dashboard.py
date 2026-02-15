@@ -157,19 +157,18 @@ class TicketDashboardTest(TestCase):
 class TestDashboardUpdate:
     """Test dashboard update functions."""
 
-    async def test_post_ticket_to_dashboard_with_unified_dashboard(self) -> None:
+    async def test_post_ticket_to_dashboard_with_unified_dashboard(self, box_reset_category: TicketCategory) -> None:
         """Test posting ticket when unified dashboard exists."""
         bot = MagicMock()
         unified_dashboard = AsyncMock()
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
-        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=27, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T001",
             team=team,
-            category=cat,
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="open",
@@ -179,17 +178,16 @@ class TestDashboardUpdate:
 
         unified_dashboard.trigger_update.assert_called_once()
 
-    async def test_post_ticket_to_dashboard_no_unified_dashboard(self) -> None:
+    async def test_post_ticket_to_dashboard_no_unified_dashboard(self, box_reset_category: TicketCategory) -> None:
         """Test posting ticket when unified dashboard doesn't exist."""
         bot = MagicMock()
         bot.unified_dashboard = None
 
-        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=28, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T002",
             team=team,
-            category=cat,
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="open",
@@ -197,19 +195,18 @@ class TestDashboardUpdate:
 
         await post_ticket_to_dashboard(bot, ticket)
 
-    async def test_update_ticket_dashboard_with_unified_dashboard(self) -> None:
+    async def test_update_ticket_dashboard_with_unified_dashboard(self, box_reset_category: TicketCategory) -> None:
         """Test updating dashboard when unified dashboard exists."""
         bot = MagicMock()
         unified_dashboard = AsyncMock()
         unified_dashboard.trigger_update = AsyncMock()
         bot.unified_dashboard = unified_dashboard
 
-        cat = await TicketCategory.objects.aget(pk=2)
         team = await Team.objects.acreate(team_number=29, team_name="Test Team", authentik_group="test")
         ticket = await Ticket.objects.acreate(
             ticket_number="T003",
             team=team,
-            category=cat,
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="open",

@@ -438,7 +438,12 @@ class TestAdminCommands:
 
     @patch("bot.cogs.admin_tickets.log_to_ops_channel")
     async def test_admin_clear_tickets(
-        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self,
+        mock_log_ops: Any,
+        mock_interaction: Any,
+        mock_admin_user: Any,
+        mock_bot: Any,
+        other_category: Any,
     ) -> None:
         """Test /tickets clear command deletes all tickets."""
         mock_interaction.user.id = mock_admin_user._discord_id
@@ -450,7 +455,7 @@ class TestAdminCommands:
         ticket1 = await Ticket.objects.acreate(
             ticket_number="T001-001",
             team=team1,
-            category="other",
+            category=other_category,
             title="Test Ticket 1",
             status="open",
         )
@@ -458,7 +463,7 @@ class TestAdminCommands:
         await Ticket.objects.acreate(
             ticket_number="T002-001",
             team=team2,
-            category="other",
+            category=other_category,
             title="Test Ticket 2",
             status="claimed",
         )

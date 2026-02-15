@@ -70,5 +70,5 @@ class TestGetAllCategories:
 
         cats = get_all_categories(user_creatable_only=True)
         assert len(cats) == 2
-        for cat_id, config in cats.items():
+        for config in cats.values():
             assert config.get("user_creatable", True) is True

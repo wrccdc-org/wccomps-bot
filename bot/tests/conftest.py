@@ -11,6 +11,57 @@ from django.contrib.auth.models import User
 
 from core.models import UserGroups
 from team.models import DiscordLink, Team
+from ticketing.models import TicketCategory
+
+
+@pytest_asyncio.fixture
+async def box_reset_category(db: Any) -> TicketCategory:
+    """Create box-reset ticket category for bot tests."""
+    cat, _ = await TicketCategory.objects.aget_or_create(
+        pk=2,
+        defaults={
+            "display_name": "Box Reset",
+            "points": 60,
+            "required_fields": ["hostname", "ip_address"],
+            "optional_fields": ["service_name"],
+            "sort_order": 1,
+        },
+    )
+    return cat
+
+
+@pytest_asyncio.fixture
+async def scoring_check_category(db: Any) -> TicketCategory:
+    """Create scoring-service-check ticket category for bot tests."""
+    cat, _ = await TicketCategory.objects.aget_or_create(
+        pk=3,
+        defaults={
+            "display_name": "Scoring Service Check",
+            "points": 10,
+            "required_fields": ["hostname", "ip_address", "service_name"],
+            "optional_fields": [],
+            "sort_order": 2,
+        },
+    )
+    return cat
+
+
+@pytest_asyncio.fixture
+async def other_category(db: Any) -> TicketCategory:
+    """Create other ticket category for bot tests."""
+    cat, _ = await TicketCategory.objects.aget_or_create(
+        pk=6,
+        defaults={
+            "display_name": "Other",
+            "points": 0,
+            "required_fields": ["description"],
+            "optional_fields": [],
+            "variable_points": True,
+            "user_creatable": True,
+            "sort_order": 5,
+        },
+    )
+    return cat
 
 
 @pytest.fixture

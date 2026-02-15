@@ -279,7 +279,9 @@ class UnifiedDashboard:
                 # Add field for each category (sorted by count)
                 for category_id in sorted_categories:
                     cat_tickets = tickets_by_category[category_id]
-                    cat_info = get_category_config(category_id) or {"display_name": f"Category {category_id}"}
+                    cat_info = await sync_to_async(get_category_config)(category_id) or {
+                        "display_name": f"Category {category_id}"
+                    }
 
                     lines = []
                     for ticket in cat_tickets:  # Show ALL tickets

@@ -184,7 +184,7 @@ class TestUnifiedDashboard:
 
             mock_update.assert_not_called()
 
-    async def test_get_stale_indicator_no_assigned_at(self) -> None:
+    async def test_get_stale_indicator_no_assigned_at(self, box_reset_category) -> None:
         """Test _get_stale_indicator returns empty string for unassigned tickets."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -194,7 +194,7 @@ class TestUnifiedDashboard:
         ticket = await Ticket.objects.acreate(
             ticket_number="T001-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="open",
@@ -204,7 +204,7 @@ class TestUnifiedDashboard:
 
         assert result == ""
 
-    async def test_get_stale_indicator_under_30_minutes(self) -> None:
+    async def test_get_stale_indicator_under_30_minutes(self, box_reset_category) -> None:
         """Test _get_stale_indicator returns empty for tickets <30min."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -214,7 +214,7 @@ class TestUnifiedDashboard:
         ticket = await Ticket.objects.acreate(
             ticket_number="T002-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="claimed",
@@ -225,7 +225,7 @@ class TestUnifiedDashboard:
 
         assert result == ""
 
-    async def test_get_stale_indicator_over_30_minutes(self) -> None:
+    async def test_get_stale_indicator_over_30_minutes(self, box_reset_category) -> None:
         """Test _get_stale_indicator returns warning for tickets >30min."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -235,7 +235,7 @@ class TestUnifiedDashboard:
         ticket = await Ticket.objects.acreate(
             ticket_number="T003-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="claimed",
@@ -246,7 +246,7 @@ class TestUnifiedDashboard:
 
         assert result == " ⚠️"
 
-    async def test_get_stale_indicator_over_1_hour(self) -> None:
+    async def test_get_stale_indicator_over_1_hour(self, box_reset_category) -> None:
         """Test _get_stale_indicator returns alert for tickets >1hr."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -256,7 +256,7 @@ class TestUnifiedDashboard:
         ticket = await Ticket.objects.acreate(
             ticket_number="T004-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="claimed",
@@ -267,7 +267,7 @@ class TestUnifiedDashboard:
 
         assert result == " 🚨"
 
-    async def test_get_stale_indicator_over_2_hours(self) -> None:
+    async def test_get_stale_indicator_over_2_hours(self, box_reset_category) -> None:
         """Test _get_stale_indicator returns critical for tickets >2hr."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -277,7 +277,7 @@ class TestUnifiedDashboard:
         ticket = await Ticket.objects.acreate(
             ticket_number="T005-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test",
             description="Test",
             status="claimed",
@@ -361,7 +361,7 @@ class TestUnifiedDashboard:
         embed = call_kwargs["embed"]
         assert "No active tickets!" in embed.description
 
-    async def test_update_dashboard_with_tickets(self) -> None:
+    async def test_update_dashboard_with_tickets(self, box_reset_category) -> None:
         """Test _update_dashboard displays tickets correctly."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -373,7 +373,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T010-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Test Ticket",
             description="Test description",
             status="open",
@@ -397,7 +397,7 @@ class TestUnifiedDashboard:
         embed = call_kwargs["embed"]
         assert "1 active tickets" in embed.description
 
-    async def test_update_dashboard_sort_by_stale(self) -> None:
+    async def test_update_dashboard_sort_by_stale(self, box_reset_category) -> None:
         """Test _update_dashboard sorting by stale."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -410,7 +410,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T011-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Old Ticket",
             description="Old",
             status="claimed",
@@ -420,7 +420,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T011-002",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="New Ticket",
             description="New",
             status="claimed",
@@ -441,7 +441,7 @@ class TestUnifiedDashboard:
 
         mock_message.edit.assert_called_once()
 
-    async def test_update_dashboard_sort_by_team(self) -> None:
+    async def test_update_dashboard_sort_by_team(self, box_reset_category) -> None:
         """Test _update_dashboard sorting by team name."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -456,7 +456,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T021-001",
             team=team_b,
-            category="box-reset",
+            category=box_reset_category,
             title="Bravo Ticket",
             description="Bravo",
             status="open",
@@ -465,7 +465,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T020-001",
             team=team_a,
-            category="box-reset",
+            category=box_reset_category,
             title="Alpha Ticket",
             description="Alpha",
             status="open",
@@ -485,7 +485,7 @@ class TestUnifiedDashboard:
 
         mock_message.edit.assert_called_once()
 
-    async def test_update_dashboard_filter_open(self) -> None:
+    async def test_update_dashboard_filter_open(self, box_reset_category) -> None:
         """Test _update_dashboard filtering to only open tickets."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -498,7 +498,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T030-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Open Ticket",
             description="Open",
             status="open",
@@ -507,7 +507,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T030-002",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Claimed Ticket",
             description="Claimed",
             status="claimed",
@@ -530,7 +530,7 @@ class TestUnifiedDashboard:
         embed = call_kwargs["embed"]
         assert "Filter: Open" in embed.description
 
-    async def test_update_dashboard_filter_claimed(self) -> None:
+    async def test_update_dashboard_filter_claimed(self, box_reset_category) -> None:
         """Test _update_dashboard filtering to only claimed tickets."""
         bot = AsyncMock(spec=discord.Client)
         dashboard = UnifiedDashboard(bot)
@@ -543,7 +543,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T031-001",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Open Ticket",
             description="Open",
             status="open",
@@ -552,7 +552,7 @@ class TestUnifiedDashboard:
         await Ticket.objects.acreate(
             ticket_number="T031-002",
             team=team,
-            category="box-reset",
+            category=box_reset_category,
             title="Claimed Ticket",
             description="Claimed",
             status="claimed",

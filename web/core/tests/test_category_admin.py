@@ -1,6 +1,7 @@
 """Tests for ticket category admin CRUD views."""
 
 import pytest
+from django.db import connection
 from django.test import Client
 from django.urls import reverse
 
@@ -10,10 +11,26 @@ from ticketing.models import Ticket, TicketCategory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def _reset_category_sequence(db: object) -> None:
+    """Reset the TicketCategory auto-increment sequence past seeded data.
+
+    Only needed for PostgreSQL where explicit-PK inserts from seed migrations
+    don't advance the auto-increment sequence.
+    """
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT setval(pg_get_serial_sequence('ticketing_ticketcategory', 'id'), "
+                "GREATEST((SELECT MAX(id) FROM ticketing_ticketcategory), 1))"
+            )
+
+
 @pytest.fixture
 def category(db: object) -> TicketCategory:
-    """Create a test ticket category."""
+    """Create a test ticket category with high PK to avoid seeded data collision."""
     return TicketCategory.objects.create(
+        pk=100,
         display_name="Test Category",
         points=50,
         required_fields=["hostname", "ip_address"],

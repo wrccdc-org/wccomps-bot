@@ -3,7 +3,7 @@
 import pytest
 
 from team.models import Team
-from ticketing.models import TicketHistory
+from ticketing.models import TicketCategory, TicketHistory
 from ticketing.utils import acreate_ticket_atomic, create_ticket_atomic
 
 
@@ -19,11 +19,12 @@ class TestTicketCreationAtomic:
             max_members=5,
             ticket_counter=0,
         )
+        cat = TicketCategory.objects.get(pk=6)
 
         # Create first ticket
         ticket1 = create_ticket_atomic(
             team=team,
-            category="other",
+            category=cat,
             title="First Ticket",
             description="Test",
             actor_username="test_user",
@@ -36,7 +37,7 @@ class TestTicketCreationAtomic:
         # Create second ticket
         ticket2 = create_ticket_atomic(
             team=team,
-            category="other",
+            category=cat,
             title="Second Ticket",
             description="Test",
             actor_username="test_user",
@@ -56,10 +57,11 @@ class TestTicketCreationAtomic:
             max_members=5,
             ticket_counter=0,
         )
+        cat = TicketCategory.objects.get(pk=6)
 
         ticket = create_ticket_atomic(
             team=team,
-            category="other",
+            category=cat,
             title="Test Ticket",
             description="Test description",
             actor_username="web_user",
@@ -79,10 +81,11 @@ class TestTicketCreationAtomic:
             max_members=5,
             ticket_counter=5,
         )
+        cat = TicketCategory.objects.get(pk=2)
 
         ticket = create_ticket_atomic(
             team=team,
-            category="box-reset",
+            category=cat,
             title="Box Reset",
             description="Reset needed",
             hostname="web01",
@@ -104,11 +107,12 @@ class TestTicketCreationAtomic:
             max_members=5,
             ticket_counter=0,
         )
+        cat = TicketCategory.objects.get(pk=6)
 
         # This should not raise ValidationError
         ticket = create_ticket_atomic(
             team=team,
-            category="other",
+            category=cat,
             title="Test",
             description="Test",
             actor_username="test",
@@ -123,7 +127,7 @@ class TestTicketCreationAtomic:
 class TestAsyncTicketCreationAtomic:
     """Test async ticket creation utility functions."""
 
-    async def test_acreate_ticket_atomic_generates_sequential_numbers(self):
+    async def test_acreate_ticket_atomic_generates_sequential_numbers(self, other_category):
         """Test async ticket number generation."""
         team = await Team.objects.acreate(
             team_name="Test Team",
@@ -135,7 +139,7 @@ class TestAsyncTicketCreationAtomic:
         # Create first ticket
         ticket1 = await acreate_ticket_atomic(
             team=team,
-            category="other",
+            category=other_category,
             title="First Ticket",
             description="Test",
             actor_username="discord:testuser",
@@ -146,7 +150,7 @@ class TestAsyncTicketCreationAtomic:
         # Create second ticket
         ticket2 = await acreate_ticket_atomic(
             team=team,
-            category="other",
+            category=other_category,
             title="Second Ticket",
             description="Test",
             actor_username="discord:testuser",
@@ -158,7 +162,7 @@ class TestAsyncTicketCreationAtomic:
         await team.arefresh_from_db()
         assert team.ticket_counter == 2
 
-    async def test_acreate_ticket_atomic_creates_history(self):
+    async def test_acreate_ticket_atomic_creates_history(self, other_category):
         """Test async ticket history creation."""
         team = await Team.objects.acreate(
             team_name="Test Team",
@@ -169,7 +173,7 @@ class TestAsyncTicketCreationAtomic:
 
         ticket = await acreate_ticket_atomic(
             team=team,
-            category="other",
+            category=other_category,
             title="Test",
             description="Test",
             actor_username="discord:user#1234",
@@ -181,7 +185,7 @@ class TestAsyncTicketCreationAtomic:
         assert history.action == "created"
         assert history.details["created_by"] == "discord:user#1234"
 
-    async def test_acreate_ticket_atomic_concurrent_safety(self):
+    async def test_acreate_ticket_atomic_concurrent_safety(self, other_category):
         """Test that concurrent ticket creation doesn't create duplicate numbers."""
         import asyncio
 
@@ -196,7 +200,7 @@ class TestAsyncTicketCreationAtomic:
         tasks = [
             acreate_ticket_atomic(
                 team=team,
-                category="other",
+                category=other_category,
                 title=f"Ticket {i}",
                 description="Test",
                 actor_username=f"user{i}",

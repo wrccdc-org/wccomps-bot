@@ -67,14 +67,15 @@ class TestTicketingCog:
         # Clean up
         cog.archive_threads_task.cancel()
 
-    async def test_archive_threads_task_archives_expired_tickets(self, cog: TicketingCog, team: Team) -> None:
+    async def test_archive_threads_task_archives_expired_tickets(
+        self, cog: TicketingCog, team: Team, box_reset_category: TicketCategory
+    ) -> None:
         """Test background task archives tickets after grace period."""
         # Create ticket with thread scheduled for archiving in the past
-        cat = await TicketCategory.objects.aget(pk=2)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-001",
             team=team,
-            category=cat,
+            category=box_reset_category,
             title="Test Ticket",
             description="Test",
             status="resolved",
@@ -104,13 +105,14 @@ class TestTicketingCog:
         history_exists = await TicketHistory.objects.filter(ticket=ticket, action="thread_archived").aexists()
         assert history_exists
 
-    async def test_archive_threads_task_skips_future_scheduled(self, cog: TicketingCog, team: Team) -> None:
+    async def test_archive_threads_task_skips_future_scheduled(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test background task skips tickets scheduled for future."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-002",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Future Archive",
             description="Test",
             status="resolved",
@@ -130,13 +132,14 @@ class TestTicketingCog:
         await ticket.arefresh_from_db()
         assert ticket.thread_archive_scheduled_at is not None
 
-    async def test_archive_threads_task_handles_missing_thread(self, cog: TicketingCog, team: Team) -> None:
+    async def test_archive_threads_task_handles_missing_thread(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test background task handles thread not found."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-003",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Missing Thread",
             description="Test",
             status="resolved",
@@ -189,13 +192,14 @@ class TestTicketingCog:
         await cog.on_message_edit(before, after)
         # Should complete without error
 
-    async def test_on_message_edit_updates_comment(self, cog: TicketingCog, team: Team) -> None:
+    async def test_on_message_edit_updates_comment(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test on_message_edit updates existing TicketComment."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-007",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Test Edit",
             description="Test",
             status="claimed",
@@ -234,13 +238,14 @@ class TestTicketingCog:
         await cog.on_message_delete(message)
         # Should complete without error
 
-    async def test_on_message_delete_marks_comment_deleted(self, cog: TicketingCog, team: Team) -> None:
+    async def test_on_message_delete_marks_comment_deleted(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test on_message_delete soft-deletes TicketComment."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-008",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Test Delete",
             description="Test",
             status="claimed",
@@ -268,10 +273,11 @@ class TestTicketingCog:
         await comment.arefresh_from_db()
         assert comment.comment_text == "[Message deleted]"
 
-    async def test_archive_threads_task_multiple_tickets(self, cog: TicketingCog, team: Team) -> None:
+    async def test_archive_threads_task_multiple_tickets(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test archiving multiple tickets with mixed expiration times."""
         # Create 5 tickets - 3 expired, 2 not expired
-        cat = await TicketCategory.objects.aget(pk=3)
         tickets = []
         for i in range(5):
             scheduled_at = timezone.now() - timedelta(seconds=120) if i < 3 else timezone.now() + timedelta(minutes=5)
@@ -279,7 +285,7 @@ class TestTicketingCog:
             ticket = await Ticket.objects.acreate(
                 ticket_number=f"T042-{200 + i}",
                 team=team,
-                category=cat,
+                category=scoring_check_category,
                 title=f"Test {i}",
                 description="Test",
                 status="resolved",
@@ -307,13 +313,14 @@ class TestTicketingCog:
         for i in range(3, 5):
             mock_threads[tickets[i].discord_thread_id].edit.assert_not_called()
 
-    async def test_on_message_creates_comment(self, cog: TicketingCog, team: Team) -> None:
+    async def test_on_message_creates_comment(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test on_message creates TicketComment for Discord messages."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-100",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Test Comment Sync",
             description="Test",
             status="open",
@@ -357,13 +364,14 @@ class TestTicketingCog:
         assert comment.comment_text == "This is a test message"
         assert comment.discord_message_id == 999888777666
 
-    async def test_on_message_prevents_duplicate_comments(self, cog: TicketingCog, team: Team) -> None:
+    async def test_on_message_prevents_duplicate_comments(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test on_message doesn't create duplicate comments."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-101",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Test Duplicate",
             description="Test",
             status="open",
@@ -395,13 +403,14 @@ class TestTicketingCog:
         # Should not create duplicate
         assert await TicketComment.objects.acount() == initial_count
 
-    async def test_on_message_ignores_empty_content(self, cog: TicketingCog, team: Team) -> None:
+    async def test_on_message_ignores_empty_content(
+        self, cog: TicketingCog, team: Team, scoring_check_category: TicketCategory
+    ) -> None:
         """Test on_message ignores messages with no text content."""
-        cat = await TicketCategory.objects.aget(pk=3)
         ticket = await Ticket.objects.acreate(
             ticket_number="T042-102",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Test Empty",
             description="Test",
             status="open",
@@ -517,7 +526,12 @@ class TestTicketCommand:
         assert "invalid" in args[0][0].lower()
 
     async def test_create_ticket_box_reset_requires_hostname(
-        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+        self,
+        cog: TicketingCog,
+        team: Team,
+        discord_link: DiscordLink,
+        interaction: AsyncMock,
+        box_reset_category: TicketCategory,
     ) -> None:
         """Test /ticket box-reset requires hostname parameter."""
         await cog.create_ticket.callback(
@@ -530,7 +544,12 @@ class TestTicketCommand:
         assert "hostname" in args[0][0].lower()
 
     async def test_create_ticket_scoring_check_requires_service(
-        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+        self,
+        cog: TicketingCog,
+        team: Team,
+        discord_link: DiscordLink,
+        interaction: AsyncMock,
+        scoring_check_category: TicketCategory,
     ) -> None:
         """Test /ticket scoring-service-check requires service parameter."""
         await cog.create_ticket.callback(cog, interaction, category="3", description="check this", service=None)
@@ -541,7 +560,12 @@ class TestTicketCommand:
         assert "service" in args[0][0].lower()
 
     async def test_create_ticket_with_required_fields_succeeds(
-        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+        self,
+        cog: TicketingCog,
+        team: Team,
+        discord_link: DiscordLink,
+        interaction: AsyncMock,
+        box_reset_category: TicketCategory,
     ) -> None:
         """Test /ticket with all required fields creates ticket."""
         from unittest.mock import patch
@@ -587,7 +611,12 @@ class TestTicketCommand:
         assert ticket.ip_address == "10.0.0.5"
 
     async def test_create_ticket_auto_populates_ip_from_hostname(
-        self, cog: TicketingCog, team: Team, discord_link: DiscordLink, interaction: AsyncMock
+        self,
+        cog: TicketingCog,
+        team: Team,
+        discord_link: DiscordLink,
+        interaction: AsyncMock,
+        box_reset_category: TicketCategory,
     ) -> None:
         """Test /ticket auto-populates IP address from hostname."""
         from unittest.mock import MagicMock, patch
@@ -669,13 +698,12 @@ class TestRateLimiting:
         )
 
     @pytest_asyncio.fixture
-    async def ticket(self, team: Team) -> Ticket:
+    async def ticket(self, team: Team, scoring_check_category: TicketCategory) -> Ticket:
         """Create test ticket."""
-        cat = await TicketCategory.objects.aget(pk=3)
         return await Ticket.objects.acreate(
             ticket_number="T025-500",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Rate Limit Test",
             description="Test",
             status="open",
@@ -769,13 +797,12 @@ class TestAttachmentHandling:
         )
 
     @pytest_asyncio.fixture
-    async def ticket(self, team: Team) -> Ticket:
+    async def ticket(self, team: Team, scoring_check_category: TicketCategory) -> Ticket:
         """Create test ticket."""
-        cat = await TicketCategory.objects.aget(pk=3)
         return await Ticket.objects.acreate(
             ticket_number="T035-600",
             team=team,
-            category=cat,
+            category=scoring_check_category,
             title="Attachment Test",
             description="Test",
             status="open",
