@@ -11,9 +11,8 @@ from quotient.client import get_quotient_client
 
 from bot.permissions import check_blue_team
 from bot.ticket_dashboard import post_ticket_to_dashboard
-from core.tickets_config import TICKET_CATEGORIES
 from team.models import DiscordLink
-from ticketing.models import CommentRateLimit, Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.models import CommentRateLimit, Ticket, TicketAttachment, TicketCategory, TicketComment, TicketHistory
 from ticketing.utils import acreate_ticket_atomic, get_user_for_ticket
 
 logger = logging.getLogger(__name__)
@@ -120,6 +119,20 @@ class TicketingCog(commands.Cog):
         matches = [s for s in service_choices if current.lower() in s["label"].lower()]
         return [app_commands.Choice(name=s["label"], value=s["value"]) for s in matches[:25]]
 
+    async def category_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocomplete for ticket category."""
+        from core.tickets_config import get_all_categories
+
+        categories = await sync_to_async(get_all_categories)(user_creatable_only=True)
+        choices = []
+        for cat_id, cat_info in categories.items():
+            name = f"{cat_info['display_name']} ({cat_info.get('points', 0)}pt)"
+            if not current or current.lower() in name.lower():
+                choices.append(app_commands.Choice(name=name, value=str(cat_id)))
+        return choices[:25]
+
     @app_commands.command(name="ticket", description="[BLUE TEAM] Create a support ticket for your team")
     @app_commands.describe(
         category="Type of support needed",
@@ -128,14 +141,7 @@ class TicketingCog(commands.Cog):
         service="Service name like 'web:http' (required for scoring validation, service check)",
         ip_address="IP address (auto-filled from hostname, or enter manually)",
     )
-    @app_commands.choices(
-        category=[
-            app_commands.Choice(name=f"{cat['display_name']} ({cat.get('points', 0)}pt)", value=cat_id)
-            for cat_id, cat in TICKET_CATEGORIES.items()
-            if cat.get("user_creatable", True)
-        ]
-    )
-    @app_commands.autocomplete(hostname=hostname_autocomplete, service=service_autocomplete)
+    @app_commands.autocomplete(category=category_autocomplete, hostname=hostname_autocomplete, service=service_autocomplete)
     @app_commands.check(check_blue_team)
     async def create_ticket(
         self,
@@ -158,7 +164,10 @@ class TicketingCog(commands.Cog):
             return
 
         # Get category info
-        cat_info = TICKET_CATEGORIES.get(category)
+        from core.tickets_config import get_category_config
+
+        category_id = int(category)
+        cat_info = await sync_to_async(get_category_config)(category_id)
         if not cat_info:
             await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
@@ -202,9 +211,10 @@ class TicketingCog(commands.Cog):
                     break
 
         # Create ticket atomically to prevent race conditions
+        category_obj = await TicketCategory.objects.aget(pk=category_id)
         ticket = await acreate_ticket_atomic(
             team=link.team,
-            category=category,
+            category=category_obj,
             title=cat_info["display_name"],
             description=description,
             hostname=hostname or "",

@@ -12,7 +12,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.models import BotState, DashboardUpdate
-from core.tickets_config import TICKET_CATEGORIES
+from core.tickets_config import get_category_config
 from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
@@ -242,11 +242,11 @@ class UnifiedDashboard:
                 tickets.sort(key=lambda t: t.created_at)
 
             # Group by category and count
-            tickets_by_category: dict[str, list[Ticket]] = {}
+            tickets_by_category: dict[int | None, list[Ticket]] = {}
             for ticket in tickets:
-                if ticket.category not in tickets_by_category:
-                    tickets_by_category[ticket.category] = []
-                tickets_by_category[ticket.category].append(ticket)
+                if ticket.category_id not in tickets_by_category:
+                    tickets_by_category[ticket.category_id] = []
+                tickets_by_category[ticket.category_id].append(ticket)
 
             # Sort categories by ticket count (descending)
             sorted_categories = sorted(
@@ -279,7 +279,7 @@ class UnifiedDashboard:
                 # Add field for each category (sorted by count)
                 for category_id in sorted_categories:
                     cat_tickets = tickets_by_category[category_id]
-                    cat_info = TICKET_CATEGORIES.get(category_id, {"display_name": category_id})
+                    cat_info = get_category_config(category_id) or {"display_name": f"Category {category_id}"}
 
                     lines = []
                     for ticket in cat_tickets:  # Show ALL tickets

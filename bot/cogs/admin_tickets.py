@@ -4,6 +4,7 @@ import logging
 from datetime import timedelta
 
 import discord
+from asgiref.sync import sync_to_async
 from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
@@ -21,8 +22,7 @@ from bot.utils import (
     get_team_or_respond,
     log_to_ops_channel,
 )
-from core.tickets_config import TICKET_CATEGORIES
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +59,27 @@ class AdminTicketsCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
+    async def admin_category_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        """Autocomplete for ticket category (admin - all categories)."""
+        from core.tickets_config import get_all_categories
+
+        categories = await sync_to_async(get_all_categories)()
+        choices = []
+        for cat_id, cat_info in categories.items():
+            name = cat_info["display_name"]
+            if not current or current.lower() in name.lower():
+                choices.append(app_commands.Choice(name=name, value=str(cat_id)))
+        return choices[:25]
+
     @tickets_group.command(name="create", description="[ADMIN] Create a ticket for a team")
     @app_commands.describe(
         team_number="Team number (1-50)",
         category="Ticket category",
         description="Description of the issue",
     )
-    @app_commands.choices(
-        category=[
-            app_commands.Choice(name=cat["display_name"], value=cat_id) for cat_id, cat in TICKET_CATEGORIES.items()
-        ]
-    )
+    @app_commands.autocomplete(category=admin_category_autocomplete)
     @app_commands.check(check_ticketing_admin)
     async def admin_ticket_create(
         self,
@@ -87,20 +97,24 @@ class AdminTicketsCog(commands.Cog):
         if not team:
             return
 
-        cat_info = TICKET_CATEGORIES.get(category)
+        from core.tickets_config import get_category_config
+
+        category_id = int(category)
+        cat_info = await sync_to_async(get_category_config)(category_id)
         if not cat_info:
             await interaction.response.send_message("Invalid ticket category.", ephemeral=True)
             return
 
         # For box-reset, use description as hostname
-        hostname = description if category == "box-reset" else ""
+        hostname = description if "hostname" in cat_info.get("required_fields", []) else ""
 
         # Create ticket atomically to prevent race conditions
         from ticketing.utils import acreate_ticket_atomic
 
+        category_obj = await TicketCategory.objects.aget(pk=category_id)
         ticket = await acreate_ticket_atomic(
             team=team,
-            category=category,
+            category=category_obj,
             title=cat_info["display_name"],
             description=description,
             hostname=hostname,
@@ -131,8 +145,6 @@ class AdminTicketsCog(commands.Cog):
                     )
 
                     # Store thread ID
-                    from asgiref.sync import sync_to_async
-
                     @sync_to_async
                     def save_thread_id() -> None:
                         ticket.discord_thread_id = thread.id
@@ -230,11 +242,13 @@ class AdminTicketsCog(commands.Cog):
 
         embed = discord.Embed(title=title, color=discord.Color.blue())
 
+        from core.tickets_config import get_category_config
+
         for ticket in tickets:
-            cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+            cat_info = await sync_to_async(get_category_config)(ticket.category_id) or {}
             value = (
                 f"Team: {ticket.team.team_name}\n"
-                f"Category: {cat_info.get('display_name', ticket.category)}\n"
+                f"Category: {cat_info.get('display_name', f'Category {ticket.category_id}')}\n"
                 f"Status: {ticket.status}\n"
                 f"Created: {discord.utils.format_dt(ticket.created_at, style='R')}"
             )
@@ -279,7 +293,9 @@ class AdminTicketsCog(commands.Cog):
             )
             return
 
-        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        from core.tickets_config import get_category_config
+
+        cat_info = await sync_to_async(get_category_config)(ticket.category_id) or {}
 
         # Determine point penalty
         if cat_info.get("variable_points", False):
@@ -308,8 +324,6 @@ class AdminTicketsCog(commands.Cog):
             point_penalty = points
         else:
             point_penalty = cat_info.get("points", 0)
-
-        from asgiref.sync import sync_to_async
 
         from ticketing.utils import get_user_for_ticket
 
@@ -378,8 +392,6 @@ class AdminTicketsCog(commands.Cog):
             )
             return
 
-        from asgiref.sync import sync_to_async
-
         from ticketing.utils import get_user_for_ticket
 
         canceller = await sync_to_async(get_user_for_ticket)(discord_id=interaction.user.id)
@@ -434,11 +446,7 @@ class AdminTicketsCog(commands.Cog):
         ticket_number="Ticket number (e.g., T050-003)",
         new_category="New category for the ticket",
     )
-    @app_commands.choices(
-        new_category=[
-            app_commands.Choice(name=cat["display_name"], value=cat_id) for cat_id, cat in TICKET_CATEGORIES.items()
-        ]
-    )
+    @app_commands.autocomplete(new_category=admin_category_autocomplete)
     @app_commands.check(check_ticketing_admin)
     async def admin_change_category(
         self, interaction: discord.Interaction, ticket_number: str, new_category: str
@@ -449,19 +457,22 @@ class AdminTicketsCog(commands.Cog):
             await interaction.response.send_message(f"Ticket {ticket_number} not found", ephemeral=True)
             return
 
-        old_category = ticket.category
-        if old_category == new_category:
+        from core.tickets_config import get_category_config
+
+        old_category_id = ticket.category_id
+        new_category_id = int(new_category)
+        if old_category_id == new_category_id:
             await interaction.response.send_message(
-                f"Ticket {ticket.ticket_number} is already in category {new_category}",
+                f"Ticket {ticket.ticket_number} is already in that category",
                 ephemeral=True,
             )
             return
 
-        old_cat_info = TICKET_CATEGORIES.get(old_category, {})
-        new_cat_info = TICKET_CATEGORIES.get(new_category, {})
+        old_cat_info = await sync_to_async(get_category_config)(old_category_id) or {}
+        new_cat_info = await sync_to_async(get_category_config)(new_category_id) or {}
 
         # Update category
-        ticket.category = new_category
+        ticket.category_id = new_category_id
         await ticket.asave()
 
         # Create history entry
@@ -470,10 +481,10 @@ class AdminTicketsCog(commands.Cog):
             action="category_changed",
             details={
                 "actor": str(interaction.user),
-                "old_category": old_category,
-                "old_category_name": old_cat_info.get("display_name", old_category),
-                "new_category": new_category,
-                "new_category_name": new_cat_info.get("display_name", new_category),
+                "old_category": str(old_category_id),
+                "old_category_name": old_cat_info.get("display_name", str(old_category_id)),
+                "new_category": str(new_category_id),
+                "new_category_name": new_cat_info.get("display_name", str(new_category_id)),
                 "old_points": old_cat_info.get("points", 0),
                 "new_points": new_cat_info.get("points", 0),
             },
@@ -486,8 +497,8 @@ class AdminTicketsCog(commands.Cog):
             logger.exception(f"Failed to update dashboard: {e}")
 
         # Log to ops
-        old_cat_name = old_cat_info.get("display_name", old_category)
-        new_cat_name = new_cat_info.get("display_name", new_category)
+        old_cat_name = old_cat_info.get("display_name", str(old_category_id))
+        new_cat_name = new_cat_info.get("display_name", str(new_category_id))
 
         await log_to_ops_channel(
             self.bot,
@@ -671,8 +682,6 @@ class AdminTicketsCog(commands.Cog):
     @app_commands.check(check_ticketing_admin)
     async def admin_ticket_clear(self, interaction: discord.Interaction) -> None:
         """Delete all tickets and reset team counters."""
-        from asgiref.sync import sync_to_async
-
         from core.models import AuditLog
         from team.models import Team
         from ticketing.models import TicketAttachment, TicketComment, TicketHistory

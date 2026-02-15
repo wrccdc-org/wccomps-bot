@@ -8,7 +8,7 @@ import discord
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from core.tickets_config import TICKET_CATEGORIES
+from core.tickets_config import get_category_config
 from team.models import DiscordLink
 from ticketing.models import Ticket
 
@@ -28,7 +28,7 @@ def get_ticket_color(status: str) -> discord.Color:
 
 def format_ticket_embed(ticket: Ticket) -> discord.Embed:
     """Format ticket as Discord embed."""
-    cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+    cat_info = get_category_config(ticket.category_id) or {}
 
     embed = discord.Embed(
         title=f"Ticket {ticket.ticket_number}: {ticket.title}",
@@ -87,7 +87,7 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
                 inline=False,
             )
 
-    embed.set_footer(text=f"Category: {cat_info.get('name', ticket.category)}")
+    embed.set_footer(text=f"Category: {cat_info.get('display_name', f'Category {ticket.category_id}')}")
 
     return embed
 
@@ -366,7 +366,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
         )
 
         # Check if variable points category
-        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        cat_info = get_category_config(ticket.category_id) or {}
         self.points: discord.ui.TextInput[ResolveTicketModal]
         if cat_info.get("variable_points", False):
             min_pts = cat_info.get("min_points", 0)
@@ -394,7 +394,7 @@ class ResolveTicketModal(discord.ui.Modal, title="Resolve Ticket"):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         """Handle modal submission."""
-        cat_info = TICKET_CATEGORIES.get(self.ticket.category, {})
+        cat_info = get_category_config(self.ticket.category_id) or {}
 
         # Parse points override for both variable and fixed categories
         points_override = None

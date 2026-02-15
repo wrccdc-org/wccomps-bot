@@ -8,8 +8,9 @@ import discord
 from discord.ext import commands
 from django.conf import settings
 
-from core.tickets_config import TICKET_CATEGORIES
+from core.tickets_config import get_all_categories, get_category_config
 from team.models import DiscordLink
+from ticketing.models import TicketCategory
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,13 @@ async def create_ticket(
         return
 
     try:
-        cat_info = TICKET_CATEGORIES[category_id]
+        from asgiref.sync import sync_to_async
+
+        cat_id_int = int(category_id)
+        cat_info = await sync_to_async(get_category_config)(cat_id_int)
+        if not cat_info:
+            await interaction.followup.send("Invalid ticket category.", ephemeral=True)
+            return
 
         field_values = {
             "service_name": service_name,
@@ -56,9 +63,10 @@ async def create_ticket(
 
         from ticketing.utils import acreate_ticket_atomic
 
+        category_obj = await TicketCategory.objects.aget(pk=cat_id_int)
         ticket = await acreate_ticket_atomic(
             team=link.team,
-            category=category_id,
+            category=category_obj,
             title=cat_info["display_name"],
             description=description,
             hostname=hostname,
@@ -90,6 +98,8 @@ async def create_ticket(
 class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
     """Modal for service scoring validation tickets."""
 
+    category_id: str = ""
+
     service_name: discord.ui.TextInput[discord.ui.Modal] = discord.ui.TextInput(
         label="Service Name",
         placeholder="e.g., HTTP, DNS, SSH",
@@ -108,7 +118,7 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await create_ticket(
             interaction,
-            category_id="service-scoring-validation",
+            category_id=self.category_id,
             service_name=self.service_name.value,
             description=self.description.value,
         )
@@ -116,6 +126,8 @@ class ServiceScoringModal(discord.ui.Modal, title="Service Scoring Validation"):
 
 class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
     """Modal for box reset tickets."""
+
+    category_id: str = ""
 
     hostname: discord.ui.TextInput[discord.ui.Modal] = discord.ui.TextInput(
         label="Hostname",
@@ -134,7 +146,7 @@ class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await create_ticket(
             interaction,
-            category_id="box-reset",
+            category_id=self.category_id,
             hostname=self.hostname.value,
             ip_address=self.ip_address.value,
         )
@@ -142,6 +154,8 @@ class BoxResetModal(discord.ui.Modal, title="Box Reset / Scrub"):
 
 class ScoringServiceCheckModal(discord.ui.Modal, title="Scoring Service Check"):
     """Modal for scoring service check tickets."""
+
+    category_id: str = ""
 
     service_name: discord.ui.TextInput[discord.ui.Modal] = discord.ui.TextInput(
         label="Service Name",
@@ -153,7 +167,7 @@ class ScoringServiceCheckModal(discord.ui.Modal, title="Scoring Service Check"):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await create_ticket(
             interaction,
-            category_id="scoring-service-check",
+            category_id=self.category_id,
             service_name=self.service_name.value,
         )
 
@@ -179,21 +193,29 @@ class ConsultationModal(discord.ui.Modal, title="Consultation Request"):
     def __init__(self, category_id: str):
         super().__init__()
         self.category_id = category_id
-        if category_id == "blackteam-phone-consultation":
-            self.title = "Black Team Phone Consultation"
+        cat_info = get_category_config(int(category_id))
+        required = cat_info.get("required_fields", []) if cat_info else []
+        # Remove hostname field if not required (e.g., phone consultation)
+        if "hostname" not in required:
+            if cat_info:
+                self.title = cat_info["display_name"]
             self.remove_item(self.hostname)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        # Only include hostname if it's still in the modal
+        has_hostname = any(isinstance(item, discord.ui.TextInput) and item.label == "Hostname (hands-on only)" for item in self.children)
         await create_ticket(
             interaction,
             category_id=self.category_id,
             description=self.description.value,
-            hostname=self.hostname.value if self.category_id == "blackteam-handson-consultation" else "",
+            hostname=self.hostname.value if has_hostname else "",
         )
 
 
 class OtherModal(discord.ui.Modal, title="Other / General Issue"):
     """Modal for other/general tickets."""
+
+    category_id: str = ""
 
     description: discord.ui.TextInput[discord.ui.Modal] = discord.ui.TextInput(
         label="Description",
@@ -206,7 +228,7 @@ class OtherModal(discord.ui.Modal, title="Other / General Issue"):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await create_ticket(
             interaction,
-            category_id="other",
+            category_id=self.category_id,
             description=self.description.value,
         )
 
@@ -215,17 +237,17 @@ class CategorySelect(discord.ui.Select["TicketCategoryView"]):
     """Select menu for choosing ticket category."""
 
     def __init__(self) -> None:
+        categories = get_all_categories(user_creatable_only=True)
         options = []
-        for cat_id, cat_info in TICKET_CATEGORIES.items():
-            if cat_info.get("user_creatable", True):
-                points = cat_info.get("points", 0)
-                options.append(
-                    discord.SelectOption(
-                        label=cat_info["display_name"],
-                        value=cat_id,
-                        description=f"{points} points",
-                    )
+        for cat_id, cat_info in categories.items():
+            points = cat_info.get("points", 0)
+            options.append(
+                discord.SelectOption(
+                    label=cat_info["display_name"],
+                    value=str(cat_id),
+                    description=f"{points} points",
                 )
+            )
 
         super().__init__(
             placeholder="Select a ticket category...",
@@ -238,20 +260,33 @@ class CategorySelect(discord.ui.Select["TicketCategoryView"]):
         """Handle category selection."""
         category_id = self.values[0]
 
+        # Look up category config to determine which modal to show
+        cat_info = get_category_config(int(category_id))
+        required = cat_info.get("required_fields", []) if cat_info else []
+
         modal: ServiceScoringModal | BoxResetModal | ScoringServiceCheckModal | ConsultationModal | OtherModal
-        if category_id == "service-scoring-validation":
+        if "service_name" in required and "description" in required:
             modal = ServiceScoringModal()
-        elif category_id == "box-reset":
+            modal.category_id = category_id
+        elif "hostname" in required and "ip_address" in required:
             modal = BoxResetModal()
-        elif category_id == "scoring-service-check":
+            modal.category_id = category_id
+        elif "service_name" in required:
             modal = ScoringServiceCheckModal()
-        elif category_id in [
-            "blackteam-phone-consultation",
-            "blackteam-handson-consultation",
-        ]:
+            modal.category_id = category_id
+        elif "hostname" in required:
             modal = ConsultationModal(category_id)
-        else:  # other
+        elif "description" in required:
+            # Check if it's a consultation type (has optional hostname)
+            optional = cat_info.get("optional_fields", []) if cat_info else []
+            if "hostname" in optional:
+                modal = ConsultationModal(category_id)
+            else:
+                modal = OtherModal()
+                modal.category_id = category_id
+        else:
             modal = OtherModal()
+            modal.category_id = category_id
 
         await interaction.response.send_modal(modal)
 
@@ -445,10 +480,9 @@ class HelpPanelsCog(commands.Cog):
 
         # Build category list
         categories_text = []
-        for cat_info in TICKET_CATEGORIES.values():
-            if cat_info.get("user_creatable", True):
-                points = cat_info.get("points", 0)
-                categories_text.append(f"• **{cat_info['display_name']}** - {points}pt")
+        for cat_info in get_all_categories(user_creatable_only=True).values():
+            points = cat_info.get("points", 0)
+            categories_text.append(f"• **{cat_info['display_name']}** - {points}pt")
 
         embed = discord.Embed(
             title="🎫 Need Help?",
