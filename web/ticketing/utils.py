@@ -6,9 +6,9 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from core.tickets_config import TICKET_CATEGORIES
+from core.tickets_config import get_category_config
 from team.models import DiscordLink, Team
-from ticketing.models import Ticket, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 
 def get_user_for_ticket(
@@ -38,7 +38,7 @@ def get_user_for_ticket(
 
 def create_ticket_atomic(
     team: Team,
-    category: str,
+    category: TicketCategory,
     title: str,
     description: str = "",
     hostname: str = "",
@@ -53,7 +53,7 @@ def create_ticket_atomic(
 
     Args:
         team: Team to create ticket for
-        category: Ticket category (must be in TICKET_CATEGORIES)
+        category: TicketCategory instance
         title: Ticket title
         description: Ticket description
         hostname: Hostname (optional)
@@ -64,8 +64,6 @@ def create_ticket_atomic(
     Returns:
         Created Ticket instance
     """
-    cat_info = TICKET_CATEGORIES[category]
-
     with transaction.atomic():
         # Lock the team row to prevent concurrent ticket creation
         team = Team.objects.select_for_update().get(pk=team.pk)
@@ -90,7 +88,7 @@ def create_ticket_atomic(
             ip_address=ip_address or None,
             service_name=service_name,
             status="open",
-            points_charged=cat_info.get("points", 0),
+            points_charged=category.points,
         )
 
         # Create history entry
@@ -105,7 +103,7 @@ def create_ticket_atomic(
 
 async def acreate_ticket_atomic(
     team: Team,
-    category: str,
+    category: TicketCategory,
     title: str,
     description: str = "",
     hostname: str = "",
@@ -120,7 +118,7 @@ async def acreate_ticket_atomic(
 
     Args:
         team: Team to create ticket for
-        category: Ticket category (must be in TICKET_CATEGORIES)
+        category: TicketCategory instance
         title: Ticket title
         description: Ticket description
         hostname: Hostname (optional)
@@ -268,7 +266,7 @@ def resolve_ticket_atomic(
             return None, "This ticket is already resolved."
 
         # Determine points
-        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        cat_info = get_category_config(ticket.category_id) or {}
 
         # If points_override is provided, use it (for both variable and fixed categories)
         if points_override is not None:

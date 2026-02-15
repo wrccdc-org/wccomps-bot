@@ -16,10 +16,10 @@ from django.utils.http import content_disposition_header, url_has_allowed_host_a
 
 from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
-from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+from ticketing.models import Ticket, TicketAttachment, TicketCategory, TicketComment, TicketHistory
 
 from .auth_utils import get_authentik_groups, get_authentik_id, get_permissions_context, has_permission
-from .tickets_config import TICKET_CATEGORIES, TicketCategoryConfig
+from .tickets_config import TicketCategoryConfig, get_all_categories, get_category_config
 from .utils import get_team_from_groups
 
 
@@ -495,7 +495,8 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
         query = query.filter(status=status_filter)
 
     if category_filter != "all":
-        query = query.filter(category=category_filter)
+        with contextlib.suppress(ValueError):
+            query = query.filter(category_id=int(category_filter))
 
     if search_query:
         query = query.filter(
@@ -541,7 +542,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
 
     tickets_with_info = []
     for ticket in query:
-        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        cat_info = get_category_config(ticket.category_id) or {}
         is_stale = (
             is_ops
             and ticket.status == "claimed"
@@ -551,7 +552,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
         tickets_with_info.append(
             {
                 "ticket": ticket,
-                "category_name": cat_info.get("display_name", ticket.category),
+                "category_name": cat_info.get("display_name", "Unknown"),
                 "is_stale": is_stale,
                 "status_display": ticket.status.upper().replace("_", " "),
             }
@@ -580,7 +581,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
         "team_filter": team_filter,
         "assignee_filter": assignee_filter,
         "assignees": assignees,
-        "categories": TICKET_CATEGORIES,
+        "categories": get_all_categories(),
     }
 
     # Return partial for HTMX requests
@@ -628,7 +629,7 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return HttpResponseForbidden("You do not have permission to view this ticket.")
 
     # Fetch common data
-    cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+    cat_info = get_category_config(ticket.category_id) or {}
     comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
     attachments = TicketAttachment.objects.filter(ticket=ticket).order_by("uploaded_at")
 
@@ -639,7 +640,7 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
         "authentik_username": authentik_username,
         "team": team,
         "ticket": ticket,
-        "category_name": cat_info.get("display_name", ticket.category),
+        "category_name": cat_info.get("display_name", "Unknown"),
         "comments": comments,
         "attachments": attachments,
         "status_display": ticket.status.upper().replace("_", " "),
@@ -649,7 +650,7 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if is_ops:
         history = TicketHistory.objects.filter(ticket=ticket).order_by("-timestamp")[:20]
         context["variable_points"] = cat_info.get("variable_points", False)
-        context["categories"] = TICKET_CATEGORIES
+        context["categories"] = get_all_categories()
         context["history"] = history
 
         # Preserve filter state from referrer for back navigation
@@ -778,12 +779,18 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         logger.warning("Quotient API unavailable, ticket form will have limited functionality")
 
     if request.method == "POST":
-        category = request.POST.get("category")
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         hostname = request.POST.get("hostname", "").strip()
         ip_address = request.POST.get("ip_address", "").strip()
         service_name = request.POST.get("service_name", "").strip()
+
+        # Parse category as integer PK
+        category_id_str = request.POST.get("category", "")
+        try:
+            category_id = int(category_id_str)
+        except (ValueError, TypeError):
+            category_id = 0
 
         # Admins must select a team
         if is_admin and not team:
@@ -793,7 +800,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 {
                     "team": team,
                     "teams": teams,
-                    "categories": TICKET_CATEGORIES,
+                    "categories": get_all_categories(),
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
@@ -803,14 +810,14 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             )
 
         # Validate category
-        if category not in TICKET_CATEGORIES:
+        if not TicketCategory.objects.filter(pk=category_id).exists():
             return render(
                 request,
                 "create_ticket.html",
                 {
                     "team": team,
                     "teams": teams,
-                    "categories": TICKET_CATEGORIES,
+                    "categories": get_all_categories(),
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
@@ -818,7 +825,8 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 },
             )
 
-        cat_info: TicketCategoryConfig = TICKET_CATEGORIES[category]
+        category_obj = TicketCategory.objects.get(pk=category_id)
+        cat_info: TicketCategoryConfig = get_category_config(category_id) or {}
 
         # Validate required fields
         errors = []
@@ -845,7 +853,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 {
                     "team": team,
                     "teams": teams,
-                    "categories": TICKET_CATEGORIES,
+                    "categories": get_all_categories(),
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
@@ -855,7 +863,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             )
 
         # For box-reset, use hostname as description
-        if category == "box-reset" and hostname:
+        if cat_info.get("display_name", "").lower() == "box reset" and hostname:
             description = hostname
 
         if not team:
@@ -867,7 +875,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         try:
             ticket = create_ticket_atomic(
                 team=team,
-                category=category,
+                category=category_obj,
                 title=title,
                 description=description,
                 hostname=hostname,
@@ -883,7 +891,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "ticket_id": ticket.id,
                     "ticket_number": ticket.ticket_number,
                     "team_number": team_number,
-                    "category": category,
+                    "category": category_obj.display_name,
                     "title": title,
                     "created_by": authentik_username,
                 },
@@ -903,7 +911,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                 {
                     "team": team,
                     "teams": teams,
-                    "categories": TICKET_CATEGORIES,
+                    "categories": get_all_categories(),
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
@@ -921,7 +929,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         {
             "team": team,
             "teams": teams,
-            "categories": TICKET_CATEGORIES,
+            "categories": get_all_categories(),
             "service_choices": service_choices,
             "box_names": box_names,
             "box_ip_map": box_ip_map,
@@ -1427,20 +1435,24 @@ def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResp
         return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Get new category
-    new_category = request.POST.get("new_category", "").strip()
-    if not new_category or new_category not in TICKET_CATEGORIES:
+    try:
+        new_category_id = int(request.POST.get("new_category", "0"))
+    except (ValueError, TypeError):
+        new_category_id = 0
+
+    if not TicketCategory.objects.filter(pk=new_category_id).exists():
         messages.error(request, "Invalid category")
         return redirect("ticket_detail", ticket_number=ticket_number)
 
-    old_category = ticket.category
-    if old_category == new_category:
+    old_category_id = ticket.category_id
+    if old_category_id == new_category_id:
         return redirect("ticket_detail", ticket_number=ticket_number)
 
-    old_cat_info = TICKET_CATEGORIES.get(old_category, {})
-    new_cat_info = TICKET_CATEGORIES.get(new_category, {})
+    old_cat_info = get_category_config(old_category_id) or {}
+    new_cat_info = get_category_config(new_category_id) or {}
 
     # Update category
-    ticket.category = new_category
+    ticket.category_id = new_category_id
     ticket.save()
 
     # Create history entry
@@ -1449,10 +1461,10 @@ def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResp
         action="category_changed",
         details={
             "changed_by": authentik_username,
-            "old_category": old_category,
-            "old_category_name": old_cat_info.get("display_name", old_category),
-            "new_category": new_category,
-            "new_category_name": new_cat_info.get("display_name", new_category),
+            "old_category": old_category_id,
+            "old_category_name": old_cat_info.get("display_name", "Unknown"),
+            "new_category": new_category_id,
+            "new_category_name": new_cat_info.get("display_name", "Unknown"),
             "old_points": old_cat_info.get("points", 0),
             "new_points": new_cat_info.get("points", 0),
         },
@@ -1460,7 +1472,7 @@ def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResp
 
     logger.info(
         f"Ticket {ticket_number} category changed by {authentik_username}: "
-        f"{old_cat_info.get('display_name', old_category)} → {new_cat_info.get('display_name', new_category)}"
+        f"{old_cat_info.get('display_name', 'Unknown')} → {new_cat_info.get('display_name', 'Unknown')}"
     )
 
     return redirect("ticket_detail", ticket_number=ticket_number)
@@ -2016,11 +2028,11 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     # Enrich tickets with category info
     tickets_with_info = []
     for ticket in query:
-        cat_info = TICKET_CATEGORIES.get(ticket.category, {})
+        cat_info = get_category_config(ticket.category_id) or {}
         tickets_with_info.append(
             {
                 "ticket": ticket,
-                "category_name": cat_info.get("display_name", ticket.category),
+                "category_name": cat_info.get("display_name", "Unknown"),
                 "expected_points": cat_info.get("points", 0),
             }
         )
@@ -2036,7 +2048,7 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         "search_query": search_query,
         "sort_by": sort_by,
         "page_size": page_size,
-        "categories": TICKET_CATEGORIES,
+        "categories": get_all_categories(),
         "show_ops_nav": True,
     }
 
@@ -2207,18 +2219,18 @@ def ticket_notifications(request: HttpRequest) -> JsonResponse:
     raw_tickets = (
         Ticket.objects.filter(status="open", id__gt=since_id)
         .order_by("id")
-        .values("id", "ticket_number", "title", "category")[:10]
+        .values("id", "ticket_number", "title", "category_id")[:10]
     )
 
     new_tickets = []
     for t in raw_tickets:
-        cat_config = TICKET_CATEGORIES.get(t["category"])
+        cat_config = get_category_config(t["category_id"])
         new_tickets.append(
             {
                 "id": t["id"],
                 "number": t["ticket_number"],
                 "title": t["title"],
-                "category_display": cat_config["display_name"] if cat_config else t["category"],
+                "category_display": cat_config["display_name"] if cat_config else "Unknown",
             }
         )
 
