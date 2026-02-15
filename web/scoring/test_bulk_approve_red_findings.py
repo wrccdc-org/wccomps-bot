@@ -104,7 +104,7 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect to red team portal on success
         assert response.status_code == 302
-        assert "red-team" in response.url  # type: ignore[attr-defined]
+        assert "red-findings" in response.url  # type: ignore[attr-defined]
 
         finding.refresh_from_db()
         assert finding.is_approved is True
@@ -197,7 +197,7 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect back to portal
         assert response.status_code == 302
-        assert "red-team" in response.url  # type: ignore[attr-defined]
+        assert "red-findings" in response.url  # type: ignore[attr-defined]
 
     def test_handles_nonexistent_finding_ids(self, create_user_with_groups: Callable[..., User]) -> None:
         """Should handle nonexistent finding IDs gracefully."""
@@ -210,7 +210,7 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect back without error
         assert response.status_code == 302
-        assert "red-team" in response.url  # type: ignore[attr-defined]
+        assert "red-findings" in response.url  # type: ignore[attr-defined]
 
     def test_uses_transaction_for_bulk_approval(self, create_user_with_groups: Callable[..., User]) -> None:
         """Bulk approval should use atomic transaction."""
@@ -332,23 +332,14 @@ class TestBulkApproveUIElements:
         # Should have bulk approve button
         assert b"Bulk Approve" in response.content or b"bulk-approve" in response.content
 
-    def test_red_team_does_not_see_bulk_approve_controls(self, create_user_with_groups: Callable[..., User]) -> None:
-        """Red Team should NOT see bulk approve controls."""
+    def test_red_team_cannot_access_red_team_portal(self, create_user_with_groups: Callable[..., User]) -> None:
+        """Red Team should NOT be able to access the gold team review page."""
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
-
-        RedTeamFinding.objects.create(
-            attack_vector="SQL injection",
-            source_ip="10.0.0.5",
-            points_per_team=Decimal("30.00"),
-            submitted_by=red_user,
-        )
 
         client = Client()
         client.force_login(red_user)
 
         response = client.get(reverse("scoring:red_team_portal"))
 
-        assert response.status_code == 200
-        # Should NOT have bulk approve button
-        content = response.content.decode()
-        assert "Bulk Approve" not in content or "bulk-approve-form" not in content
+        # Red team users are redirected away (gold team only page)
+        assert response.status_code == 302
