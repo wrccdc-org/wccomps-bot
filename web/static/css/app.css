@@ -82,6 +82,18 @@ nav[role="navigation"] {
     color: var(--body-fg, #333);
 }
 
+@media (max-width: 767px) {
+    nav[role="navigation"] {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-item {
+        white-space: nowrap;
+    }
+}
+
 #content {
     margin-left: 0;
     padding-top: 0;
