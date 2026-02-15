@@ -60,7 +60,13 @@ class Ticket(models.Model):
     team = models.ForeignKey("team.Team", on_delete=models.CASCADE, related_name="tickets")
 
     # Content
-    category = models.CharField(max_length=50)
+    category = models.ForeignKey(
+        "ticketing.TicketCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+    )
     title = models.TextField()
     description = models.TextField(blank=True)
 
