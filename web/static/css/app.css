@@ -428,9 +428,12 @@ button[type="submit"]:hover {
     background: var(--darkened-bg, #f8f9fa);
 }
 
-/* Ensure module content doesn't overflow */
+/* Allow wide content (tables) to scroll horizontally within modules */
 .module {
-    overflow: hidden;
+    overflow: visible;
+}
+.results {
+    overflow-x: auto;
 }
 .action-box-warning {
     background: var(--warning-alert-bg);

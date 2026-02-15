@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
+STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
 
 def get_all_template_files() -> list[Path]:
@@ -245,3 +246,33 @@ class TestCottonComponentUsage:
                 f"  - {path}:{line} {desc} -> use {sug}" for path, desc, line, sug in sorted(templates_with_issues)
             ]
             pytest.fail("Templates using raw HTML instead of Cotton components:\n" + "\n".join(issue_lines))
+
+
+class TestScrollableLayout:
+    """Tests to ensure pages with tables allow horizontal scrolling."""
+
+    def test_module_does_not_clip_overflow(self) -> None:
+        """The .module class must not use overflow:hidden (clips wide tables)."""
+        css = (STATIC_DIR / "css" / "app.css").read_text()
+        # Find all .module { ... } blocks (not .module-something or .module > child)
+        for match in re.finditer(r"\.module\s*\{([^}]+)\}", css):
+            block = match.group(1)
+            assert "overflow" not in block or "hidden" not in block, (
+                ".module must not use overflow:hidden — it clips wide content. "
+                "Use overflow:visible and let .results handle table scrolling."
+            )
+
+    def test_results_wrapper_allows_horizontal_scroll(self) -> None:
+        """The .results wrapper must have overflow-x:auto for wide tables."""
+        css = (STATIC_DIR / "css" / "app.css").read_text()
+        results_blocks = [m.group(1) for m in re.finditer(r"\.results\s*\{([^}]+)\}", css)]
+        assert results_blocks, ".results rule missing from app.css"
+        has_overflow_x = any("overflow-x" in block and "auto" in block for block in results_blocks)
+        assert has_overflow_x, ".results must have overflow-x:auto for horizontal table scrolling"
+
+    def test_table_component_renders_results_wrapper(self) -> None:
+        """The c-table component must wrap tables in a .results div."""
+        table_template = (TEMPLATES_DIR / "cotton" / "table.html").read_text()
+        assert re.search(r'class="results"', table_template), (
+            "c-table component must wrap <table> in <div class=\"results\"> for scroll support"
+        )
