@@ -31,7 +31,6 @@ Default Max Points (for normalization):
 from decimal import Decimal
 
 import pytest
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -580,10 +579,6 @@ class TestIncidentFindingMatching:
         assert matching_finding in suggestions
         assert len(suggestions) >= 1
 
-    @pytest.mark.skipif(
-        settings.DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3",
-        reason="JSONField __contains lookup requires PostgreSQL",
-    )
     def test_suggest_red_finding_matches_by_box_and_service(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by affected box and service."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])

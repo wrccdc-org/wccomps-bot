@@ -63,7 +63,6 @@ if command -v docker &>/dev/null; then
         set -a; source .env.test; set +a
     fi
 
-    export USE_POSTGRES_FOR_TESTS=1
     export DB_HOST="${TEST_DB_HOST:-localhost}"
     export DB_PORT="${TEST_DB_PORT:-5433}"
     export DB_NAME="${TEST_DB_NAME:-wccomps_test}"

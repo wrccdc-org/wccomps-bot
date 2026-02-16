@@ -15,15 +15,6 @@ import secrets
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-# Load .env.test if it exists (for integration tests with special characters)
-# Must use override=True because shell sourcing can mangle special chars
-env_test_path = Path(__file__).resolve().parent.parent.parent / ".env.test"
-if env_test_path.exists() and os.environ.get("USE_POSTGRES_FOR_TESTS"):
-    load_dotenv(env_test_path, override=True)
-
-# Monkeypatch Django for django-stubs type support
 import django_stubs_ext
 
 django_stubs_ext.monkeypatch()
@@ -144,17 +135,6 @@ DATABASES = {
         },
     }
 }
-
-# Use SQLite for tests (no PostgreSQL needed locally)
-# Unless USE_POSTGRES_FOR_TESTS is set (for integration tests)
-if ("test" in sys.argv or "pytest" in sys.modules) and not os.environ.get("USE_POSTGRES_FOR_TESTS"):
-    import tempfile
-
-    DATABASES["default"] = {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": str(Path(tempfile.gettempdir()) / f"test_wccomps_{os.getpid()}.db"),
-        "CONN_MAX_AGE": 0,  # Disable connection pooling for tests
-    }
 
 
 # Password validation

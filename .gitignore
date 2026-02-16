@@ -47,8 +47,6 @@ wheels/
 
 # Database
 *.db
-*.sqlite
-*.sqlite3
 
 # Django
 staticfiles/

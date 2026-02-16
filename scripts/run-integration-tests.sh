@@ -116,7 +116,7 @@ config = dotenv_values('$env_file')
 safe_vars = ['TEST_DB_HOST', 'TEST_DB_PORT', 'TEST_DB_NAME', 'TEST_DB_USER', 'TEST_DB_PASSWORD',
              'TEST_AUTHENTIK_USERNAME', 'TEST_AUTHENTIK_PASSWORD', 'TEST_BASE_URL',
              'AUTHENTIK_URL', 'AUTHENTIK_OIDC_URL', 'AUTHENTIK_CLIENT_ID', 'AUTHENTIK_SECRET',
-             'TICKETING_ENABLED', 'USE_POSTGRES_FOR_TESTS', 'DB_HOST', 'DB_PORT', 'DB_NAME',
+             'TICKETING_ENABLED', 'DB_HOST', 'DB_PORT', 'DB_NAME',
              'DB_USER', 'DB_PASSWORD', 'TEST_TEAM_ID', 'TEST_TOTP_SECRET', 'QUOTIENT_USERNAME']
 for key in safe_vars:
     if key in config and config[key]:
@@ -130,7 +130,6 @@ run_migrations() {
         cd "$PROJECT_ROOT"
         load_env_safely "$ENV_FILE"
         export DJANGO_SETTINGS_MODULE=wccomps.settings
-        export USE_POSTGRES_FOR_TESTS=1
         export PYTHONPATH="$PROJECT_ROOT/web:$PROJECT_ROOT"
         uv run python web/manage.py migrate --run-syncdb 2>&1 | head -20
     )
@@ -153,7 +152,6 @@ start_server() {
         cd "$PROJECT_ROOT"
         load_env_safely "$ENV_FILE"
         export DJANGO_SETTINGS_MODULE=wccomps.settings
-        export USE_POSTGRES_FOR_TESTS=1
         export PYTHONPATH="$PROJECT_ROOT/web:$PROJECT_ROOT"
         uv run python web/manage.py runserver "127.0.0.1:$SERVER_PORT" > "$SERVER_LOG_FILE" 2>&1 &
         echo $! > "$SERVER_PID_FILE"
@@ -240,7 +238,6 @@ run_tests() {
         cd "$PROJECT_ROOT"
         load_env_safely "$ENV_FILE"
         export DJANGO_SETTINGS_MODULE=wccomps.settings
-        export USE_POSTGRES_FOR_TESTS=1
         export PYTHONPATH="$PROJECT_ROOT/web:$PROJECT_ROOT"
         export TEST_BASE_URL="http://127.0.0.1:$SERVER_PORT"
 

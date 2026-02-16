@@ -8,7 +8,6 @@ __pycache__
 .gitignore
 *.md
 .env*
-*.sqlite3
 web/staticfiles
 web/integration_tests
 logs/

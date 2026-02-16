@@ -71,6 +71,5 @@ jobs:
         env:
           DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
           DJANGO_SETTINGS_MODULE: wccomps.settings
-          USE_POSTGRES_FOR_TESTS: "1"
           PYTHONPATH: ${{ github.workspace }}/web:${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci
