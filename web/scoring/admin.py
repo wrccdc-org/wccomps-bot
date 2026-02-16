@@ -41,7 +41,7 @@ class AttackTypeAdmin(admin.ModelAdmin[AttackType]):
 class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamFinding]):
     model = RedTeamScreenshot
     extra = 1
-    fields = ["image", "description"]
+    fields = ["filename", "description"]
 
 
 @admin.register(RedTeamFinding)
@@ -114,7 +114,7 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
 class IncidentScreenshotInline(admin.TabularInline[IncidentScreenshot, IncidentReport]):
     model = IncidentScreenshot
     extra = 1
-    fields = ["image", "description"]
+    fields = ["filename", "description"]
 
 
 @admin.register(IncidentReport)
