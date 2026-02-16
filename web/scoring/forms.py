@@ -110,12 +110,12 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         label="Source IP Type",
     )
 
-    # Text field for affected boxes (stored as JSON list)
-    affected_boxes = forms.CharField(
+    # Multi-select for affected boxes (stored as JSON list)
+    affected_boxes = forms.MultipleChoiceField(
         required=False,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., web01, db01"}),
+        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
         label="Affected Boxes",
-        help_text="Enter box names separated by commas",
+        help_text="Hold Ctrl/Cmd to select multiple boxes",
     )
 
     class Meta:
@@ -201,18 +201,21 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
             pool_field.queryset = RedTeamIPPool.objects.none()
         pool_field.empty_label = "Select a pool..."
 
-        # Store choices for template to display as suggestions
-        self.box_choices = get_box_choices()
-        self.service_choices = get_service_choices()
+        # Populate box choices from Quotient metadata
+        self.fields["affected_boxes"].choices = get_box_choices()  # type: ignore[attr-defined]
 
-        # Set initial value for affected_boxes if editing (convert list to comma-separated)
+        # Set initial value for affected_boxes if editing
         if self.instance and self.instance.pk and self.instance.affected_boxes:
             boxes = self.instance.affected_boxes
-            self.initial["affected_boxes"] = boxes if isinstance(boxes, str) else ", ".join(boxes)
+            self.initial["affected_boxes"] = boxes if isinstance(boxes, list) else [boxes]
 
-        # Service is optional - use text input for flexibility (suggestions shown in template)
-        self.fields["affected_service"].widget = forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP, DNS"}
+        # Service dropdown - all services initially, JS filters by selected boxes
+        service_choices = [("", "Select a service...")] + get_service_choices()
+        self.fields["affected_service"] = forms.ChoiceField(
+            required=False,
+            choices=service_choices,
+            widget=forms.Select(attrs={"class": "form-select"}),
+            label="Affected Service",
         )
 
         # Only show active teams, limited by Quotient team count if available
@@ -245,12 +248,8 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
     def save(self, commit: bool = True) -> RedTeamFinding:
         """Save the form, including the affected_boxes field and auto-calculated points."""
         instance = super().save(commit=False)
-        # Parse comma-separated box names into list
-        boxes_str = self.cleaned_data.get("affected_boxes", "")
-        if boxes_str:
-            instance.affected_boxes = [b.strip() for b in boxes_str.split(",") if b.strip()]
-        else:
-            instance.affected_boxes = []
+        # SelectMultiple already returns a list
+        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
         # Auto-calculate points from outcome checkboxes
         instance.points_per_team = instance.calculate_points()
         if commit:
@@ -268,12 +267,12 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         label="Team",
     )
 
-    # Text field for affected boxes (stored as JSON list)
-    affected_boxes = forms.CharField(
+    # Multi-select for affected boxes (stored as JSON list)
+    affected_boxes = forms.MultipleChoiceField(
         required=False,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., web01, db01"}),
+        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
         label="Affected Boxes",
-        help_text="Enter box names separated by commas",
+        help_text="Hold Ctrl/Cmd to select multiple boxes",
     )
 
     class Meta:
@@ -336,30 +335,28 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             # Hide team field for regular users
             del self.fields["team"]
 
-        # Service is optional - use text input for flexibility
-        self.fields["affected_service"].required = False
-        self.fields["affected_service"].widget = forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "e.g., SSH, HTTP", "id": "id_affected_service"}
+        # Populate box choices from Quotient metadata
+        self.fields["affected_boxes"].choices = get_box_choices()  # type: ignore[attr-defined]
+
+        # Service dropdown - all services initially, JS filters by selected boxes
+        service_choices = [("", "Select a service...")] + get_service_choices()
+        self.fields["affected_service"] = forms.ChoiceField(
+            required=False,
+            choices=service_choices,
+            widget=forms.Select(attrs={"class": "form-select"}),
+            label="Affected Service",
         )
 
-        # Store choices for template to display as suggestions
-        self.box_choices = get_box_choices()
-        self.service_choices = get_service_choices()
-
-        # Set initial value for affected_boxes if editing (convert list to comma-separated)
+        # Set initial value for affected_boxes if editing
         if self.instance and self.instance.pk and self.instance.affected_boxes:
             boxes = self.instance.affected_boxes
-            self.initial["affected_boxes"] = boxes if isinstance(boxes, str) else ", ".join(boxes)
+            self.initial["affected_boxes"] = boxes if isinstance(boxes, list) else [boxes]
 
     def save(self, commit: bool = True) -> IncidentReport:
         """Save the form, including the affected_boxes field."""
         instance = super().save(commit=False)
-        # Parse comma-separated box names into list
-        boxes_str = self.cleaned_data.get("affected_boxes", "")
-        if boxes_str:
-            instance.affected_boxes = [b.strip() for b in boxes_str.split(",") if b.strip()]
-        else:
-            instance.affected_boxes = []
+        # SelectMultiple already returns a list
+        instance.affected_boxes = self.cleaned_data.get("affected_boxes", [])
         if commit:
             instance.save()
         return instance
