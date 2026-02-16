@@ -15,34 +15,6 @@
         .dynamic-field.show {
             display: block;
         }
-
-        .box-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 8px;
-        }
-
-        .box-btn {
-            padding: 6px 12px;
-            font-size: 13px;
-            font-weight: 500;
-            border: 1px solid var(--hairline-color, #ddd);
-            background: var(--body-bg, white);
-            color: var(--body-fg, #333);
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .box-btn:hover {
-            background: var(--darkened-bg, #f5f5f5);
-        }
-
-        .box-btn--selected {
-            background: var(--primary, #417690);
-            border-color: var(--primary, #417690);
-            color: white;
-        }
     </style>
 {% endblock extra_css %}
 {% block content %}
@@ -108,11 +80,11 @@
                  :class="{ 'show': visibleFields.includes('hostname') }"
                  id="field-hostname">
                 <c-form_field label="Hostname" id="hostname">
-                <div class="box-buttons">
+                <div class="d-flex flex-wrap gap-10">
                     {% for box_name in box_names %}
                         <button type="button"
-                                class="box-btn"
-                                :class="selectedHostname === '{{ box_name }}' && 'box-btn--selected'"
+                                class="button box-toggle"
+                                :class="selectedHostname === '{{ box_name }}' && 'box-toggle--selected'"
                                 @click="selectedHostname = selectedHostname === '{{ box_name }}' ? '' : '{{ box_name }}'; onHostnameChange()">
                             {{ box_name }}
                         </button>
