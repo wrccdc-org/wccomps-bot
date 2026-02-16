@@ -262,14 +262,17 @@
                   action="{% url 'ticket_comment' ticket.ticket_number %}"
                   class="mt-20">
                 {% csrf_token %}
+                <c-form_field label="Add Comment" id="comment">
                 <textarea name="comment"
+                          id="comment"
                           rows="3"
                           placeholder="Add a comment..."
                           required
-                          class="w-full max-w-600"></textarea>
-                <div class="mt-10">
-                    <c-button type="submit" variant="primary">Post Comment</c-button>
-                </div>
+                          class="vTextField"></textarea>
+                </c-form_field>
+                <c-button_row>
+                <c-button type="submit" variant="primary">Post Comment</c-button>
+                </c-button_row>
             </form>
         {% endif %}
         </c-fieldset>

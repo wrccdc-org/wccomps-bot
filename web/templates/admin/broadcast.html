@@ -8,35 +8,39 @@
         <c-page_header title="Broadcast Message" />
         <c-module>
         <c-slot name="title">Send Broadcast</c-slot>
-        <form @submit.prevent="sendBroadcast()" class="space-y-4">
-            <c-filter_field label="Target" id="target">
+        <form @submit.prevent="sendBroadcast()">
+            <c-fieldset heading="Compose" aligned="true">
+            <c-form_field label="Target" id="target">
             <select name="target" x-model="target" class="vTextField">
                 <option value="announcements">Announcements Channel</option>
                 <option value="all-teams">All Team Channels</option>
                 <option value="custom">Specific Teams</option>
             </select>
-            </c-filter_field>
+            </c-form_field>
             <template x-if="target === 'custom'">
-                <c-filter_field label="Team Numbers" id="team_numbers">
+                <c-form_field label="Team Numbers" id="team_numbers">
                 <input type="text"
                        name="team_numbers"
                        x-model="teamNumbers"
                        class="vTextField"
                        placeholder="1,3,5-10,15">
-                </c-filter_field>
+                </c-form_field>
             </template>
-            <c-filter_field label="Message" id="message">
+            <c-form_field label="Message" id="message">
             <textarea name="message"
                       x-model="message"
                       class="vTextField"
                       rows="6"
                       placeholder="Enter your message here..."></textarea>
-            </c-filter_field>
-            <div class="mb-5">
+            </c-form_field>
+            <div class="form-row">
                 <input type="checkbox" id="mention_team" x-model="mentionTeam">
                 <label for="mention_team">Mention @Blueteam role</label>
             </div>
+            </c-fieldset>
+            <c-button_row class="justify-end">
             <c-button type="submit" variant="primary" ::disabled="loading || !message.trim()">Send Broadcast</c-button>
+            </c-button_row>
         </form>
         <c-action_box heading="Preview" class="mt-20">
         <div class="whitespace-pre-wrap"

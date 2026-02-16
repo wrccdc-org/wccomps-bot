@@ -125,22 +125,20 @@
         <!-- Test Email -->
         <c-fieldset heading="Test Email">
         <div class="d-flex gap-10 items-end">
-            <div>
-                <label for="test-team" class="text-sm font-semibold d-block mb-5">Team</label>
-                <select id="test-team" x-ref="testTeam" class="vTextField">
-                    {% for team in teams %}
-                        <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="test-email" class="text-sm font-semibold d-block mb-5">Email</label>
-                <input type="email"
-                       id="test-email"
-                       x-ref="testEmail"
-                       placeholder="test@example.com"
-                       class="vTextField">
-            </div>
+            <c-form_field label="Team" id="test-team">
+            <select id="test-team" x-ref="testTeam" class="vTextField">
+                {% for team in teams %}
+                    <option value="{{ team.id }}">Team {{ team.team_number }}: {{ team.team_name }}</option>
+                {% endfor %}
+            </select>
+            </c-form_field>
+            <c-form_field label="Email" id="test-email">
+            <input type="email"
+                   id="test-email"
+                   x-ref="testEmail"
+                   placeholder="test@example.com"
+                   class="vTextField">
+            </c-form_field>
             <c-button variant="default" @click="doTestEmail()" ::disabled="loading">
             Send Test
             </c-button>
