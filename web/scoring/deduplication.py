@@ -4,20 +4,15 @@ Red Team Finding deduplication logic.
 Handles detection of duplicate submissions and merging of source IPs.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import QuerySet
 
 from team.models import Team
 
 from .models import AttackType, RedTeamFinding, RedTeamIPPool
-
-if TYPE_CHECKING:
-    from django.db.models import QuerySet
 
 
 @dataclass

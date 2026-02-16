@@ -1,7 +1,5 @@
 """Admin commands for competition and account management."""
 
-from __future__ import annotations
-
 import csv
 import io
 import logging

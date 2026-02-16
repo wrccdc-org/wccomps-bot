@@ -1,7 +1,5 @@
 """Ticket dashboard management for #ticket-queue channel."""
 
-from __future__ import annotations
-
 import logging
 
 import discord
@@ -9,7 +7,6 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from core.tickets_config import get_category_config
-from team.models import DiscordLink
 from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
@@ -155,7 +152,9 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_claim_persistent",
         row=1,
     )
-    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]) -> None:
+    async def claim_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
+    ) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
 
@@ -217,7 +216,7 @@ class TicketActionView(discord.ui.View):
         row=1,
     )
     async def resolve_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
+        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
     ) -> None:
         """Show resolve modal with category dropdown and notes."""
         from bot.permissions import can_support_tickets_async
@@ -260,7 +259,7 @@ class TicketActionView(discord.ui.View):
         row=2,
     )
     async def cancel_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
+        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
     ) -> None:
         """Cancel an unclaimed ticket."""
 
