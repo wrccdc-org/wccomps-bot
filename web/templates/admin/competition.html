@@ -212,9 +212,8 @@
         <!-- Password Reset -->
         <div class="mb-20">
             <h3 class="mt-0 mb-10">Password Management</h3>
-            <form @submit.prevent="resetPasswords()"
-                  class="d-flex gap-10 items-end max-w-500">
-                <c-form_field label="Team Numbers" id="team_numbers" class="flex-1">
+            <form @submit.prevent="resetPasswords()" class="max-w-500">
+                <c-form_field label="Team Numbers" id="team_numbers" help_text="Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.">
                 <input type="text"
                        name="team_numbers"
                        id="team_numbers"
@@ -222,9 +221,10 @@
                        placeholder="1,3,5-10 (empty = all)"
                        class="vTextField">
                 </c-form_field>
+                <c-button_row class="mt-10">
                 <c-button type="submit" variant="warning" ::disabled="loading">Reset Passwords</c-button>
+                </c-button_row>
             </form>
-            <p class="help-text mt-10">Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.</p>
             <template x-if="csvContent">
                 <c-action_box heading="Password CSV Generated" class="mt-20">
                 <textarea readonly
