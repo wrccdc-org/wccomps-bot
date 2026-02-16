@@ -27,7 +27,7 @@
             {% csrf_token %}
             <c-module>
             {% if error %}<c-alert variant="error">{{ error }}</c-alert>{% endif %}
-            <c-fieldset>
+            <c-fieldset heading="Ticket Details">
             {% if teams %}
                 <c-form_field label="Team" required="true" id="team_id">
                 <select name="team_id" id="team_id" required>
@@ -133,7 +133,7 @@
                 <c-form_field label="Description" id="description">
                 <textarea name="description"
                           id="description"
-                          class="w-full"
+                          class="vTextField"
                           rows="8"
                           :required="requiredFields.includes('description')"
                           placeholder="Detailed description of the issue...">{{ form_data.description }}</textarea>
