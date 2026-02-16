@@ -1,5 +1,6 @@
 """Admin configuration for ticketing app."""
 
+from django import forms
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
@@ -12,6 +13,63 @@ from .models import (
     TicketComment,
     TicketHistory,
 )
+
+TICKET_FIELD_CHOICES = [
+    ("hostname", "Hostname"),
+    ("ip_address", "IP Address"),
+    ("service_name", "Service Name"),
+    ("description", "Description"),
+]
+
+
+class CheckboxSelectMultipleJSON(forms.CheckboxSelectMultiple):
+    """Checkbox widget that stores values as a JSON list."""
+
+
+class TicketCategoryForm(forms.ModelForm[TicketCategory]):
+    """Custom form for TicketCategory with checkbox widgets for JSON fields."""
+
+    required_fields = forms.MultipleChoiceField(
+        choices=TICKET_FIELD_CHOICES,
+        widget=CheckboxSelectMultipleJSON,
+        required=False,
+        help_text="Fields the user must fill in when creating a ticket.",
+    )
+    optional_fields = forms.MultipleChoiceField(
+        choices=TICKET_FIELD_CHOICES,
+        widget=CheckboxSelectMultipleJSON,
+        required=False,
+        help_text="Fields shown but not required.",
+    )
+
+    class Meta:
+        model = TicketCategory
+        fields = "__all__"
+        widgets = {
+            "variable_cost_note": forms.Textarea(
+                attrs={
+                    "placeholder": 'e.g. "If consultation exceeded 45 minutes, '
+                    'ticket lead will manually adjust to 300 points"',
+                }
+            ),
+        }
+
+    def clean_required_fields(self) -> list[str]:
+        """Return the selected values as a list for JSON storage."""
+        return list(self.cleaned_data.get("required_fields", []))
+
+    def clean_optional_fields(self) -> list[str]:
+        """Return the selected values as a list for JSON storage."""
+        return list(self.cleaned_data.get("optional_fields", []))
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        # Pre-select checkboxes from existing JSON data
+        if self.instance and self.instance.pk:
+            if self.instance.required_fields:
+                self.initial["required_fields"] = self.instance.required_fields
+            if self.instance.optional_fields:
+                self.initial["optional_fields"] = self.instance.optional_fields
 
 
 class TicketAttachmentInline(admin.TabularInline[TicketAttachment, Ticket]):
@@ -37,9 +95,32 @@ class TicketHistoryInline(admin.TabularInline[TicketHistory, Ticket]):
 
 @admin.register(TicketCategory)
 class TicketCategoryAdmin(admin.ModelAdmin[TicketCategory]):
+    form = TicketCategoryForm
     list_display = ["display_name", "points", "variable_points", "user_creatable", "sort_order"]
     list_filter = ["variable_points", "user_creatable"]
     ordering = ["sort_order", "display_name"]
+    fieldsets = (
+        (None, {"fields": ("display_name", "points", "sort_order")}),
+        (
+            "Ticket Fields",
+            {
+                "fields": ("required_fields", "optional_fields"),
+            },
+        ),
+        (
+            "Variable Points",
+            {
+                "fields": (
+                    "variable_points",
+                    "variable_cost_note",
+                    "min_points",
+                    "max_points",
+                ),
+                "description": "Configure when point costs vary per ticket.",
+            },
+        ),
+        ("Visibility", {"fields": ("user_creatable",)}),
+    )
 
 
 @admin.register(Ticket)

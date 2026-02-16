@@ -22,6 +22,7 @@ class TicketCategory(models.Model):
 
     class Meta:
         ordering = ["sort_order", "display_name"]
+        verbose_name_plural = "ticket categories"
 
     def __str__(self) -> str:
         return self.display_name
