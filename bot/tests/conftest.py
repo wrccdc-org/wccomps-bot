@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 import pytest_asyncio
-from _pytest.config import Config
 from django.contrib.auth.models import User
 
 from core.models import UserGroups
@@ -226,26 +225,6 @@ def mock_discord_guild() -> Any:
     member2.remove_roles = AsyncMock()
 
     return guild
-
-
-def pytest_configure(config: Config) -> None:
-    """Configure pytest to use database flushing for isolation between tests."""
-    config.addinivalue_line(
-        "markers",
-        "django_db(transaction=True): Enable database flushing for test isolation",
-    )
-
-
-@pytest.fixture(scope="function")
-def db(transactional_db: Any) -> Any:
-    """
-    Override the default db fixture to use transactional_db instead.
-
-    This forces all tests to use TransactionTestCase behavior (database flushing)
-    instead of TestCase behavior (transaction rollback), providing stronger
-    test isolation.
-    """
-    return transactional_db
 
 
 @pytest.fixture(autouse=True)

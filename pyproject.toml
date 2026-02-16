@@ -137,7 +137,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 testpaths = ["bot/tests", "web/core/tests", "web/integration_tests"]
-addopts = ["-v", "--tb=short"]
+addopts = ["-v", "--tb=short", "-n", "auto"]
 markers = [
     "critical: Critical tests that must pass on every deployment",
     "integration: Integration tests with real database and APIs",

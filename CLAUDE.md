@@ -5,7 +5,8 @@ Discord bot + Django web app for WRCCDC competition management.
 ## Commands
 
 ```bash
-uv run pytest                    # tests
+docker compose -f docker-compose.test.yml up -d --wait  # start test DB
+cd web && DB_HOST=localhost DB_PORT=5433 DB_USER=test_user DB_PASSWORD=test_password DB_NAME=wccomps_test uv run pytest  # tests
 uv run ruff format . && uv run ruff check .  # format + lint
 uv run mypy                      # type check
 cd web && uv run python manage.py makemigrations  # migrations

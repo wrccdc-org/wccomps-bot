@@ -182,6 +182,9 @@ MEDIA_ROOT = str(BASE_DIR / "media")
 # WhiteNoise configuration for serving static files
 # Use simple storage for tests (no manifest required)
 if "test" in sys.argv or "pytest" in sys.modules:
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
