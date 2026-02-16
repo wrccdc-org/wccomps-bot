@@ -110,12 +110,11 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         label="Source IP Type",
     )
 
-    # Multi-select for affected boxes (stored as JSON list)
+    # Multi-select for affected boxes (stored as JSON list, hidden — toggle buttons in template)
     affected_boxes = forms.MultipleChoiceField(
         required=False,
-        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
+        widget=forms.SelectMultiple(attrs={"class": "d-none", "id": "id_affected_boxes"}),
         label="Affected Boxes",
-        help_text="Hold Ctrl/Cmd to select multiple boxes",
     )
 
     class Meta:
@@ -202,7 +201,8 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
         pool_field.empty_label = "Select a pool..."
 
         # Populate box choices from Quotient metadata
-        self.fields["affected_boxes"].choices = get_box_choices()  # type: ignore[attr-defined]
+        self.box_choices = get_box_choices()
+        self.fields["affected_boxes"].choices = self.box_choices  # type: ignore[attr-defined]
 
         # Set initial value for affected_boxes if editing
         if self.instance and self.instance.pk and self.instance.affected_boxes:
@@ -267,12 +267,11 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         label="Team",
     )
 
-    # Multi-select for affected boxes (stored as JSON list)
+    # Multi-select for affected boxes (stored as JSON list, hidden — toggle buttons in template)
     affected_boxes = forms.MultipleChoiceField(
         required=False,
-        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": "6"}),
+        widget=forms.SelectMultiple(attrs={"class": "d-none", "id": "id_affected_boxes"}),
         label="Affected Boxes",
-        help_text="Hold Ctrl/Cmd to select multiple boxes",
     )
 
     class Meta:
@@ -336,7 +335,8 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
             del self.fields["team"]
 
         # Populate box choices from Quotient metadata
-        self.fields["affected_boxes"].choices = get_box_choices()  # type: ignore[attr-defined]
+        self.box_choices = get_box_choices()
+        self.fields["affected_boxes"].choices = self.box_choices  # type: ignore[attr-defined]
 
         # Service dropdown - all services initially, JS filters by selected boxes
         service_choices = [("", "Select a service...")] + get_service_choices()

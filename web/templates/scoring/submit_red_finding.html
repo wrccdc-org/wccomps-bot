@@ -52,8 +52,15 @@
         </c-fieldset>
         <!-- Target Information Section -->
         <c-fieldset legend="Target Information">
-        <c-form_field label="{{ form.affected_boxes.label }}" :id="form.affected_boxes.id_for_label" help_text="{{ form.affected_boxes.help_text }}" error="{{ form.affected_boxes.errors|join:', ' }}">
+        <c-form_field label="{{ form.affected_boxes.label }}" error="{{ form.affected_boxes.errors|join:', ' }}">
         {{ form.affected_boxes }}
+        {% if form.box_choices %}
+            <div class="d-flex flex-wrap gap-10">
+                {% for value, label in form.box_choices %}
+                    <button type="button" class="button box-toggle" data-box="{{ value }}">{{ label }}</button>
+                {% endfor %}
+            </div>
+        {% endif %}
         <div id="selectedIps" class="text-muted mt-10 d-none">
             Target IPs: <span id="ipList"></span>
         </div>
@@ -445,6 +452,25 @@
             return Array.from(select.selectedOptions).map(opt => opt.value);
         }
 
+        function toggleBox(boxName) {
+            const select = document.getElementById('id_affected_boxes');
+            for (const opt of select.options) {
+                if (opt.value === boxName) {
+                    opt.selected = !opt.selected;
+                    break;
+                }
+            }
+            updateBoxButtons();
+            updateIPAndServices();
+        }
+
+        function updateBoxButtons() {
+            const selected = getSelectedBoxes();
+            document.querySelectorAll('.box-toggle').forEach(btn => {
+                btn.classList.toggle('default', selected.includes(btn.dataset.box));
+            });
+        }
+
         function updateIPAndServices() {
             const boxNames = getSelectedBoxes();
             const ipTemplate = document.getElementById('id_destination_ip_template');
@@ -609,14 +635,15 @@
             // Update selected count on page load
             updateSelectedCount();
 
-            // Update services when box selection changes
-            const boxSelect = document.getElementById('id_affected_boxes');
-            if (boxSelect) {
-                boxSelect.addEventListener('change', updateIPAndServices);
-                // Initialize on page load if boxes already selected
-                if (boxSelect.selectedOptions.length > 0) {
-                    updateIPAndServices();
-                }
+            // Wire up box toggle buttons
+            document.querySelectorAll('.box-toggle').forEach(btn => {
+                btn.addEventListener('click', () => toggleBox(btn.dataset.box));
+            });
+
+            // Initialize on page load
+            updateBoxButtons();
+            if (getSelectedBoxes().length > 0) {
+                updateIPAndServices();
             }
         });
     </script>
