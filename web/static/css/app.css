@@ -537,6 +537,17 @@ nav[role="navigation"] {
 }
 
 /* ============================================
+   STATUS BAR (ticket detail neutral header)
+   ============================================ */
+.status-bar {
+    padding: 10px;
+    margin: 0 0 10px 0;
+    border-radius: 4px;
+    background: var(--darkened-bg, #f8f8f8);
+    border: 1px solid var(--hairline-color, #ddd);
+}
+
+/* ============================================
    ALERT COMPONENT STYLES
    ============================================ */
 .alert {
