@@ -1,4 +1,4 @@
-"""Tests for Red Team portal filtering functionality."""
+"""Tests for Red Team findings filtering functionality."""
 
 from collections.abc import Callable
 from decimal import Decimal
@@ -10,12 +10,12 @@ from django.urls import reverse
 
 from team.models import Team
 
-from .models import RedTeamFinding
+from .models import AttackType, RedTeamFinding
 
 
 @pytest.mark.django_db
 class TestRedTeamPortalFiltering:
-    """Test filtering capabilities in Red Team portal."""
+    """Test filtering capabilities in Red Team findings view."""
 
     def test_filter_by_target_team(self, create_user_with_groups: Callable[..., User]) -> None:
         """Red Team can filter findings by target team."""
@@ -51,8 +51,8 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        # Filter by team1 (default status is "pending", use "all" to get all)
-        response = client.get(reverse("scoring:red_team_portal"), {"team": team1.id, "status": "all"})
+        # Filter by team1 (default status is "all" for red team view)
+        response = client.get(reverse("scoring:red_team_findings"), {"team": team1.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -84,8 +84,11 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        # Filter by attack type (partial match)
-        response = client.get(reverse("scoring:red_team_portal"), {"attack_type": "SQL", "status": "all"})
+        # Filter by attack type ID
+        sql_type, _ = AttackType.objects.get_or_create(name="SQL Injection")
+        finding1.attack_type = sql_type
+        finding1.save()
+        response = client.get(reverse("scoring:red_team_findings"), {"attack_type": sql_type.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -118,7 +121,7 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user1)
 
         # Filter by submitter
-        response = client.get(reverse("scoring:red_team_portal"), {"submitter": red_user1.id, "status": "all"})
+        response = client.get(reverse("scoring:red_team_findings"), {"submitter": red_user1.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -161,7 +164,7 @@ class TestRedTeamPortalFiltering:
 
         # Filter by team AND submitter
         response = client.get(
-            reverse("scoring:red_team_portal"), {"team": team1.id, "submitter": red_user1.id, "status": "all"}
+            reverse("scoring:red_team_findings"), {"team": team1.id, "submitter": red_user1.id, "status": "all"}
         )
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
@@ -194,7 +197,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_portal"), {"status": "all"})
+        response = client.get(reverse("scoring:red_team_findings"), {"status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         assert len(findings) == 2
@@ -216,7 +219,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_portal"))
+        response = client.get(reverse("scoring:red_team_findings"))
         assert response.status_code == 200
         assert "available_teams" in response.context
         assert "available_submitters" in response.context
@@ -241,7 +244,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_portal"))
+        response = client.get(reverse("scoring:red_team_findings"))
         assert response.status_code == 200
 
         # Check that template does not contain approval-related info in Red Team view

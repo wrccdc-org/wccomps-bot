@@ -8,6 +8,7 @@ checking template file contents.
 
 import pytest
 from django.template import Context, Template
+from django_cotton.compiler_regex import CottonCompiler
 
 pytestmark = pytest.mark.django_db
 
@@ -17,8 +18,9 @@ class TestScoreValueComponentRendering:
 
     def _render_component(self, value: str, fmt: str = "") -> str:
         """Render the score_value component with given parameters."""
-        template_str = f'{{% load cotton %}}<c-score_value value="{value}" format="{fmt}" />'
-        template = Template(template_str)
+        template_str = f'<c-score_value value="{value}" format="{fmt}" />'
+        compiled = CottonCompiler().process(template_str)
+        template = Template(compiled)
         return template.render(Context({}))
 
     def test_positive_value_renders_with_positive_class(self) -> None:
@@ -42,7 +44,9 @@ class TestScoreValueComponentRendering:
     def test_signed_format_adds_plus_to_positive(self) -> None:
         """Signed format should add + prefix to positive values."""
         html = self._render_component("75", "signed")
-        assert "+75" in html or "+<" in html  # + might be before or inside span
+        # Template whitespace may separate + and number across lines
+        normalized = " ".join(html.split())
+        assert "+ 75" in normalized or "+75" in normalized
 
     def test_signed_format_keeps_minus_on_negative(self) -> None:
         """Signed format should keep - prefix on negative values."""

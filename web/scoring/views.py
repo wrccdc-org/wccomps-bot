@@ -133,7 +133,7 @@ def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpRe
 
 @require_permission(
     "gold_team",
-    "Only Gold Team members can review findings",
+    error_message="Only Gold Team members can review findings",
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
     """Gold team review page for red team findings."""
@@ -826,10 +826,17 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
     "orange_team", "gold_team", error_message="Only Orange Team or Gold Team members can access this page"
 )
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
-    """Orange team portal - list user's own submitted bonuses."""
+    """Orange team portal - list submitted bonuses.
+
+    Gold team and admins see all bonuses; orange team sees only their own.
+    """
     user = cast(User, request.user)
-    bonuses = OrangeTeamBonus.objects.filter(submitted_by=user).select_related("team")
-    return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses})
+    is_gold = has_permission(user, "gold_team")
+    if is_gold:
+        bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+    else:
+        bonuses = OrangeTeamBonus.objects.filter(submitted_by=user).select_related("team")
+    return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses, "is_gold_team": is_gold})
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review orange team")
