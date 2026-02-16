@@ -78,23 +78,27 @@
                         <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
                     </td>
                     <td>
-                        <form method="post"
-                              action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
-                              class="d-inline">
-                            {% csrf_token %}
-                            <c-button type="submit" variant="primary" size="sm">Approve</c-button>
-                        </form>
-                        <form method="post"
-                              action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"
-                              class="d-inline">
-                            {% csrf_token %}
-                            <c-button type="submit" variant="danger" size="sm">Reject</c-button>
-                        </form>
+                        <c-button type="submit" form="approve-{{ bonus.id }}" variant="primary" size="sm">Approve</c-button>
+                        <c-button type="submit" form="reject-{{ bonus.id }}" variant="danger" size="sm">Reject</c-button>
                     </td>
                 </tr>
             {% endfor %}
             </c-table>
         </form>
+        {% for bonus in bonuses %}
+            <form id="approve-{{ bonus.id }}"
+                  method="post"
+                  action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
+                  hidden>
+                {% csrf_token %}
+            </form>
+            <form id="reject-{{ bonus.id }}"
+                  method="post"
+                  action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"
+                  hidden>
+                {% csrf_token %}
+            </form>
+        {% endfor %}
     {% else %}
         <c-empty_state title="No adjustments to review" description="No orange team adjustments have been submitted yet" />
     {% endif %}

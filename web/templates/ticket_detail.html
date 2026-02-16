@@ -160,24 +160,22 @@
                                    class="w-full">
                         </div>
                     </div>
-                    <div class="d-flex gap-10 items-center">
-                        <c-button type="submit" variant="primary">Resolve Ticket</c-button>
-                        {% if is_ticketing_support or is_ticketing_admin %}
-                            <span class="text-muted">|</span>
-                            <form method="post"
-                                  action="{% url 'ticket_reassign' ticket.ticket_number %}"
-                                  class="d-flex gap-10 items-center m-0">
-                                {% csrf_token %}
-                                <input type="text"
-                                       name="new_assignee_username"
-                                       placeholder="Reassign to..."
-                                       required
-                                       class="py-5 px-10 w-150">
-                                <c-button type="submit" variant="default">Reassign</c-button>
-                            </form>
-                        {% endif %}
-                    </div>
+                    <c-button type="submit" variant="primary">Resolve Ticket</c-button>
                 </form>
+                {% if is_ticketing_support or is_ticketing_admin %}
+                    <hr class="my-15">
+                    <form method="post"
+                          action="{% url 'ticket_reassign' ticket.ticket_number %}"
+                          class="d-flex gap-10 items-center m-0">
+                        {% csrf_token %}
+                        <input type="text"
+                               name="new_assignee_username"
+                               placeholder="Reassign to..."
+                               required
+                               class="py-5 px-10 w-150">
+                        <c-button type="submit" variant="default">Reassign</c-button>
+                    </form>
+                {% endif %}
                 </c-fieldset>
             {% else %}
                 <p class="text-muted p-10">

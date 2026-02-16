@@ -248,6 +248,42 @@ class TestCottonComponentUsage:
             pytest.fail("Templates using raw HTML instead of Cotton components:\n" + "\n".join(issue_lines))
 
 
+class TestNestedForms:
+    """Tests to prevent nested <form> tags, which cause browser validation bugs."""
+
+    def test_no_nested_forms(self) -> None:
+        """Templates must not contain nested <form> tags (invalid HTML)."""
+        templates_with_nested_forms: list[tuple[str, int, int]] = []
+
+        for template_path in get_all_template_files():
+            if is_cotton_component(template_path):
+                continue
+
+            content = template_path.read_text()
+            relative_path = template_path.relative_to(TEMPLATES_DIR)
+
+            # Track form nesting depth
+            depth = 0
+            for match in re.finditer(r"<(/?)form[\s>]", content, re.IGNORECASE):
+                is_closing = match.group(1) == "/"
+                line_num = content[: match.start()].count("\n") + 1
+
+                if is_closing:
+                    depth = max(0, depth - 1)
+                else:
+                    depth += 1
+                    if depth > 1:
+                        templates_with_nested_forms.append((str(relative_path), line_num, depth))
+
+        if templates_with_nested_forms:
+            issue_lines = [
+                f"  - {path}:{line} (depth {depth})" for path, line, depth in sorted(templates_with_nested_forms)
+            ]
+            pytest.fail(
+                "Templates with nested <form> tags (causes browser validation bugs):\n" + "\n".join(issue_lines)
+            )
+
+
 class TestScrollableLayout:
     """Tests to ensure pages with tables allow horizontal scrolling."""
 
