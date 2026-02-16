@@ -403,6 +403,13 @@ button[type="submit"]:hover {
     border-color: var(--error-fg, #c82333);
 }
 
+/* Box toggle buttons */
+.box-toggle--selected {
+    background: var(--primary, #417690);
+    border-color: var(--primary, #417690);
+    color: white;
+}
+
 /* Form patterns */
 .form-label {
     display: block;
