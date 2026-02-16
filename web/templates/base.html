@@ -2,6 +2,7 @@
 {% load static i18n %}
 {% block extrastyle %}
     {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
     <link rel="stylesheet" href="{% static 'admin/css/dark_mode.css' %}">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 {% endblock extrastyle %}

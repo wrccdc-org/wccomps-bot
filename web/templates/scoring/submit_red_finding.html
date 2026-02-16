@@ -9,7 +9,7 @@
     <form method="post" enctype="multipart/form-data" id="findingForm">
         {% csrf_token %}
         <!-- Attack Details Section -->
-        <c-fieldset legend="Attack Details">
+        <c-fieldset heading="Attack Details">
         <c-form_field label="{{ form.attack_type.label }}" required="true" :id="form.attack_type.id_for_label" help_text="{{ form.attack_type.help_text }}" error="{{ form.attack_type.errors|join:', ' }}">
         {{ form.attack_type }}
         </c-form_field>
@@ -51,7 +51,7 @@
         </div>
         </c-fieldset>
         <!-- Target Information Section -->
-        <c-fieldset legend="Target Information">
+        <c-fieldset heading="Target Information">
         <c-form_field label="{{ form.affected_boxes.label }}" error="{{ form.affected_boxes.errors|join:', ' }}">
         {{ form.affected_boxes }}
         {% if form.box_choices %}
@@ -75,7 +75,7 @@
                value="">
         </c-fieldset>
         <!-- Attack Characteristics Section -->
-        <c-fieldset legend="Attack Characteristics">
+        <c-fieldset heading="Attack Characteristics">
         <div class="mb-5">
             {{ form.universally_attempted }}
             <label for="{{ form.universally_attempted.id_for_label }}">{{ form.universally_attempted.label }}</label>
@@ -92,7 +92,7 @@
         </div>
         </c-fieldset>
         <!-- Attack Outcomes Section (CCDC Scoring) -->
-        <c-fieldset legend="Attack Outcomes">
+        <c-fieldset heading="Attack Outcomes">
         <div class="d-flex flex-wrap gap-10 mb-15">
             <div>
                 <label class="font-semibold text-sm d-block mb-5">Access Level</label>
@@ -169,7 +169,7 @@
         </div>
         </c-fieldset>
         <!-- Affected Teams Section -->
-        <c-fieldset legend="Affected Teams">
+        <c-fieldset heading="Affected Teams">
         <div class="d-flex justify-between items-center mb-10">
             <label class="font-semibold text-sm d-block mb-0">{{ form.affected_teams.label }}</label>
             <div class="d-flex gap-10">
@@ -204,7 +204,7 @@
         {% if form.affected_teams.errors %}<div class="text-danger mt-10">{{ form.affected_teams.errors }}</div>{% endif %}
         </c-fieldset>
         <!-- Screenshot Evidence Section -->
-        <c-fieldset legend="Evidence">
+        <c-fieldset heading="Evidence">
         <c-form_field label="Upload Files" id="screenshots" help_text="Upload screenshots, logs, or other evidence. Maximum 20 files, 50MB per file.">
         <input type="file"
                class="vTextField"
@@ -216,7 +216,7 @@
         <div id="screenshotPreview" class="grid-4 mb-15"></div>
         </c-fieldset>
         <!-- Additional Notes Section -->
-        <c-fieldset legend="Additional Information">
+        <c-fieldset heading="Additional Information">
         <c-form_field label="{{ form.notes.label }}" :id="form.notes.id_for_label" help_text="{{ form.notes.help_text }}" error="{{ form.notes.errors|join:', ' }}">
         {{ form.notes }}
         </c-form_field>

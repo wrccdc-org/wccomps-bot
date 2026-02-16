@@ -410,6 +410,11 @@ button[type="submit"]:hover {
     color: white;
 }
 
+/* Override admin forms.css float clearfix - Cotton components don't use floats */
+.form-row {
+    overflow: visible;
+}
+
 /* Form patterns */
 .form-label {
     display: block;
@@ -720,14 +725,6 @@ button[type="submit"]:hover {
 label.required::after {
     content: " *";
     color: var(--error-fg, #ba2121);
-}
-
-/* Form row inputs - consistent full width */
-.form-row select,
-.form-row input[type="text"],
-.form-row textarea {
-    width: 100%;
-    max-width: 600px;
 }
 
 /* ============================================

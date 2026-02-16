@@ -11,7 +11,7 @@
             <form method="post" enctype="multipart/form-data" id="incidentForm">
                 {% csrf_token %}
                 <!-- Target Information Section -->
-                <c-fieldset legend="Target Information">
+                <c-fieldset heading="Target Information">
                 {% if is_admin %}
                     <c-form_field label="{{ form.team.label }}" required="true" :id="form.team.id_for_label" help_text="{{ form.team.help_text }}" error="{{ form.team.errors|join:', ' }}">
                     {{ form.team }}
@@ -37,7 +37,7 @@
                 </div>
                 </c-fieldset>
                 <!-- Attack Details Section -->
-                <c-fieldset legend="Attack Details">
+                <c-fieldset heading="Attack Details">
                 <div class="grid-2">
                     <c-form_field label="{{ form.source_ip.label }}" required="true" :id="form.source_ip.id_for_label" help_text="{{ form.source_ip.help_text }}" error="{{ form.source_ip.errors|join:', ' }}">
                     {{ form.source_ip }}
@@ -56,7 +56,7 @@
                 </div>
                 </c-fieldset>
                 <!-- Screenshot Evidence Section -->
-                <c-fieldset legend="Evidence">
+                <c-fieldset heading="Evidence">
                 <c-form_field label="Upload Files" id="screenshots" help_text="Upload screenshots, logs, or other evidence. Maximum 20 files.">
                 <input type="file"
                        class="vTextField"
