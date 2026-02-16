@@ -1,10 +1,21 @@
 {% extends "scoring/orange_base.html" %}
+{% load cotton %}
 {% block title %}
-    Edit Check Type
+    {% if check_type %}
+        Edit Check Type
+    {% else %}
+        Create Check Type
+    {% endif %}
+    - WCComps
 {% endblock title %}
 {% block orange_content %}
-    {% load cotton %}
-    <c-page_header title="Edit Check Type" subtitle="{{ check_type.name }}" />
+    <c-page_header title="
+    {% if check_type %}
+        Edit Check Type: {{ check_type.name }}
+    {% else %}
+        Create Check Type
+    {% endif %}
+    " />
     <c-module>
     <form method="post">
         {% csrf_token %}
@@ -17,8 +28,12 @@
         </c-form_field>
         </c-fieldset>
         <c-button_row class="mt-20 justify-end">
-        <c-link href="{% url 'scoring:manage_check_types' %}">Cancel</c-link>
-        <c-button type="submit" variant="primary">Save Changes</c-button>
+        <a href="{% url 'scoring:manage_check_types' %}"
+           class="btn btn-secondary">Cancel</a>
+        {% if check_type %}
+            <c-link href="{% url 'scoring:delete_check_type' check_type.pk %}" variant="danger">Delete</c-link>
+        {% endif %}
+        <c-button type="submit" variant="primary">Save</c-button>
         </c-button_row>
     </form>
     </c-module>

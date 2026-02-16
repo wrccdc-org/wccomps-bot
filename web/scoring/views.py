@@ -868,22 +868,23 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
 
 @require_permission("orange_team", error_message="Only Orange Team can manage check types")
 def manage_check_types(request: HttpRequest) -> HttpResponse:
-    """Manage orange check types."""
+    """List orange check types."""
     check_types = OrangeCheckType.objects.all().order_by("name")
-    form = OrangeCheckTypeForm()
+    return render(request, "scoring/manage_check_types.html", {"check_types": check_types})
 
+
+@require_permission("orange_team", error_message="Only Orange Team can manage check types")
+def create_check_type(request: HttpRequest) -> HttpResponse:
+    """Create a new orange check type."""
     if request.method == "POST":
         form = OrangeCheckTypeForm(request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, f"Check type '{form.cleaned_data['name']}' created")
             return redirect("scoring:manage_check_types")
-
-    context = {
-        "check_types": check_types,
-        "form": form,
-    }
-    return render(request, "scoring/manage_check_types.html", context)
+    else:
+        form = OrangeCheckTypeForm()
+    return render(request, "scoring/check_type_form.html", {"form": form})
 
 
 @require_permission("orange_team", error_message="Only Orange Team can manage check types")
@@ -900,22 +901,26 @@ def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     else:
         form = OrangeCheckTypeForm(instance=check_type)
 
-    context = {
-        "form": form,
-        "check_type": check_type,
-    }
-    return render(request, "scoring/edit_check_type.html", context)
+    return render(request, "scoring/check_type_form.html", {"form": form, "check_type": check_type})
 
 
 @require_permission("orange_team", error_message="Only Orange Team can manage check types")
-@require_http_methods(["POST"])
 def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Delete an orange check type."""
     check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-    name = check_type.name
-    check_type.delete()
-    messages.success(request, f"Check type '{name}' deleted")
-    return redirect("scoring:manage_check_types")
+    adjustment_count = check_type.bonuses.count()
+
+    if request.method == "POST":
+        name = check_type.name
+        check_type.delete()
+        messages.success(request, f"Check type '{name}' deleted")
+        return redirect("scoring:manage_check_types")
+
+    return render(
+        request,
+        "scoring/check_type_delete.html",
+        {"check_type": check_type, "adjustment_count": adjustment_count},
+    )
 
 
 @require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")

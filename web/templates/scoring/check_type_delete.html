@@ -1,0 +1,24 @@
+{% extends "scoring/orange_base.html" %}
+{% load cotton %}
+{% block title %}
+    Delete Check Type - WCComps
+{% endblock title %}
+{% block orange_content %}
+    <c-page_header title="Delete Check Type" />
+    <c-module>
+    <c-alert variant="warning">
+    Are you sure you want to delete the check type "{{ check_type.name }}"?
+    {% if adjustment_count %}
+        This check type has {{ adjustment_count }} adjustment(s). Deleting it will set their check type to null.
+    {% endif %}
+    </c-alert>
+    <form method="post">
+        {% csrf_token %}
+        <c-button_row class="mt-20 justify-end">
+        <a href="{% url 'scoring:manage_check_types' %}"
+           class="btn btn-secondary">Cancel</a>
+        <c-button type="submit" variant="danger">Delete Check Type</c-button>
+        </c-button_row>
+    </form>
+    </c-module>
+{% endblock orange_content %}

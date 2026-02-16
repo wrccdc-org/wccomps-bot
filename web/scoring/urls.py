@@ -39,6 +39,7 @@ urlpatterns = [
     path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
     path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),
     path("orange-team/check-types/", views.manage_check_types, name="manage_check_types"),
+    path("orange-team/check-types/create/", views.create_check_type, name="create_check_type"),
     path("orange-team/check-types/<int:check_type_id>/edit/", views.edit_check_type, name="edit_check_type"),
     path("orange-team/check-types/<int:check_type_id>/delete/", views.delete_check_type, name="delete_check_type"),
     path("orange-team/<int:adjustment_id>/approve/", views.approve_orange_adjustment, name="approve_orange_adjustment"),

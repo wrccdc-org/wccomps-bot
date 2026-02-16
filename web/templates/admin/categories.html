@@ -4,12 +4,11 @@
     Ticket Categories - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <c-page_header title="Ticket Categories">
-    <c-slot name="actions">
+    <c-page_header title="Ticket Categories" />
+    <c-module>
+    <c-slot name="toolbar">
     <c-link href="{% url 'admin_category_create' %}" variant="add">Add Category</c-link>
     </c-slot>
-    </c-page_header>
-    <c-module>
     <c-table id="categories_list" class="w-full" fixed_layout="true" aria_label="Ticket categories list">
     <c-slot name="colgroup">
     {# djlint:off H021 #}
