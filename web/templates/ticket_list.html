@@ -20,10 +20,10 @@
         {% endif %}
         " />
         <c-module filtered="true" id="changelist">
-        <c-slot name="toolbar">
-        <c-link href="{% url 'create_ticket' %}" variant="add">Create New Ticket</c-link>
-        </c-slot>
         <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ticket_list' %}" hx_target="#ticket-list-content" hx_swap="outerHTML" hx_push_url="true">
+        <c-slot name="actions">
+        <c-link href="{% url 'create_ticket' %}" variant="add">Create Ticket</c-link>
+        </c-slot>
         <c-filter_field label="Search" id="id_search" min_width="200px">
         <input type="text"
                name="search"
