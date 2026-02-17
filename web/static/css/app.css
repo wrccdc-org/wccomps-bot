@@ -293,7 +293,6 @@ nav[role="navigation"] {
 .mb-15 { margin-bottom: 15px; }
 .mb-20 { margin-bottom: 20px; }
 .ml-5 { margin-left: 5px; }
-.ml-10 { margin-left: 10px; }
 .ml-20 { margin-left: 20px; }
 /* Padding */
 .p-10 { padding: 10px; }
@@ -317,7 +316,6 @@ nav[role="navigation"] {
 .border-warning { border: 2px solid var(--warning-alert-border); }
 .border-success { border: 2px solid var(--success-fg); }
 .rounded { border-radius: 4px; }
-.pt-20-border { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--hairline-color, #ddd); }
 
 /* Module header (colored bar at top of module) */
 .module-header {
