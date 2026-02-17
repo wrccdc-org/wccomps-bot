@@ -47,7 +47,7 @@
                                   class="d-inline"
                                   onsubmit="return confirm('Delete this incident report?');">
                                 {% csrf_token %}
-                                <button type="submit" class="deletelink" title="Delete">Delete</button>
+                                <c-button type="submit" variant="danger">Delete</c-button>
                             </form>
                         {% endif %}
                     </td>

@@ -116,7 +116,7 @@
                                           class="d-inline"
                                           onsubmit="return confirm('Delete this finding?');">
                                         {% csrf_token %}
-                                        <button type="submit" class="deletelink" title="Delete">Delete</button>
+                                        <c-button type="submit" variant="danger">Delete</c-button>
                                     </form>
                                 {% elif current_user in finding.contributors.all and finding.submitted_by != current_user and not finding.is_approved %}
                                     <form method="post"
@@ -124,7 +124,7 @@
                                           class="d-inline"
                                           onsubmit="return confirm('Remove yourself from this finding?');">
                                         {% csrf_token %}
-                                        <button type="submit" class="deletelink" title="Leave">Leave</button>
+                                        <c-button type="submit" variant="danger">Leave</c-button>
                                     </form>
                                 {% else %}
                                     <span class="text-muted">—</span>

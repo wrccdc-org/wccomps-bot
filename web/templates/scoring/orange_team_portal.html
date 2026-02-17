@@ -19,13 +19,9 @@
         {% if is_gold_team %}
             <form method="post" id="bulk-approve-form">
                 {% csrf_token %}
-                <div style="margin-bottom: 10px;">
-                    <button type="submit"
-                            formaction="{% url 'scoring:bulk_approve_orange_adjustments' %}"
-                            class="button">Approve Selected</button>
-                    <button type="submit"
-                            formaction="{% url 'scoring:bulk_reject_orange_adjustments' %}"
-                            class="button">Reject Selected</button>
+                <div class="d-flex gap-10 mb-10">
+                    <c-button type="submit" variant="primary" formaction="{% url 'scoring:bulk_approve_orange_adjustments' %}">Approve Selected</c-button>
+                    <c-button type="submit" variant="danger" formaction="{% url 'scoring:bulk_reject_orange_adjustments' %}">Reject Selected</c-button>
                 </div>
             {% endif %}
             <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
@@ -81,8 +77,8 @@
                     {% if is_gold_team %}
                         <td>
                             {% if not bonus.is_approved %}
-                                <a href="{% url 'scoring:approve_orange_adjustment' bonus.id %}">Approve</a>
-                                <a href="{% url 'scoring:reject_orange_adjustment' bonus.id %}">Reject</a>
+                                <c-link href="{% url 'scoring:approve_orange_adjustment' bonus.id %}">Approve</c-link>
+                                <c-link href="{% url 'scoring:reject_orange_adjustment' bonus.id %}" variant="danger">Reject</c-link>
                             {% endif %}
                         </td>
                     {% endif %}

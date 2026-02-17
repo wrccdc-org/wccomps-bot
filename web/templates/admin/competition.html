@@ -7,63 +7,55 @@
     <div x-data="competitionAdmin()">
         <c-page_header title="Competition Management" />
         <!-- Status Banner -->
-        <c-alert variant="
-        {% if config.applications_enabled %}
-            success
-        {% elif config.competition_start_time %}
-            info
-        {% else %}
-            warning
-        {% endif %}
-        " class="mb-20">
-        <div class="d-flex items-center gap-10 mb-10">
-            <strong class="text-lg">Competition Status</strong>
-            <c-badge variant="
-            {% if config.applications_enabled %}
-                success
-            {% elif config.competition_start_time %}
-                info
-            {% else %}
-                warning
-            {% endif %}
-            ">
-            {% if config.applications_enabled %}
-                RUNNING
-            {% elif config.competition_start_time %}
-                SCHEDULED
-            {% else %}
-                STOPPED
-            {% endif %}
-            </c-badge>
-        </div>
-        <div class="text-sm">
-            <strong>Teams:</strong> {{ active_teams }}/{{ total_teams }} registered
-            &nbsp;•&nbsp; <strong>Users:</strong> {{ linked_users }} linked
-            &nbsp;•&nbsp; <strong>Max Members:</strong> {{ config.max_team_members }}
-            {% if config.controlled_applications %}
-                &nbsp;•&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|length }} configured
-            {% endif %}
-            &nbsp;•&nbsp; <strong>Accounts:</strong>
-            {% if config.applications_enabled %}
-                Enabled
-            {% else %}
-                Disabled
-            {% endif %}
-        </div>
-        {% if config.competition_start_time or config.competition_end_time %}
-            <div class="text-sm mt-5">
-                {% if config.competition_start_time %}
-                    <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')"
-       x-text="formatted"></span>
+        <div class="status-bar mb-20">
+            <div class="d-flex items-center gap-10 mb-10">
+                <strong class="text-lg">Competition Status</strong>
+                <c-badge variant="
+                {% if config.applications_enabled %}
+                    success
+                {% elif config.competition_start_time %}
+                    info
+                {% else %}
+                    warning
                 {% endif %}
-                {% if config.competition_end_time %}
-                    {% if config.competition_start_time %}&nbsp;•&nbsp;{% endif %}
-                    <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')"
-       x-text="formatted"></span>
+                ">
+                {% if config.applications_enabled %}
+                    RUNNING
+                {% elif config.competition_start_time %}
+                    SCHEDULED
+                {% else %}
+                    STOPPED
+                {% endif %}
+                </c-badge>
+            </div>
+            <div class="text-sm">
+                <strong>Teams:</strong> {{ active_teams }}/{{ total_teams }} registered
+                &nbsp;•&nbsp; <strong>Users:</strong> {{ linked_users }} linked
+                &nbsp;•&nbsp; <strong>Max Members:</strong> {{ config.max_team_members }}
+                {% if config.controlled_applications %}
+                    &nbsp;•&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|length }} configured
+                {% endif %}
+                &nbsp;•&nbsp; <strong>Accounts:</strong>
+                {% if config.applications_enabled %}
+                    Enabled
+                {% else %}
+                    Disabled
                 {% endif %}
             </div>
-        {% endif %}
-        </c-alert>
+            {% if config.competition_start_time or config.competition_end_time %}
+                <div class="text-sm mt-5">
+                    {% if config.competition_start_time %}
+                        <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')"
+       x-text="formatted"></span>
+                    {% endif %}
+                    {% if config.competition_end_time %}
+                        {% if config.competition_start_time %}&nbsp;•&nbsp;{% endif %}
+                        <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')"
+       x-text="formatted"></span>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
         <!-- Section 1: Pre-Competition Setup -->
         <c-fieldset heading="Pre-Competition Setup" class="mb-20">
         <div class="grid-2 mb-20">

@@ -15,7 +15,7 @@
     <form method="post">
         {% csrf_token %}
         <c-button_row class="mt-20 justify-end">
-        <a href="{% url 'admin_categories' %}" class="btn btn-secondary">Cancel</a>
+        <c-link href="{% url 'admin_categories' %}" variant="cancel">Cancel</c-link>
         <c-button type="submit" variant="danger">Delete Category</c-button>
         </c-button_row>
     </form>

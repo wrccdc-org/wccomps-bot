@@ -87,10 +87,7 @@
                     <td class="field-discord_id">{{ member.discord_id }}</td>
                     <td class="field-linked_at">{{ member.linked_at|timesince }} ago</td>
                     <td class="field-action">
-                        <button type="button"
-                                class="deletelink"
-                                @click="unlinkUser('{{ member.discord_id }}', '{{ member.discord_username }}')"
-                                :disabled="loading">Unlink</button>
+                        <c-button variant="danger" @click="unlinkUser('{{ member.discord_id }}', '{{ member.discord_username }}')" :disabled="loading">Unlink</c-button>
                     </td>
                 </tr>
             {% endfor %}
