@@ -9,13 +9,6 @@
         <c-module id="changelist">
         <c-slot name="toolbar">
         <c-link href="{% url 'school_info_import' %}" variant="add">Import from CSV</c-link>
-        <form method="post"
-              action="{% url 'school_info_clear' %}"
-              class="d-inline"
-              onsubmit="return confirm('Clear all school info assignments? This cannot be undone.');">
-            {% csrf_token %}
-            <c-button type="submit" variant="danger">Clear All</c-button>
-        </form>
         </c-slot>
         <c-table id="result_list" class="w-full" fixed_layout="true" aria_label="School information for all teams">
         <c-slot name="colgroup">

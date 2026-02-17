@@ -1658,25 +1658,6 @@ def school_info(request: HttpRequest) -> HttpResponse:
     )
 
 
-def school_info_clear(request: HttpRequest) -> HttpResponse:
-    """Clear all school info assignments (GoldTeam only)."""
-    user = cast(User, request.user)
-
-    if not has_permission(user, "gold_team"):
-        return render(
-            request,
-            "tickets_error.html",
-            {"error": "Access denied", "message": "You do not have permission to clear school information."},
-        )
-
-    if request.method == "POST":
-        count = SchoolInfo.objects.count()
-        SchoolInfo.objects.all().delete()
-        messages.success(request, f"Cleared {count} school info record(s).")
-
-    return redirect("school_info")
-
-
 def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     """Edit school information for a team (GoldTeam only)."""
     # Get user's permissions
