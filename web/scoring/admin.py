@@ -6,7 +6,6 @@ from django.utils.html import format_html
 from .models import (
     AttackType,
     BlackTeamAdjustment,
-    EventScore,
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
@@ -292,23 +291,6 @@ class BlackTeamAdjustmentAdmin(admin.ModelAdmin[BlackTeamAdjustment]):
         return obj.reason[:50] + "..." if len(obj.reason) > 50 else obj.reason
 
 
-@admin.register(EventScore)
-class EventScoreAdmin(admin.ModelAdmin[EventScore]):
-    list_display = [
-        "rank",
-        "team",
-        "event",
-        "total_score",
-        "is_excluded",
-        "calculated_at",
-    ]
-    list_filter = ["event", "is_excluded"]
-    list_editable = ["is_excluded"]
-    search_fields = ["team__team_name"]
-    readonly_fields = ["calculated_at"]
-    ordering = ["rank"]
-
-
 @admin.register(FinalScore)
 class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
     list_display = [
@@ -320,9 +302,11 @@ class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
         "orange_points",
         "red_deductions",
         "incident_recovery_points",
+        "is_excluded",
         "calculated_at",
     ]
-    list_filter = ["calculated_at"]
+    list_filter = ["is_excluded"]
+    list_editable = ["is_excluded"]
     search_fields = ["team__team_name"]
     readonly_fields = ["calculated_at"]
     ordering = ["rank"]

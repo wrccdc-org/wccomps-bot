@@ -21,10 +21,8 @@ from team.models import Team
 from .calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
-    get_event_leaderboard,
     get_leaderboard,
     recalculate_all_scores,
-    recalculate_event_scores,
     suggest_red_finding_matches,
 )
 from .forms import (

@@ -921,6 +921,10 @@ class FinalScore(models.Model):
     # Total and rank
     total_score = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     rank = models.IntegerField(null=True, blank=True)
+    is_excluded = models.BooleanField(
+        default=False,
+        help_text="Exclude from comparative analysis and leaderboard",
+    )
 
     # Calculation tracking
     calculated_at = models.DateTimeField(auto_now=True)
