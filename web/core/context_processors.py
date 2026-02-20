@@ -96,7 +96,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "registration_unassign_team": ("registration", "seasons"),
     # Scoring pages
     "leaderboard": ("scoring", "leaderboard"),
-    "event_leaderboard": ("scoring", "leaderboard"),
+    "scorecard": ("scoring", "leaderboard"),
     "red_team_portal": ("scoring", "red_team"),
     "bulk_approve_red_findings": ("scoring", "red_team"),
     "review_orange": ("scoring", "orange_team"),

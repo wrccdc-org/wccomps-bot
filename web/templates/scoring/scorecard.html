@@ -5,10 +5,10 @@
 {% endblock scoring_title %}
 {% block scoring_content %}
     <div class="scorecard">
-        <c-page_header title="{{ event.name }} — Team {{ team.team_number|stringformat:'02d' }}" />
+        <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
         <c-module>
         <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:event_leaderboard' event.id %}">Back to Leaderboard</c-link>
+        <c-link href="{% url 'scoring:leaderboard' %}">Back to Leaderboard</c-link>
         <c-button onclick="window.print()" class="no-print">Print / PDF</c-button>
         </c-slot>
         <div class="scorecard-header">
@@ -25,8 +25,8 @@
             <div>
                 <span class="text-muted">Rank</span>
                 <strong>
-                    {% if event_score.rank %}
-                        #{{ event_score.rank }} of {{ stats.team_count }}
+                    {% if score.rank %}
+                        #{{ score.rank }} of {{ stats.team_count }}
                     {% else %}
                         —
                     {% endif %}
@@ -34,7 +34,7 @@
             </div>
             <div>
                 <span class="text-muted">Total</span>
-                <strong class="scorecard-total">{{ event_score.total_score|floatformat:2 }}</strong>
+                <strong class="scorecard-total">{{ score.total_score|floatformat:2 }}</strong>
             </div>
         </div>
         </c-module>
@@ -49,49 +49,49 @@
         </c-slot>
         <tr>
             <td>Service (scaled)</td>
-            <td class="text-right">{{ event_score.service_points|floatformat:2 }}</td>
+            <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
         </tr>
         <tr>
             <td>SLA Violations</td>
             <td class="text-right">
-                <c-score_value :value="event_score.sla_penalties" />
+                <c-score_value :value="score.sla_penalties" />
             </td>
         </tr>
         <tr>
             <td>Point Adjustments</td>
             <td class="text-right">
-                <c-score_value :value="event_score.point_adjustments" />
+                <c-score_value :value="score.point_adjustments" />
             </td>
         </tr>
         <tr>
             <td>Injects (scaled)</td>
-            <td class="text-right">{{ event_score.inject_points|floatformat:2 }}</td>
+            <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
         </tr>
         <tr>
             <td>Orange (scaled)</td>
             <td class="text-right">
-                <c-score_value :value="event_score.orange_points" format="signed" />
+                <c-score_value :value="score.orange_points" format="signed" />
             </td>
         </tr>
         <tr>
             <td>Red Team</td>
             <td class="text-right">
-                <c-score_value :value="event_score.red_deductions" />
+                <c-score_value :value="score.red_deductions" />
             </td>
         </tr>
-        {% if event_score.incident_recovery_points %}
+        {% if score.incident_recovery_points %}
             <tr>
                 <td>Incident Recovery</td>
                 <td class="text-right">
-                    <c-score_value :value="event_score.incident_recovery_points" format="signed" />
+                    <c-score_value :value="score.incident_recovery_points" format="signed" />
                 </td>
             </tr>
         {% endif %}
-        {% if event_score.black_adjustments %}
+        {% if score.black_adjustments %}
             <tr>
                 <td>Black Team Adjustments</td>
                 <td class="text-right">
-                    <c-score_value :value="event_score.black_adjustments" format="signed" />
+                    <c-score_value :value="score.black_adjustments" format="signed" />
                 </td>
             </tr>
         {% endif %}
@@ -100,7 +100,7 @@
                 <strong>Grand Total</strong>
             </td>
             <td class="text-right">
-                <strong>{{ event_score.total_score|floatformat:2 }}</strong>
+                <strong>{{ score.total_score|floatformat:2 }}</strong>
             </td>
         </tr>
         </c-table>

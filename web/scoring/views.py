@@ -13,7 +13,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from registration.models import Event
 
 from core.auth_utils import has_permission, require_permission
 from team.models import Team
@@ -35,7 +34,7 @@ from .forms import (
 )
 from .models import (
     AttackType,
-    EventScore,
+    FinalScore,
     IncidentReport,
     IncidentScreenshot,
     InjectGrade,
@@ -46,7 +45,6 @@ from .models import (
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceDetail,
-    ServiceScore,
 )
 from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
@@ -91,49 +89,11 @@ def _get_user_team(user: User) -> Team | None:
 def leaderboard(request: HttpRequest) -> HttpResponse:
     """Restricted leaderboard view - accessible only by Gold/White Team, Ticketing Admin, and System Admin."""
     scores = get_leaderboard()
-    events = Event.objects.filter(scores__isnull=False).distinct().order_by("-date")
 
     context = {
         "scores": scores,
-        "events": events,
     }
     return render(request, "scoring/leaderboard.html", context)
-
-
-@require_permission("gold_team", "white_team", "ticketing_admin")
-def event_leaderboard(request: HttpRequest, event_id: int) -> HttpResponse:
-    """Event-scoped leaderboard view - shows scores for a specific event.
-
-    Scores are only visible after the event is finalized.
-    """
-    event = get_object_or_404(Event, id=event_id)
-
-    user = cast(User, request.user)
-    is_gold_team = has_permission(user, "gold_team")
-
-    # Only show scores after event is finalized (or to Gold Team)
-    if not event.is_finalized and not is_gold_team:
-        messages.error(request, "Scores are not yet available for this event.")
-        return redirect("scoring:leaderboard")
-
-    scores = get_event_leaderboard(event)
-
-    context = {
-        "event": event,
-        "scores": scores,
-        "is_finalized": event.is_finalized,
-    }
-    return render(request, "scoring/event_leaderboard.html", context)
-
-
-@require_permission("gold_team", error_message="Only Gold Team members can recalculate event scores")
-@require_http_methods(["POST"])
-def recalculate_event_scores_view(request: HttpRequest, event_id: int) -> HttpResponse:
-    """Recalculate all scores for a specific event."""
-    event = get_object_or_404(Event, id=event_id)
-    recalculate_event_scores(event)
-    messages.success(request, f"Scores recalculated for {event.name}")
-    return redirect("scoring:event_leaderboard", event_id=event_id)
 
 
 @require_permission(
@@ -1608,53 +1568,6 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:orange_team_portal")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can send scorecards")
-@require_http_methods(["POST"])
-def send_scorecards_batch_view(request: HttpRequest, event_id: int) -> HttpResponse:
-    """Send scorecards to all teams for an event."""
-    from .services import send_scorecards_batch
-
-    event = get_object_or_404(Event, id=event_id)
-
-    if not event.is_finalized:
-        messages.warning(request, "Event must be finalized before sending scorecards.")
-        return redirect("scoring:event_leaderboard", event_id=event_id)
-
-    results = send_scorecards_batch(event)
-
-    success_count = sum(1 for r in results if r.success)
-    fail_count = sum(1 for r in results if not r.success)
-
-    if success_count > 0:
-        messages.success(request, f"Sent {success_count} scorecards successfully.")
-    if fail_count > 0:
-        messages.warning(request, f"Failed to send {fail_count} scorecards.")
-
-    return redirect("scoring:event_leaderboard", event_id=event_id)
-
-
-@require_permission("gold_team", error_message="Only Gold Team members can send scorecards")
-@require_http_methods(["POST"])
-def send_scorecard_single_view(request: HttpRequest, event_score_id: int) -> HttpResponse:
-    """Send scorecard to a single team."""
-    from .services import send_scorecard_single
-
-    event_score = get_object_or_404(EventScore, id=event_score_id)
-
-    if not event_score.event.is_finalized:
-        messages.warning(request, "Event must be finalized before sending scorecards.")
-        return redirect("scoring:event_leaderboard", event_id=event_score.event_id)
-
-    result = send_scorecard_single(event_score)
-
-    if result.success:
-        messages.success(request, f"Scorecard sent to {result.school_name} (Team {result.team_number}).")
-    else:
-        messages.error(request, f"Failed to send scorecard: {result.error}")
-
-    return redirect("scoring:event_leaderboard", event_id=event_score.event_id)
-
-
 def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpResponse:
     """Serve incident screenshot from database."""
     from django.http import Http404
@@ -1714,24 +1627,24 @@ class _ScorecardStats(TypedDict):
     insights: list[str]
 
 
-def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore) -> _ScorecardStats:
+def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     """Compute comparative statistics for a team's scorecard.
 
     Returns a dict with:
-        team_count: number of teams in the event
+        team_count: number of teams
         category_ranks: per-category rank, avg, min, max, value
         service_stats: per-service points, rank, avg, max
         insights: list of human-readable insight strings
     """
-    all_scores = EventScore.objects.filter(event=event, is_excluded=False)
+    all_scores = FinalScore.objects.filter(is_excluded=False)
     team_count = all_scores.count()
 
     # Category ranking: (field_name, label, team_value, higher_is_better)
     categories: list[tuple[str, str, Decimal]] = [
-        ("service_points", "services", event_score.service_points),
-        ("inject_points", "injects", event_score.inject_points),
-        ("orange_points", "orange", event_score.orange_points),
-        ("red_deductions", "red", event_score.red_deductions),
+        ("service_points", "services", score.service_points),
+        ("inject_points", "injects", score.inject_points),
+        ("orange_points", "orange", score.orange_points),
+        ("red_deductions", "red", score.red_deductions),
     ]
 
     category_ranks: dict[str, _CategoryRank] = {}
@@ -1758,14 +1671,12 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
     # Per-service stats (2 queries per service — acceptable for admin-only view
     # with ~16 services; could batch with window functions if needed)
     service_stats: list[_ServiceStat] = []
-    team_services = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
+    team_services = ServiceDetail.objects.filter(team=team).order_by("service_name")
 
-    excluded_teams = EventScore.objects.filter(event=event, is_excluded=True).values_list("team_id", flat=True)
+    excluded_teams = FinalScore.objects.filter(is_excluded=True).values_list("team_id", flat=True)
 
     for svc in team_services:
-        all_svc = ServiceDetail.objects.filter(event=event, service_name=svc.service_name).exclude(
-            team_id__in=excluded_teams
-        )
+        all_svc = ServiceDetail.objects.filter(service_name=svc.service_name).exclude(team_id__in=excluded_teams)
         svc_aggs = all_svc.aggregate(avg=Avg("points"), mx=Max("points"))
         svc_rank = all_svc.filter(points__gt=svc.points).count() + 1
         service_stats.append(
@@ -1800,11 +1711,11 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
                 insights.append(f"Needs improvement: {worst_cat.title()} (rank #{worst_rank} of {team_count})")
 
     # SLA insight
-    if event_score.sla_penalties and event_score.sla_penalties < 0:
+    if score.sla_penalties and score.sla_penalties < 0:
         sla_agg = all_scores.aggregate(avg=Avg("sla_penalties"))
         sla_avg = sla_agg["avg"] or Decimal("0")
-        if event_score.sla_penalties < sla_avg:
-            insights.append(f"SLA penalties ({event_score.sla_penalties}) are worse than average ({sla_avg:.0f})")
+        if score.sla_penalties < sla_avg:
+            insights.append(f"SLA penalties ({score.sla_penalties}) are worse than average ({sla_avg:.0f})")
 
     # Best/worst service
     if service_stats:
@@ -1830,25 +1741,20 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
     "ticketing_admin",
     error_message="Only authorized staff can view scorecards",
 )
-def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResponse:
-    """Detailed scorecard for a single team at a specific event."""
+def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
+    """Detailed scorecard for a single team."""
     from registration.models import EventTeamAssignment
 
-    event = get_object_or_404(Event, pk=event_id)
-    team = get_object_or_404(Team, team_number=team_number)
-    event_score = get_object_or_404(EventScore, event=event, team=team)
+    score = get_object_or_404(FinalScore, team__team_number=team_number)
+    team = score.team
 
-    service_score = ServiceScore.objects.filter(team=team, event=event).first()
+    red_findings = RedTeamFinding.objects.filter(affected_teams=team, is_approved=True).order_by("attack_vector")
 
-    red_findings = RedTeamFinding.objects.filter(event=event, affected_teams=team, is_approved=True).order_by(
-        "attack_vector"
-    )
-
-    assignment = EventTeamAssignment.objects.filter(event=event, team=team).select_related("registration").first()
+    assignment = EventTeamAssignment.objects.filter(team=team).select_related("registration").first()
 
     school_name = assignment.registration.school_name if assignment else ""
 
-    stats = _compute_scorecard_stats(event, team, event_score)
+    stats = _compute_scorecard_stats(team, score)
 
     # Build chart data for template
     cat_ranks = stats["category_ranks"]
@@ -1882,12 +1788,9 @@ def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResp
     }
 
     context = {
-        "event": event,
         "team": team,
-        "event_score": event_score,
-        "service_score": service_score,
+        "score": score,
         "red_findings": red_findings,
-        "assignment": assignment,
         "school_name": school_name,
         "stats": stats,
         "chart_data_json": json.dumps(chart_data),
