@@ -19,7 +19,7 @@ from scoring.calculator import (
     get_event_leaderboard,
     recalculate_event_scores,
 )
-from scoring.models import EventScore, InjectGrade, OrangeTeamBonus, ScoringTemplate
+from scoring.models import EventScore, InjectGrade, OrangeTeamBonus, ScoringTemplate, ServiceDetail
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -99,13 +99,14 @@ class TestCalculateTeamEventScore:
 
     def test_inject_points_scoped_to_event(self, team, event, season):
         """Should only count inject grades for the specific event."""
-        # Create scoring template with 4 categories
+        # Weights proportional to maxes → all modifiers = 1.0
         ScoringTemplate.objects.create(
-            service_weight=Decimal("40"),
-            inject_weight=Decimal("30"),
-            orange_weight=Decimal("15"),
-            red_weight=Decimal("15"),
+            service_weight=Decimal("62.50"),
+            inject_weight=Decimal("31.25"),
+            orange_weight=Decimal("6.25"),
+            service_max=Decimal("1000"),
             inject_max=Decimal("500"),
+            orange_max=Decimal("100"),
         )
 
         # Create another event
@@ -137,17 +138,18 @@ class TestCalculateTeamEventScore:
         scores = calculate_team_event_score(team, event)
 
         # Should only count the inject for 'event', not 'other_event'
-        # Inject: 100/500 = 20% → 20% × 30 = 6
-        assert scores["inject_points"] == Decimal("6.00")
+        # Inject: 100 × 1.0 = 100
+        assert scores["inject_points"] == Decimal("100.0")
 
     def test_orange_points_scoped_to_event(self, team, event, season):
         """Should only count orange bonuses for the specific event."""
-        # Create scoring template with 4 categories
+        # Weights proportional to maxes → all modifiers = 1.0
         ScoringTemplate.objects.create(
-            service_weight=Decimal("40"),
-            inject_weight=Decimal("30"),
-            orange_weight=Decimal("15"),
-            red_weight=Decimal("15"),
+            service_weight=Decimal("62.50"),
+            inject_weight=Decimal("31.25"),
+            orange_weight=Decimal("6.25"),
+            service_max=Decimal("1000"),
+            inject_max=Decimal("500"),
             orange_max=Decimal("100"),
         )
 
@@ -175,8 +177,8 @@ class TestCalculateTeamEventScore:
 
         scores = calculate_team_event_score(team, event)
 
-        # Orange: 50/100 = 50% → 50% × 15 = 7.5
-        assert scores["orange_points"] == Decimal("7.50")
+        # Orange: 50 × 1.0 = 50
+        assert scores["orange_points"] == Decimal("50.0")
 
 
 class TestRecalculateEventScores:
@@ -347,3 +349,100 @@ class TestScorecardServices:
         # Verify scorecard_sent_at was updated
         event_score.refresh_from_db()
         assert event_score.scorecard_sent_at is not None
+
+
+class TestScorecardStats:
+    """Tests for scorecard comparative statistics."""
+
+    @pytest.fixture
+    def event_with_scores(self, event, team):
+        """Create an event with multiple teams and scores for comparison."""
+        template = ScoringTemplate.objects.create(
+            service_weight=Decimal("62.50"),
+            inject_weight=Decimal("31.25"),
+            orange_weight=Decimal("6.25"),
+            service_max=1000,
+            inject_max=500,
+            orange_max=100,
+        )
+        # Create 3 teams with different scores
+        team2 = Team.objects.create(team_number=2, team_name="Team B", is_active=True)
+        team3 = Team.objects.create(team_number=3, team_name="Team C", is_active=True)
+
+        EventScore.objects.create(
+            team=team,
+            event=event,
+            service_points=Decimal("8000"),
+            inject_points=Decimal("5000"),
+            orange_points=Decimal("3000"),
+            red_deductions=Decimal("-500"),
+            sla_penalties=Decimal("-200"),
+            total_score=Decimal("15300"),
+            rank=2,
+        )
+        EventScore.objects.create(
+            team=team2,
+            event=event,
+            service_points=Decimal("10000"),
+            inject_points=Decimal("6000"),
+            orange_points=Decimal("4000"),
+            red_deductions=Decimal("-100"),
+            sla_penalties=Decimal("-100"),
+            total_score=Decimal("19800"),
+            rank=1,
+        )
+        EventScore.objects.create(
+            team=team3,
+            event=event,
+            service_points=Decimal("6000"),
+            inject_points=Decimal("3000"),
+            orange_points=Decimal("2000"),
+            red_deductions=Decimal("-800"),
+            sla_penalties=Decimal("-500"),
+            total_score=Decimal("9700"),
+            rank=3,
+        )
+        return template
+
+    def test_compute_category_ranks(self, event, team, event_with_scores):
+        from scoring.views import _compute_scorecard_stats
+
+        event_score = EventScore.objects.get(event=event, team=team)
+        stats = _compute_scorecard_stats(event, team, event_score)
+
+        assert stats["team_count"] == 3
+        # Team has 8000 service, which is #2 of 3 (between 6000 and 10000)
+        assert stats["category_ranks"]["services"]["rank"] == 2
+        assert stats["category_ranks"]["services"]["avg"] == Decimal("8000")
+        assert stats["category_ranks"]["injects"]["rank"] == 2
+        assert stats["category_ranks"]["orange"]["rank"] == 2
+
+    def test_compute_service_stats(self, event, team, event_with_scores):
+        from scoring.views import _compute_scorecard_stats
+
+        team2 = Team.objects.get(team_number=2)
+        team3 = Team.objects.get(team_number=3)
+
+        # Create service details for all teams
+        for t, pts in [(team, 500), (team2, 700), (team3, 300)]:
+            ServiceDetail.objects.create(team=t, event=event, service_name="dns", points=Decimal(str(pts)))
+        for t, pts in [(team, 400), (team2, 200), (team3, 600)]:
+            ServiceDetail.objects.create(team=t, event=event, service_name="ssh", points=Decimal(str(pts)))
+
+        event_score = EventScore.objects.get(event=event, team=team)
+        stats = _compute_scorecard_stats(event, team, event_score)
+
+        assert len(stats["service_stats"]) == 2
+        dns_stat = next(s for s in stats["service_stats"] if s["name"] == "dns")
+        assert dns_stat["points"] == Decimal("500")
+        assert dns_stat["rank"] == 2
+        assert dns_stat["avg"] == Decimal("500")  # (500+700+300)/3
+
+    def test_compute_insights(self, event, team, event_with_scores):
+        from scoring.views import _compute_scorecard_stats
+
+        event_score = EventScore.objects.get(event=event, team=team)
+        stats = _compute_scorecard_stats(event, team, event_score)
+
+        assert len(stats["insights"]) >= 2
+        assert all(isinstance(i, str) for i in stats["insights"])

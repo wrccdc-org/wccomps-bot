@@ -1,7 +1,7 @@
 """Views for scoring system."""
 
 from decimal import Decimal
-from typing import cast
+from typing import TypedDict, cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -35,6 +35,7 @@ from .forms import (
 )
 from .models import (
     AttackType,
+    EventScore,
     IncidentReport,
     IncidentScreenshot,
     InjectGrade,
@@ -44,6 +45,8 @@ from .models import (
     RedTeamFinding,
     RedTeamScreenshot,
     ScoringTemplate,
+    ServiceDetail,
+    ServiceScore,
 )
 from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
@@ -88,9 +91,11 @@ def _get_user_team(user: User) -> Team | None:
 def leaderboard(request: HttpRequest) -> HttpResponse:
     """Restricted leaderboard view - accessible only by Gold/White Team, Ticketing Admin, and System Admin."""
     scores = get_leaderboard()
+    events = Event.objects.filter(scores__isnull=False).distinct().order_by("-date")
 
     context = {
         "scores": scores,
+        "events": events,
     }
     return render(request, "scoring/leaderboard.html", context)
 
@@ -1632,7 +1637,6 @@ def send_scorecards_batch_view(request: HttpRequest, event_id: int) -> HttpRespo
 @require_http_methods(["POST"])
 def send_scorecard_single_view(request: HttpRequest, event_score_id: int) -> HttpResponse:
     """Send scorecard to a single team."""
-    from .models import EventScore
     from .services import send_scorecard_single
 
     event_score = get_object_or_404(EventScore, id=event_score_id)
@@ -1685,3 +1689,210 @@ def red_screenshot_download(request: HttpRequest, screenshot_id: int) -> HttpRes
     response = HttpResponse(screenshot.file_data, content_type=screenshot.mime_type)
     response["Content-Disposition"] = f'inline; filename="{screenshot.filename}"'
     return response
+
+
+class _CategoryRank(TypedDict):
+    rank: int
+    avg: Decimal
+    min: Decimal
+    max: Decimal
+    value: Decimal
+
+
+class _ServiceStat(TypedDict):
+    name: str
+    points: Decimal
+    rank: int
+    avg: Decimal
+    max: Decimal
+
+
+class _ScorecardStats(TypedDict):
+    team_count: int
+    category_ranks: dict[str, _CategoryRank]
+    service_stats: list[_ServiceStat]
+    insights: list[str]
+
+
+def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore) -> _ScorecardStats:
+    """Compute comparative statistics for a team's scorecard.
+
+    Returns a dict with:
+        team_count: number of teams in the event
+        category_ranks: per-category rank, avg, min, max, value
+        service_stats: per-service points, rank, avg, max
+        insights: list of human-readable insight strings
+    """
+    from django.db.models import Avg, Max, Min
+
+    all_scores = EventScore.objects.filter(event=event)
+    team_count = all_scores.count()
+
+    # Category ranking: (field_name, label, team_value, higher_is_better)
+    categories: list[tuple[str, str, Decimal, bool]] = [
+        ("service_points", "services", event_score.service_points, True),
+        ("inject_points", "injects", event_score.inject_points, True),
+        ("orange_points", "orange", event_score.orange_points, True),
+        ("red_deductions", "red", event_score.red_deductions, False),
+    ]
+
+    category_ranks: dict[str, _CategoryRank] = {}
+    for field, label, value, higher_is_better in categories:
+        aggs = all_scores.aggregate(
+            avg=Avg(field),
+            mn=Min(field),
+            mx=Max(field),
+        )
+        if higher_is_better:
+            rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
+        else:
+            # For red deductions (negative), less negative is better
+            # -100 > -500, so count teams with values greater (less negative)
+            rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
+
+        category_ranks[label] = _CategoryRank(
+            rank=rank,
+            avg=aggs["avg"] or Decimal("0"),
+            min=aggs["mn"] or Decimal("0"),
+            max=aggs["mx"] or Decimal("0"),
+            value=value,
+        )
+
+    # Per-service stats
+    service_stats: list[_ServiceStat] = []
+    team_services = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
+
+    for svc in team_services:
+        all_svc = ServiceDetail.objects.filter(event=event, service_name=svc.service_name)
+        svc_aggs = all_svc.aggregate(avg=Avg("points"), mx=Max("points"))
+        svc_rank = all_svc.filter(points__gt=svc.points).count() + 1
+        service_stats.append(
+            _ServiceStat(
+                name=svc.service_name,
+                points=svc.points,
+                rank=svc_rank,
+                avg=svc_aggs["avg"] or Decimal("0"),
+                max=svc_aggs["mx"] or Decimal("0"),
+            )
+        )
+
+    # Generate insights
+    insights: list[str] = []
+
+    # Best and worst category (by rank, lower is better; tiebreak by distance above avg)
+    if category_ranks:
+        positive_cats = {k: v for k, v in category_ranks.items() if k != "red"}
+        if positive_cats:
+            # Sort key: rank ascending, then distance-above-average descending (best first)
+            def _cat_sort_key(k: str) -> tuple[int, Decimal]:
+                v = positive_cats[k]
+                return (v["rank"], -(v["value"] - v["avg"]))
+
+            sorted_cats = sorted(positive_cats, key=_cat_sort_key)
+            best_cat = sorted_cats[0]
+            worst_cat = sorted_cats[-1]
+            best_rank = positive_cats[best_cat]["rank"]
+            worst_rank = positive_cats[worst_cat]["rank"]
+            insights.append(f"Strongest category: {best_cat.title()} (rank #{best_rank} of {team_count})")
+            if len(sorted_cats) > 1:
+                insights.append(f"Needs improvement: {worst_cat.title()} (rank #{worst_rank} of {team_count})")
+
+    # SLA insight
+    if event_score.sla_penalties and event_score.sla_penalties < 0:
+        sla_agg = all_scores.aggregate(avg=Avg("sla_penalties"))
+        sla_avg = sla_agg["avg"] or Decimal("0")
+        if event_score.sla_penalties < sla_avg:
+            insights.append(f"SLA penalties ({event_score.sla_penalties}) are worse than average ({sla_avg:.0f})")
+
+    # Best/worst service
+    if service_stats:
+        best_svc = min(service_stats, key=lambda s: s["rank"])
+        worst_svc = max(service_stats, key=lambda s: s["rank"])
+        if best_svc["name"] != worst_svc["name"]:
+            insights.append(
+                f"Best service: {best_svc['name']} (#{best_svc['rank']}), "
+                f"Worst service: {worst_svc['name']} (#{worst_svc['rank']})"
+            )
+
+    return _ScorecardStats(
+        team_count=team_count,
+        category_ranks=category_ranks,
+        service_stats=service_stats,
+        insights=insights,
+    )
+
+
+@require_permission(
+    "gold_team",
+    "white_team",
+    "ticketing_admin",
+    error_message="Only authorized staff can view scorecards",
+)
+def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResponse:
+    """Detailed scorecard for a single team at a specific event."""
+    from registration.models import EventTeamAssignment
+
+    event = get_object_or_404(Event, pk=event_id)
+    team = get_object_or_404(Team, team_number=team_number)
+    event_score = get_object_or_404(EventScore, event=event, team=team)
+
+    service_details = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
+
+    service_score = ServiceScore.objects.filter(team=team, event=event).first()
+
+    red_findings = RedTeamFinding.objects.filter(event=event, affected_teams=team, is_approved=True).order_by(
+        "attack_vector"
+    )
+
+    assignment = EventTeamAssignment.objects.filter(event=event, team=team).select_related("registration").first()
+
+    school_name = assignment.registration.school_name if assignment else ""
+
+    import json
+
+    stats = _compute_scorecard_stats(event, team, event_score)
+
+    # Build chart data for template
+    cat_ranks = stats["category_ranks"]
+    chart_data = {
+        "categoryChart": {
+            "labels": ["Services", "Injects", "Orange", "Red"],
+            "teamValues": [
+                float(cat_ranks["services"]["value"]),
+                float(cat_ranks["injects"]["value"]),
+                float(cat_ranks["orange"]["value"]),
+                float(abs(cat_ranks["red"]["value"])),
+            ],
+            "avgValues": [
+                float(cat_ranks["services"]["avg"]),
+                float(cat_ranks["injects"]["avg"]),
+                float(cat_ranks["orange"]["avg"]),
+                float(abs(cat_ranks["red"]["avg"])),
+            ],
+            "maxValues": [
+                float(cat_ranks["services"]["max"]),
+                float(cat_ranks["injects"]["max"]),
+                float(cat_ranks["orange"]["max"]),
+                float(abs(cat_ranks["red"]["max"])),
+            ],
+        },
+        "radarChart": {
+            "labels": [s["name"] for s in stats["service_stats"]],
+            "teamValues": [float(s["points"]) for s in stats["service_stats"]],
+            "avgValues": [float(s["avg"]) for s in stats["service_stats"]],
+        },
+    }
+
+    context = {
+        "event": event,
+        "team": team,
+        "event_score": event_score,
+        "service_details": service_details,
+        "service_score": service_score,
+        "red_findings": red_findings,
+        "assignment": assignment,
+        "school_name": school_name,
+        "stats": stats,
+        "chart_data_json": json.dumps(chart_data),
+    }
+    return render(request, "scoring/scorecard.html", context)
