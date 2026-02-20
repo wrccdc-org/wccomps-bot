@@ -1620,10 +1620,26 @@ class _ServiceStat(TypedDict):
     max: Decimal
 
 
+class _InjectStat(TypedDict):
+    name: str
+    points: Decimal
+    rank: int
+    avg: Decimal
+    max: Decimal
+
+
+class _Neighbor(TypedDict):
+    rank: int
+    total_score: Decimal
+    gap: Decimal
+
+
 class _ScorecardStats(TypedDict):
     team_count: int
     category_ranks: dict[str, _CategoryRank]
     service_stats: list[_ServiceStat]
+    inject_stats: list[_InjectStat]
+    neighbors: list[_Neighbor]
     insights: list[str]
 
 
@@ -1689,6 +1705,30 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
             )
         )
 
+    # Per-inject stats (analogous to per-service stats)
+    inject_stats: list[_InjectStat] = []
+    team_injects = (
+        InjectGrade.objects.filter(team=team, is_approved=True)
+        .exclude(inject_id="qualifier-total")
+        .order_by("inject_name")
+    )
+
+    for inj in team_injects:
+        all_inj = InjectGrade.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
+            team_id__in=excluded_teams
+        )
+        inj_aggs = all_inj.aggregate(avg=Avg("points_awarded"), mx=Max("points_awarded"))
+        inj_rank = all_inj.filter(points_awarded__gt=inj.points_awarded).count() + 1
+        inject_stats.append(
+            _InjectStat(
+                name=inj.inject_name,
+                points=inj.points_awarded,
+                rank=inj_rank,
+                avg=inj_aggs["avg"] or Decimal("0"),
+                max=inj_aggs["mx"] or Decimal("0"),
+            )
+        )
+
     # Generate insights
     insights: list[str] = []
 
@@ -1727,10 +1767,34 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
                 f"Worst service: {worst_svc['name']} (#{worst_svc['rank']})"
             )
 
+    # Nearest competitors (team directly above and below by rank)
+    neighbors: list[_Neighbor] = []
+    if score.rank:
+        neighbor_scores = (
+            all_scores.filter(
+                rank__isnull=False,
+                rank__gte=score.rank - 1,
+                rank__lte=score.rank + 1,
+            )
+            .exclude(team=team)
+            .order_by("rank")
+        )
+
+        neighbors = [
+            _Neighbor(
+                rank=ns.rank,  # type: ignore[arg-type]
+                total_score=ns.total_score,
+                gap=ns.total_score - score.total_score,
+            )
+            for ns in neighbor_scores
+        ]
+
     return _ScorecardStats(
         team_count=team_count,
         category_ranks=category_ranks,
         service_stats=service_stats,
+        inject_stats=inject_stats,
+        neighbors=neighbors,
         insights=insights,
     )
 
@@ -1743,16 +1807,10 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 )
 def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     """Detailed scorecard for a single team."""
-    from registration.models import EventTeamAssignment
-
     score = get_object_or_404(FinalScore, team__team_number=team_number)
     team = score.team
 
     red_findings = RedTeamFinding.objects.filter(affected_teams=team, is_approved=True).order_by("attack_vector")
-
-    assignment = EventTeamAssignment.objects.filter(team=team).select_related("registration").first()
-
-    school_name = assignment.registration.school_name if assignment else ""
 
     stats = _compute_scorecard_stats(team, score)
 
@@ -1791,7 +1849,6 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "team": team,
         "score": score,
         "red_findings": red_findings,
-        "school_name": school_name,
         "stats": stats,
         "chart_data_json": json.dumps(chart_data),
     }

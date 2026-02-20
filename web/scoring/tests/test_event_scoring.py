@@ -6,7 +6,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from scoring.models import FinalScore, ScoringTemplate, ServiceDetail
+from scoring.models import FinalScore, InjectGrade, ServiceDetail
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -89,6 +89,89 @@ class TestComputeScorecardStats:
         assert dns_stat["points"] == Decimal("500")
         assert dns_stat["rank"] == 2
         assert dns_stat["avg"] == Decimal("500")
+
+    def test_compute_inject_stats(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        # Create per-inject grades for all teams
+        for t, pts in [(teams[0], 80), (teams[1], 100), (teams[2], 60)]:
+            InjectGrade.objects.create(
+                team=t,
+                inject_id="inj-1",
+                inject_name="Inject 1",
+                points_awarded=Decimal(str(pts)),
+                is_approved=True,
+            )
+        for t, pts in [(teams[0], 90), (teams[1], 70), (teams[2], 50)]:
+            InjectGrade.objects.create(
+                team=t,
+                inject_id="inj-2",
+                inject_name="Inject 2",
+                points_awarded=Decimal(str(pts)),
+                is_approved=True,
+            )
+        # qualifier-total should be excluded from inject_stats
+        InjectGrade.objects.create(
+            team=teams[0],
+            inject_id="qualifier-total",
+            inject_name="Qualifier Total",
+            points_awarded=Decimal("170"),
+            is_approved=True,
+        )
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        assert len(stats["inject_stats"]) == 2
+        inj1 = next(s for s in stats["inject_stats"] if s["name"] == "Inject 1")
+        assert inj1["points"] == Decimal("80")
+        assert inj1["rank"] == 2
+        assert inj1["avg"] == Decimal("80")
+        inj2 = next(s for s in stats["inject_stats"] if s["name"] == "Inject 2")
+        assert inj2["points"] == Decimal("90")
+        assert inj2["rank"] == 1
+
+    def test_inject_stats_excludes_excluded_teams(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        for t, pts in [(teams[0], 80), (teams[1], 100), (teams[2], 60)]:
+            InjectGrade.objects.create(
+                team=t,
+                inject_id="inj-1",
+                inject_name="Inject 1",
+                points_awarded=Decimal(str(pts)),
+                is_approved=True,
+            )
+        FinalScore.objects.filter(team=teams[2]).update(is_excluded=True)
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        inj1 = stats["inject_stats"][0]
+        # avg should be (80+100)/2 = 90, not (80+100+60)/3
+        assert inj1["avg"] == Decimal("90")
+        assert inj1["rank"] == 2
+
+    def test_compute_neighbors(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        # teams[0] is rank 2 (middle), should have neighbors above and below
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        assert len(stats["neighbors"]) == 2
+        above = next(n for n in stats["neighbors"] if n["rank"] == 1)
+        below = next(n for n in stats["neighbors"] if n["rank"] == 3)
+        assert above["total_score"] == Decimal("19800")
+        assert above["gap"] == Decimal("4500")
+        assert below["total_score"] == Decimal("9700")
+        assert below["gap"] == Decimal("-5600")
+
+    def test_neighbors_at_top(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        # teams[1] is rank 1, should only have one neighbor below
+        stats = _compute_scorecard_stats(teams[1], scores[1])
+
+        assert len(stats["neighbors"]) == 1
+        assert stats["neighbors"][0]["rank"] == 2
 
     def test_compute_insights(self, teams, scores):
         from scoring.views import _compute_scorecard_stats

@@ -13,16 +13,6 @@
         </c-slot>
         <div class="scorecard-header">
             <div>
-                <span class="text-muted">School</span>
-                <strong>
-                    {% if school_name %}
-                        {{ school_name }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-            <div>
                 <span class="text-muted">Rank</span>
                 <strong>
                     {% if score.rank %}
@@ -37,6 +27,21 @@
                 <strong class="scorecard-total">{{ score.total_score|floatformat:2 }}</strong>
             </div>
         </div>
+        {% if stats.neighbors %}
+            <div class="neighbors">
+                {% for n in stats.neighbors %}
+                    {% if n.rank < score.rank %}
+                        <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-positive">(+{{ n.gap|floatformat:0 }} ahead)</span></span>
+                    {% endif %}
+                {% endfor %}
+                <span class="neighbor-entry neighbor-current">#{{ score.rank }} — {{ score.total_score|floatformat:2 }} (you)</span>
+                {% for n in stats.neighbors %}
+                    {% if n.rank > score.rank %}
+                        <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-negative">({{ n.gap|floatformat:0 }} behind)</span></span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
         </c-module>
         <c-module>
         <h3>Score Summary</h3>
@@ -183,6 +188,29 @@
                 </c-module>
             </div>
         </div>
+        {% if stats.inject_stats %}
+            <c-module>
+            <h3>Inject Detail</h3>
+            <c-table id="inject_details" aria_label="Inject scores">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Inject</c-table_header>
+                <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                <c-table_header sortable="false" class="text-right">Field Avg</c-table_header>
+                <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+            </tr>
+            </c-slot>
+            {% for inj in stats.inject_stats %}
+                <tr>
+                    <td>{{ inj.name }}</td>
+                    <td class="text-right">{{ inj.points|floatformat:0 }}</td>
+                    <td class="text-right">{{ inj.avg|floatformat:0 }}</td>
+                    <td class="text-right">#{{ inj.rank }}</td>
+                </tr>
+            {% endfor %}
+            </c-table>
+            </c-module>
+        {% endif %}
         {% if stats.service_stats %}
             <c-module>
             <h3>Service Comparison</h3>
@@ -301,6 +329,19 @@
 
         .scorecard-total {
             font-size: 1.3em;
+        }
+
+        .neighbors {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 12px;
+            font-size: 0.9em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .neighbor-current {
+            font-weight: 600;
         }
 
         .scorecard-grid {
