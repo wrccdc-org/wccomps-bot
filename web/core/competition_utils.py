@@ -2,7 +2,6 @@
 
 from scoring.models import (
     BlackTeamAdjustment,
-    EventScore,
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
@@ -52,7 +51,6 @@ def wipe_competition_data() -> dict[str, int]:
         "ServiceScore": ServiceScore.objects.all().delete()[0],
         "BlackTeamAdjustment": BlackTeamAdjustment.objects.all().delete()[0],
         "FinalScore": FinalScore.objects.all().delete()[0],
-        "EventScore": EventScore.objects.all().delete()[0],
         # Blue team Discord links only (staff/volunteer links preserved)
         "BlueTeamDiscordLink": DiscordLink.objects.filter(team__isnull=False).delete()[0],
     }
