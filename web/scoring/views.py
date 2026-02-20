@@ -1836,8 +1836,6 @@ def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResp
     team = get_object_or_404(Team, team_number=team_number)
     event_score = get_object_or_404(EventScore, event=event, team=team)
 
-    service_details = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
-
     service_score = ServiceScore.objects.filter(team=team, event=event).first()
 
     red_findings = RedTeamFinding.objects.filter(event=event, affected_teams=team, is_approved=True).order_by(
@@ -1885,7 +1883,6 @@ def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResp
         "event": event,
         "team": team,
         "event_score": event_score,
-        "service_details": service_details,
         "service_score": service_score,
         "red_findings": red_findings,
         "assignment": assignment,

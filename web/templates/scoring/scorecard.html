@@ -9,8 +9,7 @@
         <c-module>
         <c-slot name="toolbar">
         <c-link href="{% url 'scoring:event_leaderboard' event.id %}">Back to Leaderboard</c-link>
-        <button onclick="window.print()"
-                class="btn btn-sm btn-outline-secondary no-print">Print / PDF</button>
+        <c-button onclick="window.print()" class="no-print">Print / PDF</c-button>
         </c-slot>
         <div class="scorecard-header">
             <div>
@@ -199,7 +198,9 @@
             </c-module>
         {% endif %}
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+            integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+            crossorigin="anonymous"></script>
     {{ chart_data_json|json_script:"chart-data" }}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
