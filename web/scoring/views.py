@@ -1,11 +1,13 @@
 """Views for scoring system."""
 
+import json
 from decimal import Decimal
 from typing import TypedDict, cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Avg, Max, Min
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1723,32 +1725,29 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
         service_stats: per-service points, rank, avg, max
         insights: list of human-readable insight strings
     """
-    from django.db.models import Avg, Max, Min
-
     all_scores = EventScore.objects.filter(event=event)
     team_count = all_scores.count()
 
     # Category ranking: (field_name, label, team_value, higher_is_better)
-    categories: list[tuple[str, str, Decimal, bool]] = [
-        ("service_points", "services", event_score.service_points, True),
-        ("inject_points", "injects", event_score.inject_points, True),
-        ("orange_points", "orange", event_score.orange_points, True),
-        ("red_deductions", "red", event_score.red_deductions, False),
+    categories: list[tuple[str, str, Decimal]] = [
+        ("service_points", "services", event_score.service_points),
+        ("inject_points", "injects", event_score.inject_points),
+        ("orange_points", "orange", event_score.orange_points),
+        ("red_deductions", "red", event_score.red_deductions),
     ]
 
     category_ranks: dict[str, _CategoryRank] = {}
-    for field, label, value, higher_is_better in categories:
+    for field, label, value in categories:
         aggs = all_scores.aggregate(
             avg=Avg(field),
             mn=Min(field),
             mx=Max(field),
         )
-        if higher_is_better:
-            rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
-        else:
-            # For red deductions (negative), less negative is better
-            # -100 > -500, so count teams with values greater (less negative)
-            rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
+        # Rank = teams scoring strictly better + 1.
+        # For positive categories: higher is better, so __gt counts better teams.
+        # For red deductions (negative): less negative is better; -100 > -500,
+        # so __gt still counts less-negative (better) teams.
+        rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
 
         category_ranks[label] = _CategoryRank(
             rank=rank,
@@ -1758,7 +1757,8 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
             value=value,
         )
 
-    # Per-service stats
+    # Per-service stats (2 queries per service — acceptable for admin-only view
+    # with ~16 services; could batch with window functions if needed)
     service_stats: list[_ServiceStat] = []
     team_services = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
 
@@ -1847,8 +1847,6 @@ def scorecard(request: HttpRequest, event_id: int, team_number: int) -> HttpResp
     assignment = EventTeamAssignment.objects.filter(event=event, team=team).select_related("registration").first()
 
     school_name = assignment.registration.school_name if assignment else ""
-
-    import json
 
     stats = _compute_scorecard_stats(event, team, event_score)
 
