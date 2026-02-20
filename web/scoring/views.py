@@ -1725,7 +1725,7 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
         service_stats: per-service points, rank, avg, max
         insights: list of human-readable insight strings
     """
-    all_scores = EventScore.objects.filter(event=event)
+    all_scores = EventScore.objects.filter(event=event, is_excluded=False)
     team_count = all_scores.count()
 
     # Category ranking: (field_name, label, team_value, higher_is_better)
@@ -1762,8 +1762,12 @@ def _compute_scorecard_stats(event: Event, team: "Team", event_score: EventScore
     service_stats: list[_ServiceStat] = []
     team_services = ServiceDetail.objects.filter(team=team, event=event).order_by("service_name")
 
+    excluded_teams = EventScore.objects.filter(event=event, is_excluded=True).values_list("team_id", flat=True)
+
     for svc in team_services:
-        all_svc = ServiceDetail.objects.filter(event=event, service_name=svc.service_name)
+        all_svc = ServiceDetail.objects.filter(event=event, service_name=svc.service_name).exclude(
+            team_id__in=excluded_teams
+        )
         svc_aggs = all_svc.aggregate(avg=Avg("points"), mx=Max("points"))
         svc_rank = all_svc.filter(points__gt=svc.points).count() + 1
         service_stats.append(

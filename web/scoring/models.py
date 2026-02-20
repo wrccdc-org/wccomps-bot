@@ -19,74 +19,70 @@ def validate_file_size(file: UploadedFile) -> UploadedFile:
 
 
 class ScoringTemplate(models.Model):
-    """Scoring configuration for a competition using percentage weights.
+    """Scoring configuration using category weights and raw maximums.
 
-    Four weighted categories (must sum to 100%):
-    - Service: includes SLA penalties (combined for scoring, separate for display)
-    - Inject: inject/scenario responses
-    - Orange: customer service adjustments
-    - Red: red team deductions offset by incident recovery (combined for scoring, separate for display)
+    The calculator derives a scaling modifier for each category at runtime:
+        total_pool = max(raw_max / (weight/100) for each category)
+        modifier = (weight/100) × total_pool / raw_max
+        scaled = raw × modifier
+
+    This produces the same result as manually entering modifiers, but the
+    config page shows meaningful percentages instead of opaque multipliers.
     """
 
-    # Category weights (must sum to 100%)
+    # Category weights (percentage of total score; must sum to 100)
     service_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("40"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Percentage weight for service uptime (includes SLA penalties)",
+        help_text="Percentage weight for service uptime",
     )
     inject_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("30"),
+        default=Decimal("40"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
         help_text="Percentage weight for inject responses",
     )
     orange_weight = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal("15"),
+        default=Decimal("20"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
         help_text="Percentage weight for orange team adjustments",
     )
-    red_weight = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("15"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Percentage weight for red team (deductions offset by recovery)",
-    )
 
-    # Max possible points for each category (for normalization)
+    # Maximum possible raw points in each category
     service_max = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("1000"),
-        validators=[MinValueValidator(Decimal("1"))],
-        help_text="Maximum possible service points (from Quotient)",
+        default=Decimal("11454"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Maximum possible raw service points",
     )
     inject_max = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("500"),
-        validators=[MinValueValidator(Decimal("1"))],
-        help_text="Maximum possible inject points",
+        default=Decimal("3060"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Maximum possible raw inject points",
     )
     orange_max = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("100"),
-        validators=[MinValueValidator(Decimal("1"))],
-        help_text="Maximum possible orange team points",
+        default=Decimal("160"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Maximum possible raw orange team points",
     )
-    red_max = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal("200"),
-        validators=[MinValueValidator(Decimal("1"))],
-        help_text="Maximum possible red team deductions",
-    )
+
+    def clean(self) -> None:
+        """Validate that weights sum to 100."""
+        from django.core.exceptions import ValidationError
+
+        total = (self.service_weight or 0) + (self.inject_weight or 0) + (self.orange_weight or 0)
+        if total != Decimal("100"):
+            raise ValidationError(f"Weights must sum to 100 (currently {total})")
 
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,14 +102,6 @@ class ScoringTemplate(models.Model):
 
     def __str__(self) -> str:
         return "Scoring Template"
-
-    def clean(self) -> None:
-        """Validate that weights sum to 100%."""
-        from django.core.exceptions import ValidationError
-
-        total = self.service_weight + self.inject_weight + self.orange_weight + self.red_weight
-        if total != Decimal("100"):
-            raise ValidationError(f"Weights must sum to 100% (currently {total}%)")
 
 
 class QuotientMetadataCache(models.Model):
@@ -811,6 +799,12 @@ class ServiceScore(models.Model):
         default=Decimal("0"),
         help_text="SLA penalty points (stored as negative)",
     )
+    point_adjustments = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0"),
+        help_text="Manual point adjustments (stored as negative)",
+    )
 
     # Sync tracking
     synced_at = models.DateTimeField(auto_now=True)
@@ -830,6 +824,35 @@ class ServiceScore(models.Model):
 
     def __str__(self) -> str:
         return f"{self.team.team_name}: {self.service_points} (SLA: {self.sla_violations})"
+
+
+class ServiceDetail(models.Model):
+    """Per-service uptime scores (e.g., balrog-ntp, brassknuckles-imap)."""
+
+    event = models.ForeignKey(
+        "registration.Event",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="service_details",
+    )
+    team = models.ForeignKey(
+        "team.Team",
+        on_delete=models.CASCADE,
+        related_name="service_details",
+    )
+    service_name = models.CharField(max_length=100, help_text="Service identifier (e.g., balrog-ntp)")
+    points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+
+    class Meta:
+        db_table = "service_detail"
+        verbose_name = "Service Detail"
+        verbose_name_plural = "Service Details"
+        unique_together = [["team", "event", "service_name"]]
+        ordering = ["service_name", "team__team_number"]
+
+    def __str__(self) -> str:
+        return f"{self.team.team_name} - {self.service_name}: {self.points}"
 
 
 class BlackTeamAdjustment(models.Model):
@@ -892,6 +915,7 @@ class FinalScore(models.Model):
     red_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     incident_recovery_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     sla_penalties = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    point_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     black_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
 
     # Total and rank
@@ -943,11 +967,16 @@ class EventScore(models.Model):
     red_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     incident_recovery_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     sla_penalties = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    point_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     black_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
 
     # Total and rank
     total_score = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     rank = models.IntegerField(null=True, blank=True)
+    is_excluded = models.BooleanField(
+        default=False,
+        help_text="Exclude this team from comparative analysis and leaderboard",
+    )
 
     # Tracking
     calculated_at = models.DateTimeField(auto_now=True)

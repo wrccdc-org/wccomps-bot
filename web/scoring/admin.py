@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from .models import (
     AttackType,
     BlackTeamAdjustment,
+    EventScore,
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
@@ -291,6 +292,23 @@ class BlackTeamAdjustmentAdmin(admin.ModelAdmin[BlackTeamAdjustment]):
         return obj.reason[:50] + "..." if len(obj.reason) > 50 else obj.reason
 
 
+@admin.register(EventScore)
+class EventScoreAdmin(admin.ModelAdmin[EventScore]):
+    list_display = [
+        "rank",
+        "team",
+        "event",
+        "total_score",
+        "is_excluded",
+        "calculated_at",
+    ]
+    list_filter = ["event", "is_excluded"]
+    list_editable = ["is_excluded"]
+    search_fields = ["team__team_name"]
+    readonly_fields = ["calculated_at"]
+    ordering = ["rank"]
+
+
 @admin.register(FinalScore)
 class FinalScoreAdmin(admin.ModelAdmin[FinalScore]):
     list_display = [
@@ -316,44 +334,34 @@ class ScoringTemplateAdmin(admin.ModelAdmin[ScoringTemplate]):
         "service_weight",
         "inject_weight",
         "orange_weight",
-        "red_weight",
-        "weights_total",
         "updated_at",
     ]
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = [
         (
-            "Category Weights (must sum to 100%)",
+            "Category Weights",
             {
                 "fields": [
                     "service_weight",
                     "inject_weight",
                     "orange_weight",
-                    "red_weight",
                 ],
-                "description": "Service includes SLA penalties. Red includes recovery points.",
+                "description": "Percentage weights for each category (must sum to 100).",
             },
         ),
         (
-            "Max Points (for normalization)",
+            "Raw Maximums",
             {
                 "fields": [
                     "service_max",
                     "inject_max",
                     "orange_max",
-                    "red_max",
                 ]
             },
         ),
         ("Audit", {"fields": ["updated_by", "created_at", "updated_at"]}),
     ]
-
-    @admin.display(description="Total")
-    def weights_total(self, obj: ScoringTemplate) -> str:
-        total = obj.service_weight + obj.inject_weight + obj.orange_weight + obj.red_weight
-        color = "green" if total == 100 else "red"
-        return format_html(f'<span style="color: {color};">{total}%</span>')
 
 
 @admin.register(QuotientMetadataCache)

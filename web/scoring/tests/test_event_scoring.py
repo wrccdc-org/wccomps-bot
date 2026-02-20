@@ -446,3 +446,20 @@ class TestScorecardStats:
 
         assert len(stats["insights"]) >= 2
         assert all(isinstance(i, str) for i in stats["insights"])
+
+    def test_excluded_team_not_in_stats(self, event, team, event_with_scores):
+        from scoring.views import _compute_scorecard_stats
+
+        # Exclude team3 (rank 3, lowest scores)
+        team3 = Team.objects.get(team_number=3)
+        EventScore.objects.filter(event=event, team=team3).update(is_excluded=True)
+
+        event_score = EventScore.objects.get(event=event, team=team)
+        stats = _compute_scorecard_stats(event, team, event_score)
+
+        # Only 2 teams remain in the analysis
+        assert stats["team_count"] == 2
+        # Team is now #2 of 2 (between itself at 8000 and team2 at 10000)
+        assert stats["category_ranks"]["services"]["rank"] == 2
+        # Average is now (8000+10000)/2 = 9000
+        assert stats["category_ranks"]["services"]["avg"] == Decimal("9000")
