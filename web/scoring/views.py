@@ -1670,6 +1670,12 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
             mn=Min(field),
             mx=Max(field),
         )
+        # Skip categories where nobody has any data
+        mx = aggs["mx"] or Decimal("0")
+        mn = aggs["mn"] or Decimal("0")
+        if mx == 0 and mn == 0:
+            continue
+
         # Rank = teams scoring strictly better + 1.
         # For positive categories: higher is better, so __gt counts better teams.
         # For red deductions (negative): less negative is better; -100 > -500,
@@ -1679,8 +1685,8 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         category_ranks[label] = _CategoryRank(
             rank=rank,
             avg=aggs["avg"] or Decimal("0"),
-            min=aggs["mn"] or Decimal("0"),
-            max=aggs["mx"] or Decimal("0"),
+            min=mn,
+            max=mx,
             value=value,
         )
 
@@ -1734,7 +1740,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 
     # Best and worst category (by rank, lower is better; tiebreak by distance above avg)
     if category_ranks:
-        positive_cats = {k: v for k, v in category_ranks.items() if k != "red"}
+        positive_cats = {k: v for k, v in category_ranks.items() if k != "red" and v["max"] != 0}
         if positive_cats:
             # Sort key: rank ascending, then distance-above-average descending (best first)
             def _cat_sort_key(k: str) -> tuple[int, Decimal]:
@@ -1814,29 +1820,21 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
 
     stats = _compute_scorecard_stats(team, score)
 
-    # Build chart data for template
+    # Build chart data for template (only categories with data)
     cat_ranks = stats["category_ranks"]
+    cat_labels = {
+        "services": "Services",
+        "injects": "Injects",
+        "orange": "Orange",
+        "red": "Red",
+    }
+    is_abs = {"red"}  # categories displayed as absolute values
     chart_data = {
         "categoryChart": {
-            "labels": ["Services", "Injects", "Orange", "Red"],
-            "teamValues": [
-                float(cat_ranks["services"]["value"]),
-                float(cat_ranks["injects"]["value"]),
-                float(cat_ranks["orange"]["value"]),
-                float(abs(cat_ranks["red"]["value"])),
-            ],
-            "avgValues": [
-                float(cat_ranks["services"]["avg"]),
-                float(cat_ranks["injects"]["avg"]),
-                float(cat_ranks["orange"]["avg"]),
-                float(abs(cat_ranks["red"]["avg"])),
-            ],
-            "maxValues": [
-                float(cat_ranks["services"]["max"]),
-                float(cat_ranks["injects"]["max"]),
-                float(cat_ranks["orange"]["max"]),
-                float(abs(cat_ranks["red"]["max"])),
-            ],
+            "labels": [cat_labels[k] for k in cat_ranks],
+            "teamValues": [float(abs(v["value"]) if k in is_abs else v["value"]) for k, v in cat_ranks.items()],
+            "avgValues": [float(abs(v["avg"]) if k in is_abs else v["avg"]) for k, v in cat_ranks.items()],
+            "maxValues": [float(abs(v["max"]) if k in is_abs else v["max"]) for k, v in cat_ranks.items()],
         },
         "radarChart": {
             "labels": [s["name"] for s in stats["service_stats"]],

@@ -9,6 +9,7 @@ from django.db import transaction
 from registration.models import Event, EventTeamAssignment, Season, TeamRegistration
 
 from scoring.models import (
+    BlackTeamAdjustment,
     InjectGrade,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -214,6 +215,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  Imported {orange_count} orange scores")
 
         # 8. Import Red Team Deductions
+        # Create one finding per team per category because deduction
+        # amounts can vary by team (e.g. Realm Persistence).
         ws_red = wb["Red Team Deductions"]
         categories: dict[int, str] = {}
         for col in range(3, ws_red.max_column + 1):
@@ -231,24 +234,46 @@ class Command(BaseCommand):
                 pts = ws_red.cell(row=row, column=col).value
                 if pts is None or pts == 0 or pts == 0.0:
                     continue
-                finding, created = RedTeamFinding.objects.get_or_create(
+                finding, created = RedTeamFinding.objects.update_or_create(
                     event=event,
-                    notes=f"Qualifier import: {cat_name}",
-                    attack_vector=cat_name,
+                    notes=f"Qualifier import: {cat_name} (Team {team_num})",
                     defaults={
+                        "attack_vector": cat_name,
                         "points_per_team": abs(Decimal(str(pts))),
                         "is_approved": True,
                     },
                 )
-                if created:
-                    finding.affected_teams.add(teams[team_num])
-                    red_count += 1
-                else:
-                    if not finding.affected_teams.filter(pk=teams[team_num].pk).exists():
-                        finding.affected_teams.add(teams[team_num])
-                        red_count += 1
+                finding.affected_teams.add(teams[team_num])
+                red_count += 1
 
         self.stdout.write(f"  Imported {red_count} red team deduction entries")
+
+        # 8b. Import "Points Back" as BlackTeamAdjustment
+        points_back_col: int | None = None
+        for col in range(3, ws_red.max_column + 1):
+            if ws_red.cell(row=1, column=col).value == "Points Back":
+                points_back_col = col
+                break
+
+        pb_count = 0
+        if points_back_col:
+            for row in range(2, ws_red.max_row + 1):
+                team_num = _parse_team_num(ws_red.cell(row=row, column=1).value)
+                if team_num is None or team_num not in teams:
+                    continue
+                pb_pts = ws_red.cell(row=row, column=points_back_col).value
+                if pb_pts is None or pb_pts == 0 or pb_pts == 0.0:
+                    continue
+                BlackTeamAdjustment.objects.update_or_create(
+                    team=teams[team_num],
+                    reason="Qualifier import: Points Back",
+                    defaults={
+                        "event": event,
+                        "point_adjustment": Decimal(str(pb_pts)),
+                    },
+                )
+                pb_count += 1
+        self.stdout.write(f"  Imported {pb_count} points back adjustments")
 
         # 9. Recalculate final scores from source records
         from scoring.calculator import recalculate_all_scores

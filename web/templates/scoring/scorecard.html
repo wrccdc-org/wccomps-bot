@@ -110,30 +110,32 @@
         </tr>
         </c-table>
         </c-module>
-        <c-module>
-        <h3>Category Rankings</h3>
-        <c-table id="category_rankings" aria_label="Category rankings">
-        <c-slot name="headers">
-        <tr>
-            <c-table_header sortable="false">Category</c-table_header>
-            <c-table_header sortable="false" class="text-right">Rank</c-table_header>
-            <c-table_header sortable="false" class="text-right">Team</c-table_header>
-            <c-table_header sortable="false" class="text-right">Avg</c-table_header>
-            <c-table_header sortable="false" class="text-right">Max</c-table_header>
-        </tr>
-        </c-slot>
-        {% for label, cat in stats.category_ranks.items %}
+        {% if stats.category_ranks|length > 1 %}
+            <c-module>
+            <h3>Category Rankings</h3>
+            <c-table id="category_rankings" aria_label="Category rankings">
+            <c-slot name="headers">
             <tr>
-                <td>{{ label|title }}</td>
-                <td class="text-right">#{{ cat.rank }} of {{ stats.team_count }}</td>
-                <td class="text-right">{{ cat.value|floatformat:2 }}</td>
-                <td class="text-right">{{ cat.avg|floatformat:2 }}</td>
-                <td class="text-right">{{ cat.max|floatformat:2 }}</td>
+                <c-table_header sortable="false">Category</c-table_header>
+                <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+                <c-table_header sortable="false" class="text-right">Team</c-table_header>
+                <c-table_header sortable="false" class="text-right">Avg</c-table_header>
+                <c-table_header sortable="false" class="text-right">Max</c-table_header>
             </tr>
-        {% endfor %}
-        </c-table>
-        <canvas id="categoryChart" class="no-print" width="600" height="250"></canvas>
-        </c-module>
+            </c-slot>
+            {% for label, cat in stats.category_ranks.items %}
+                <tr>
+                    <td>{{ label|title }}</td>
+                    <td class="text-right">#{{ cat.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ cat.value|floatformat:2 }}</td>
+                    <td class="text-right">{{ cat.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ cat.max|floatformat:2 }}</td>
+                </tr>
+            {% endfor %}
+            </c-table>
+            <canvas id="categoryChart" class="no-print" width="600" height="250"></canvas>
+            </c-module>
+        {% endif %}
         <div class="scorecard-grid">
             <div>
                 <c-module>

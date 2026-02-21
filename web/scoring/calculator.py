@@ -313,5 +313,3 @@ def calculate_suggested_recovery_points(incident: IncidentReport, red_finding: R
     deduction_amount = abs(red_finding.points_per_team)
     suggested_return = deduction_amount * Decimal("0.80")
     return suggested_return
-
-
