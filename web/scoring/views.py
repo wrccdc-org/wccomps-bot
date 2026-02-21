@@ -1799,7 +1799,6 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     if score.rank:
         neighbor_scores = (
             all_scores.filter(
-                rank__isnull=False,
                 rank__gte=score.rank - 1,
                 rank__lte=score.rank + 1,
             )
@@ -1807,15 +1806,15 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
             .order_by("rank")
         )
 
-        for ns in neighbor_scores:
-            assert ns.rank is not None  # guaranteed by rank__isnull=False filter
-            neighbors.append(
-                _Neighbor(
-                    rank=ns.rank,
-                    total_score=ns.total_score,
-                    gap=ns.total_score - score.total_score,
-                )
+        neighbors = [
+            _Neighbor(
+                rank=ns.rank,
+                total_score=ns.total_score,
+                gap=ns.total_score - score.total_score,
             )
+            for ns in neighbor_scores
+            if ns.rank is not None
+        ]
 
     return _ScorecardStats(
         team_count=team_count,
