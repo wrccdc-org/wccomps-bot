@@ -1652,7 +1652,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         service_stats: per-service points, rank, avg, max
         insights: list of human-readable insight strings
     """
-    all_scores = FinalScore.objects.filter(is_excluded=False)
+    all_scores = FinalScore.objects.filter(is_excluded=False, rank__isnull=False)
     team_count = all_scores.count()
 
     # Category ranking: (field_name, label, team_value, higher_is_better)

@@ -221,8 +221,12 @@ class Command(BaseCommand):
         categories: dict[int, str] = {}
         for col in range(3, ws_red.max_column + 1):
             header = ws_red.cell(row=1, column=col).value
-            if header and header not in ("Total:", "Points Back"):
-                categories[col] = str(header)
+            if header is None or header == 0:
+                continue
+            header_str = str(header)
+            if header_str in ("Total:", "Points Back"):
+                continue
+            categories[col] = header_str
 
         red_count = 0
         for row in range(2, ws_red.max_row + 1):
