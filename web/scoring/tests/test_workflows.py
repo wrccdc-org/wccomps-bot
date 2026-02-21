@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from scoring.models import (
     IncidentReport,
-    InjectGrade,
+    InjectScore,
     OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -487,7 +487,7 @@ class TestOrangeAdjustmentWorkflow:
         assert not OrangeTeamBonus.objects.filter(pk=adjustment_id).exists()
 
 
-class TestInjectGradeWorkflow:
+class TestInjectScoreWorkflow:
     """Test complete inject grade workflow."""
 
     def test_step1_white_team_grades_inject(self, setup_teams, setup_users):
@@ -495,7 +495,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Network Diagram",
@@ -519,7 +519,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-002",
             inject_name="Incident Response Plan",
@@ -531,7 +531,7 @@ class TestInjectGradeWorkflow:
         )
 
         # Verify grade is in review list
-        unapproved_grades = InjectGrade.objects.filter(is_approved=False)
+        unapproved_grades = InjectScore.objects.filter(is_approved=False)
         assert grade in unapproved_grades
         assert unapproved_grades.count() == 1
 
@@ -540,7 +540,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-003",
             inject_name="Security Presentation",
@@ -569,7 +569,7 @@ class TestInjectGradeWorkflow:
         users = setup_users
 
         # Create several grades for same inject
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -581,7 +581,7 @@ class TestInjectGradeWorkflow:
             approved_at=timezone.now(),
         )
 
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -595,7 +595,7 @@ class TestInjectGradeWorkflow:
 
         # Create outlier grade
         team3 = Team.objects.create(team_name="Blue Team 3", team_number=3, max_members=10)
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team3,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -606,7 +606,7 @@ class TestInjectGradeWorkflow:
         )
 
         # Verify data exists for outlier detection
-        all_grades_for_inject = InjectGrade.objects.filter(inject_id="INJ-004")
+        all_grades_for_inject = InjectScore.objects.filter(inject_id="INJ-004")
         assert all_grades_for_inject.count() == 3
         points = [g.points_awarded for g in all_grades_for_inject]
         assert Decimal("75.00") in points

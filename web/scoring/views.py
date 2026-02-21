@@ -36,7 +36,7 @@ from .models import (
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
-    InjectGrade,
+    InjectScore,
     OrangeCheckType,
     OrangeTeamBonus,
     QuotientMetadataCache,
@@ -930,7 +930,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
             if points_value:
                 try:
                     points = Decimal(points_value)
-                    InjectGrade.objects.update_or_create(
+                    InjectScore.objects.update_or_create(
                         team=team,
                         inject_id=selected_inject_id,
                         defaults={
@@ -951,7 +951,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     # Get existing grades for selected inject and merge with teams
     team_data = []
     if selected_inject:
-        existing = InjectGrade.objects.filter(inject_id=selected_inject_id).select_related("team", "graded_by")
+        existing = InjectScore.objects.filter(inject_id=selected_inject_id).select_related("team", "graded_by")
         grade_by_team = {g.team_id: g for g in existing}
 
         for team in teams:
@@ -1247,7 +1247,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     sort_by = request.GET.get("sort", "inject_name")
     page = request.GET.get("page", "1")
 
-    base_query = InjectGrade.objects.select_related("team", "graded_by")
+    base_query = InjectScore.objects.select_related("team", "graded_by")
 
     # Apply status filter
     if status_filter == "pending":
@@ -1265,7 +1265,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     # Calculate outliers for each inject before filtering
     # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
     all_grades_for_outlier_calc = list(base_query)
-    inject_grades_map: dict[str, list[InjectGrade]] = defaultdict(list)
+    inject_grades_map: dict[str, list[InjectScore]] = defaultdict(list)
     for grade in all_grades_for_outlier_calc:
         inject_grades_map[grade.inject_id].append(grade)
 
@@ -1328,12 +1328,12 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page_num)
 
     # Stats (unfiltered counts)
-    total_grades = InjectGrade.objects.count()
-    approved_count = InjectGrade.objects.filter(is_approved=True).count()
+    total_grades = InjectScore.objects.count()
+    approved_count = InjectScore.objects.filter(is_approved=True).count()
     unapproved_count = total_grades - approved_count
 
     # Get available injects and teams for filter dropdowns
-    available_injects = InjectGrade.objects.values("inject_id", "inject_name").distinct().order_by("inject_name")
+    available_injects = InjectScore.objects.values("inject_id", "inject_name").distinct().order_by("inject_name")
     available_teams = Team.objects.filter(inject_grades__isnull=False).distinct().order_by("team_number")
 
     context = {
@@ -1385,7 +1385,7 @@ def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
         return redirect("scoring:inject_grades_review")
 
     # Get grades to approve (only unapproved ones)
-    grades_to_approve = InjectGrade.objects.filter(id__in=grade_ids, is_approved=False)
+    grades_to_approve = InjectScore.objects.filter(id__in=grade_ids, is_approved=False)
 
     if not grades_to_approve.exists():
         messages.warning(request, "No unapproved grades found with provided IDs")
@@ -1731,13 +1731,13 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     # Per-inject stats (analogous to per-service stats)
     inject_stats: list[_InjectStat] = []
     team_injects = (
-        InjectGrade.objects.filter(team=team, is_approved=True)
+        InjectScore.objects.filter(team=team, is_approved=True)
         .exclude(inject_id="qualifier-total")
         .order_by("inject_name")
     )
 
     for inj in team_injects:
-        all_inj = InjectGrade.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
+        all_inj = InjectScore.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
             team_id__in=excluded_teams
         )
         inj_aggs = all_inj.aggregate(avg=Avg("points_awarded"), mx=Max("points_awarded"))

@@ -15,7 +15,7 @@ from core.models import UserGroups
 from scoring.models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
+    InjectScore,
     OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -187,7 +187,7 @@ def inject_grades(test_teams, admin_user):
     grades = []
 
     # Grade 1: Approved
-    grade1 = InjectGrade.objects.create(
+    grade1 = InjectScore.objects.create(
         team=test_teams[0],
         inject_id="INJ-001",
         inject_name="Incident Response Plan",
@@ -202,7 +202,7 @@ def inject_grades(test_teams, admin_user):
     grades.append(grade1)
 
     # Grade 2: Not approved
-    grade2 = InjectGrade.objects.create(
+    grade2 = InjectScore.objects.create(
         team=test_teams[1],
         inject_id="INJ-001",
         inject_name="Incident Response Plan",
@@ -664,7 +664,7 @@ class TestOrangeAdjustmentsExport:
             assert field in adjustments[0], f"Missing field: {field}"
 
 
-class TestInjectGradesExport:
+class TestInjectScoresExport:
     """Test inject grades export."""
 
     def test_csv_export_contains_all_required_headers(self, admin_user, inject_grades):

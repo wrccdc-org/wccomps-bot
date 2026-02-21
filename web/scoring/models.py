@@ -606,8 +606,8 @@ class IncidentScreenshot(models.Model):
         return f"{self.filename} ({self.incident})"
 
 
-class InjectGrade(models.Model):
-    """White/Gold team grading of inject submissions."""
+class InjectScore(models.Model):
+    """White/Gold team scoring of inject submissions."""
 
     event = models.ForeignKey(
         "registration.Event",
@@ -666,8 +666,8 @@ class InjectGrade(models.Model):
 
     class Meta:
         db_table = "inject_grade"
-        verbose_name = "Inject Grade"
-        verbose_name_plural = "Inject Grades"
+        verbose_name = "Inject Score"
+        verbose_name_plural = "Inject Scores"
         unique_together = [["team", "inject_id"]]
         ordering = ["inject_name", "team__team_number"]
 

@@ -32,7 +32,7 @@ from scoring.calculator import (
 from scoring.models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
+    InjectScore,
     OrangeCheckType,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -72,7 +72,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Inject: 250 × 1.0 = 250
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team1,
             inject_id="INJ-001",
             inject_name="Test Inject",
@@ -146,7 +146,7 @@ class ScoringFormulaTests(TestCase):
 
     def test_unapproved_scores_excluded(self) -> None:
         """Unapproved inject grades, red findings, and orange bonuses are not counted."""
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team1,
             inject_id="INJ-X",
             inject_name="Unapproved Inject",
@@ -314,8 +314,8 @@ class TestLeaderboardAccess:
         assert response.status_code == 200
 
 
-class InjectGradeApprovalTests(TestCase):
-    """Test approval tracking fields on InjectGrade model."""
+class InjectScoreApprovalTests(TestCase):
+    """Test approval tracking fields on InjectScore model."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -324,8 +324,8 @@ class InjectGradeApprovalTests(TestCase):
         self.team = Team.objects.create(team_number=1, team_name="Test Team")
 
     def test_new_inject_grade_defaults_to_not_approved(self) -> None:
-        """New InjectGrade should have is_approved=False by default."""
-        grade = InjectGrade.objects.create(
+        """New InjectScore should have is_approved=False by default."""
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-001",
             inject_name="Test Inject",
@@ -339,10 +339,10 @@ class InjectGradeApprovalTests(TestCase):
         self.assertIsNone(grade.approved_by)
 
     def test_inject_grade_can_be_approved(self) -> None:
-        """InjectGrade can be marked as approved with timestamp and user."""
+        """InjectScore can be marked as approved with timestamp and user."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-002",
             inject_name="Another Inject",
@@ -363,8 +363,8 @@ class InjectGradeApprovalTests(TestCase):
         self.assertEqual(grade.approved_by, self.approver)
 
     def test_can_query_unapproved_grades(self) -> None:
-        """Can query for unapproved InjectGrade records."""
-        InjectGrade.objects.create(
+        """Can query for unapproved InjectScore records."""
+        InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-003",
             inject_name="Unapproved Inject",
@@ -373,7 +373,7 @@ class InjectGradeApprovalTests(TestCase):
             graded_by=self.grader,
         )
 
-        approved_grade = InjectGrade.objects.create(
+        approved_grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-004",
             inject_name="Approved Inject",
@@ -388,15 +388,15 @@ class InjectGradeApprovalTests(TestCase):
         approved_grade.approved_by = self.approver
         approved_grade.save()
 
-        unapproved_grades = InjectGrade.objects.filter(is_approved=False)
+        unapproved_grades = InjectScore.objects.filter(is_approved=False)
         self.assertEqual(unapproved_grades.count(), 1)
         self.assertEqual(unapproved_grades.first().inject_id, "INJ-003")
 
     def test_can_query_approved_grades(self) -> None:
-        """Can query for approved InjectGrade records."""
+        """Can query for approved InjectScore records."""
         from django.utils import timezone
 
-        grade1 = InjectGrade.objects.create(
+        grade1 = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-005",
             inject_name="First Approved",
@@ -409,7 +409,7 @@ class InjectGradeApprovalTests(TestCase):
         grade1.approved_by = self.approver
         grade1.save()
 
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-006",
             inject_name="Not Approved",
@@ -418,7 +418,7 @@ class InjectGradeApprovalTests(TestCase):
             graded_by=self.grader,
         )
 
-        approved_grades = InjectGrade.objects.filter(is_approved=True)
+        approved_grades = InjectScore.objects.filter(is_approved=True)
         self.assertEqual(approved_grades.count(), 1)
         self.assertEqual(approved_grades.first().inject_id, "INJ-005")
 
@@ -426,7 +426,7 @@ class InjectGradeApprovalTests(TestCase):
         """approved_by field can be null (for system-approved or legacy records)."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-007",
             inject_name="System Approved",
@@ -449,7 +449,7 @@ class InjectGradeApprovalTests(TestCase):
         """When approver user is deleted, approved_by should be set to NULL."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-008",
             inject_name="Test Delete",

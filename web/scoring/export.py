@@ -11,7 +11,7 @@ from django.utils import timezone
 from .models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
+    InjectScore,
     OrangeTeamBonus,
     RedTeamFinding,
 )
@@ -304,7 +304,7 @@ def export_inject_grades_csv() -> HttpResponse:
         ]
     )
 
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
 
@@ -332,7 +332,7 @@ def export_inject_grades_csv() -> HttpResponse:
 
 def export_inject_grades_json() -> HttpResponse:
     """Export inject grades to JSON format."""
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
 
@@ -684,7 +684,7 @@ def _get_inject_grades_csv_content() -> str:
             "Graded At",
         ]
     )
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
     for grade in grades:
@@ -708,7 +708,7 @@ def _get_inject_grades_csv_content() -> str:
 
 def _get_inject_grades_json_content() -> str:
     """Get inject grades as JSON string."""
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
     data = [

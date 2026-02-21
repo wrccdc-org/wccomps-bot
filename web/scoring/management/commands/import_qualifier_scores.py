@@ -10,7 +10,7 @@ from registration.models import Event, EventTeamAssignment, Season, TeamRegistra
 
 from scoring.models import (
     IncidentReport,
-    InjectGrade,
+    InjectScore,
     OrangeTeamBonus,
     RedTeamFinding,
     ServiceDetail,
@@ -179,7 +179,7 @@ class Command(BaseCommand):
             raw_total = ws_inj.cell(row=row, column=20).value  # col T
             if raw_total is None or raw_total == 0:
                 continue
-            InjectGrade.objects.update_or_create(
+            InjectScore.objects.update_or_create(
                 team=teams[team_num],
                 inject_id="qualifier-total",
                 defaults={

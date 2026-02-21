@@ -9,7 +9,7 @@ import discord
 import pytest
 import pytest_asyncio
 from django.contrib.auth.models import User
-from scoring.models import InjectGrade
+from scoring.models import InjectScore
 
 from bot.cogs.inject_grading import InjectGradingCog
 from core.models import UserGroups
@@ -194,7 +194,7 @@ class TestInjectList:
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-class TestInjectGrade:
+class TestInjectScore:
     """Tests for /inject grade command."""
 
     async def test_grade_invalid_team_range(self, cog, mock_interaction, white_team_user):
@@ -281,7 +281,7 @@ class TestInjectGrade:
         call_args = mock_interaction.followup.send.call_args
         assert "embed" in call_args[1]
 
-        grade = await InjectGrade.objects.filter(team=test_team, inject_id="INJ-001").afirst()
+        grade = await InjectScore.objects.filter(team=test_team, inject_id="INJ-001").afirst()
         assert grade is not None
         assert grade.points_awarded == Decimal("75.5")
         assert grade.notes == "Good response"
@@ -307,7 +307,7 @@ class TestInjectListGrades:
         """List shows existing grades."""
         mock_interaction.user.id = white_team_user._discord_id
 
-        await InjectGrade.objects.acreate(
+        await InjectScore.objects.acreate(
             team=test_team,
             inject_id="INJ-001",
             inject_name="Test Inject",
@@ -325,14 +325,14 @@ class TestInjectListGrades:
         """Can filter grades by inject ID."""
         mock_interaction.user.id = white_team_user._discord_id
 
-        await InjectGrade.objects.acreate(
+        await InjectScore.objects.acreate(
             team=test_team,
             inject_id="INJ-001",
             inject_name="Test Inject 1",
             points_awarded=Decimal("100.00"),
             is_approved=False,
         )
-        await InjectGrade.objects.acreate(
+        await InjectScore.objects.acreate(
             team=test_team,
             inject_id="INJ-002",
             inject_name="Test Inject 2",

@@ -6,7 +6,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from scoring.models import FinalScore, InjectGrade, ServiceDetail
+from scoring.models import FinalScore, InjectScore, ServiceDetail
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -107,7 +107,7 @@ class TestComputeScorecardStats:
 
         # Create per-inject grades for all teams
         for t, pts in [(teams[0], 80), (teams[1], 100), (teams[2], 60)]:
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=t,
                 inject_id="inj-1",
                 inject_name="Inject 1",
@@ -115,7 +115,7 @@ class TestComputeScorecardStats:
                 is_approved=True,
             )
         for t, pts in [(teams[0], 90), (teams[1], 70), (teams[2], 50)]:
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=t,
                 inject_id="inj-2",
                 inject_name="Inject 2",
@@ -123,7 +123,7 @@ class TestComputeScorecardStats:
                 is_approved=True,
             )
         # qualifier-total should be excluded from inject_stats
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=teams[0],
             inject_id="qualifier-total",
             inject_name="Qualifier Total",
@@ -146,7 +146,7 @@ class TestComputeScorecardStats:
         from scoring.views import _compute_scorecard_stats
 
         for t, pts in [(teams[0], 80), (teams[1], 100), (teams[2], 60)]:
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=t,
                 inject_id="inj-1",
                 inject_name="Inject 1",
