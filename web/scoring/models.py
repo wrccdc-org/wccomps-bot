@@ -635,6 +635,24 @@ class InjectScore(models.Model):
     )
     notes = models.TextField(blank=True, help_text="Grader notes")
 
+    # Team-facing feedback (synthesized from raw judge comments)
+    feedback = models.TextField(
+        blank=True,
+        help_text="Professional feedback shown to teams on scorecard",
+    )
+    feedback_approved = models.BooleanField(
+        default=False,
+        help_text="Whether feedback has been approved for team viewing",
+    )
+    feedback_approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inject_feedback_approved",
+        help_text="User who approved this feedback",
+    )
+
     # Approval tracking
     is_approved = models.BooleanField(
         default=False,

@@ -1559,6 +1559,7 @@ class _InjectStat(TypedDict):
     max: Decimal
     delta: int
     below_avg: bool
+    feedback: str
 
 
 class _Neighbor(TypedDict):
@@ -1683,6 +1684,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
                 max=inj_aggs["mx"] or Decimal("0"),
                 delta=int(round(inj_delta)),
                 below_avg=inj_delta < 0,
+                feedback=inj.feedback if inj.feedback_approved else "",
             )
         )
 
@@ -1797,3 +1799,129 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "chart_data_json": chart_data,
     }
     return render(request, "scoring/scorecard.html", context)
+
+
+# --- Inject Feedback Review (Gold Team) ---
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can review inject feedback")
+def review_inject_feedback(request: HttpRequest) -> HttpResponse:
+    """Gold team review of inject feedback before showing to teams."""
+    inject_filter = request.GET.get("inject", "")
+    status_filter = request.GET.get("status", "pending")
+
+    scores = (
+        InjectScore.objects.filter(is_approved=True)
+        .exclude(inject_id="qualifier-total")
+        .exclude(notes="")
+        .select_related("team", "feedback_approved_by")
+        .order_by("inject_name", "team__team_number")
+    )
+
+    if inject_filter:
+        scores = scores.filter(inject_id=inject_filter)
+    if status_filter == "pending":
+        scores = scores.filter(feedback_approved=False)
+    elif status_filter == "approved":
+        scores = scores.filter(feedback_approved=True)
+
+    # Get distinct inject IDs for filter dropdown
+    inject_choices = (
+        InjectScore.objects.filter(is_approved=True)
+        .exclude(inject_id="qualifier-total")
+        .exclude(notes="")
+        .values_list("inject_id", "inject_name")
+        .distinct()
+        .order_by("inject_id")
+    )
+
+    has_unapproved = scores.filter(feedback_approved=False).exists()
+
+    context = {
+        "scores": scores,
+        "inject_choices": inject_choices,
+        "inject_filter": inject_filter,
+        "status_filter": status_filter,
+        "has_unapproved": has_unapproved,
+    }
+    return render(request, "scoring/review_inject_feedback.html", context)
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can edit inject feedback")
+@transaction.atomic
+@require_http_methods(["POST"])
+def save_inject_feedback(request: HttpRequest) -> HttpResponse:
+    """Save edited feedback text for a single InjectScore."""
+    score_id = request.POST.get("score_id")
+    feedback_text = request.POST.get("feedback", "").strip()
+
+    if not score_id:
+        messages.warning(request, "No score specified")
+        return redirect("scoring:review_inject_feedback")
+
+    score = get_object_or_404(InjectScore, pk=score_id)
+    score.feedback = feedback_text
+    score.save(update_fields=["feedback"])
+
+    messages.success(request, f"Saved feedback for {score.inject_name} - {score.team.team_name}")
+    return redirect("scoring:review_inject_feedback")
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can approve inject feedback")
+@transaction.atomic
+@require_http_methods(["POST"])
+def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
+    """Approve feedback for a single InjectScore."""
+    user = cast(User, request.user)
+    score_id = request.POST.get("score_id")
+
+    if not score_id:
+        messages.warning(request, "No score specified")
+        return redirect("scoring:review_inject_feedback")
+
+    score = get_object_or_404(InjectScore, pk=score_id)
+    score.feedback_approved = True
+    score.feedback_approved_by = user
+    score.save(update_fields=["feedback_approved", "feedback_approved_by"])
+
+    messages.success(request, f"Approved feedback for {score.inject_name} - {score.team.team_name}")
+    return redirect("scoring:review_inject_feedback")
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can approve inject feedback")
+@transaction.atomic
+@require_http_methods(["POST"])
+def bulk_approve_inject_feedback(request: HttpRequest) -> HttpResponse:
+    """Bulk approve feedback for multiple InjectScore records."""
+    user = cast(User, request.user)
+    score_ids_raw = request.POST.getlist("score_ids")
+
+    if not score_ids_raw:
+        messages.info(request, "No feedback selected for approval")
+        return redirect("scoring:review_inject_feedback")
+
+    score_ids = []
+    for sid in score_ids_raw:
+        try:
+            score_ids.append(int(sid))
+        except (ValueError, TypeError):
+            continue
+
+    if not score_ids:
+        messages.warning(request, "Invalid score IDs provided")
+        return redirect("scoring:review_inject_feedback")
+
+    scores_to_approve = InjectScore.objects.filter(
+        id__in=score_ids,
+        feedback_approved=False,
+    )
+
+    approved_count = 0
+    for score in scores_to_approve:
+        score.feedback_approved = True
+        score.feedback_approved_by = user
+        score.save(update_fields=["feedback_approved", "feedback_approved_by"])
+        approved_count += 1
+
+    messages.success(request, f"Approved feedback for {approved_count} inject scores")
+    return redirect("scoring:review_inject_feedback")

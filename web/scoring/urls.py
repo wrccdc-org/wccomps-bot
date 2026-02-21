@@ -48,6 +48,15 @@ urlpatterns = [
     path("gold-team/incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
     # Gold Team - Orange Review
     path("gold-team/orange/", views.review_orange, name="review_orange"),
+    # Gold Team - Inject Feedback Review
+    path("gold-team/inject-feedback/", views.review_inject_feedback, name="review_inject_feedback"),
+    path("gold-team/inject-feedback/save/", views.save_inject_feedback, name="save_inject_feedback"),
+    path("gold-team/inject-feedback/approve/", views.approve_inject_feedback, name="approve_inject_feedback"),
+    path(
+        "gold-team/inject-feedback/bulk-approve/",
+        views.bulk_approve_inject_feedback,
+        name="bulk_approve_inject_feedback",
+    ),
     # Admin/Configuration
     path("admin/config/", views.scoring_config, name="scoring_config"),
     path("admin/sync-metadata/", views.sync_metadata, name="sync_metadata"),
