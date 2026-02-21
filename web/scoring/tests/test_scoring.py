@@ -1,31 +1,18 @@
 """
-Tests for scoring system - validates percentage-based scoring formula.
+Tests for scoring system - validates weighted scoring formula.
 
 FORMULA DOCUMENTATION:
 ======================
 
-Percentage-Based Scoring with 4 categories:
-    1. Normalize each category: category_pct = raw_points / max_possible
-    2. Apply weight: weighted = category_pct × weight
-    3. Sum all weighted values for final score (max 100)
+Weighted Scoring (modifier derived from weights + raw maxes):
+    total_pool = max(raw_max / (weight/100) for each category)
+    modifier = (weight/100) × total_pool / raw_max
+    total = (service × svc_mod) + (inject × inj_mod) + (orange × ora_mod)
+          + sla + point_adjustments + red_deductions + incident_recovery
+          + black_adjustments
 
-Categories:
-    - Service: (service_points + sla_penalties) / service_max × service_weight
-    - Inject: inject_total / inject_max × inject_weight
-    - Orange: orange_total / orange_max × orange_weight
-    - Red: (red_deductions + recovery) / red_max × red_weight
-
-Default Weights (must sum to 100%):
-    service_weight:  40% (includes SLA penalties)
-    inject_weight:   30%
-    orange_weight:   15%
-    red_weight:      15% (deductions offset by recovery)
-
-Default Max Points (for normalization):
-    service_max:  1000
-    inject_max:   500
-    orange_max:   100
-    red_max:      200
+Default Weights / Raw Maxes:
+    service: 40% / 11454     inject: 40% / 3060     orange: 20% / 160
 """
 
 from decimal import Decimal
@@ -56,7 +43,7 @@ from team.models import Team
 
 
 class ScoringFormulaTests(TestCase):
-    """Test percentage-based scoring formula with 4 categories."""
+    """Test weighted scoring formula."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -64,28 +51,27 @@ class ScoringFormulaTests(TestCase):
         self.team1 = Team.objects.create(team_number=1, team_name="Test Team 1")
         self.team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
 
-        # Create scoring template with 4 percentage weights
+        # Weights proportional to maxes → all modifiers = 1.0 for easy math
+        # 1000/1600=62.5%, 500/1600=31.25%, 100/1600=6.25%
         self.template = ScoringTemplate.objects.create(
-            service_weight=Decimal("40"),
-            inject_weight=Decimal("30"),
-            orange_weight=Decimal("15"),
-            red_weight=Decimal("15"),
+            service_weight=Decimal("62.50"),
+            inject_weight=Decimal("31.25"),
+            orange_weight=Decimal("6.25"),
             service_max=Decimal("1000"),
             inject_max=Decimal("500"),
             orange_max=Decimal("100"),
-            red_max=Decimal("200"),
         )
 
     def test_simple_score_calculation(self) -> None:
-        """Test basic percentage-based score calculation with 4 categories."""
-        # Service: (500 - 10) / 1000 = 49% → 49% × 40 = 19.6
+        """Test basic scaling-factor score calculation."""
+        # Service: 500 × 1.0 = 500, SLA: -10
         ServiceScore.objects.create(
             team=self.team1,
             service_points=Decimal("500.00"),
             sla_violations=Decimal("-10.00"),
         )
 
-        # Inject: 250/500 = 50% → 50% × 30 = 15
+        # Inject: 250 × 1.0 = 250
         InjectGrade.objects.create(
             team=self.team1,
             inject_id="INJ-001",
@@ -96,7 +82,7 @@ class ScoringFormulaTests(TestCase):
             is_approved=True,
         )
 
-        # Orange: 50/100 = 50% → 50% × 15 = 7.5
+        # Orange: 50 × 1.0 = 50
         OrangeTeamBonus.objects.create(
             team=self.team1,
             description="Security improvement",
@@ -105,7 +91,7 @@ class ScoringFormulaTests(TestCase):
             is_approved=True,
         )
 
-        # Red: (-100 + 0) / 200 = -50% → -50% × 15 = -7.5
+        # Red: -100 (subtracted directly)
         red_finding = RedTeamFinding.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
@@ -117,20 +103,20 @@ class ScoringFormulaTests(TestCase):
 
         scores = calculate_team_score(self.team1)
 
-        # Service: (500 - 10) / 1000 × 40 = 19.6
-        self.assertEqual(scores["service_points"], Decimal("19.60"))
-        # Inject: 250/500 × 30 = 15
-        self.assertEqual(scores["inject_points"], Decimal("15.00"))
-        # Orange: 50/100 × 15 = 7.5
-        self.assertEqual(scores["orange_points"], Decimal("7.50"))
-        # Red: (-100 + 0) / 200 × 15 = -7.5
-        self.assertEqual(scores["red_deductions"], Decimal("-7.50"))
-        # SLA raw value (for display)
+        # Service: 500 × 1.0 = 500
+        self.assertEqual(scores["service_points"], Decimal("500.0"))
+        # Inject: 250 × 1.0 = 250
+        self.assertEqual(scores["inject_points"], Decimal("250.0"))
+        # Orange: 50 × 1.0 = 50
+        self.assertEqual(scores["orange_points"], Decimal("50.0"))
+        # Red deduction: -100 (raw)
+        self.assertEqual(scores["red_deductions"], Decimal("-100"))
+        # SLA penalty
         self.assertEqual(scores["sla_penalties"], Decimal("-10.00"))
-        # Recovery raw value (for display)
-        self.assertEqual(scores["incident_recovery_points"], Decimal("0.00"))
-        # Final total (service + inject + orange + red)
-        self.assertEqual(scores["total_score"], Decimal("34.60"))
+        # Recovery points
+        self.assertEqual(scores["incident_recovery_points"], Decimal("0"))
+        # Total = 500 + 250 + 50 - 10 - 100 = 690
+        self.assertEqual(scores["total_score"], Decimal("690.0"))
 
     def test_leaderboard_ranking(self) -> None:
         """Test that leaderboard ranks teams correctly."""
@@ -506,13 +492,14 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        # Create template with 4 categories
+        # Create template with equal weights (modifier=1.0 when weight ∝ max)
         ScoringTemplate.objects.create(
-            service_weight=Decimal("40"),
-            inject_weight=Decimal("30"),
-            orange_weight=Decimal("15"),
-            red_weight=Decimal("15"),
-            red_max=Decimal("200"),
+            service_weight=Decimal("62.50"),
+            inject_weight=Decimal("31.25"),
+            orange_weight=Decimal("6.25"),
+            service_max=Decimal("1000"),
+            inject_max=Decimal("500"),
+            orange_max=Decimal("100"),
         )
 
         IncidentReport.objects.create(

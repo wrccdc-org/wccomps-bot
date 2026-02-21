@@ -436,14 +436,7 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
 
 
 class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
-    """Form for configuring scoring weights and max points.
-
-    Four weighted categories (must sum to 100%):
-    - Service: includes SLA penalties
-    - Inject: inject/scenario responses
-    - Orange: customer service adjustments
-    - Red: red team deductions offset by incident recovery
-    """
+    """Form for configuring scoring weights and raw maximums."""
 
     class Meta:
         model = ScoringTemplate
@@ -451,31 +444,17 @@ class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
             "service_weight",
             "inject_weight",
             "orange_weight",
-            "red_weight",
             "service_max",
             "inject_max",
             "orange_max",
-            "red_max",
         ]
-        help_texts = {
-            "service_weight": "Percentage weight for service uptime (includes SLA penalties)",
-            "inject_weight": "Percentage weight for inject responses",
-            "orange_weight": "Percentage weight for orange team adjustments",
-            "red_weight": "Percentage weight for red team (deductions offset by recovery)",
-            "service_max": "Maximum possible service points (from Quotient)",
-            "inject_max": "Maximum possible inject points",
-            "orange_max": "Maximum possible orange team points",
-            "red_max": "Maximum possible red team deductions",
-        }
-        weight_attrs = {"min": "0", "max": "100", "step": "1", "class": "form-control weight-input"}
-        max_attrs = {"min": "1", "step": "1", "class": "form-control"}
+        weight_attrs = {"min": "0", "max": "100", "step": "1", "class": "form-control"}
+        max_attrs = {"min": "0", "step": "1", "class": "form-control"}
         widgets = {
             "service_weight": forms.NumberInput(attrs=weight_attrs),
             "inject_weight": forms.NumberInput(attrs=weight_attrs),
             "orange_weight": forms.NumberInput(attrs=weight_attrs),
-            "red_weight": forms.NumberInput(attrs=weight_attrs),
             "service_max": forms.NumberInput(attrs=max_attrs),
             "inject_max": forms.NumberInput(attrs=max_attrs),
             "orange_max": forms.NumberInput(attrs=max_attrs),
-            "red_max": forms.NumberInput(attrs=max_attrs),
         }
