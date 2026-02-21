@@ -903,3 +903,25 @@ class TestExportFormatParameter:
         # Test JSON
         response = client.get(reverse("scoring:export_red_findings"), {"format": "JSON"})
         assert response["Content-Type"] == "application/json"
+
+
+class TestExportIndexPermissions:
+    """Test export index page permission checks."""
+
+    def test_export_index_requires_gold_team(self, create_user_with_groups):
+        """Export index page requires Gold Team access."""
+        non_gold = create_user_with_groups("red_user", ["WCComps_RedTeam"])
+        client = Client()
+        client.force_login(non_gold)
+
+        response = client.get(reverse("scoring:export_index"))
+        assert response.status_code == 302
+
+    def test_export_index_accessible_by_gold_team(self, admin_user):
+        """Gold Team can access export index page."""
+        client = Client()
+        client.force_login(admin_user)
+
+        response = client.get(reverse("scoring:export_index"))
+        assert response.status_code == 200
+        assert b"Export" in response.content

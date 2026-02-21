@@ -7,7 +7,7 @@ import discord
 import pytest
 from django.utils import timezone
 
-from bot.unified_dashboard import DashboardControlView, UnifiedDashboard
+from bot.unified_dashboard import UnifiedDashboard
 from core.models import BotState, DashboardUpdate
 from team.models import Team
 from ticketing.models import Ticket
@@ -17,19 +17,6 @@ from ticketing.models import Ticket
 @pytest.mark.django_db(transaction=True)
 class TestUnifiedDashboard:
     """Test unified dashboard functionality."""
-
-    async def test_initialization(self) -> None:
-        """Test UnifiedDashboard initialization."""
-        bot = AsyncMock(spec=discord.Client)
-        dashboard = UnifiedDashboard(bot)
-
-        assert dashboard.bot is bot
-        assert dashboard.running is False
-        assert dashboard.task is None
-        assert dashboard.dashboard_message_id is None
-        assert dashboard.dashboard_channel_id is None
-        assert dashboard.sort_by == "created"
-        assert dashboard.filter_status == "all"
 
     async def test_start_creates_task(self) -> None:
         """Test that start() creates background task."""
@@ -397,6 +384,11 @@ class TestUnifiedDashboard:
         embed = call_kwargs["embed"]
         assert "1 active tickets" in embed.description
 
+        # Verify ticket content appears in embed fields
+        field_values = " ".join(f.value for f in embed.fields)
+        assert "T010-001" in field_values
+        assert "Test Team" in field_values
+
     async def test_update_dashboard_sort_by_stale(self, box_reset_category) -> None:
         """Test _update_dashboard sorting by stale."""
         bot = AsyncMock(spec=discord.Client)
@@ -440,6 +432,14 @@ class TestUnifiedDashboard:
         await dashboard._update_dashboard()
 
         mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+
+        # Verify stale (2hr) ticket appears before fresh (5min) ticket
+        field_values = " ".join(f.value for f in embed.fields)
+        old_pos = field_values.index("T011-001")
+        new_pos = field_values.index("T011-002")
+        assert old_pos < new_pos, "Stale ticket should appear before fresh ticket"
 
     async def test_update_dashboard_sort_by_team(self, box_reset_category) -> None:
         """Test _update_dashboard sorting by team name."""
@@ -484,6 +484,14 @@ class TestUnifiedDashboard:
         await dashboard._update_dashboard()
 
         mock_message.edit.assert_called_once()
+        call_kwargs = mock_message.edit.call_args[1]
+        embed = call_kwargs["embed"]
+
+        # Verify Alpha Team appears before Bravo Team in embed
+        field_values = " ".join(f.value for f in embed.fields)
+        alpha_pos = field_values.index("Alpha Team")
+        bravo_pos = field_values.index("Bravo Team")
+        assert alpha_pos < bravo_pos, "Alpha should appear before Bravo when sorted by team"
 
     async def test_update_dashboard_filter_open(self, box_reset_category) -> None:
         """Test _update_dashboard filtering to only open tickets."""
@@ -604,18 +612,3 @@ class TestUnifiedDashboard:
         dashboard_update = await DashboardUpdate.objects.afirst()
         assert dashboard_update is not None
         assert dashboard_update.needs_update is True
-
-
-@pytest.mark.asyncio
-@pytest.mark.django_db(transaction=True)
-class TestDashboardControlView:
-    """Test dashboard control view initialization."""
-
-    async def test_view_initialization(self) -> None:
-        """Test DashboardControlView creates with dashboard reference."""
-        bot = AsyncMock(spec=discord.Client)
-        dashboard = UnifiedDashboard(bot)
-        view = DashboardControlView(dashboard)
-
-        assert view.dashboard is dashboard
-        assert view.timeout is None

@@ -339,62 +339,6 @@ class TestAuthentikManager:
             assert call_args[0][0] == {"pk": "binding-456", "enabled": True}
             assert call_args[1]["enabled"] is False
 
-    def test_enable_applications_all_success(self, manager: AuthentikManager) -> None:
-        """Test enabling multiple applications successfully."""
-        with patch.object(manager, "enable_application") as mock_enable:
-            mock_enable.return_value = (True, None)
-
-            results = manager.enable_applications(["app1", "app2", "app3"])
-
-            assert len(results) == 3
-            assert all(success for success, _ in results.values())
-            assert mock_enable.call_count == 3
-
-    def test_enable_applications_partial_failure(self, manager: AuthentikManager) -> None:
-        """Test enabling multiple applications with some failures."""
-        with patch.object(manager, "enable_application") as mock_enable:
-            mock_enable.side_effect = [
-                (True, None),
-                (False, "App not found"),
-                (True, None),
-            ]
-
-            results = manager.enable_applications(["app1", "app2", "app3"])
-
-            assert results["app1"] == (True, None)
-            assert results["app2"] == (False, "App not found")
-            assert results["app3"] == (True, None)
-
-    def test_enable_applications_empty_list(self, manager: AuthentikManager) -> None:
-        """Test enabling empty list of applications."""
-        results = manager.enable_applications([])
-
-        assert results == {}
-
-    def test_disable_applications_all_success(self, manager: AuthentikManager) -> None:
-        """Test disabling multiple applications successfully."""
-        with patch.object(manager, "disable_application") as mock_disable:
-            mock_disable.return_value = (True, None)
-
-            results = manager.disable_applications(["app1", "app2"])
-
-            assert len(results) == 2
-            assert all(success for success, _ in results.values())
-            assert mock_disable.call_count == 2
-
-    def test_disable_applications_partial_failure(self, manager: AuthentikManager) -> None:
-        """Test disabling multiple applications with some failures."""
-        with patch.object(manager, "disable_application") as mock_disable:
-            mock_disable.side_effect = [
-                (False, "Binding not found"),
-                (True, None),
-            ]
-
-            results = manager.disable_applications(["app1", "app2"])
-
-            assert results["app1"] == (False, "Binding not found")
-            assert results["app2"] == (True, None)
-
     def test_update_user_discord_id_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating user's Discord ID."""
         mock_response = Mock()

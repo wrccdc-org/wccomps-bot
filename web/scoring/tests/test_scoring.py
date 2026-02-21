@@ -118,6 +118,66 @@ class ScoringFormulaTests(TestCase):
         # Total = 500 + 250 + 50 - 10 - 100 = 690
         self.assertEqual(scores["total_score"], Decimal("690.0"))
 
+    def test_zero_scores_all_categories(self) -> None:
+        """Team with no scoring data gets total 0."""
+        scores = calculate_team_score(self.team1)
+
+        self.assertEqual(scores["service_points"], Decimal("0"))
+        self.assertEqual(scores["inject_points"], Decimal("0"))
+        self.assertEqual(scores["orange_points"], Decimal("0"))
+        self.assertEqual(scores["red_deductions"], Decimal("0"))
+        self.assertEqual(scores["total_score"], Decimal("0"))
+
+    def test_only_red_deductions(self) -> None:
+        """Team with only red findings gets negative total."""
+        red = RedTeamFinding.objects.create(
+            attack_vector="RCE",
+            source_ip="10.0.0.1",
+            points_per_team=Decimal("200.00"),
+            submitted_by=self.user,
+            is_approved=True,
+        )
+        red.affected_teams.add(self.team1)
+
+        scores = calculate_team_score(self.team1)
+
+        self.assertEqual(scores["red_deductions"], Decimal("-200"))
+        self.assertLess(scores["total_score"], Decimal("0"))
+
+    def test_unapproved_scores_excluded(self) -> None:
+        """Unapproved inject grades, red findings, and orange bonuses are not counted."""
+        InjectGrade.objects.create(
+            team=self.team1,
+            inject_id="INJ-X",
+            inject_name="Unapproved Inject",
+            max_points=Decimal("100.00"),
+            points_awarded=Decimal("80.00"),
+            graded_by=self.user,
+            is_approved=False,
+        )
+        OrangeTeamBonus.objects.create(
+            team=self.team1,
+            description="Unapproved bonus",
+            points_awarded=Decimal("30.00"),
+            submitted_by=self.user,
+            is_approved=False,
+        )
+        red = RedTeamFinding.objects.create(
+            attack_vector="Unapproved finding",
+            source_ip="10.0.0.2",
+            points_per_team=Decimal("50.00"),
+            submitted_by=self.user,
+            is_approved=False,
+        )
+        red.affected_teams.add(self.team1)
+
+        scores = calculate_team_score(self.team1)
+
+        self.assertEqual(scores["inject_points"], Decimal("0"))
+        self.assertEqual(scores["orange_points"], Decimal("0"))
+        self.assertEqual(scores["red_deductions"], Decimal("0"))
+        self.assertEqual(scores["total_score"], Decimal("0"))
+
     def test_leaderboard_ranking(self) -> None:
         """Test that leaderboard ranks teams correctly."""
         ServiceScore.objects.create(
@@ -963,433 +1023,3 @@ class OrangeCheckTypeTests(TestCase):
         self.assertEqual(bonus1.check_type, check_type)
         self.assertEqual(bonus2.check_type, check_type)
         self.assertEqual(OrangeTeamBonus.objects.filter(check_type=check_type).count(), 2)
-
-
-@pytest.mark.django_db
-class TestDataExport:
-    """Test data export functionality for admin users."""
-
-    def test_export_index_requires_gold_team(self, create_user_with_groups) -> None:
-        """Export index page requires Gold Team access."""
-        non_gold = create_user_with_groups("red_user", ["WCComps_RedTeam"])
-        client = Client()
-        client.force_login(non_gold)
-
-        response = client.get(reverse("scoring:export_index"))
-        assert response.status_code == 302
-
-    def test_export_index_accessible_by_admin(self) -> None:
-        """Admin can access export index page."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        client = Client()
-        client.force_login(admin)
-
-        response = client.get(reverse("scoring:export_index"))
-        assert response.status_code == 200
-        assert b"Export" in response.content
-
-    def test_red_findings_csv_export_requires_admin(self, create_user_with_groups) -> None:
-        """Red findings CSV export requires admin access."""
-        non_admin = create_user_with_groups("red_user", ["WCComps_RedTeam"])
-        client = Client()
-        client.force_login(non_admin)
-
-        response = client.get(reverse("scoring:export_red_findings") + "?format=csv")
-        assert response.status_code == 302
-
-    def test_red_findings_csv_export_contains_correct_headers(self) -> None:
-        """Red findings CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        finding = RedTeamFinding.objects.create(
-            attack_vector="SQL Injection",
-            source_ip="10.0.0.5",
-            destination_ip_template="10.100.1X.22",
-            affected_boxes=["web-server"],
-            affected_service="HTTP",
-            points_per_team=Decimal("50.00"),
-            submitted_by=admin,
-            is_approved=True,
-        )
-        finding.affected_teams.add(team)
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_red_findings") + "?format=csv")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert b"ID" in response.content
-        assert b"Attack Vector" in response.content
-        assert b"Source IP" in response.content
-        assert b"Affected Teams" in response.content
-        assert b"Points Per Team" in response.content
-        assert b"Approved" in response.content
-
-    def test_red_findings_csv_export_contains_data(self) -> None:
-        """Red findings CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        finding = RedTeamFinding.objects.create(
-            attack_vector="SQL Injection",
-            source_ip="10.0.0.5",
-            points_per_team=Decimal("50.00"),
-            submitted_by=admin,
-        )
-        finding.affected_teams.add(team)
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_red_findings") + "?format=csv")
-
-        assert response.status_code == 200
-        assert b"SQL Injection" in response.content
-        assert b"10.0.0.5" in response.content
-        assert b"50.00" in response.content
-
-    def test_red_findings_json_export_format(self) -> None:
-        """Red findings JSON export returns valid JSON."""
-        import json
-
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        finding = RedTeamFinding.objects.create(
-            attack_vector="RCE",
-            source_ip="10.0.0.10",
-            points_per_team=Decimal("75.00"),
-            submitted_by=admin,
-        )
-        finding.affected_teams.add(team)
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_red_findings") + "?format=json")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/json"
-
-        data = json.loads(response.content)
-        assert "red_findings" in data
-        assert len(data["red_findings"]) == 1
-        assert data["red_findings"][0]["attack_vector"] == "RCE"
-        assert data["red_findings"][0]["source_ip"] == "10.0.0.10"
-
-    def test_incidents_csv_export_contains_headers(self) -> None:
-        """Incidents CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_incidents") + "?format=csv")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert b"ID" in response.content
-        assert b"Team" in response.content
-        assert b"Attack Description" in response.content
-        assert b"Source IP" in response.content
-        assert b"Points Returned" in response.content
-        assert b"Reviewed" in response.content
-
-    def test_incidents_csv_export_contains_data(self) -> None:
-        """Incidents CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        IncidentReport.objects.create(
-            team=team,
-            submitted_by=admin,
-            attack_description="Detected SQL injection",
-            source_ip="10.0.0.5",
-            destination_ip="10.100.11.22",
-            attack_detected_at="2025-01-01T12:00:00Z",
-            gold_team_reviewed=True,
-            points_returned=Decimal("40.00"),
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_incidents") + "?format=csv")
-
-        assert response.status_code == 200
-        assert b"Test Team" in response.content
-        assert b"Detected SQL injection" in response.content
-        assert b"40.00" in response.content
-
-    def test_incidents_json_export_format(self) -> None:
-        """Incidents JSON export returns valid JSON."""
-        import json
-
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        IncidentReport.objects.create(
-            team=team,
-            submitted_by=admin,
-            attack_description="Port scan detected",
-            source_ip="10.0.0.20",
-            attack_detected_at="2025-01-01T12:00:00Z",
-            points_returned=Decimal("25.00"),
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_incidents") + "?format=json")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/json"
-
-        data = json.loads(response.content)
-        assert "incidents" in data
-        assert len(data["incidents"]) == 1
-        assert data["incidents"][0]["attack_description"] == "Port scan detected"
-
-    def test_orange_adjustments_csv_export_contains_headers(self) -> None:
-        """Orange adjustments CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_orange_adjustments") + "?format=csv")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert b"ID" in response.content
-        assert b"Team" in response.content
-        assert b"Description" in response.content
-        assert b"Points" in response.content
-        assert b"Approved" in response.content
-
-    def test_orange_adjustments_csv_export_contains_data(self) -> None:
-        """Orange adjustments CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        OrangeTeamBonus.objects.create(
-            team=team,
-            description="Excellent customer service",
-            points_awarded=Decimal("50.00"),
-            submitted_by=admin,
-            is_approved=True,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_orange_adjustments") + "?format=csv")
-
-        assert response.status_code == 200
-        assert b"Excellent customer service" in response.content
-        assert b"50.00" in response.content
-
-    def test_orange_adjustments_json_export_format(self) -> None:
-        """Orange adjustments JSON export returns valid JSON."""
-        import json
-
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        OrangeTeamBonus.objects.create(
-            team=team,
-            description="Rule violation",
-            points_awarded=Decimal("-25.00"),
-            submitted_by=admin,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_orange_adjustments") + "?format=json")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/json"
-
-        data = json.loads(response.content)
-        assert "orange_adjustments" in data
-        assert len(data["orange_adjustments"]) == 1
-        assert data["orange_adjustments"][0]["description"] == "Rule violation"
-        assert data["orange_adjustments"][0]["points_awarded"] == "-25.00"
-
-    def test_inject_grades_csv_export_contains_headers(self) -> None:
-        """Inject grades CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_inject_grades") + "?format=csv")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert b"Team" in response.content
-        assert b"Inject ID" in response.content
-        assert b"Inject Name" in response.content
-        assert b"Max Points" in response.content
-        assert b"Points Awarded" in response.content
-        assert b"Approved" in response.content
-
-    def test_inject_grades_csv_export_contains_data(self) -> None:
-        """Inject grades CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        InjectGrade.objects.create(
-            team=team,
-            inject_id="INJ-001",
-            inject_name="Network Diagram",
-            max_points=Decimal("100.00"),
-            points_awarded=Decimal("85.00"),
-            graded_by=admin,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_inject_grades") + "?format=csv")
-
-        assert response.status_code == 200
-        assert b"Network Diagram" in response.content
-        assert b"85.00" in response.content
-        assert b"100.00" in response.content
-
-    def test_inject_grades_json_export_format(self) -> None:
-        """Inject grades JSON export returns valid JSON."""
-        import json
-
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        InjectGrade.objects.create(
-            team=team,
-            inject_id="INJ-002",
-            inject_name="Security Report",
-            max_points=Decimal("50.00"),
-            points_awarded=Decimal("45.00"),
-            graded_by=admin,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_inject_grades") + "?format=json")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/json"
-
-        data = json.loads(response.content)
-        assert "inject_grades" in data
-        assert len(data["inject_grades"]) == 1
-        assert data["inject_grades"][0]["inject_name"] == "Security Report"
-
-    def test_final_scores_csv_export_contains_headers(self) -> None:
-        """Final scores CSV export contains correct headers."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_final_scores") + "?format=csv")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-        assert b"Rank" in response.content
-        assert b"Team" in response.content
-        assert b"Total Score" in response.content
-        assert b"Service Points" in response.content
-        assert b"Inject Points" in response.content
-        assert b"Red Deductions" in response.content
-
-    def test_final_scores_csv_export_contains_data(self) -> None:
-        """Final scores CSV export contains correct data."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        FinalScore.objects.create(
-            team=team,
-            service_points=Decimal("500.00"),
-            inject_points=Decimal("200.00"),
-            orange_points=Decimal("100.00"),
-            red_deductions=Decimal("-50.00"),
-            incident_recovery_points=Decimal("40.00"),
-            sla_penalties=Decimal("-20.00"),
-            total_score=Decimal("770.00"),
-            rank=1,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_final_scores") + "?format=csv")
-
-        assert response.status_code == 200
-        assert b"770.00" in response.content
-        assert b"500.00" in response.content
-
-    def test_final_scores_json_export_format(self) -> None:
-        """Final scores JSON export returns valid JSON."""
-        import json
-
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-        team = Team.objects.create(team_number=1, team_name="Test Team")
-
-        FinalScore.objects.create(
-            team=team,
-            service_points=Decimal("400.00"),
-            inject_points=Decimal("150.00"),
-            total_score=Decimal("550.00"),
-            rank=1,
-        )
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_final_scores") + "?format=json")
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/json"
-
-        data = json.loads(response.content)
-        assert "final_scores" in data
-        assert len(data["final_scores"]) == 1
-        assert data["final_scores"][0]["total_score"] == "550.00"
-
-    def test_export_defaults_to_csv_without_format_param(self) -> None:
-        """Export endpoints default to CSV when format parameter is not provided."""
-        admin = User.objects.create_user(username="admin", password="test123")
-        UserGroups.objects.create(user=admin, authentik_id="admin-uid", groups=["WCComps_GoldTeam"])
-
-        client = Client()
-        client.force_login(admin)
-        response = client.get(reverse("scoring:export_red_findings"))
-
-        assert response.status_code == 200
-        assert response["Content-Type"] == "text/csv"
-
-    def test_non_gold_team_cannot_export_any_data(self, create_user_with_groups) -> None:
-        """Non-Gold Team users cannot access any export endpoints."""
-        red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
-        client = Client()
-        client.force_login(red_user)
-
-        endpoints = [
-            "scoring:export_red_findings",
-            "scoring:export_incidents",
-            "scoring:export_orange_adjustments",
-            "scoring:export_inject_grades",
-            "scoring:export_final_scores",
-        ]
-
-        for endpoint in endpoints:
-            response = client.get(reverse(endpoint) + "?format=csv")
-            assert response.status_code == 302, f"Expected 302 for {endpoint}, got {response.status_code}"

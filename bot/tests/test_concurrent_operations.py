@@ -12,6 +12,20 @@ from bot.discord_queue import DiscordQueueProcessor
 from core.models import DiscordTask
 
 
+def _make_delayed_add_roles() -> AsyncMock:
+    """Create an AsyncMock for add_roles that yields to the event loop.
+
+    Without this, asyncio.gather runs coroutines sequentially because
+    AsyncMock completes instantly. The sleep(0) forces a context switch
+    so gather actually interleaves the coroutines.
+    """
+
+    async def _delayed(*roles: Any, **kwargs: Any) -> None:
+        await asyncio.sleep(0)
+
+    return AsyncMock(side_effect=_delayed)
+
+
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestConcurrentGroupRoleAssignments:
@@ -22,7 +36,7 @@ class TestConcurrentGroupRoleAssignments:
         guild = MagicMock(spec=discord.Guild)
         member = MagicMock(spec=discord.Member)
         member.id = 111111111
-        member.add_roles = AsyncMock()
+        member.add_roles = _make_delayed_add_roles()
 
         whiteteam_role = MagicMock(spec=discord.Role)
         whiteteam_role.id = 647838503505362957
@@ -64,11 +78,11 @@ class TestConcurrentGroupRoleAssignments:
 
         member1 = MagicMock(spec=discord.Member)
         member1.id = 111111111
-        member1.add_roles = AsyncMock()
+        member1.add_roles = _make_delayed_add_roles()
 
         member2 = MagicMock(spec=discord.Member)
         member2.id = 222222222
-        member2.add_roles = AsyncMock()
+        member2.add_roles = _make_delayed_add_roles()
 
         whiteteam_role = MagicMock(spec=discord.Role)
         whiteteam_role.id = 647838503505362957
@@ -129,11 +143,11 @@ class TestConcurrentQueueProcessing:
 
         member1 = MagicMock(spec=discord.Member)
         member1.id = 111111111
-        member1.add_roles = AsyncMock()
+        member1.add_roles = _make_delayed_add_roles()
 
         member2 = MagicMock(spec=discord.Member)
         member2.id = 222222222
-        member2.add_roles = AsyncMock()
+        member2.add_roles = _make_delayed_add_roles()
 
         whiteteam_role = MagicMock(spec=discord.Role)
         whiteteam_role.id = 647838503505362957
@@ -203,7 +217,7 @@ class TestConcurrentQueueProcessing:
 
         member = MagicMock(spec=discord.Member)
         member.id = 111111111
-        member.add_roles = AsyncMock()
+        member.add_roles = _make_delayed_add_roles()
 
         whiteteam_role = MagicMock(spec=discord.Role)
         whiteteam_role.id = 647838503505362957
@@ -257,7 +271,7 @@ class TestConcurrentTeamAndGroupRoles:
         """Test assigning team role and group role concurrently."""
         guild = MagicMock(spec=discord.Guild)
         member = MagicMock(spec=discord.Member)
-        member.add_roles = AsyncMock()
+        member.add_roles = _make_delayed_add_roles()
 
         team_role = MagicMock(spec=discord.Role)
         team_role.id = 5001

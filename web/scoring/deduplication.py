@@ -1,8 +1,4 @@
-"""
-Red Team Finding deduplication logic.
-
-Handles detection of duplicate submissions and merging of source IPs.
-"""
+"""Red Team Finding submission processing."""
 
 from dataclasses import dataclass
 
@@ -19,110 +15,10 @@ from .models import AttackType, RedTeamFinding, RedTeamIPPool
 class SubmissionResult:
     """Result of processing a red team finding submission."""
 
-    status: str  # "created", "merged", "partial_merge"
+    status: str  # "created"
     finding: RedTeamFinding
     message: str
     teams_added: list[Team]
-    original_submitter: User | None = None
-    ips_merged: bool = False
-
-
-def find_duplicate_finding(
-    attack_type: AttackType,
-    boxes: list[str],
-    teams: QuerySet[Team] | list[Team],
-) -> tuple[RedTeamFinding | None, set[Team]]:
-    """
-    Find an existing finding that matches the submission criteria.
-
-    Matching criteria:
-    - Same attack type
-    - Any box overlap (submitted boxes ∩ existing boxes)
-    - Any team overlap (submitted teams ∩ existing teams)
-
-    Returns:
-        - existing_finding: The duplicate finding if found, None otherwise
-        - uncovered_teams: Teams in submission not covered by existing finding
-    """
-    submitted_boxes = set(boxes)
-    submitted_teams = set(teams)
-
-    # Find findings with same attack type
-    candidates = RedTeamFinding.objects.filter(
-        attack_type=attack_type,
-    ).prefetch_related("affected_teams")
-
-    for candidate in candidates:
-        existing_boxes = set(candidate.affected_boxes or [])
-
-        # Check for any box overlap
-        if not submitted_boxes.intersection(existing_boxes):
-            continue
-
-        existing_teams = set(candidate.affected_teams.all())
-
-        # Check for any team overlap
-        overlap = existing_teams.intersection(submitted_teams)
-        if overlap:
-            uncovered = submitted_teams - existing_teams
-            return candidate, uncovered
-
-    return None, submitted_teams
-
-
-def merge_source_ips(
-    finding: RedTeamFinding,
-    new_ip: str | None,
-    new_pool: RedTeamIPPool | None,
-) -> bool:
-    """
-    Merge new source IP(s) into existing finding.
-
-    Returns True if any new IPs were added.
-    """
-    # Collect all existing IPs
-    existing_ips: set[str] = set()
-    if finding.source_ip:
-        existing_ips.add(str(finding.source_ip))
-    if finding.source_ip_pool:
-        existing_ips.update(finding.source_ip_pool.get_ip_list())
-
-    # Collect new IPs
-    new_ips: set[str] = set()
-    if new_ip:
-        new_ips.add(new_ip)
-    if new_pool:
-        new_ips.update(new_pool.get_ip_list())
-
-    # Check if there are actually new IPs to add
-    truly_new = new_ips - existing_ips
-    if not truly_new:
-        return False
-
-    combined = existing_ips | new_ips
-
-    if len(combined) == 1:
-        # Single IP - use source_ip field
-        finding.source_ip = list(combined)[0]
-        finding.source_ip_pool = None
-    else:
-        # Multiple IPs - need a pool
-        if finding.source_ip_pool:
-            # Update existing pool
-            finding.source_ip_pool.ip_addresses = "\n".join(sorted(combined))
-            finding.source_ip_pool.save()
-        elif finding.submitted_by:
-            # Create a new merged pool
-            pool = RedTeamIPPool.objects.create(
-                name=f"Finding #{finding.id} IPs (merged)",
-                ip_addresses="\n".join(sorted(combined)),
-                created_by=finding.submitted_by,
-            )
-            finding.source_ip = None
-            finding.source_ip_pool = pool
-
-    finding.save()
-    return True
 
 
 @dataclass
@@ -156,22 +52,11 @@ def process_red_team_submission(
     outcomes: OutcomeData | None = None,
 ) -> SubmissionResult:
     """
-    Process a red team finding submission with deduplication.
+    Process a red team finding submission.
 
-    This function:
-    1. Checks for existing findings with the same attack type + box + team overlap
-    2. If found: merges IPs, adds contributor, adds any new teams
-    3. If not found: creates new finding
-
-    Returns a SubmissionResult with details about what happened.
+    Creates a new RedTeamFinding with auto-calculated points from outcomes.
     """
     teams_list = list(teams)
-
-    # NOTE: Automatic deduplication disabled - always create new findings
-    # The find_duplicate_finding() and merge logic has been removed.
-    # Red team members can manually mark findings as duplicates if needed.
-
-    # Create new finding
     outcome_fields = {}
     if outcomes:
         outcome_fields = {

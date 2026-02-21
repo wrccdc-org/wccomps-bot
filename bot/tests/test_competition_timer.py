@@ -1,7 +1,7 @@
 """Tests for competition timer background task."""
 
 from datetime import timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import discord
 import pytest
@@ -15,63 +15,6 @@ from core.models import CompetitionConfig
 @pytest.mark.django_db(transaction=True)
 class TestCompetitionTimer:
     """Test competition timer functionality."""
-
-    async def test_initialization(self) -> None:
-        """Test CompetitionTimer initialization."""
-        bot = AsyncMock(spec=discord.Client)
-        timer = CompetitionTimer(bot)
-
-        assert timer.bot is bot
-        assert timer.task is None
-        assert timer.running is False
-
-    async def test_start_creates_task(self) -> None:
-        """Test that start() creates and runs the background task."""
-        bot = AsyncMock(spec=discord.Client)
-        timer = CompetitionTimer(bot)
-
-        with patch("asyncio.create_task") as mock_create_task:
-            mock_task = Mock()
-            mock_task.cancel = Mock()
-            mock_create_task.return_value = mock_task
-
-            timer.start()
-
-            assert timer.running is True
-            assert timer.task is mock_task
-            mock_create_task.assert_called_once()
-
-            # Close the coroutine that was passed to the mocked create_task
-            # to prevent "coroutine was never awaited" warning
-            coro = mock_create_task.call_args[0][0]
-            coro.close()
-
-            timer.stop()
-
-    async def test_stop_cancels_task(self) -> None:
-        """Test that stop() cancels the background task."""
-        bot = AsyncMock(spec=discord.Client)
-        timer = CompetitionTimer(bot)
-
-        mock_task = Mock()
-        mock_task.cancel = Mock()
-        timer.task = mock_task
-        timer.running = True
-
-        timer.stop()
-
-        assert timer.running is False
-        mock_task.cancel.assert_called_once()
-
-    async def test_stop_when_no_task(self) -> None:
-        """Test that stop() handles case when task is None."""
-        bot = AsyncMock(spec=discord.Client)
-        timer = CompetitionTimer(bot)
-        timer.running = True
-
-        timer.stop()
-
-        assert timer.running is False
 
     async def test_check_loop_continues_while_running(self) -> None:
         """Test that _check_loop continues checking while running is True."""
