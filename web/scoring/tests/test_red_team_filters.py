@@ -8,9 +8,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from team.models import Team
-
 from scoring.models import AttackType, RedTeamFinding
+from team.models import Team
 
 
 @pytest.mark.django_db

@@ -10,9 +10,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import UserGroups
-from team.models import Team
-
 from scoring.models import InjectGrade
+from team.models import Team
 
 
 @pytest.mark.django_db

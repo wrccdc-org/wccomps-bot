@@ -10,9 +10,8 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth.models import User
 
-from team.models import Team
-
 from scoring.models import RedTeamFinding
+from team.models import Team
 
 pytestmark = pytest.mark.django_db
 

@@ -14,7 +14,6 @@ from django.test import Client
 from django.urls import reverse
 
 from core.models import UserGroups
-
 from scoring.models import RedTeamFinding
 
 

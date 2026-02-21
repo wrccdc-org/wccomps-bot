@@ -6,9 +6,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from team.models import Team
-
 from scoring.models import OrangeTeamBonus
+from team.models import Team
 
 
 class OrangeTeamBonusApprovalTests(TestCase):
