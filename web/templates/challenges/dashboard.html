@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load cotton %}
+{% block title %}
+    Orange Team Dashboard
+{% endblock title %}
+{% block content %}
+    <c-page_header title="Orange Team Dashboard" subtitle="Check-in status and assigned checks" />
+    {% if messages %}
+        {% for message in messages %}
+            <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
+        {% endfor %}
+    {% endif %}
+    {# Check-in status #}
+    <c-module>
+    <div class="status-bar">
+        <div class="d-flex justify-between items-center flex-wrap gap-10">
+            <div class="d-flex items-center gap-10">
+                <strong>Status:</strong>
+                {% if active_checkin %}
+                    <c-badge variant="success">Checked In</c-badge>
+                    <span class="text-muted">since {{ active_checkin.checked_in_at|date:"H:i" }}</span>
+                {% else %}
+                    <c-badge variant="neutral">Checked Out</c-badge>
+                {% endif %}
+            </div>
+            {# toggle_checkin URL will be wired in Task 8 #}
+            <form method="post" action="#">
+
+                {% csrf_token %}
+                {% if active_checkin %}
+                    <c-button type="submit" variant="danger">Check Out</c-button>
+                {% else %}
+                    <c-button type="submit" variant="primary">Check In</c-button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    </c-module>
+    {# Follow-up reminders #}
+    {% if followups %}
+        <c-module>
+        <h2>Follow-Up Reminders</h2>
+        <c-table id="followups" aria_label="Follow-up reminders">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Check</c-table_header>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false">Remind At</c-table_header>
+            <c-table_header sortable="false">Note</c-table_header>
+        </tr>
+        </c-slot>
+        {% for followup in followups %}
+            <tr>
+                <td>{{ followup.assignment.orange_check.title }}</td>
+                <td>Team {{ followup.assignment.team.team_number }}</td>
+                <td>{{ followup.remind_at|date:"m/d H:i" }}</td>
+                <td>{{ followup.note|default:"—" }}</td>
+            </tr>
+        {% endfor %}
+        </c-table>
+        </c-module>
+    {% endif %}
+    {# My Assignments #}
+    <c-module>
+    <h2>My Assignments</h2>
+    {% if assignments %}
+        {% regroup assignments by orange_check.title as checks %}
+        {% for check in checks %}
+            <h3>{{ check.grouper }}</h3>
+            <c-table aria_label="Assignments for {{ check.grouper }}">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Team</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Score</c-table_header>
+                <c-table_header sortable="false">Criteria</c-table_header>
+                <c-table_header sortable="false">Actions</c-table_header>
+            </tr>
+            </c-slot>
+            {% for assignment in check.list %}
+                <tr>
+                    <td>Team {{ assignment.team.team_number }} — {{ assignment.team.team_name }}</td>
+                    <td>
+                        {% if assignment.status == "pending" %}
+                            <c-badge variant="warning">Pending</c-badge>
+                        {% elif assignment.status == "in_progress" %}
+                            <c-badge variant="info">In Progress</c-badge>
+                        {% elif assignment.status == "submitted" %}
+                            <c-badge variant="claimed">Submitted</c-badge>
+                        {% endif %}
+                    </td>
+                    <td>{{ assignment.score|default:"—" }} / {{ assignment.orange_check.max_score }}</td>
+                    <td>
+                        <ul class="plain-list">
+                            {% for result in assignment.results.all %}
+                                <li>
+                                    <label>
+                                        <input type="checkbox" {% if result.met %}checked{% endif %} disabled>
+                                        {{ result.criterion.label }} ({{ result.criterion.points }} pts)
+                                    </label>
+                                </li>
+                            {% empty %}
+                                <span class="text-muted">No criteria recorded</span>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        <c-button type="button" variant="primary" disabled>Submit</c-button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </c-table>
+        {% endfor %}
+    {% else %}
+        <c-empty_state title="No assignments" description="You have no pending checks assigned to you." />
+    {% endif %}
+    </c-module>
+    {# Lead link #}
+    {% if is_lead %}
+        <c-button_row>
+        <c-link href="#" variant="change">Manage Checks</c-link>
+        </c-button_row>
+    {% endif %}
+{% endblock content %}
