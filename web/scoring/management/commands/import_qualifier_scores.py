@@ -9,7 +9,7 @@ from django.db import transaction
 from registration.models import Event, EventTeamAssignment, Season, TeamRegistration
 
 from scoring.models import (
-    BlackTeamAdjustment,
+    IncidentReport,
     InjectGrade,
     OrangeTeamBonus,
     RedTeamFinding,
@@ -248,7 +248,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"  Imported {red_count} red team deduction entries")
 
-        # 8b. Import "Points Back" as BlackTeamAdjustment
+        # 8b. Import "Points Back" as IncidentReport (incident recovery points)
         points_back_col: int | None = None
         for col in range(3, ws_red.max_column + 1):
             if ws_red.cell(row=1, column=col).value == "Points Back":
@@ -264,16 +264,21 @@ class Command(BaseCommand):
                 pb_pts = ws_red.cell(row=row, column=points_back_col).value
                 if pb_pts is None or pb_pts == 0 or pb_pts == 0.0:
                     continue
-                BlackTeamAdjustment.objects.update_or_create(
+                IncidentReport.objects.update_or_create(
                     team=teams[team_num],
-                    reason="Qualifier import: Points Back",
+                    attack_description="Qualifier import: Points Back",
                     defaults={
                         "event": event,
-                        "point_adjustment": Decimal(str(pb_pts)),
+                        "source_ip": "127.0.0.1",
+                        "attack_detected_at": f"{options['season_year']}-02-08T00:00:00Z",
+                        "attack_mitigated": True,
+                        "gold_team_reviewed": True,
+                        "points_returned": Decimal(str(pb_pts)),
+                        "reviewer_notes": "Imported from qualifier spreadsheet",
                     },
                 )
                 pb_count += 1
-        self.stdout.write(f"  Imported {pb_count} points back adjustments")
+        self.stdout.write(f"  Imported {pb_count} incident recovery (points back) records")
 
         # 9. Recalculate final scores from source records
         from scoring.calculator import recalculate_all_scores
