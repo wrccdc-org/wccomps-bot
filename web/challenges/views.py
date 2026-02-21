@@ -464,8 +464,7 @@ def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse
 
     messages.success(
         request,
-        f"Approved: {assignment.orange_check.title} - Team {assignment.team.team_number} "
-        f"({assignment.score} pts)",
+        f"Approved: {assignment.orange_check.title} - Team {assignment.team.team_number} ({assignment.score} pts)",
     )
     return redirect("challenges:dashboard")
 
@@ -509,29 +508,33 @@ def export_scores(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="orange_scores.csv"'
     writer = csv.writer(response)
-    writer.writerow([
-        "Check",
-        "Team Number",
-        "Team Name",
-        "Assignee",
-        "Score",
-        "Max Score",
-        "Status",
-        "Submitted At",
-        "Reviewed By",
-        "Reviewed At",
-    ])
+    writer.writerow(
+        [
+            "Check",
+            "Team Number",
+            "Team Name",
+            "Assignee",
+            "Score",
+            "Max Score",
+            "Status",
+            "Submitted At",
+            "Reviewed By",
+            "Reviewed At",
+        ]
+    )
     for a in assignments:
-        writer.writerow([
-            a.orange_check.title,
-            a.team.team_number,
-            a.team.team_name,
-            a.user.username,
-            a.score or 0,
-            a.orange_check.max_score,
-            a.status,
-            a.submitted_at.strftime("%Y-%m-%d %H:%M") if a.submitted_at else "",
-            a.reviewed_by.username if a.reviewed_by else "",
-            a.reviewed_at.strftime("%Y-%m-%d %H:%M") if a.reviewed_at else "",
-        ])
+        writer.writerow(
+            [
+                a.orange_check.title,
+                a.team.team_number,
+                a.team.team_name,
+                a.user.username,
+                a.score or 0,
+                a.orange_check.max_score,
+                a.status,
+                a.submitted_at.strftime("%Y-%m-%d %H:%M") if a.submitted_at else "",
+                a.reviewed_by.username if a.reviewed_by else "",
+                a.reviewed_at.strftime("%Y-%m-%d %H:%M") if a.reviewed_at else "",
+            ]
+        )
     return response

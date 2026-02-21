@@ -6,9 +6,7 @@
 {% block content %}
     <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" />
     {% if messages %}
-        {% for message in messages %}
-            <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
-        {% endfor %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}
     <c-module>
     <c-slot name="toolbar">

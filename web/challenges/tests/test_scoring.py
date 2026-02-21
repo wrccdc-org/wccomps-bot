@@ -17,7 +17,9 @@ pytestmark = pytest.mark.django_db
 
 
 class TestAssignmentSave:
-    def _setup(self) -> tuple[
+    def _setup(
+        self,
+    ) -> tuple[
         User,
         OrangeAssignment,
         OrangeCheckCriterion,
@@ -115,9 +117,7 @@ class TestAssignmentSubmit:
         UserGroups.objects.create(user=user, authentik_id="o1", groups=["WCComps_OrangeTeam"])
         team = Team.objects.create(team_number=1, team_name="T1")
         check = OrangeCheck.objects.create(title="Test", description="Desc")
-        assignment = OrangeAssignment.objects.create(
-            orange_check=check, user=user, team=team, status="submitted"
-        )
+        assignment = OrangeAssignment.objects.create(orange_check=check, user=user, team=team, status="submitted")
         client = Client()
         client.login(username="orange1", password="test")
         response = client.post(f"/orange-team/assignments/{assignment.pk}/submit/")

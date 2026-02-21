@@ -35,7 +35,9 @@ class TestOrangeCheckIn:
 class TestOrangeCheck:
     def test_create_check(self) -> None:
         user = User.objects.create_user(username="lead1")
-        check = OrangeCheck.objects.create(title="Password Reset", description="Ask team to reset password", created_by=user)
+        check = OrangeCheck.objects.create(
+            title="Password Reset", description="Ask team to reset password", created_by=user
+        )
         assert check.status == "draft"
         assert check.max_score == 0
 

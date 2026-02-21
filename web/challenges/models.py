@@ -107,10 +107,7 @@ class OrangeAssignment(models.Model):
         return f"{self.orange_check.title} - Team {self.team.team_number} ({self.user.username})"
 
     def calculate_score(self) -> int:
-        return (
-            self.results.filter(met=True).aggregate(total=models.Sum("criterion__points"))["total"]
-            or 0
-        )
+        return self.results.filter(met=True).aggregate(total=models.Sum("criterion__points"))["total"] or 0
 
 
 class OrangeAssignmentResult(models.Model):
@@ -123,9 +120,7 @@ class OrangeAssignmentResult(models.Model):
     class Meta:
         db_table = "orange_assignment_result"
         constraints = [
-            models.UniqueConstraint(
-                fields=["assignment", "criterion"], name="one_result_per_criterion_per_assignment"
-            ),
+            models.UniqueConstraint(fields=["assignment", "criterion"], name="one_result_per_criterion_per_assignment"),
         ]
 
     def __str__(self) -> str:
