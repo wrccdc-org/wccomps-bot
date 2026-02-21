@@ -7,10 +7,6 @@
     <div class="scorecard">
         <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
         <c-module>
-        <c-slot name="toolbar">
-        <c-link href="{% url 'scoring:leaderboard' %}">Back to Leaderboard</c-link>
-        <c-button onclick="window.print()" class="no-print">Print / PDF</c-button>
-        </c-slot>
         <div class="scorecard-header">
             <div>
                 <span class="text-muted">Rank</span>
@@ -42,26 +38,110 @@
                 {% endfor %}
             </div>
         {% endif %}
+        {% if stats.insights %}
+            <div class="scorecard-insights">
+                <ul>
+                    {% for insight in stats.insights %}<li>{{ insight }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% endif %}
         </c-module>
         <c-module>
-        <h3>Score Summary</h3>
-        <c-table id="score_summary" aria_label="Score summary">
+        <h3>Category Breakdown</h3>
+        <c-table id="category_breakdown" aria_label="Category breakdown">
         <c-slot name="headers">
         <tr>
             <c-table_header sortable="false">Category</c-table_header>
             <c-table_header sortable="false" class="text-right">Points</c-table_header>
+            <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+            <c-table_header sortable="false" class="text-right">Avg</c-table_header>
+            <c-table_header sortable="false" class="text-right">Max</c-table_header>
         </tr>
         </c-slot>
-        <tr>
-            <td>Service (scaled)</td>
-            <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
-        </tr>
+        {% with svc_rank=stats.category_ranks.services %}
+            <tr>
+                <td>Service (scaled)</td>
+                <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
+                {% if svc_rank %}
+                    <td class="text-right">#{{ svc_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ svc_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ svc_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with inj_rank=stats.category_ranks.injects %}
+            <tr>
+                <td>Injects (scaled)</td>
+                <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
+                {% if inj_rank %}
+                    <td class="text-right">#{{ inj_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ inj_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ inj_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with ora_rank=stats.category_ranks.orange %}
+            <tr>
+                <td>Orange (scaled)</td>
+                <td class="text-right">
+                    <c-score_value :value="score.orange_points" format="signed" />
+                </td>
+                {% if ora_rank %}
+                    <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ ora_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ ora_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with red_rank=stats.category_ranks.red %}
+            <tr>
+                <td>Red Team</td>
+                <td class="text-right">
+                    <c-score_value :value="score.red_deductions" />
+                </td>
+                {% if red_rank %}
+                    <td class="text-right">#{{ red_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ red_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ red_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
         {% if score.sla_penalties %}
             <tr>
                 <td>SLA Violations</td>
                 <td class="text-right">
                     <c-score_value :value="score.sla_penalties" />
                 </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+            </tr>
+        {% endif %}
+        {% if score.incident_recovery_points %}
+            <tr>
+                <td>Incident Recovery</td>
+                <td class="text-right">
+                    <c-score_value :value="score.incident_recovery_points" format="signed" />
+                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
             </tr>
         {% endif %}
         {% if score.point_adjustments %}
@@ -70,30 +150,9 @@
                 <td class="text-right">
                     <c-score_value :value="score.point_adjustments" />
                 </td>
-            </tr>
-        {% endif %}
-        <tr>
-            <td>Injects (scaled)</td>
-            <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
-        </tr>
-        <tr>
-            <td>Orange (scaled)</td>
-            <td class="text-right">
-                <c-score_value :value="score.orange_points" format="signed" />
-            </td>
-        </tr>
-        <tr>
-            <td>Red Team</td>
-            <td class="text-right">
-                <c-score_value :value="score.red_deductions" />
-            </td>
-        </tr>
-        {% if score.incident_recovery_points %}
-            <tr>
-                <td>Incident Recovery</td>
-                <td class="text-right">
-                    <c-score_value :value="score.incident_recovery_points" format="signed" />
-                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
             </tr>
         {% endif %}
         {% if score.black_adjustments %}
@@ -102,6 +161,9 @@
                 <td class="text-right">
                     <c-score_value :value="score.black_adjustments" format="signed" />
                 </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
             </tr>
         {% endif %}
         <tr class="row-total">
@@ -111,46 +173,18 @@
             <td class="text-right">
                 <strong>{{ score.total_score|floatformat:2 }}</strong>
             </td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
         </tr>
         </c-table>
-        </c-module>
-        {% if stats.insights %}
-            <c-module>
-            <h3>Key Insights</h3>
-            <div class="info-box info-box-primary">
-                <ul class="insights-list">
-                    {% for insight in stats.insights %}<li>{{ insight }}</li>{% endfor %}
-                </ul>
-            </div>
-            </c-module>
-        {% endif %}
         {% if stats.category_ranks|length > 1 %}
-            <c-module>
-            <h3>Category Rankings</h3>
-            <c-table id="category_rankings" aria_label="Category rankings">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Category</c-table_header>
-                <c-table_header sortable="false" class="text-right">Rank</c-table_header>
-                <c-table_header sortable="false" class="text-right">Team</c-table_header>
-                <c-table_header sortable="false" class="text-right">Avg</c-table_header>
-                <c-table_header sortable="false" class="text-right">Max</c-table_header>
-            </tr>
-            </c-slot>
-            {% for label, cat in stats.category_ranks.items %}
-                <tr>
-                    <td>{{ label|title }}</td>
-                    <td class="text-right">#{{ cat.rank }} of {{ stats.team_count }}</td>
-                    <td class="text-right">{{ cat.value|floatformat:2 }}</td>
-                    <td class="text-right">{{ cat.avg|floatformat:2 }}</td>
-                    <td class="text-right">{{ cat.max|floatformat:2 }}</td>
-                </tr>
-            {% endfor %}
-            </c-table>
-            <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
-            <canvas id="categoryChart" class="no-print" width="600" height="250"></canvas>
-            </c-module>
+            <div class="scorecard-chart-wrap no-print">
+                <canvas id="categoryChart"></canvas>
+            </div>
         {% endif %}
+        <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
+        </c-module>
         <div class="scorecard-grid">
             <div>
                 <c-module>
@@ -236,12 +270,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
             integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
             crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"
+            integrity="sha384-hnFo1gVSHP8jBk0P5PEB4ooNkE+OH5jRBqfLGqf6oXcPMr/UDlKB48GGaIVlEHi"
+            crossorigin="anonymous"></script>
     {{ chart_data_json|json_script:"chart-data" }}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const chartData = JSON.parse(document.getElementById("chart-data").textContent);
+            Chart.register(ChartDataLabels);
 
-            // Category Rankings — horizontal bar chart
             const catCtx = document.getElementById("categoryChart");
             if (catCtx && chartData.categoryChart && chartData.categoryChart.labels.length > 0) {
                 const cat = chartData.categoryChart;
@@ -270,8 +307,17 @@
                     options: {
                         indexAxis: "y",
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
                             legend: { position: "bottom" },
+                            datalabels: {
+                                anchor: "end",
+                                align: "start",
+                                font: { size: 10 },
+                                formatter: function (value) {
+                                    return Math.round(value);
+                                },
+                            },
                         },
                         scales: {
                             x: { beginAtZero: true },
@@ -281,85 +327,4 @@
             }
         });
     </script>
-    <style>
-        .scorecard-header {
-            display: flex;
-            gap: 30px;
-        }
-
-        .scorecard-header>div {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .scorecard-header .text-muted {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .scorecard-total {
-            font-size: 1.3em;
-        }
-
-        .neighbors {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-top: 12px;
-            font-size: 0.9em;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .neighbor-current {
-            font-weight: 600;
-        }
-
-        .scorecard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0;
-            align-items: start;
-        }
-
-        .row-total td {
-            border-top: 2px solid var(--hairline-color, #ddd);
-            background: var(--darkened-bg, #f8f8f8);
-        }
-
-        .insights-list {
-            margin: 0;
-            padding-left: 20px;
-        }
-
-        .insights-list li {
-            margin-bottom: 6px;
-        }
-
-        @media (max-width: 768px) {
-            .scorecard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media print {
-
-            .no-print,
-            nav,
-            .sidebar,
-            header,
-            footer {
-                display: none !important;
-            }
-
-            .scorecard {
-                font-size: 11pt;
-            }
-
-            .scorecard table {
-                page-break-inside: avoid;
-            }
-        }
-    </style>
 {% endblock scoring_content %}

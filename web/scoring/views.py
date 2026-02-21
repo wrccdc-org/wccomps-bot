@@ -1855,6 +1855,7 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
             "teamValues": [float(v["value"]) for v in cat_ranks.values()],
             "avgValues": [float(v["avg"]) for v in cat_ranks.values()],
             "maxValues": [float(v["max"]) for v in cat_ranks.values()],
+            "rankValues": [v["rank"] for v in cat_ranks.values()],
         },
     }
 
