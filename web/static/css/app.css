@@ -659,21 +659,12 @@ nav[role="navigation"] {
 .scorecard-chart-wrap {
     min-height: 200px;
 }
-.scorecard-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    align-items: start;
-}
 .row-total td {
     border-top: 2px solid var(--hairline-color, #ddd);
     background: var(--darkened-bg, #f8f8f8);
 }
 @media (max-width: 768px) {
     .scorecard-category-grid {
-        grid-template-columns: 1fr;
-    }
-    .scorecard-grid {
         grid-template-columns: 1fr;
     }
 }
