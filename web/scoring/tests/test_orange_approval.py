@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from team.models import Team
 
-from .models import OrangeTeamBonus
+from scoring.models import OrangeTeamBonus
 
 
 class OrangeTeamBonusApprovalTests(TestCase):

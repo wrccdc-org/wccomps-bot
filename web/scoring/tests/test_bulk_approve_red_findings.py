@@ -15,7 +15,7 @@ from django.urls import reverse
 
 from core.models import UserGroups
 
-from .models import RedTeamFinding
+from scoring.models import RedTeamFinding
 
 
 @pytest.mark.django_db

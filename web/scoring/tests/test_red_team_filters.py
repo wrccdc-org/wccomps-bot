@@ -10,7 +10,7 @@ from django.urls import reverse
 
 from team.models import Team
 
-from .models import AttackType, RedTeamFinding
+from scoring.models import AttackType, RedTeamFinding
 
 
 @pytest.mark.django_db

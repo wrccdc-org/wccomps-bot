@@ -14,7 +14,7 @@ from django.utils import timezone
 from core.models import UserGroups
 from team.models import Team
 
-from .models import OrangeTeamBonus
+from scoring.models import OrangeTeamBonus
 
 
 class IndividualOrangeApprovalTests(TestCase):

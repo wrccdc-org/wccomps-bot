@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 
 from team.models import Team
 
-from .models import RedTeamFinding
+from scoring.models import RedTeamFinding
 
 pytestmark = pytest.mark.django_db
 
