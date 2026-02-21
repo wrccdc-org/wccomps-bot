@@ -214,8 +214,12 @@
                 </tr>
             {% endfor %}
             <tr class="row-total">
-                <td><strong>Total</strong></td>
-                <td class="text-right"><strong>{{ service_total|floatformat:0 }}</strong></td>
+                <td>
+                    <strong>Total</strong>
+                </td>
+                <td class="text-right">
+                    <strong>{{ service_total|floatformat:0 }}</strong>
+                </td>
                 <td class="text-right"></td>
                 <td class="text-right"></td>
             </tr>
@@ -243,8 +247,12 @@
                 </tr>
             {% endfor %}
             <tr class="row-total">
-                <td><strong>Total</strong></td>
-                <td class="text-right"><strong><span class="score-negative">-{{ red_total|floatformat:0 }}</span></strong></td>
+                <td>
+                    <strong>Total</strong>
+                </td>
+                <td class="text-right">
+                    <strong><span class="score-negative">-{{ red_total|floatformat:0 }}</span></strong>
+                </td>
             </tr>
             </c-table>
         {% else %}
@@ -284,8 +292,12 @@
                 {% endif %}
             {% endfor %}
             <tr class="row-total">
-                <td><strong>Total</strong></td>
-                <td class="text-right"><strong>{{ inject_total|floatformat:0 }}</strong></td>
+                <td>
+                    <strong>Total</strong>
+                </td>
+                <td class="text-right">
+                    <strong>{{ inject_total|floatformat:0 }}</strong>
+                </td>
                 <td class="text-right"></td>
                 <td class="text-right"></td>
             </tr>
