@@ -23,8 +23,7 @@
                     <c-badge variant="neutral">Checked Out</c-badge>
                 {% endif %}
             </div>
-            {# toggle_checkin URL will be wired in Task 8 #}
-            <form method="post" action="#">
+            <form method="post" action="{% url 'challenges:toggle_checkin' %}">
 
                 {% csrf_token %}
                 {% if active_checkin %}

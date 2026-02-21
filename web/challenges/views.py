@@ -2,7 +2,8 @@ from typing import cast
 
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from challenges.models import OrangeAssignment, OrangeCheckIn, OrangeFollowUp
 from core.auth_utils import has_permission, require_permission
@@ -36,3 +37,35 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "followups": followups,
         "is_lead": has_permission(user, "gold_team"),
     })
+
+
+@require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
+def toggle_checkin(request: HttpRequest) -> HttpResponse:
+    """Toggle check-in/out for the current user."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+    user = cast(User, request.user)
+    active = OrangeCheckIn.objects.filter(user=user, is_active=True).first()
+    if active:
+        active.is_active = False
+        active.checked_out_at = timezone.now()
+        active.save()
+    else:
+        OrangeCheckIn.objects.create(user=user)
+    return redirect("challenges:dashboard")
+
+
+@require_permission("gold_team", error_message="Only leads can manage check-ins")
+def admin_toggle_checkin(request: HttpRequest, user_id: int) -> HttpResponse:
+    """Toggle check-in/out for another user (lead only)."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+    target_user = User.objects.get(pk=user_id)
+    active = OrangeCheckIn.objects.filter(user=target_user, is_active=True).first()
+    if active:
+        active.is_active = False
+        active.checked_out_at = timezone.now()
+        active.save()
+    else:
+        OrangeCheckIn.objects.create(user=target_user)
+    return redirect("challenges:dashboard")
