@@ -2,8 +2,9 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from challenges.models import OrangeCheck
+from challenges.models import OrangeAssignment, OrangeCheck, OrangeCheckCriterion, OrangeCheckIn
 from core.models import UserGroups
+from team.models import Team
 
 pytestmark = pytest.mark.django_db
 
@@ -122,3 +123,143 @@ class TestCheckCreate:
             },
         )
         assert response.status_code == 302
+
+
+class TestCheckDetail:
+    def test_view_detail(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Test", description="Desc", created_by=user)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/")
+        assert response.status_code == 200
+        assert b"Test" in response.content
+
+    def test_non_lead_denied(self) -> None:
+        user = User.objects.create_user(username="orange1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="o1", groups=["WCComps_OrangeTeam"])
+        check = OrangeCheck.objects.create(title="Test", description="Desc")
+        client = Client()
+        client.login(username="orange1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/")
+        assert response.status_code == 302
+
+    def test_shows_criteria(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Test", description="Desc", created_by=user)
+        OrangeCheckCriterion.objects.create(orange_check=check, label="Fast response", points=5)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/")
+        assert response.status_code == 200
+        assert b"Fast response" in response.content
+
+
+class TestCheckDuplicate:
+    def test_duplicate_creates_copy(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Original", description="Desc", created_by=user)
+        OrangeCheckCriterion.objects.create(orange_check=check, label="C1", points=5)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.post(f"/orange-team/checks/{check.pk}/duplicate/")
+        assert response.status_code == 302
+        copy = OrangeCheck.objects.get(title="Original (copy)")
+        assert copy.criteria.count() == 1
+        assert copy.status == "draft"
+
+    def test_get_redirects(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Original", description="Desc", created_by=user)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/duplicate/")
+        assert response.status_code == 302
+
+
+class TestCheckAssign:
+    def test_assign_distributes_teams(self) -> None:
+        lead = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=lead, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        o1 = User.objects.create_user(username="orange1")
+        o2 = User.objects.create_user(username="orange2")
+        OrangeCheckIn.objects.create(user=o1)
+        OrangeCheckIn.objects.create(user=o2)
+        check = OrangeCheck.objects.create(title="Test", description="Desc", created_by=lead)
+        OrangeCheckCriterion.objects.create(orange_check=check, label="C1", points=5)
+        Team.objects.create(team_number=1, team_name="T1")
+        Team.objects.create(team_number=2, team_name="T2")
+        Team.objects.create(team_number=3, team_name="T3")
+        Team.objects.create(team_number=4, team_name="T4")
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.post(
+            f"/orange-team/checks/{check.pk}/assign/",
+            {"user_ids": [o1.pk, o2.pk]},
+        )
+        assert response.status_code == 302
+        assert OrangeAssignment.objects.filter(orange_check=check).count() == 4
+        # Each assignment should have result rows
+        for assignment in OrangeAssignment.objects.filter(orange_check=check):
+            assert assignment.results.count() == 1
+        check.refresh_from_db()
+        assert check.status == "active"
+
+    def test_assign_no_users_shows_error(self) -> None:
+        lead = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=lead, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Test", description="Desc", created_by=lead)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.post(f"/orange-team/checks/{check.pk}/assign/")
+        assert response.status_code == 302
+
+    def test_get_redirects(self) -> None:
+        lead = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=lead, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Test", description="Desc", created_by=lead)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/assign/")
+        assert response.status_code == 302
+
+
+class TestCheckEdit:
+    def test_edit_get_shows_form(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Original", description="Desc", created_by=user)
+        OrangeCheckCriterion.objects.create(orange_check=check, label="C1", points=5)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.get(f"/orange-team/checks/{check.pk}/edit/")
+        assert response.status_code == 200
+        assert b"Edit Check" in response.content
+
+    def test_edit_updates_check(self) -> None:
+        user = User.objects.create_user(username="gold1", password="test")
+        UserGroups.objects.create(user=user, authentik_id="g1", groups=["WCComps_GoldTeam"])
+        check = OrangeCheck.objects.create(title="Original", description="Desc", created_by=user)
+        OrangeCheckCriterion.objects.create(orange_check=check, label="C1", points=5)
+        client = Client()
+        client.login(username="gold1", password="test")
+        response = client.post(
+            f"/orange-team/checks/{check.pk}/edit/",
+            {
+                "title": "Updated Title",
+                "description": "Updated Desc",
+                "criterion_label_0": "New C1",
+                "criterion_points_0": "10",
+            },
+        )
+        assert response.status_code == 302
+        check.refresh_from_db()
+        assert check.title == "Updated Title"
+        assert check.description == "Updated Desc"
+        assert check.criteria.count() == 1
+        assert check.criteria.first().label == "New C1"  # type: ignore[union-attr]
+        assert check.criteria.first().points == 10  # type: ignore[union-attr]

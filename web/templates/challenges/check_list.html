@@ -29,7 +29,7 @@
         {% for check in checks %}
             <tr>
                 <td>
-                    <strong>{{ check.title }}</strong>
+                    <strong><a href="{% url 'challenges:check_detail' check.pk %}">{{ check.title }}</a></strong>
                 </td>
                 <td>
                     {% if check.status == "draft" %}
@@ -46,7 +46,7 @@
                 <td>{{ check.assignment_count }}</td>
                 <td>{{ check.created_at|date:"M d, Y H:i" }}</td>
                 <td>
-                    <c-link href="#" variant="change">View</c-link>
+                    <c-link href="{% url 'challenges:check_detail' check.pk %}" variant="change">View</c-link>
                 </td>
             </tr>
         {% endfor %}
