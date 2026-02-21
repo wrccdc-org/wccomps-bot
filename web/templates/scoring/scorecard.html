@@ -7,37 +7,25 @@
     <div class="scorecard">
         <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
         <c-module>
-        <div class="scorecard-header">
-            <div>
-                <span class="text-muted">Rank</span>
-                <strong>
-                    {% if score.rank %}
-                        #{{ score.rank }} of {{ stats.team_count }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </strong>
-            </div>
-            <div>
-                <span class="text-muted">Total</span>
-                <strong class="scorecard-total">{{ score.total_score|floatformat:2 }}</strong>
-            </div>
-        </div>
-        {% if stats.neighbors %}
-            <div class="neighbors">
+        <div class="neighbors">
+            {% if stats.neighbors %}
                 {% for n in stats.neighbors %}
                     {% if n.rank < score.rank %}
                         <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-positive">(+{{ n.gap|floatformat:0 }} ahead)</span></span>
                     {% endif %}
                 {% endfor %}
-                <span class="neighbor-entry neighbor-current">#{{ score.rank }} — {{ score.total_score|floatformat:2 }} (you)</span>
+            {% endif %}
+            <span class="neighbor-entry neighbor-current">
+                {% if score.rank %}#{{ score.rank }} of {{ stats.team_count }} — {% endif %}{{ score.total_score|floatformat:2 }} (you)
+            </span>
+            {% if stats.neighbors %}
                 {% for n in stats.neighbors %}
                     {% if n.rank > score.rank %}
                         <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-negative">({{ n.gap|floatformat:0 }} behind)</span></span>
                     {% endif %}
                 {% endfor %}
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
         {% if stats.insights %}
             <div class="scorecard-insights">
                 <ul>

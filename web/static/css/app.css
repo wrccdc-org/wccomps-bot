@@ -627,32 +627,15 @@ nav[role="navigation"] {
 /* ============================================
    SCORECARD
    ============================================ */
-.scorecard-header {
-    display: flex;
-    gap: 30px;
-}
-.scorecard-header > div {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-.scorecard-header .text-muted {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.scorecard-total {
-    font-size: 1.3em;
-}
 .neighbors {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    margin-top: 12px;
     font-size: 0.9em;
     font-variant-numeric: tabular-nums;
 }
 .neighbor-current {
+    font-size: 1.5em;
     font-weight: 600;
 }
 .scorecard-insights {
