@@ -1639,10 +1639,11 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     service_stats: list[_ServiceStat] = []
     team_services = ServiceDetail.objects.filter(team=team).order_by("service_name")
 
-    excluded_teams = FinalScore.objects.filter(is_excluded=True).values_list("team_id", flat=True)
+    # Use the same population as category ranking: only ranked, non-excluded teams
+    ranked_team_ids = set(all_scores.values_list("team_id", flat=True))
 
     for svc in team_services:
-        all_svc = ServiceDetail.objects.filter(service_name=svc.service_name).exclude(team_id__in=excluded_teams)
+        all_svc = ServiceDetail.objects.filter(service_name=svc.service_name, team_id__in=ranked_team_ids)
         svc_aggs = all_svc.aggregate(avg=Avg("points"), mx=Max("points"))
         svc_rank = all_svc.filter(points__gt=svc.points).count() + 1
         svc_avg = svc_aggs["avg"] or Decimal("0")
@@ -1668,9 +1669,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     )
 
     for inj in team_injects:
-        all_inj = InjectScore.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
-            team_id__in=excluded_teams
-        )
+        all_inj = InjectScore.objects.filter(inject_id=inj.inject_id, is_approved=True, team_id__in=ranked_team_ids)
         inj_aggs = all_inj.aggregate(avg=Avg("points_awarded"), mx=Max("points_awarded"))
         inj_rank = all_inj.filter(points_awarded__gt=inj.points_awarded).count() + 1
         inj_avg = inj_aggs["avg"] or Decimal("0")

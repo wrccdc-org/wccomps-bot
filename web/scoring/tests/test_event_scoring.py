@@ -142,6 +142,69 @@ class TestComputeScorecardStats:
         assert inj2["points"] == Decimal("90")
         assert inj2["rank"] == 1
 
+    def test_service_stats_excludes_unranked_teams(self, teams, scores):
+        """Unranked teams (rank=None) should not affect service detail stats."""
+        from scoring.views import _compute_scorecard_stats
+
+        # Create an unranked team with a service detail record
+        unranked_team = Team.objects.create(team_number=50, team_name="Unranked", is_active=True)
+        FinalScore.objects.create(
+            team=unranked_team,
+            service_points=Decimal("0"),
+            total_score=Decimal("0"),
+            rank=None,
+        )
+
+        # Ranked teams: dns = 500, 700, 300 → avg 500
+        for t, pts in [(teams[0], 500), (teams[1], 700), (teams[2], 300)]:
+            ServiceDetail.objects.create(team=t, service_name="dns", points=Decimal(str(pts)))
+        # Unranked team drags down the average if included
+        ServiceDetail.objects.create(team=unranked_team, service_name="dns", points=Decimal("0"))
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        dns_stat = next(s for s in stats["service_stats"] if s["name"] == "dns")
+        # avg should be (500+700+300)/3 = 500, not (500+700+300+0)/4 = 375
+        assert dns_stat["avg"] == Decimal("500")
+        assert dns_stat["rank"] == 2
+
+    def test_inject_stats_excludes_unranked_teams(self, teams, scores):
+        """Unranked teams (rank=None) should not affect inject detail stats."""
+        from scoring.views import _compute_scorecard_stats
+
+        unranked_team = Team.objects.create(team_number=50, team_name="Unranked", is_active=True)
+        FinalScore.objects.create(
+            team=unranked_team,
+            service_points=Decimal("0"),
+            total_score=Decimal("0"),
+            rank=None,
+        )
+
+        # Ranked teams: inj-1 = 80, 100, 60 → avg 80
+        for t, pts in [(teams[0], 80), (teams[1], 100), (teams[2], 60)]:
+            InjectScore.objects.create(
+                team=t,
+                inject_id="inj-1",
+                inject_name="Inject 1",
+                points_awarded=Decimal(str(pts)),
+                is_approved=True,
+            )
+        # Unranked team drags down average if included
+        InjectScore.objects.create(
+            team=unranked_team,
+            inject_id="inj-1",
+            inject_name="Inject 1",
+            points_awarded=Decimal("0"),
+            is_approved=True,
+        )
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        inj1 = stats["inject_stats"][0]
+        # avg should be (80+100+60)/3 = 80, not (80+100+60+0)/4 = 60
+        assert inj1["avg"] == Decimal("80")
+        assert inj1["rank"] == 2
+
     def test_inject_stats_excludes_excluded_teams(self, teams, scores):
         from scoring.views import _compute_scorecard_stats
 
