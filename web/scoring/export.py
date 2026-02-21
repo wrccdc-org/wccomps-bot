@@ -12,7 +12,7 @@ from .models import (
     FinalScore,
     IncidentReport,
     InjectScore,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
 )
 
@@ -227,7 +227,7 @@ def export_orange_adjustments_csv() -> HttpResponse:
         ]
     )
 
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
+    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
         "-created_at"
     )
 
@@ -254,7 +254,7 @@ def export_orange_adjustments_csv() -> HttpResponse:
 
 def export_orange_adjustments_json() -> HttpResponse:
     """Export orange team adjustments to JSON format."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
+    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
         "-created_at"
     )
 
@@ -620,7 +620,7 @@ def _get_orange_adjustments_csv_content() -> str:
             "Created At",
         ]
     )
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
+    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
         "-created_at"
     )
     for bonus in bonuses:
@@ -643,7 +643,7 @@ def _get_orange_adjustments_csv_content() -> str:
 
 def _get_orange_adjustments_json_content() -> str:
     """Get orange team adjustments as JSON string."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
+    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
         "-created_at"
     )
     data = [

@@ -17,7 +17,7 @@ from scoring.models import (
     IncidentReport,
     InjectScore,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
 )
 from team.models import Team
@@ -155,7 +155,7 @@ def orange_adjustments(test_teams, admin_user):
     adjustments = []
 
     # Adjustment 1: Approved bonus
-    adj1 = OrangeTeamBonus.objects.create(
+    adj1 = OrangeTeamScore.objects.create(
         team=test_teams[0],
         check_type=check_type,
         description="Excellent customer service during incident response",
@@ -168,7 +168,7 @@ def orange_adjustments(test_teams, admin_user):
     adjustments.append(adj1)
 
     # Adjustment 2: Not approved penalty
-    adj2 = OrangeTeamBonus.objects.create(
+    adj2 = OrangeTeamScore.objects.create(
         team=test_teams[1],
         check_type=check_type,
         description="Unprofessional communication",

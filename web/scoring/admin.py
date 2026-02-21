@@ -11,7 +11,7 @@ from .models import (
     IncidentScreenshot,
     InjectScore,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     QuotientMetadataCache,
     RedTeamFinding,
     RedTeamIPPool,
@@ -233,8 +233,8 @@ class OrangeCheckTypeAdmin(admin.ModelAdmin[OrangeCheckType]):
     readonly_fields = ["created_at"]
 
 
-@admin.register(OrangeTeamBonus)
-class OrangeTeamBonusAdmin(admin.ModelAdmin[OrangeTeamBonus]):
+@admin.register(OrangeTeamScore)
+class OrangeTeamScoreAdmin(admin.ModelAdmin[OrangeTeamScore]):
     list_display = [
         "team",
         "check_type",
@@ -248,7 +248,7 @@ class OrangeTeamBonusAdmin(admin.ModelAdmin[OrangeTeamBonus]):
     readonly_fields = ["created_at", "updated_at"]
 
     @admin.display(description="Description")
-    def description_short(self, obj: OrangeTeamBonus) -> str:
+    def description_short(self, obj: OrangeTeamScore) -> str:
         return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
 
 

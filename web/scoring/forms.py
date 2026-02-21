@@ -13,7 +13,7 @@ from .models import (
     AttackType,
     IncidentReport,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
     RedTeamIPPool,
     ScoringTemplate,
@@ -362,11 +362,11 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         return instance
 
 
-class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
+class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
     """Form for orange team to award or deduct points."""
 
     class Meta:
-        model = OrangeTeamBonus
+        model = OrangeTeamScore
         fields = ["team", "check_type", "description", "points_awarded"]
         widgets = {
             "description": forms.Textarea(

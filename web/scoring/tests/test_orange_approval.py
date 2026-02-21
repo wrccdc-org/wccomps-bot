@@ -1,4 +1,4 @@
-"""Tests for OrangeTeamBonus approval tracking fields."""
+"""Tests for OrangeTeamScore approval tracking fields."""
 
 from decimal import Decimal
 
@@ -6,12 +6,12 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from scoring.models import OrangeTeamBonus
+from scoring.models import OrangeTeamScore
 from team.models import Team
 
 
-class OrangeTeamBonusApprovalTests(TestCase):
-    """Test OrangeTeamBonus approval tracking fields."""
+class OrangeTeamScoreApprovalTests(TestCase):
+    """Test OrangeTeamScore approval tracking fields."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -21,7 +21,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_new_bonus_has_is_approved_false_by_default(self) -> None:
         """New bonuses should have is_approved=False by default."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -32,7 +32,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_new_bonus_has_approved_at_null(self) -> None:
         """New bonuses should have approved_at=None."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -43,7 +43,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_new_bonus_has_approved_by_null(self) -> None:
         """New bonuses should have approved_by=None."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -54,7 +54,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_can_set_is_approved_to_true(self) -> None:
         """Should be able to set is_approved to True."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -69,7 +69,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_can_set_approved_at_timestamp(self) -> None:
         """Should be able to set approved_at timestamp."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -85,7 +85,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_can_set_approved_by_user(self) -> None:
         """Should be able to set approved_by to a User."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -100,7 +100,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_approved_by_allows_null(self) -> None:
         """approved_by field should allow null values."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -116,7 +116,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_approved_at_allows_null(self) -> None:
         """approved_at field should allow null values."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -132,14 +132,14 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_can_query_by_is_approved(self) -> None:
         """Should be able to filter bonuses by is_approved field."""
-        approved_bonus = OrangeTeamBonus.objects.create(
+        approved_bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Approved bonus",
             points_awarded=Decimal("50.00"),
             submitted_by=self.user,
             is_approved=True,
         )
-        unapproved_bonus = OrangeTeamBonus.objects.create(
+        unapproved_bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Unapproved bonus",
             points_awarded=Decimal("30.00"),
@@ -147,8 +147,8 @@ class OrangeTeamBonusApprovalTests(TestCase):
             is_approved=False,
         )
 
-        approved_bonuses = OrangeTeamBonus.objects.filter(is_approved=True)
-        unapproved_bonuses = OrangeTeamBonus.objects.filter(is_approved=False)
+        approved_bonuses = OrangeTeamScore.objects.filter(is_approved=True)
+        unapproved_bonuses = OrangeTeamScore.objects.filter(is_approved=False)
 
         self.assertIn(approved_bonus, approved_bonuses)
         self.assertNotIn(unapproved_bonus, approved_bonuses)
@@ -157,7 +157,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_approved_by_set_null_when_user_deleted(self) -> None:
         """approved_by should be set to NULL when the approver user is deleted."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),
@@ -172,7 +172,7 @@ class OrangeTeamBonusApprovalTests(TestCase):
 
     def test_full_approval_workflow(self) -> None:
         """Test complete approval workflow."""
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test bonus",
             points_awarded=Decimal("50.00"),

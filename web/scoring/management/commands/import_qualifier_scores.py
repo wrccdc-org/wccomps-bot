@@ -11,7 +11,7 @@ from registration.models import Event, EventTeamAssignment, Season, TeamRegistra
 from scoring.models import (
     IncidentReport,
     InjectScore,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
     ServiceDetail,
     ServiceScore,
@@ -202,7 +202,7 @@ class Command(BaseCommand):
             raw_pts = ws_orange.cell(row=row, column=2).value
             if raw_pts is None or raw_pts == 0:
                 continue
-            OrangeTeamBonus.objects.update_or_create(
+            OrangeTeamScore.objects.update_or_create(
                 team=teams[team_num],
                 description="Qualifier orange team score",
                 defaults={

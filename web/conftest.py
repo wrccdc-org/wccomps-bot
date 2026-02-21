@@ -18,13 +18,13 @@ def pytest_configure(config: pytest.Config) -> None:
     sock.settimeout(2)
     try:
         sock.connect((host, port))
-    except OSError:
+    except OSError as err:
         raise pytest.UsageError(
-            f"Test database not reachable at {host}:{port}. "
-            "Run: docker compose -f docker-compose.test.yml up -d --wait"
-        )
+            f"Test database not reachable at {host}:{port}. Run: docker compose -f docker-compose.test.yml up -d --wait"
+        ) from err
     finally:
         sock.close()
+
 
 from core.models import UserGroups
 from team.models import DiscordLink

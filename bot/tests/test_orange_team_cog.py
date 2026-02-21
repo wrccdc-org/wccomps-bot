@@ -9,7 +9,7 @@ import discord
 import pytest
 import pytest_asyncio
 from django.contrib.auth.models import User
-from scoring.models import OrangeCheckType, OrangeTeamBonus
+from scoring.models import OrangeCheckType, OrangeTeamScore
 
 from bot.cogs.orange_team import OrangeTeamCog
 from core.models import UserGroups
@@ -167,7 +167,7 @@ class TestOrangeSubmit:
         assert "embed" in call_args[1]
         assert call_args[1]["ephemeral"] is True
 
-        bonus = await OrangeTeamBonus.objects.filter(team=test_team).afirst()
+        bonus = await OrangeTeamScore.objects.filter(team=test_team).afirst()
         assert bonus is not None
         assert bonus.points_awarded == Decimal("15.5")
         assert bonus.description == "Good customer service"
@@ -277,7 +277,7 @@ class TestOrangeList:
         """List shows existing adjustments."""
         mock_interaction.user.id = orange_team_user._discord_id
 
-        await OrangeTeamBonus.objects.acreate(
+        await OrangeTeamScore.objects.acreate(
             team=test_team,
             check_type=check_type,
             description="Test bonus",

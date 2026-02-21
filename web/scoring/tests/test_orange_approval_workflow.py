@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import UserGroups
-from scoring.models import OrangeTeamBonus
+from scoring.models import OrangeTeamScore
 from team.models import Team
 
 
@@ -35,7 +35,7 @@ class IndividualOrangeApprovalTests(TestCase):
         self.team = Team.objects.create(team_number=1, team_name="Team 1")
 
         # Create unapproved adjustment
-        self.adjustment = OrangeTeamBonus.objects.create(
+        self.adjustment = OrangeTeamScore.objects.create(
             team=self.team,
             description="Good customer service",
             points_awarded=Decimal("50.00"),
@@ -206,19 +206,19 @@ class BulkOrangeApprovalTests(TestCase):
         self.team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Create multiple unapproved adjustments
-        self.adj1 = OrangeTeamBonus.objects.create(
+        self.adj1 = OrangeTeamScore.objects.create(
             team=self.team1,
             description="Adjustment 1",
             points_awarded=Decimal("50.00"),
             submitted_by=self.orange_user,
         )
-        self.adj2 = OrangeTeamBonus.objects.create(
+        self.adj2 = OrangeTeamScore.objects.create(
             team=self.team2,
             description="Adjustment 2",
             points_awarded=Decimal("30.00"),
             submitted_by=self.orange_user,
         )
-        self.adj3 = OrangeTeamBonus.objects.create(
+        self.adj3 = OrangeTeamScore.objects.create(
             team=self.team1,
             description="Adjustment 3",
             points_awarded=Decimal("-20.00"),
@@ -353,7 +353,7 @@ class OrangePortalApprovalUITests(TestCase):
 
         # Create team and adjustments
         self.team = Team.objects.create(team_number=1, team_name="Team 1")
-        self.adjustment = OrangeTeamBonus.objects.create(
+        self.adjustment = OrangeTeamScore.objects.create(
             team=self.team,
             description="Test adjustment",
             points_awarded=Decimal("50.00"),
@@ -402,7 +402,7 @@ class OrangePortalApprovalUITests(TestCase):
         """Gold Team sees all adjustments, not just their own."""
         # Create another adjustment by different user
         other_user = User.objects.create_user(username="other", password="test123")
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team,
             description="Other adjustment",
             points_awarded=Decimal("30.00"),
@@ -422,7 +422,7 @@ class OrangePortalApprovalUITests(TestCase):
         """Orange Team members only see their own adjustments."""
         # Create another adjustment by different user
         other_user = User.objects.create_user(username="other", password="test123")
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team,
             description="Other adjustment",
             points_awarded=Decimal("30.00"),
@@ -442,7 +442,7 @@ class OrangePortalApprovalUITests(TestCase):
     def test_approval_status_displayed(self) -> None:
         """Approval status is displayed in the portal."""
         # Create approved adjustment
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team,
             description="Approved adjustment",
             points_awarded=Decimal("40.00"),

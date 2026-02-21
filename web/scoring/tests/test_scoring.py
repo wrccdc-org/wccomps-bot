@@ -34,7 +34,7 @@ from scoring.models import (
     IncidentReport,
     InjectScore,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
     ScoringTemplate,
     ServiceScore,
@@ -83,7 +83,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Orange: 50 × 1.0 = 50
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team1,
             description="Security improvement",
             points_awarded=Decimal("50.00"),
@@ -155,7 +155,7 @@ class ScoringFormulaTests(TestCase):
             graded_by=self.user,
             is_approved=False,
         )
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team1,
             description="Unapproved bonus",
             points_awarded=Decimal("30.00"),
@@ -916,7 +916,7 @@ class TestIncidentListView:
 
 
 class OrangeCheckTypeTests(TestCase):
-    """Test OrangeCheckType model and integration with OrangeTeamBonus."""
+    """Test OrangeCheckType model and integration with OrangeTeamScore."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -959,10 +959,10 @@ class OrangeCheckTypeTests(TestCase):
             OrangeCheckType.objects.create(name="Test unique type")
 
     def test_orange_team_bonus_with_check_type(self) -> None:
-        """Test that OrangeTeamBonus can reference a check_type."""
+        """Test that OrangeTeamScore can reference a check_type."""
         check_type = OrangeCheckType.objects.create(name="Password reset assistance")
 
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             check_type=check_type,
             description="Helped reset password",
@@ -974,8 +974,8 @@ class OrangeCheckTypeTests(TestCase):
         self.assertEqual(bonus.check_type.name, "Password reset assistance")
 
     def test_orange_team_bonus_without_check_type(self) -> None:
-        """Test that OrangeTeamBonus can exist without check_type (backwards compatibility)."""
-        bonus = OrangeTeamBonus.objects.create(
+        """Test that OrangeTeamScore can exist without check_type (backwards compatibility)."""
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             description="Some other adjustment",
             points_awarded=Decimal("5.00"),
@@ -987,7 +987,7 @@ class OrangeCheckTypeTests(TestCase):
     def test_deleting_check_type_nullifies_bonus_reference(self) -> None:
         """Test that deleting a check_type sets bonus.check_type to null."""
         check_type = OrangeCheckType.objects.create(name="Deletable check type")
-        bonus = OrangeTeamBonus.objects.create(
+        bonus = OrangeTeamScore.objects.create(
             team=self.team,
             check_type=check_type,
             description="Rule broken",
@@ -1001,18 +1001,18 @@ class OrangeCheckTypeTests(TestCase):
         self.assertIsNone(bonus.check_type)
 
     def test_multiple_bonuses_can_use_same_check_type(self) -> None:
-        """Test that multiple OrangeTeamBonus entries can reference the same check_type."""
+        """Test that multiple OrangeTeamScore entries can reference the same check_type."""
         check_type = OrangeCheckType.objects.create(name="Professional behavior bonus")
         team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
 
-        bonus1 = OrangeTeamBonus.objects.create(
+        bonus1 = OrangeTeamScore.objects.create(
             team=self.team,
             check_type=check_type,
             description="Great professionalism",
             points_awarded=Decimal("20.00"),
             submitted_by=self.user,
         )
-        bonus2 = OrangeTeamBonus.objects.create(
+        bonus2 = OrangeTeamScore.objects.create(
             team=team2,
             check_type=check_type,
             description="Excellent behavior",
@@ -1022,4 +1022,4 @@ class OrangeCheckTypeTests(TestCase):
 
         self.assertEqual(bonus1.check_type, check_type)
         self.assertEqual(bonus2.check_type, check_type)
-        self.assertEqual(OrangeTeamBonus.objects.filter(check_type=check_type).count(), 2)
+        self.assertEqual(OrangeTeamScore.objects.filter(check_type=check_type).count(), 2)

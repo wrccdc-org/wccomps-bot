@@ -27,7 +27,7 @@ from .forms import (
     IncidentMatchForm,
     IncidentReportForm,
     OrangeCheckTypeForm,
-    OrangeTeamBonusForm,
+    OrangeTeamScoreForm,
     RedTeamFindingForm,
     ScoringTemplateForm,
 )
@@ -38,7 +38,7 @@ from .models import (
     IncidentScreenshot,
     InjectScore,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     QuotientMetadataCache,
     RedTeamFinding,
     RedTeamScreenshot,
@@ -797,16 +797,16 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     is_gold = has_permission(user, "gold_team")
     if is_gold:
-        bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+        bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
     else:
-        bonuses = OrangeTeamBonus.objects.filter(submitted_by=user).select_related("team")
+        bonuses = OrangeTeamScore.objects.filter(submitted_by=user).select_related("team")
     return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses, "is_gold_team": is_gold})
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review orange team")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Gold team review page for orange team."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
@@ -819,7 +819,7 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
         return redirect("scoring:manage_check_types")
 
     if request.method == "POST":
-        form = OrangeTeamBonusForm(request.POST)
+        form = OrangeTeamScoreForm(request.POST)
 
         if form.is_valid():
             bonus = form.save(commit=False)
@@ -829,7 +829,7 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
             messages.success(request, f"Orange team bonus awarded to {bonus.team.team_name}")
             return redirect("scoring:orange_team_portal")
     else:
-        form = OrangeTeamBonusForm()
+        form = OrangeTeamScoreForm()
 
     context = {
         "form": form,
@@ -879,7 +879,7 @@ def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
 def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
     """Delete an orange check type."""
     check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-    adjustment_count = check_type.bonuses.count()
+    adjustment_count = check_type.scores.count()
 
     if request.method == "POST":
         name = check_type.name
@@ -1480,7 +1480,7 @@ def export_all(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
     """Approve individual Orange adjustment."""
-    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+    adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = True
     adjustment.approved_at = timezone.now()
@@ -1496,7 +1496,7 @@ def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpR
 @require_http_methods(["POST"])
 def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
     """Reject individual Orange adjustment."""
-    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+    adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = False
     adjustment.approved_at = None
@@ -1527,7 +1527,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
             continue
 
     # Bulk update adjustments
-    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+    count = OrangeTeamScore.objects.filter(id__in=valid_ids).update(
         is_approved=True,
         approved_at=timezone.now(),
         approved_by=cast(User, request.user),
@@ -1557,7 +1557,7 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
             continue
 
     # Bulk update adjustments
-    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+    count = OrangeTeamScore.objects.filter(id__in=valid_ids).update(
         is_approved=False,
         approved_at=None,
         approved_by=None,

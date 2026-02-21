@@ -45,7 +45,7 @@ class OrangeTeamCog(commands.Cog):
         description: str,
     ) -> None:
         """Submit an orange team scoring adjustment."""
-        from scoring.models import OrangeCheckType, OrangeTeamBonus
+        from scoring.models import OrangeCheckType, OrangeTeamScore
 
         from team.models import Team
 
@@ -92,7 +92,7 @@ class OrangeTeamCog(commands.Cog):
         submitted_by_user = discord_link.user if discord_link else None
 
         # Create adjustment
-        bonus = await OrangeTeamBonus.objects.acreate(
+        bonus = await OrangeTeamScore.objects.acreate(
             team=team,
             submitted_by=submitted_by_user,
             check_type=check_type_obj,
@@ -141,17 +141,17 @@ class OrangeTeamCog(commands.Cog):
         status: str = "pending",
     ) -> None:
         """List orange team adjustments."""
-        from scoring.models import OrangeTeamBonus
+        from scoring.models import OrangeTeamScore
 
         # Build query
-        queryset = OrangeTeamBonus.objects.select_related("team", "check_type").order_by("-created_at")
+        queryset = OrangeTeamScore.objects.select_related("team", "check_type").order_by("-created_at")
         if status == "pending":
             queryset = queryset.filter(is_approved=False)
         elif status == "approved":
             queryset = queryset.filter(is_approved=True)
 
         # Fetch adjustments
-        adjustments: list[OrangeTeamBonus] = await sync_to_async(lambda: list(queryset[:25]))()
+        adjustments: list[OrangeTeamScore] = await sync_to_async(lambda: list(queryset[:25]))()
 
         if not adjustments:
             await interaction.response.send_message(

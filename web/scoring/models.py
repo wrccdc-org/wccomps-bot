@@ -699,7 +699,7 @@ class OrangeCheckType(models.Model):
         return self.name
 
 
-class OrangeTeamBonus(models.Model):
+class OrangeTeamScore(models.Model):
     """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
     event = models.ForeignKey(
@@ -707,18 +707,18 @@ class OrangeTeamBonus(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="orange_team_bonuses",
+        related_name="orange_team_scores",
     )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
-        related_name="orange_team_bonuses",
+        related_name="orange_team_scores",
     )
     submitted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="orange_bonuses_submitted",
+        related_name="orange_scores_submitted",
     )
 
     # Point adjustment details
@@ -727,7 +727,7 @@ class OrangeTeamBonus(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="bonuses",
+        related_name="scores",
         help_text="Category of this check (optional for backwards compatibility)",
     )
     description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
@@ -752,7 +752,7 @@ class OrangeTeamBonus(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="orange_bonuses_approved",
+        related_name="orange_scores_approved",
         help_text="User who approved this bonus",
     )
 

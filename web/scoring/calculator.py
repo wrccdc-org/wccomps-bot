@@ -13,7 +13,7 @@ from .models import (
     FinalScore,
     IncidentReport,
     InjectScore,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
     ScoringTemplate,
     ServiceScore,
@@ -60,11 +60,11 @@ def get_approved_inject_total(team: Team, event: Event | None = None) -> Decimal
 
 
 def get_approved_orange_total(team: Team, event: Event | None = None) -> Decimal:
-    """Get total approved orange team bonuses for a team, optionally scoped to event."""
+    """Get total approved orange team scores for a team, optionally scoped to event."""
     filters = {"team": team, "is_approved": True}
     if event:
         filters["event"] = event
-    return OrangeTeamBonus.objects.filter(**filters).aggregate(total=Sum("points_awarded"))["total"] or Decimal("0")
+    return OrangeTeamScore.objects.filter(**filters).aggregate(total=Sum("points_awarded"))["total"] or Decimal("0")
 
 
 def get_approved_red_deductions(team: Team, event: Event | None = None) -> Decimal:

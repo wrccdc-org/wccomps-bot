@@ -21,7 +21,7 @@ from scoring.models import (
     IncidentReport,
     InjectScore,
     OrangeCheckType,
-    OrangeTeamBonus,
+    OrangeTeamScore,
     RedTeamFinding,
 )
 from team.models import Team
@@ -397,7 +397,7 @@ class TestOrangeAdjustmentWorkflow:
 
         check_type = OrangeCheckType.objects.create(name="Customer Service")
 
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
             check_type=check_type,
@@ -420,7 +420,7 @@ class TestOrangeAdjustmentWorkflow:
 
         check_type = OrangeCheckType.objects.create(name="Professionalism")
 
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
             check_type=check_type,
@@ -430,7 +430,7 @@ class TestOrangeAdjustmentWorkflow:
         )
 
         # Verify adjustment is pending
-        pending_adjustments = OrangeTeamBonus.objects.filter(is_approved=False)
+        pending_adjustments = OrangeTeamScore.objects.filter(is_approved=False)
         assert adjustment in pending_adjustments
         assert pending_adjustments.count() == 1
 
@@ -441,7 +441,7 @@ class TestOrangeAdjustmentWorkflow:
 
         check_type = OrangeCheckType.objects.create(name="Technical Knowledge")
 
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
             check_type=check_type,
@@ -469,7 +469,7 @@ class TestOrangeAdjustmentWorkflow:
 
         check_type = OrangeCheckType.objects.create(name="Responsiveness")
 
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
             check_type=check_type,
@@ -484,7 +484,7 @@ class TestOrangeAdjustmentWorkflow:
         adjustment.delete()
 
         # Verify adjustment is deleted
-        assert not OrangeTeamBonus.objects.filter(pk=adjustment_id).exists()
+        assert not OrangeTeamScore.objects.filter(pk=adjustment_id).exists()
 
 
 class TestInjectScoreWorkflow:
