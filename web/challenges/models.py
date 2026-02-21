@@ -131,3 +131,20 @@ class OrangeAssignmentResult(models.Model):
     def __str__(self) -> str:
         status = "MET" if self.met else "NOT MET"
         return f"{self.criterion.label}: {status}"
+
+
+class OrangeFollowUp(models.Model):
+    """Personal reminder for an orange teamer to revisit a team."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orange_followups")
+    assignment = models.ForeignKey(OrangeAssignment, on_delete=models.CASCADE, related_name="followups")
+    remind_at = models.DateTimeField()
+    note = models.TextField(blank=True)
+    dismissed = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "orange_followup"
+        ordering = ["remind_at"]
+
+    def __str__(self) -> str:
+        return f"Reminder for {self.user.username} at {self.remind_at}"

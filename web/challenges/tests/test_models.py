@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth.models import User
 from django.db import IntegrityError
+from django.utils import timezone
 
 from challenges.models import (
     OrangeAssignment,
@@ -8,6 +11,7 @@ from challenges.models import (
     OrangeCheck,
     OrangeCheckCriterion,
     OrangeCheckIn,
+    OrangeFollowUp,
 )
 from team.models import Team
 
@@ -73,3 +77,18 @@ class TestOrangeAssignment:
         OrangeAssignment.objects.create(orange_check=check, user=user1, team=team)
         with pytest.raises(IntegrityError):
             OrangeAssignment.objects.create(orange_check=check, user=user2, team=team)
+
+
+class TestOrangeFollowUp:
+    def test_create_followup(self) -> None:
+        user = User.objects.create_user(username="orange1")
+        team = Team.objects.create(team_number=1, team_name="Team 01")
+        check = OrangeCheck.objects.create(title="Test", description="Test")
+        assignment = OrangeAssignment.objects.create(orange_check=check, user=user, team=team)
+        followup = OrangeFollowUp.objects.create(
+            user=user,
+            assignment=assignment,
+            remind_at=timezone.now() + timedelta(minutes=15),
+            note="Check if they fixed the issue",
+        )
+        assert not followup.dismissed
