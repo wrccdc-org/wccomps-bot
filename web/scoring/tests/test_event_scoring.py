@@ -95,11 +95,11 @@ class TestComputeScorecardStats:
         assert dns_stat["points"] == Decimal("500")
         assert dns_stat["rank"] == 2
         assert dns_stat["avg"] == Decimal("500")
-        assert dns_stat["delta"] == Decimal("0")
+        assert dns_stat["delta"] == 0
         assert dns_stat["below_avg"] is False
 
         ssh_stat = next(s for s in stats["service_stats"] if s["name"] == "ssh")
-        assert ssh_stat["delta"] == Decimal("400") - ssh_stat["avg"]
+        assert ssh_stat["delta"] == 0  # 400 - avg(400) = 0
         assert ssh_stat["below_avg"] is False
 
     def test_compute_inject_stats(self, teams, scores):

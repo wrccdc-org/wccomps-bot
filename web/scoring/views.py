@@ -1617,7 +1617,7 @@ class _ServiceStat(TypedDict):
     rank: int
     avg: Decimal
     max: Decimal
-    delta: Decimal
+    delta: int
     below_avg: bool
 
 
@@ -1627,7 +1627,7 @@ class _InjectStat(TypedDict):
     rank: int
     avg: Decimal
     max: Decimal
-    delta: Decimal
+    delta: int
     below_avg: bool
 
 
@@ -1723,7 +1723,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
                 rank=svc_rank,
                 avg=svc_avg,
                 max=svc_aggs["mx"] or Decimal("0"),
-                delta=svc_delta,
+                delta=int(round(svc_delta)),
                 below_avg=svc_delta < 0,
             )
         )
@@ -1751,7 +1751,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
                 rank=inj_rank,
                 avg=inj_avg,
                 max=inj_aggs["mx"] or Decimal("0"),
-                delta=inj_delta,
+                delta=int(round(inj_delta)),
                 below_avg=inj_delta < 0,
             )
         )

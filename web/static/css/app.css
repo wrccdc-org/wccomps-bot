@@ -622,7 +622,7 @@ nav[role="navigation"] {
 .score-positive { color: var(--success-fg); }
 .score-negative { color: var(--error-fg, #dc3545); }
 .score-zero { color: var(--body-quiet-color, #6c757d); }
-.row-below-avg { background: var(--danger-bg); }
+.row-below-avg td { background: var(--danger-bg); }
 
 /* ============================================
    STATS CARD COMPONENT
