@@ -1809,7 +1809,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 
         neighbors = [
             _Neighbor(
-                rank=ns.rank,  # type: ignore[arg-type]
+                rank=ns.rank,  # type: ignore[typeddict-item]
                 total_score=ns.total_score,
                 gap=ns.total_score - score.total_score,
             )
