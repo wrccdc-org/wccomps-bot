@@ -286,7 +286,7 @@ def _get_role_based_landing(groups: list[str]) -> str:
     if check_groups_for_permission(groups, "red_team"):
         return reverse("scoring:submit_red_score")
     if check_groups_for_permission(groups, "orange_team"):
-        return reverse("scoring:orange_team_portal")
+        return reverse("challenges:dashboard")
     if check_groups_for_permission(groups, "blue_team"):
         return reverse("scoring:submit_incident_report")
 

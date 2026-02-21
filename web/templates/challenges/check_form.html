@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load cotton %}
+{% block title %}
+    {% if mode == "create" %}
+        Create Check
+    {% else %}
+        Edit Check
+    {% endif %}
+{% endblock title %}
+{% block content %}
+    <c-page_header title="
+    {% if mode == 'create' %}
+        Create Check
+    {% else %}
+        Edit Check
+    {% endif %}
+    " subtitle="Define a check with rubric criteria" />
+    {% if messages %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+    {% endif %}
+    <c-module>
+    <form method="post"
+          {% if mode == "edit" %}action="{% url 'challenges:check_edit' orange_check.pk %}"{% endif %}
+          x-data="criteriaForm()">
+        {% csrf_token %}
+        <c-fieldset heading="Check Details">
+        <c-form_field label="Title" required="true" id="id_title">
+        <input type="text"
+               class="vTextField"
+               id="id_title"
+               name="title"
+               maxlength="200"
+               value="{{ orange_check.title|default:'' }}"
+               required>
+        </c-form_field>
+        <c-form_field label="Description" id="id_description" help_text="Steps/instructions for the orange teamer">
+        <textarea class="vLargeTextField"
+                  id="id_description"
+                  name="description"
+                  rows="4">{{ orange_check.description|default:'' }}</textarea>
+        </c-form_field>
+        <c-form_field label="Scheduled At" id="id_scheduled_at" help_text="When assignments go live (optional)">
+        <input type="datetime-local"
+               class="vTextField"
+               id="id_scheduled_at"
+               name="scheduled_at"
+               {% if orange_check.scheduled_at %}value="{{ orange_check.scheduled_at|date:'Y-m-d\TH:i' }}"{% endif %}>
+        </c-form_field>
+        </c-fieldset>
+        <c-fieldset heading="Rubric Criteria">
+        <template x-for="(criterion, index) in criteria" :key="index">
+            <div class="form-row d-flex items-end gap-10">
+                <div class="flex-grow">
+                    <label :for="'criterion_label_' + index" class="required">Label:</label>
+                    <input type="text"
+                           class="vTextField"
+                           :id="'criterion_label_' + index"
+                           :name="'criterion_label_' + index"
+                           x-model="criterion.label"
+                           required>
+                </div>
+                <div class="input-sm-wrap">
+                    <label :for="'criterion_points_' + index" class="required">Points:</label>
+                    <input type="number"
+                           class="vTextField"
+                           :id="'criterion_points_' + index"
+                           :name="'criterion_points_' + index"
+                           x-model="criterion.points"
+                           min="1"
+                           required>
+                </div>
+                <div class="mb-5">
+                    <c-button type="button" variant="danger" x-show="criteria.length > 1" x-on:click="removeCriterion(index)">Remove</c-button>
+                </div>
+            </div>
+        </template>
+        <div class="mt-10">
+            <c-button type="button" variant="default" x-on:click="addCriterion()">Add Criterion</c-button>
+        </div>
+        </c-fieldset>
+        <c-button_row class="justify-end">
+        <c-link href="
+        {% if mode == 'edit' %}
+            {% url 'challenges:check_detail' orange_check.pk %}
+        {% else %}
+            {% url 'challenges:check_list' %}
+        {% endif %}
+        ">Cancel</c-link>
+        <c-button type="submit" variant="primary">
+        {% if mode == "create" %}
+            Create Check
+        {% else %}
+            Save Changes
+        {% endif %}
+        </c-button>
+        </c-button_row>
+    </form>
+    </c-module>
+    <script>
+        function criteriaForm() {
+            {% if existing_criteria %}
+            var initial = {{ existing_criteria|safe }};
+            return {
+                criteria: initial.map(function(c) { return {label: c.label, points: String(c.points)}; }),
+                addCriterion() {
+                    this.criteria.push({label: '', points: ''});
+                },
+                removeCriterion(index) {
+                    this.criteria.splice(index, 1);
+                }
+            };
+            {% else %}
+            return {
+                criteria: [{label: '', points: ''}],
+                addCriterion() {
+                    this.criteria.push({label: '', points: ''});
+                },
+                removeCriterion(index) {
+                    this.criteria.splice(index, 1);
+                }
+            };
+            {% endif %}
+        }
+    </script>
+{% endblock content %}

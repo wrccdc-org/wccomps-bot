@@ -51,6 +51,7 @@ urlpatterns = [
         name="ops_group_role_mappings",
     ),
     path("scoring/", include("scoring.urls")),
+    path("orange-team/", include("challenges.urls")),
     path("register/", include("registration.urls")),
     # Ticketing routes (unified under /tickets/)
     path("tickets/", views.ticket_list, name="ticket_list"),

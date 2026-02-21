@@ -40,12 +40,26 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "ip_pool_create": ("red_findings", "pools"),
     "ip_pool_edit": ("red_findings", "pools"),
     "ip_pool_delete": ("red_findings", "pools"),
-    # Orange Team
-    "orange_team_portal": ("orange", "portal"),
-    "submit_orange_bonus": ("orange", "submit"),
+    # Orange Team approval views (scoring app, still used for legacy OrangeTeamScore records)
     "bulk_approve_orange_adjustments": ("orange", "portal"),
     "approve_orange_adjustment": ("orange", "portal"),
     "reject_orange_adjustment": ("orange", "portal"),
+    # Orange Team Challenges (challenges app)
+    "dashboard": ("orange", ""),
+    "check_list": ("orange", "checks"),
+    "check_create": ("orange", "checks"),
+    "check_detail": ("orange", "checks"),
+    "check_edit": ("orange", "checks"),
+    "check_duplicate": ("orange", "checks"),
+    "check_assign": ("orange", "checks"),
+    "assignment_save": ("orange", ""),
+    "assignment_submit": ("orange", ""),
+    "assignment_approve": ("orange", ""),
+    "assignment_reject": ("orange", ""),
+    "followup_create": ("orange", ""),
+    "followup_dismiss": ("orange", ""),
+    "toggle_checkin": ("orange", ""),
+    "admin_toggle_checkin": ("orange", ""),
     # Ops Admin
     "admin_competition": ("ops_admin", "competition"),
     "admin_competition_action": ("ops_admin", "competition"),
@@ -123,6 +137,10 @@ def _get_nav_active(request: HttpRequest) -> dict[str, str]:
     if url_name in NAV_MAPPING:
         nav, subnav = NAV_MAPPING[url_name]
         return {"nav": nav, "subnav": subnav}
+
+    # Fallback for challenges app (covers dashboard, export_scores, etc.)
+    if app_name == "challenges":
+        return {"nav": "orange", "subnav": ""}
 
     # Fallback for admin
     if app_name == "admin":

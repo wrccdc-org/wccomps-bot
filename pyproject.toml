@@ -68,7 +68,7 @@ dev = [
 python_version = "3.13"
 plugins = ["mypy_django_plugin.main"]
 mypy_path = "web"
-files = ["bot", "web/core", "web/team", "web/ticketing", "web/quotient", "web/wccomps", "web/scoring", "web/packets", "web/registration"]
+files = ["bot", "web/core", "web/team", "web/ticketing", "web/quotient", "web/wccomps", "web/scoring", "web/challenges", "web/packets", "web/registration"]
 exclude = "(/tests/|/test_|tests\\.py|integration_tests/|conftest\\.py)"
 
 # Strict type checking
@@ -138,7 +138,7 @@ asyncio_default_fixture_loop_scope = "function"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-testpaths = ["bot/tests", "web/core/tests", "web/scoring/tests", "web/team/tests", "web/packets/tests", "web/registration/tests"]
+testpaths = ["bot/tests", "web/core/tests", "web/scoring/tests", "web/team/tests", "web/packets/tests", "web/registration/tests", "web/challenges/tests"]
 addopts = ["-v", "--tb=short", "-n", "auto"]
 markers = [
     "critical: Critical tests that must pass on every deployment",

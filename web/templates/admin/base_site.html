@@ -45,7 +45,7 @@
                        {% if nav_active == 'red_findings' %}class="current"{% endif %}>Red Team Findings</a>
                 {% endif %}
                 {% if is_orange_team or is_admin %}
-                    <a href="{% url 'scoring:orange_team_portal' %}"
+                    <a href="{% url 'challenges:dashboard' %}"
                        {% if nav_active == 'orange' %}class="current"{% endif %}>Orange Team</a>
                 {% endif %}
                 {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}

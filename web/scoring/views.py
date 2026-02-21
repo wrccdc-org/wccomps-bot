@@ -26,7 +26,6 @@ from .calculator import (
 from .forms import (
     IncidentMatchForm,
     IncidentReportForm,
-    OrangeTeamScoreForm,
     RedTeamScoreForm,
     ScoringTemplateForm,
 )
@@ -784,21 +783,9 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
     return redirect("scoring:incident_list")
 
 
-@require_permission(
-    "orange_team", "gold_team", error_message="Only Orange Team or Gold Team members can access this page"
-)
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
-    """Orange team portal - list submitted bonuses.
-
-    Gold team and admins see all bonuses; orange team sees only their own.
-    """
-    user = cast(User, request.user)
-    is_gold = has_permission(user, "gold_team")
-    if is_gold:
-        bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
-    else:
-        bonuses = OrangeTeamScore.objects.filter(submitted_by=user).select_related("team")
-    return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses, "is_gold_team": is_gold})
+    """Redirect to new orange team dashboard."""
+    return redirect("challenges:dashboard")
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review orange team")
@@ -808,27 +795,9 @@ def review_orange(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
-@require_permission("orange_team", error_message="Only Orange Team members can submit bonuses")
-@transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
-    """Submit orange team bonus."""
-    if request.method == "POST":
-        form = OrangeTeamScoreForm(request.POST)
-
-        if form.is_valid():
-            bonus = form.save(commit=False)
-            bonus.submitted_by = cast(User, request.user)
-            bonus.save()
-
-            messages.success(request, f"Orange team bonus awarded to {bonus.team.team_name}")
-            return redirect("scoring:orange_team_portal")
-    else:
-        form = OrangeTeamScoreForm()
-
-    context = {
-        "form": form,
-    }
-    return render(request, "scoring/submit_orange_bonus.html", context)
+    """Redirect to new orange team dashboard."""
+    return redirect("challenges:dashboard")
 
 
 @require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
