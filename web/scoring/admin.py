@@ -5,16 +5,14 @@ from django.utils.html import format_html
 
 from .models import (
     AttackType,
-    BlackTeamAdjustment,
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
-    InjectGrade,
-    OrangeCheckType,
-    OrangeTeamBonus,
+    InjectScore,
+    OrangeTeamScore,
     QuotientMetadataCache,
-    RedTeamFinding,
     RedTeamIPPool,
+    RedTeamScore,
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceScore,
@@ -38,14 +36,14 @@ class AttackTypeAdmin(admin.ModelAdmin[AttackType]):
         return obj.findings.count()
 
 
-class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamFinding]):
+class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamScore]):
     model = RedTeamScreenshot
     extra = 1
     fields = ["filename", "description"]
 
 
-@admin.register(RedTeamFinding)
-class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
+@admin.register(RedTeamScore)
+class RedTeamScoreAdmin(admin.ModelAdmin[RedTeamScore]):
     list_display = [
         "id",
         "attack_type",
@@ -62,7 +60,7 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     autocomplete_fields = ["attack_type"]
 
     @admin.display(description="Boxes")
-    def affected_boxes_display(self, obj: RedTeamFinding) -> str:
+    def affected_boxes_display(self, obj: RedTeamScore) -> str:
         if obj.affected_boxes:
             items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
             boxes = items[:3]
@@ -103,11 +101,11 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     ]
 
     @admin.display(description="Teams")
-    def team_count(self, obj: RedTeamFinding) -> int:
+    def team_count(self, obj: RedTeamScore) -> int:
         return obj.affected_teams.count()
 
     @admin.display(description="Contributors")
-    def contributors_count(self, obj: RedTeamFinding) -> int:
+    def contributors_count(self, obj: RedTeamScore) -> int:
         return obj.contributors.count()
 
 
@@ -164,7 +162,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
             {
                 "fields": [
                     "gold_team_reviewed",
-                    "matched_to_red_finding",
+                    "matched_to_red_score",
                     "points_returned",
                     "reviewer_notes",
                     "reviewed_by",
@@ -195,8 +193,8 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
         return format_html('<span style="color: orange;">Pending</span>')
 
 
-@admin.register(InjectGrade)
-class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
+@admin.register(InjectScore)
+class InjectScoreAdmin(admin.ModelAdmin[InjectScore]):
     list_display = [
         "team",
         "inject_name",
@@ -218,7 +216,7 @@ class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
     ]
 
     @admin.display(description="%")
-    def percentage(self, obj: InjectGrade) -> str:
+    def percentage(self, obj: InjectScore) -> str:
         if obj.max_points and obj.max_points > 0:
             pct = (obj.points_awarded / obj.max_points) * 100
             color = "green" if pct >= 80 else "orange" if pct >= 60 else "red"
@@ -226,29 +224,21 @@ class InjectGradeAdmin(admin.ModelAdmin[InjectGrade]):
         return "N/A"
 
 
-@admin.register(OrangeCheckType)
-class OrangeCheckTypeAdmin(admin.ModelAdmin[OrangeCheckType]):
-    list_display = ["name", "default_points", "created_at"]
-    search_fields = ["name"]
-    readonly_fields = ["created_at"]
-
-
-@admin.register(OrangeTeamBonus)
-class OrangeTeamBonusAdmin(admin.ModelAdmin[OrangeTeamBonus]):
+@admin.register(OrangeTeamScore)
+class OrangeTeamScoreAdmin(admin.ModelAdmin[OrangeTeamScore]):
     list_display = [
         "team",
-        "check_type",
         "description_short",
         "points_awarded",
         "submitted_by",
         "created_at",
     ]
-    list_filter = ["check_type", "created_at"]
+    list_filter = ["created_at"]
     search_fields = ["team__team_name", "description"]
     readonly_fields = ["created_at", "updated_at"]
 
     @admin.display(description="Description")
-    def description_short(self, obj: OrangeTeamBonus) -> str:
+    def description_short(self, obj: OrangeTeamScore) -> str:
         return obj.description[:50] + "..." if len(obj.description) > 50 else obj.description
 
 
@@ -271,24 +261,6 @@ class ServiceScoreAdmin(admin.ModelAdmin[ServiceScore]):
         total = obj.service_points + obj.sla_violations
         color = "green" if total > 0 else "red" if total < 0 else "black"
         return format_html(f'<span style="color: {color};">{total:.2f}</span>')
-
-
-@admin.register(BlackTeamAdjustment)
-class BlackTeamAdjustmentAdmin(admin.ModelAdmin[BlackTeamAdjustment]):
-    list_display = [
-        "team",
-        "reason_short",
-        "point_adjustment",
-        "submitted_by",
-        "created_at",
-    ]
-    list_filter = ["created_at"]
-    search_fields = ["team__team_name", "reason"]
-    readonly_fields = ["created_at", "updated_at"]
-
-    @admin.display(description="Reason")
-    def reason_short(self, obj: BlackTeamAdjustment) -> str:
-        return obj.reason[:50] + "..." if len(obj.reason) > 50 else obj.reason
 
 
 @admin.register(FinalScore)

@@ -1,4 +1,4 @@
-"""Red Team Finding submission processing."""
+"""Red Team Score submission processing."""
 
 from dataclasses import dataclass
 
@@ -8,7 +8,7 @@ from django.db.models import QuerySet
 
 from team.models import Team
 
-from .models import AttackType, RedTeamFinding, RedTeamIPPool
+from .models import AttackType, RedTeamIPPool, RedTeamScore
 
 
 @dataclass
@@ -16,7 +16,7 @@ class SubmissionResult:
     """Result of processing a red team finding submission."""
 
     status: str  # "created"
-    finding: RedTeamFinding
+    finding: RedTeamScore
     message: str
     teams_added: list[Team]
 
@@ -54,7 +54,7 @@ def process_red_team_submission(
     """
     Process a red team finding submission.
 
-    Creates a new RedTeamFinding with auto-calculated points from outcomes.
+    Creates a new RedTeamScore with auto-calculated points.
     """
     teams_list = list(teams)
     outcome_fields = {}
@@ -71,7 +71,7 @@ def process_red_team_submission(
             "db_decrypted": outcomes.db_decrypted,
         }
 
-    finding = RedTeamFinding.objects.create(
+    finding = RedTeamScore.objects.create(
         attack_type=attack_type,
         affected_boxes=boxes,
         source_ip=source_ip if not source_ip_pool else None,

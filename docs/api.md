@@ -87,8 +87,7 @@ Returns detailed scoring breakdown for a specific team.
     "orange_points": 50.00,
     "red_deductions": -100.00,
     "incident_recovery_points": 150.00,
-    "sla_penalties": -50.00,
-    "black_adjustments": 0.00
+    "sla_penalties": -50.00
   }
 }
 ```
@@ -486,7 +485,6 @@ Export final calculated scores with complete breakdown for all teams.
 - Red Deductions
 - Incident Recovery Points
 - SLA Penalties
-- Black Adjustments
 - Calculated At
 
 **JSON Structure:**
@@ -504,7 +502,6 @@ Export final calculated scores with complete breakdown for all teams.
       "red_deductions": "-100.00",
       "incident_recovery_points": "150.00",
       "sla_penalties": "-50.00",
-      "black_adjustments": "0.00",
       "calculated_at": "2025-11-28T12:00:00Z"
     }
   ]

@@ -12,10 +12,9 @@ from team.models import Team
 from .models import (
     AttackType,
     IncidentReport,
-    OrangeCheckType,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    OrangeTeamScore,
     RedTeamIPPool,
+    RedTeamScore,
     ScoringTemplate,
 )
 from .quotient_sync import get_box_choices, get_service_choices
@@ -96,7 +95,7 @@ class RedTeamIPPoolForm(forms.ModelForm[RedTeamIPPool]):
         return "\n".join(valid_ips)
 
 
-class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
+class RedTeamScoreForm(forms.ModelForm[RedTeamScore]):
     """Form for red team to submit vulnerability findings."""
 
     # Radio button to choose between single IP or pool
@@ -118,7 +117,7 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
     )
 
     class Meta:
-        model = RedTeamFinding
+        model = RedTeamScore
         fields = [
             "attack_type",
             "source_ip",
@@ -245,7 +244,7 @@ class RedTeamFindingForm(forms.ModelForm[RedTeamFinding]):
 
         return cleaned_data
 
-    def save(self, commit: bool = True) -> RedTeamFinding:
+    def save(self, commit: bool = True) -> RedTeamScore:
         """Save the form, including the affected_boxes field and auto-calculated points."""
         instance = super().save(commit=False)
         # SelectMultiple already returns a list
@@ -362,12 +361,12 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
         return instance
 
 
-class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
+class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
     """Form for orange team to award or deduct points."""
 
     class Meta:
-        model = OrangeTeamBonus
-        fields = ["team", "check_type", "description", "points_awarded"]
+        model = OrangeTeamScore
+        fields = ["team", "description", "points_awarded"]
         widgets = {
             "description": forms.Textarea(
                 attrs={
@@ -377,7 +376,6 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
             ),
         }
         labels = {
-            "check_type": "Check Type",
             "description": "Notes",
             "points_awarded": "Points",
         }
@@ -387,26 +385,8 @@ class OrangeTeamBonusForm(forms.ModelForm[OrangeTeamBonus]):
         # Only show active teams
         team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
         team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
-        # Make check_type required, description optional
-        self.fields["check_type"].required = True
+        # Description is optional
         self.fields["description"].required = False
-
-
-class OrangeCheckTypeForm(forms.ModelForm[OrangeCheckType]):
-    """Form for managing orange check types."""
-
-    class Meta:
-        model = OrangeCheckType
-        fields = ["name", "default_points"]
-        widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "e.g., Customer service call"}),
-        }
-        labels = {
-            "default_points": "Default Points",
-        }
-        help_texts = {
-            "default_points": "Use negative for penalties",
-        }
 
 
 class IncidentMatchForm(forms.ModelForm[IncidentReport]):
@@ -415,7 +395,7 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
     class Meta:
         model = IncidentReport
         fields = [
-            "matched_to_red_finding",
+            "matched_to_red_score",
             "points_returned",
             "reviewer_notes",
         ]
@@ -424,13 +404,13 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
         }
 
     def __init__(
-        self, suggested_findings: QuerySet[RedTeamFinding] | None = None, *args: object, **kwargs: object
+        self, suggested_findings: QuerySet[RedTeamScore] | None = None, *args: object, **kwargs: object
     ) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
 
         if suggested_findings:
             # Limit choices to suggested findings
-            matched_field = cast("forms.ModelChoiceField[RedTeamFinding]", self.fields["matched_to_red_finding"])
+            matched_field = cast("forms.ModelChoiceField[RedTeamScore]", self.fields["matched_to_red_score"])
             matched_field.queryset = suggested_findings
             matched_field.empty_label = "No match / Manual points"
 

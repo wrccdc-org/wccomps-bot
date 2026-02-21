@@ -15,10 +15,9 @@ from core.models import UserGroups
 from scoring.models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
-    OrangeCheckType,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    InjectScore,
+    OrangeTeamScore,
+    RedTeamScore,
 )
 from team.models import Team
 
@@ -67,7 +66,7 @@ def red_team_findings(test_teams, admin_user):
     findings = []
 
     # Finding 1: Approved, affecting teams 1 and 2
-    finding1 = RedTeamFinding.objects.create(
+    finding1 = RedTeamScore.objects.create(
         attack_vector="SQL Injection in login form",
         source_ip="10.0.0.1",
         destination_ip_template="10.100.1X.22",
@@ -86,7 +85,7 @@ def red_team_findings(test_teams, admin_user):
     findings.append(finding1)
 
     # Finding 2: Not approved, affecting team 3
-    finding2 = RedTeamFinding.objects.create(
+    finding2 = RedTeamScore.objects.create(
         attack_vector="XSS in comments",
         source_ip="10.0.0.2",
         destination_ip_template="10.100.1X.80",
@@ -121,7 +120,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         attack_detected_at=timezone.now(),
         attack_mitigated=True,
         gold_team_reviewed=True,
-        matched_to_red_finding=red_team_findings[0],
+        matched_to_red_score=red_team_findings[0],
         points_returned=Decimal("30.00"),
         submitted_by=admin_user,
         reviewed_by=admin_user,
@@ -151,13 +150,11 @@ def incident_reports(test_teams, admin_user, red_team_findings):
 @pytest.fixture
 def orange_adjustments(test_teams, admin_user):
     """Create orange team adjustments for testing."""
-    check_type = OrangeCheckType.objects.create(name="Customer Service")
     adjustments = []
 
     # Adjustment 1: Approved bonus
-    adj1 = OrangeTeamBonus.objects.create(
+    adj1 = OrangeTeamScore.objects.create(
         team=test_teams[0],
-        check_type=check_type,
         description="Excellent customer service during incident response",
         points_awarded=Decimal("10.00"),
         is_approved=True,
@@ -168,9 +165,8 @@ def orange_adjustments(test_teams, admin_user):
     adjustments.append(adj1)
 
     # Adjustment 2: Not approved penalty
-    adj2 = OrangeTeamBonus.objects.create(
+    adj2 = OrangeTeamScore.objects.create(
         team=test_teams[1],
-        check_type=check_type,
         description="Unprofessional communication",
         points_awarded=Decimal("-5.00"),
         is_approved=False,
@@ -187,7 +183,7 @@ def inject_grades(test_teams, admin_user):
     grades = []
 
     # Grade 1: Approved
-    grade1 = InjectGrade.objects.create(
+    grade1 = InjectScore.objects.create(
         team=test_teams[0],
         inject_id="INJ-001",
         inject_name="Incident Response Plan",
@@ -202,7 +198,7 @@ def inject_grades(test_teams, admin_user):
     grades.append(grade1)
 
     # Grade 2: Not approved
-    grade2 = InjectGrade.objects.create(
+    grade2 = InjectScore.objects.create(
         team=test_teams[1],
         inject_id="INJ-001",
         inject_name="Incident Response Plan",
@@ -230,7 +226,6 @@ def final_scores(test_teams):
         red_deductions=Decimal("-50.00"),
         incident_recovery_points=Decimal("30.00"),
         sla_penalties=Decimal("-10.00"),
-        black_adjustments=Decimal("0.00"),
         total_score=Decimal("644.00"),
         rank=1,
     )
@@ -244,7 +239,6 @@ def final_scores(test_teams):
         red_deductions=Decimal("-25.00"),
         incident_recovery_points=Decimal("0.00"),
         sla_penalties=Decimal("-5.00"),
-        black_adjustments=Decimal("10.00"),
         total_score=Decimal("528.00"),
         rank=2,
     )
@@ -261,7 +255,7 @@ class TestExportPermissions:
         client = Client()
         client.force_login(regular_user)
 
-        response = client.get(reverse("scoring:export_red_findings"))
+        response = client.get(reverse("scoring:export_red_scores"))
         assert response.status_code == 302  # Redirect to login/forbidden
 
     def test_non_admin_user_cannot_access_incidents_export(self, regular_user):
@@ -302,7 +296,7 @@ class TestExportPermissions:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -322,7 +316,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         assert response["Content-Type"] == "text/csv"
 
     def test_csv_export_has_correct_filename(self, admin_user, red_team_findings):
@@ -330,7 +324,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         assert 'filename="red_findings.csv"' in response["Content-Disposition"]
 
     def test_csv_export_contains_all_required_headers(self, admin_user, red_team_findings):
@@ -338,7 +332,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.reader(StringIO(content))
         headers = next(reader)
@@ -369,7 +363,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.DictReader(StringIO(content))
         rows = list(reader)
@@ -390,7 +384,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.reader(StringIO(content))
         rows = list(reader)
@@ -403,7 +397,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         assert response["Content-Type"] == "application/json"
 
     def test_json_export_has_correct_filename(self, admin_user, red_team_findings):
@@ -411,7 +405,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         assert 'filename="red_findings.json"' in response["Content-Disposition"]
 
     def test_json_export_is_valid_json(self, admin_user, red_team_findings):
@@ -419,7 +413,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
 
         assert "red_findings" in data
@@ -430,7 +424,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
         findings = data["red_findings"]
 
@@ -462,7 +456,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
         findings = data["red_findings"]
 
@@ -479,7 +473,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"))
+        response = client.get(reverse("scoring:export_red_scores"))
         assert response["Content-Type"] == "text/csv"
 
 
@@ -561,7 +555,7 @@ class TestIncidentsExport:
             "attack_mitigated",
             "points_returned",
             "gold_team_reviewed",
-            "matched_to_red_finding_id",
+            "matched_to_red_score_id",
             "reviewed_by",
             "reviewed_at",
             "submitted_by",
@@ -604,7 +598,6 @@ class TestOrangeAdjustmentsExport:
         required_headers = [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -650,7 +643,6 @@ class TestOrangeAdjustmentsExport:
             "id",
             "team",
             "team_number",
-            "check_type",
             "description",
             "points_awarded",
             "is_approved",
@@ -664,7 +656,7 @@ class TestOrangeAdjustmentsExport:
             assert field in adjustments[0], f"Missing field: {field}"
 
 
-class TestInjectGradesExport:
+class TestInjectScoresExport:
     """Test inject grades export."""
 
     def test_csv_export_contains_all_required_headers(self, admin_user, inject_grades):
@@ -766,7 +758,6 @@ class TestFinalScoresExport:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
 
@@ -814,7 +805,6 @@ class TestFinalScoresExport:
             "red_deductions",
             "incident_recovery_points",
             "sla_penalties",
-            "black_adjustments",
             "calculated_at",
         ]
 
@@ -846,7 +836,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -863,7 +853,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -880,7 +870,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -897,11 +887,11 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         # Test CSV
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "CSV"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "CSV"})
         assert response["Content-Type"] == "text/csv"
 
         # Test JSON
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "JSON"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "JSON"})
         assert response["Content-Type"] == "application/json"
 
 

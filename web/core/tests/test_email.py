@@ -570,7 +570,6 @@ class TestEmailTemplates:
                 "red_deductions": 150,
                 "incident_recovery_points": 100,
                 "sla_penalties": 50,
-                "black_adjustments": 0,
                 "total_score": 2400,
                 "rank": 3,
                 "total_teams": 20,

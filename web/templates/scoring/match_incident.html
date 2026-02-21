@@ -94,10 +94,10 @@
         <form method="post">
             {% csrf_token %}
             <c-fieldset aligned="true">
-            <c-form_field label="{{ form.matched_to_red_finding.label }}" id="{{ form.matched_to_red_finding.id_for_label }}" help_text="{{ form.matched_to_red_finding.help_text }}" error="
-            {% for e in form.matched_to_red_finding.errors %}{{ e }}{% endfor %}
+            <c-form_field label="{{ form.matched_to_red_score.label }}" id="{{ form.matched_to_red_score.id_for_label }}" help_text="{{ form.matched_to_red_score.help_text }}" error="
+            {% for e in form.matched_to_red_score.errors %}{{ e }}{% endfor %}
             ">
-            {{ form.matched_to_red_finding }}
+            {{ form.matched_to_red_score }}
             </c-form_field>
             <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="
             {% for e in form.points_returned.errors %}{{ e }}{% endfor %}

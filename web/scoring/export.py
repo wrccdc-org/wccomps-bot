@@ -11,13 +11,13 @@ from django.utils import timezone
 from .models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    InjectScore,
+    OrangeTeamScore,
+    RedTeamScore,
 )
 
 
-def export_red_findings_csv() -> HttpResponse:
+def export_red_scores_csv() -> HttpResponse:
     """Export red team findings to CSV format."""
     output = StringIO()
     writer = csv.writer(output)
@@ -42,7 +42,7 @@ def export_red_findings_csv() -> HttpResponse:
         ]
     )
 
-    findings = RedTeamFinding.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
+    findings = RedTeamScore.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
         "-created_at"
     )
 
@@ -74,9 +74,9 @@ def export_red_findings_csv() -> HttpResponse:
     return response
 
 
-def export_red_findings_json() -> HttpResponse:
+def export_red_scores_json() -> HttpResponse:
     """Export red team findings to JSON format."""
-    findings = RedTeamFinding.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
+    findings = RedTeamScore.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
         "-created_at"
     )
 
@@ -138,7 +138,7 @@ def export_incidents_csv() -> HttpResponse:
     )
 
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_finding"
+        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
     ).order_by("-created_at")
 
     for incident in incidents:
@@ -155,7 +155,7 @@ def export_incidents_csv() -> HttpResponse:
                 incident.attack_mitigated,
                 incident.points_returned,
                 incident.gold_team_reviewed,
-                incident.matched_to_red_finding.id if incident.matched_to_red_finding else "",
+                incident.matched_to_red_score.id if incident.matched_to_red_score else "",
                 incident.reviewed_by.username if incident.reviewed_by else "",
                 incident.reviewed_at.isoformat() if incident.reviewed_at else "",
                 incident.submitted_by.username if incident.submitted_by else "",
@@ -171,7 +171,7 @@ def export_incidents_csv() -> HttpResponse:
 def export_incidents_json() -> HttpResponse:
     """Export incident reports to JSON format."""
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_finding"
+        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
     ).order_by("-created_at")
 
     data = [
@@ -188,9 +188,7 @@ def export_incidents_json() -> HttpResponse:
             "attack_mitigated": incident.attack_mitigated,
             "points_returned": str(incident.points_returned),
             "gold_team_reviewed": incident.gold_team_reviewed,
-            "matched_to_red_finding_id": (
-                incident.matched_to_red_finding.id if incident.matched_to_red_finding else None
-            ),
+            "matched_to_red_score_id": (incident.matched_to_red_score.id if incident.matched_to_red_score else None),
             "reviewed_by": incident.reviewed_by.username if incident.reviewed_by else None,
             "reviewed_at": incident.reviewed_at.isoformat() if incident.reviewed_at else None,
             "submitted_by": incident.submitted_by.username if incident.submitted_by else None,
@@ -216,7 +214,6 @@ def export_orange_adjustments_csv() -> HttpResponse:
         [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -227,16 +224,13 @@ def export_orange_adjustments_csv() -> HttpResponse:
         ]
     )
 
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
 
     for bonus in bonuses:
         writer.writerow(
             [
                 bonus.id,
                 bonus.team.team_name,
-                bonus.check_type.name if bonus.check_type else "",
                 bonus.description,
                 bonus.points_awarded,
                 bonus.is_approved,
@@ -254,16 +248,13 @@ def export_orange_adjustments_csv() -> HttpResponse:
 
 def export_orange_adjustments_json() -> HttpResponse:
     """Export orange team adjustments to JSON format."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
 
     data = [
         {
             "id": bonus.id,
             "team": bonus.team.team_name,
             "team_number": bonus.team.team_number,
-            "check_type": bonus.check_type.name if bonus.check_type else None,
             "description": bonus.description,
             "points_awarded": str(bonus.points_awarded),
             "is_approved": bonus.is_approved,
@@ -304,7 +295,7 @@ def export_inject_grades_csv() -> HttpResponse:
         ]
     )
 
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
 
@@ -332,7 +323,7 @@ def export_inject_grades_csv() -> HttpResponse:
 
 def export_inject_grades_json() -> HttpResponse:
     """Export inject grades to JSON format."""
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
 
@@ -378,7 +369,6 @@ def export_final_scores_csv() -> HttpResponse:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
     )
@@ -398,7 +388,6 @@ def export_final_scores_csv() -> HttpResponse:
                 score.red_deductions,
                 score.incident_recovery_points,
                 score.sla_penalties,
-                score.black_adjustments,
                 score.calculated_at.isoformat(),
             ]
         )
@@ -424,7 +413,6 @@ def export_final_scores_json() -> HttpResponse:
             "red_deductions": str(score.red_deductions),
             "incident_recovery_points": str(score.incident_recovery_points),
             "sla_penalties": str(score.sla_penalties),
-            "black_adjustments": str(score.black_adjustments),
             "calculated_at": score.calculated_at.isoformat(),
         }
         for score in scores
@@ -438,7 +426,7 @@ def export_final_scores_json() -> HttpResponse:
     return response
 
 
-def _get_red_findings_csv_content() -> str:
+def _get_red_scores_csv_content() -> str:
     """Get red team findings as CSV string."""
     output = StringIO()
     writer = csv.writer(output)
@@ -461,7 +449,7 @@ def _get_red_findings_csv_content() -> str:
             "Created At",
         ]
     )
-    findings = RedTeamFinding.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
+    findings = RedTeamScore.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
         "-created_at"
     )
     for finding in findings:
@@ -489,9 +477,9 @@ def _get_red_findings_csv_content() -> str:
     return output.getvalue()
 
 
-def _get_red_findings_json_content() -> str:
+def _get_red_scores_json_content() -> str:
     """Get red team findings as JSON string."""
-    findings = RedTeamFinding.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
+    findings = RedTeamScore.objects.prefetch_related("affected_teams", "approved_by", "submitted_by").order_by(
         "-created_at"
     )
     data = []
@@ -544,7 +532,7 @@ def _get_incidents_csv_content() -> str:
         ]
     )
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_finding"
+        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
     ).order_by("-created_at")
     for incident in incidents:
         writer.writerow(
@@ -560,7 +548,7 @@ def _get_incidents_csv_content() -> str:
                 incident.attack_mitigated,
                 incident.points_returned,
                 incident.gold_team_reviewed,
-                incident.matched_to_red_finding.id if incident.matched_to_red_finding else "",
+                incident.matched_to_red_score.id if incident.matched_to_red_score else "",
                 incident.reviewed_by.username if incident.reviewed_by else "",
                 incident.reviewed_at.isoformat() if incident.reviewed_at else "",
                 incident.submitted_by.username if incident.submitted_by else "",
@@ -573,7 +561,7 @@ def _get_incidents_csv_content() -> str:
 def _get_incidents_json_content() -> str:
     """Get incidents as JSON string."""
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_finding"
+        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
     ).order_by("-created_at")
     data = [
         {
@@ -589,9 +577,7 @@ def _get_incidents_json_content() -> str:
             "attack_mitigated": incident.attack_mitigated,
             "points_returned": str(incident.points_returned),
             "gold_team_reviewed": incident.gold_team_reviewed,
-            "matched_to_red_finding_id": (
-                incident.matched_to_red_finding.id if incident.matched_to_red_finding else None
-            ),
+            "matched_to_red_score_id": (incident.matched_to_red_score.id if incident.matched_to_red_score else None),
             "reviewed_by": incident.reviewed_by.username if incident.reviewed_by else None,
             "reviewed_at": incident.reviewed_at.isoformat() if incident.reviewed_at else None,
             "submitted_by": incident.submitted_by.username if incident.submitted_by else None,
@@ -610,7 +596,6 @@ def _get_orange_adjustments_csv_content() -> str:
         [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -620,15 +605,12 @@ def _get_orange_adjustments_csv_content() -> str:
             "Created At",
         ]
     )
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
     for bonus in bonuses:
         writer.writerow(
             [
                 bonus.id,
                 bonus.team.team_name,
-                bonus.check_type.name if bonus.check_type else "",
                 bonus.description,
                 bonus.points_awarded,
                 bonus.is_approved,
@@ -643,15 +625,12 @@ def _get_orange_adjustments_csv_content() -> str:
 
 def _get_orange_adjustments_json_content() -> str:
     """Get orange team adjustments as JSON string."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
     data = [
         {
             "id": bonus.id,
             "team": bonus.team.team_name,
             "team_number": bonus.team.team_number,
-            "check_type": bonus.check_type.name if bonus.check_type else None,
             "description": bonus.description,
             "points_awarded": str(bonus.points_awarded),
             "is_approved": bonus.is_approved,
@@ -684,7 +663,7 @@ def _get_inject_grades_csv_content() -> str:
             "Graded At",
         ]
     )
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
     for grade in grades:
@@ -708,7 +687,7 @@ def _get_inject_grades_csv_content() -> str:
 
 def _get_inject_grades_json_content() -> str:
     """Get inject grades as JSON string."""
-    grades = InjectGrade.objects.select_related("team", "graded_by", "approved_by").order_by(
+    grades = InjectScore.objects.select_related("team", "graded_by", "approved_by").order_by(
         "inject_name", "team__team_number"
     )
     data = [
@@ -746,7 +725,6 @@ def _get_final_scores_csv_content() -> str:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
     )
@@ -764,7 +742,6 @@ def _get_final_scores_csv_content() -> str:
                 score.red_deductions,
                 score.incident_recovery_points,
                 score.sla_penalties,
-                score.black_adjustments,
                 score.calculated_at.isoformat(),
             ]
         )
@@ -786,7 +763,6 @@ def _get_final_scores_json_content() -> str:
             "red_deductions": str(score.red_deductions),
             "incident_recovery_points": str(score.incident_recovery_points),
             "sla_penalties": str(score.sla_penalties),
-            "black_adjustments": str(score.black_adjustments),
             "calculated_at": score.calculated_at.isoformat(),
         }
         for score in scores
@@ -799,8 +775,8 @@ def export_all_zip() -> HttpResponse:
     zip_buffer = BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("red_findings.csv", _get_red_findings_csv_content())
-        zip_file.writestr("red_findings.json", _get_red_findings_json_content())
+        zip_file.writestr("red_findings.csv", _get_red_scores_csv_content())
+        zip_file.writestr("red_findings.json", _get_red_scores_json_content())
         zip_file.writestr("incidents.csv", _get_incidents_csv_content())
         zip_file.writestr("incidents.json", _get_incidents_json_content())
         zip_file.writestr("orange_adjustments.csv", _get_orange_adjustments_csv_content())

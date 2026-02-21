@@ -19,10 +19,9 @@ from django.utils import timezone
 
 from scoring.models import (
     IncidentReport,
-    InjectGrade,
-    OrangeCheckType,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    InjectScore,
+    OrangeTeamScore,
+    RedTeamScore,
 )
 from team.models import Team
 
@@ -90,7 +89,7 @@ class TestIncidentWorkflow:
         assert incident.team == team1
         assert incident.submitted_by == users["blue1"]
         assert incident.gold_team_reviewed is False
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.points_returned == Decimal("0")
         assert incident.reviewed_by is None
         assert incident.reviewed_at is None
@@ -125,7 +124,7 @@ class TestIncidentWorkflow:
         users = setup_users
 
         # Create approved Red Team finding
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="Port scanning campaign",
             source_ip="192.168.1.50",
@@ -156,7 +155,7 @@ class TestIncidentWorkflow:
 
         # Gold Team reviews and matches
         incident.gold_team_reviewed = True
-        incident.matched_to_red_finding = red_finding
+        incident.matched_to_red_score = red_finding
         incident.points_returned = Decimal("25.00")
         incident.reviewer_notes = "Valid detection, partial mitigation"
         incident.reviewed_by = users["gold"]
@@ -166,7 +165,7 @@ class TestIncidentWorkflow:
         # Verify workflow state after review
         incident.refresh_from_db()
         assert incident.gold_team_reviewed is True
-        assert incident.matched_to_red_finding == red_finding
+        assert incident.matched_to_red_score == red_finding
         assert incident.points_returned == Decimal("25.00")
         assert incident.reviewed_by == users["gold"]
         assert incident.reviewed_at is not None
@@ -193,7 +192,7 @@ class TestIncidentWorkflow:
 
         # Gold Team reviews and rejects
         incident.gold_team_reviewed = True
-        incident.matched_to_red_finding = None
+        incident.matched_to_red_score = None
         incident.points_returned = Decimal("0.00")
         incident.reviewer_notes = "Not a valid attack - routine maintenance activity"
         incident.reviewed_by = users["gold"]
@@ -203,7 +202,7 @@ class TestIncidentWorkflow:
         # Verify rejection state
         incident.refresh_from_db()
         assert incident.gold_team_reviewed is True
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.points_returned == Decimal("0.00")
         assert incident.reviewed_by == users["gold"]
 
@@ -213,7 +212,7 @@ class TestIncidentWorkflow:
         users = setup_users
 
         # Create Red Team finding worth 100 points
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="Exploit attempt",
             source_ip="192.168.1.75",
@@ -240,7 +239,7 @@ class TestIncidentWorkflow:
             attack_detected_at=timezone.now(),
             attack_mitigated=True,
             gold_team_reviewed=True,
-            matched_to_red_finding=red_finding,
+            matched_to_red_score=red_finding,
             points_returned=Decimal("50.00"),
             reviewed_by=users["gold"],
             reviewed_at=timezone.now(),
@@ -248,11 +247,11 @@ class TestIncidentWorkflow:
 
         # Verify data integrity for scoring
         assert incident.points_returned == Decimal("50.00")
-        assert incident.matched_to_red_finding.points_per_team == Decimal("100.00")
+        assert incident.matched_to_red_score.points_per_team == Decimal("100.00")
         assert incident.team in red_finding.affected_teams.all()
 
 
-class TestRedTeamFindingWorkflow:
+class TestRedTeamScoreWorkflow:
     """Test complete Red Team finding workflow from submission to approval."""
 
     def test_step1_red_team_submits_finding(self, setup_teams, setup_users):
@@ -260,7 +259,7 @@ class TestRedTeamFindingWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="SSH brute force attack successful",
             source_ip="192.168.100.50",
@@ -288,7 +287,7 @@ class TestRedTeamFindingWorkflow:
         users = setup_users
 
         # Create unapproved finding
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="SQL injection successful",
             source_ip="192.168.100.25",
@@ -302,7 +301,7 @@ class TestRedTeamFindingWorkflow:
         finding.affected_teams.add(team1)
 
         # Verify finding is in pending state
-        pending_findings = RedTeamFinding.objects.filter(is_approved=False)
+        pending_findings = RedTeamScore.objects.filter(is_approved=False)
         assert finding in pending_findings
         assert pending_findings.count() == 1
 
@@ -312,7 +311,7 @@ class TestRedTeamFindingWorkflow:
         users = setup_users
 
         # Create unapproved finding
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="Privilege escalation exploit",
             source_ip="192.168.100.75",
@@ -344,7 +343,7 @@ class TestRedTeamFindingWorkflow:
         users = setup_users
 
         # Create multiple unapproved findings
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="Web shell upload",
             source_ip="192.168.100.10",
@@ -357,7 +356,7 @@ class TestRedTeamFindingWorkflow:
         )
         finding1.affected_teams.add(team1, team2)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             submitted_by=users["red"],
             attack_vector="Password dump via mimikatz",
             source_ip="192.168.100.15",
@@ -395,12 +394,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Customer Service")
-
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Excellent customer interaction and problem solving",
             points_awarded=Decimal("10.00"),
         )
@@ -418,19 +414,16 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Professionalism")
-
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Professional communication",
             points_awarded=Decimal("5.00"),
             is_approved=False,
         )
 
         # Verify adjustment is pending
-        pending_adjustments = OrangeTeamBonus.objects.filter(is_approved=False)
+        pending_adjustments = OrangeTeamScore.objects.filter(is_approved=False)
         assert adjustment in pending_adjustments
         assert pending_adjustments.count() == 1
 
@@ -439,12 +432,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Technical Knowledge")
-
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Demonstrated excellent troubleshooting",
             points_awarded=Decimal("15.00"),
             is_approved=False,
@@ -467,12 +457,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Responsiveness")
-
-        adjustment = OrangeTeamBonus.objects.create(
+        adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Questionable justification",
             points_awarded=Decimal("20.00"),
             is_approved=False,
@@ -484,10 +471,10 @@ class TestOrangeAdjustmentWorkflow:
         adjustment.delete()
 
         # Verify adjustment is deleted
-        assert not OrangeTeamBonus.objects.filter(pk=adjustment_id).exists()
+        assert not OrangeTeamScore.objects.filter(pk=adjustment_id).exists()
 
 
-class TestInjectGradeWorkflow:
+class TestInjectScoreWorkflow:
     """Test complete inject grade workflow."""
 
     def test_step1_white_team_grades_inject(self, setup_teams, setup_users):
@@ -495,7 +482,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Network Diagram",
@@ -519,7 +506,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-002",
             inject_name="Incident Response Plan",
@@ -531,7 +518,7 @@ class TestInjectGradeWorkflow:
         )
 
         # Verify grade is in review list
-        unapproved_grades = InjectGrade.objects.filter(is_approved=False)
+        unapproved_grades = InjectScore.objects.filter(is_approved=False)
         assert grade in unapproved_grades
         assert unapproved_grades.count() == 1
 
@@ -540,7 +527,7 @@ class TestInjectGradeWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-003",
             inject_name="Security Presentation",
@@ -569,7 +556,7 @@ class TestInjectGradeWorkflow:
         users = setup_users
 
         # Create several grades for same inject
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -581,7 +568,7 @@ class TestInjectGradeWorkflow:
             approved_at=timezone.now(),
         )
 
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -595,7 +582,7 @@ class TestInjectGradeWorkflow:
 
         # Create outlier grade
         team3 = Team.objects.create(team_name="Blue Team 3", team_number=3, max_members=10)
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team3,
             inject_id="INJ-004",
             inject_name="Business Continuity Plan",
@@ -606,7 +593,7 @@ class TestInjectGradeWorkflow:
         )
 
         # Verify data exists for outlier detection
-        all_grades_for_inject = InjectGrade.objects.filter(inject_id="INJ-004")
+        all_grades_for_inject = InjectScore.objects.filter(inject_id="INJ-004")
         assert all_grades_for_inject.count() == 3
         points = [g.points_awarded for g in all_grades_for_inject]
         assert Decimal("75.00") in points

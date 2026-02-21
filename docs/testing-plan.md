@@ -138,13 +138,12 @@ This document outlines testing requirements for the team onboarding system as ea
 - [ ] OrangeTeamBonus accepts optional event FK
 - [ ] InjectGrade accepts optional event FK
 - [ ] IncidentReport accepts optional event FK
-- [ ] BlackTeamAdjustment accepts optional event FK
 - [ ] ServiceScore accepts optional event FK
 
 ### EventScore Model
 - [ ] Created per team per event
 - [ ] Links to EventTeamAssignment for traceability
-- [ ] Stores component scores (service, inject, orange, red, incident, sla, black)
+- [ ] Stores component scores (service, inject, orange, red, incident, sla)
 - [ ] Calculates total_score
 - [ ] Tracks rank within event
 - [ ] calculated_at timestamp updates on recalculation

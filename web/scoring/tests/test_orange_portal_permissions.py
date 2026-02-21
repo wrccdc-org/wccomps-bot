@@ -12,7 +12,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from core.models import UserGroups
-from scoring.models import OrangeTeamBonus
+from scoring.models import OrangeTeamScore
 from team.models import Team
 
 
@@ -40,28 +40,28 @@ class OrangeTeamPortalFilteringTests(TestCase):
         UserGroups.objects.create(user=self.admin_user, authentik_id="admin1-uid", groups=["WCComps_Discord_Admin"])
 
         # Create bonuses submitted by different users
-        self.bonus1 = OrangeTeamBonus.objects.create(
+        self.bonus1 = OrangeTeamScore.objects.create(
             team=self.team1,
             description="Bonus by orange1",
             points_awarded=Decimal("10.00"),
             submitted_by=self.orange_user1,
         )
 
-        self.bonus2 = OrangeTeamBonus.objects.create(
+        self.bonus2 = OrangeTeamScore.objects.create(
             team=self.team2,
             description="Bonus by orange1 again",
             points_awarded=Decimal("15.00"),
             submitted_by=self.orange_user1,
         )
 
-        self.bonus3 = OrangeTeamBonus.objects.create(
+        self.bonus3 = OrangeTeamScore.objects.create(
             team=self.team1,
             description="Bonus by orange2",
             points_awarded=Decimal("20.00"),
             submitted_by=self.orange_user2,
         )
 
-        self.bonus4 = OrangeTeamBonus.objects.create(
+        self.bonus4 = OrangeTeamScore.objects.create(
             team=self.team2,
             description="Bonus by gold user",
             points_awarded=Decimal("25.00"),

@@ -87,7 +87,7 @@ def home(request: HttpRequest) -> HttpResponse:
     if has_permission(user, "gold_team"):
         return redirect("scoring:leaderboard")
     if has_permission(user, "red_team"):
-        return redirect("scoring:submit_red_finding")
+        return redirect("scoring:submit_red_score")
     if has_permission(user, "orange_team"):
         return redirect("scoring:orange_team_portal")
     if is_team:

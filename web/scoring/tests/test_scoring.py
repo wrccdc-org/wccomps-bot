@@ -9,7 +9,6 @@ Weighted Scoring (modifier derived from weights + raw maxes):
     modifier = (weight/100) × total_pool / raw_max
     total = (service × svc_mod) + (inject × inj_mod) + (orange × ora_mod)
           + sla + point_adjustments + red_deductions + incident_recovery
-          + black_adjustments
 
 Default Weights / Raw Maxes:
     service: 40% / 11454     inject: 40% / 3060     orange: 20% / 160
@@ -27,15 +26,14 @@ from scoring.calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
     recalculate_all_scores,
-    suggest_red_finding_matches,
+    suggest_red_score_matches,
 )
 from scoring.models import (
     FinalScore,
     IncidentReport,
-    InjectGrade,
-    OrangeCheckType,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    InjectScore,
+    OrangeTeamScore,
+    RedTeamScore,
     ScoringTemplate,
     ServiceScore,
 )
@@ -72,7 +70,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Inject: 250 × 1.0 = 250
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team1,
             inject_id="INJ-001",
             inject_name="Test Inject",
@@ -83,7 +81,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Orange: 50 × 1.0 = 50
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team1,
             description="Security improvement",
             points_awarded=Decimal("50.00"),
@@ -92,7 +90,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Red: -100 (subtracted directly)
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
             points_per_team=Decimal("100.00"),
@@ -130,7 +128,7 @@ class ScoringFormulaTests(TestCase):
 
     def test_only_red_deductions(self) -> None:
         """Team with only red findings gets negative total."""
-        red = RedTeamFinding.objects.create(
+        red = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.1",
             points_per_team=Decimal("200.00"),
@@ -146,7 +144,7 @@ class ScoringFormulaTests(TestCase):
 
     def test_unapproved_scores_excluded(self) -> None:
         """Unapproved inject grades, red findings, and orange bonuses are not counted."""
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team1,
             inject_id="INJ-X",
             inject_name="Unapproved Inject",
@@ -155,14 +153,14 @@ class ScoringFormulaTests(TestCase):
             graded_by=self.user,
             is_approved=False,
         )
-        OrangeTeamBonus.objects.create(
+        OrangeTeamScore.objects.create(
             team=self.team1,
             description="Unapproved bonus",
             points_awarded=Decimal("30.00"),
             submitted_by=self.user,
             is_approved=False,
         )
-        red = RedTeamFinding.objects.create(
+        red = RedTeamScore.objects.create(
             attack_vector="Unapproved finding",
             source_ip="10.0.0.2",
             points_per_team=Decimal("50.00"),
@@ -314,8 +312,8 @@ class TestLeaderboardAccess:
         assert response.status_code == 200
 
 
-class InjectGradeApprovalTests(TestCase):
-    """Test approval tracking fields on InjectGrade model."""
+class InjectScoreApprovalTests(TestCase):
+    """Test approval tracking fields on InjectScore model."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -324,8 +322,8 @@ class InjectGradeApprovalTests(TestCase):
         self.team = Team.objects.create(team_number=1, team_name="Test Team")
 
     def test_new_inject_grade_defaults_to_not_approved(self) -> None:
-        """New InjectGrade should have is_approved=False by default."""
-        grade = InjectGrade.objects.create(
+        """New InjectScore should have is_approved=False by default."""
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-001",
             inject_name="Test Inject",
@@ -339,10 +337,10 @@ class InjectGradeApprovalTests(TestCase):
         self.assertIsNone(grade.approved_by)
 
     def test_inject_grade_can_be_approved(self) -> None:
-        """InjectGrade can be marked as approved with timestamp and user."""
+        """InjectScore can be marked as approved with timestamp and user."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-002",
             inject_name="Another Inject",
@@ -363,8 +361,8 @@ class InjectGradeApprovalTests(TestCase):
         self.assertEqual(grade.approved_by, self.approver)
 
     def test_can_query_unapproved_grades(self) -> None:
-        """Can query for unapproved InjectGrade records."""
-        InjectGrade.objects.create(
+        """Can query for unapproved InjectScore records."""
+        InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-003",
             inject_name="Unapproved Inject",
@@ -373,7 +371,7 @@ class InjectGradeApprovalTests(TestCase):
             graded_by=self.grader,
         )
 
-        approved_grade = InjectGrade.objects.create(
+        approved_grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-004",
             inject_name="Approved Inject",
@@ -388,15 +386,15 @@ class InjectGradeApprovalTests(TestCase):
         approved_grade.approved_by = self.approver
         approved_grade.save()
 
-        unapproved_grades = InjectGrade.objects.filter(is_approved=False)
+        unapproved_grades = InjectScore.objects.filter(is_approved=False)
         self.assertEqual(unapproved_grades.count(), 1)
         self.assertEqual(unapproved_grades.first().inject_id, "INJ-003")
 
     def test_can_query_approved_grades(self) -> None:
-        """Can query for approved InjectGrade records."""
+        """Can query for approved InjectScore records."""
         from django.utils import timezone
 
-        grade1 = InjectGrade.objects.create(
+        grade1 = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-005",
             inject_name="First Approved",
@@ -409,7 +407,7 @@ class InjectGradeApprovalTests(TestCase):
         grade1.approved_by = self.approver
         grade1.save()
 
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-006",
             inject_name="Not Approved",
@@ -418,7 +416,7 @@ class InjectGradeApprovalTests(TestCase):
             graded_by=self.grader,
         )
 
-        approved_grades = InjectGrade.objects.filter(is_approved=True)
+        approved_grades = InjectScore.objects.filter(is_approved=True)
         self.assertEqual(approved_grades.count(), 1)
         self.assertEqual(approved_grades.first().inject_id, "INJ-005")
 
@@ -426,7 +424,7 @@ class InjectGradeApprovalTests(TestCase):
         """approved_by field can be null (for system-approved or legacy records)."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-007",
             inject_name="System Approved",
@@ -449,7 +447,7 @@ class InjectGradeApprovalTests(TestCase):
         """When approver user is deleted, approved_by should be set to NULL."""
         from django.utils import timezone
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=self.team,
             inject_id="INJ-008",
             inject_name="Test Delete",
@@ -482,7 +480,7 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -499,12 +497,12 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.gold_team_reviewed is False
         assert incident.reviewed_by is None
         assert incident.reviewed_at is None
 
-        incident.matched_to_red_finding = red_finding
+        incident.matched_to_red_score = red_finding
         incident.gold_team_reviewed = True
         incident.reviewed_by = user
         incident.reviewed_at = "2025-01-01T13:00:00Z"
@@ -512,7 +510,7 @@ class TestIncidentFindingMatching:
         incident.save()
 
         incident.refresh_from_db()
-        assert incident.matched_to_red_finding == red_finding
+        assert incident.matched_to_red_score == red_finding
         assert incident.gold_team_reviewed is True
         assert incident.reviewed_by == user
         assert incident.reviewed_at is not None
@@ -532,7 +530,7 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        incident.matched_to_red_finding = None
+        incident.matched_to_red_score = None
         incident.gold_team_reviewed = True
         incident.reviewed_by = user
         incident.reviewed_at = "2025-01-01T13:00:00Z"
@@ -541,7 +539,7 @@ class TestIncidentFindingMatching:
         incident.save()
 
         incident.refresh_from_db()
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.gold_team_reviewed is True
         assert incident.reviewed_by == user
         assert incident.reviewed_at is not None
@@ -591,12 +589,12 @@ class TestIncidentFindingMatching:
         # (40 points returned from reviewed incident)
         assert scores["incident_recovery_points"] == Decimal("40.00")
 
-    def test_suggest_red_finding_matches_by_source_ip(self, create_user_with_groups) -> None:
+    def test_suggest_red_score_matches_by_source_ip(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by source IP."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        matching_finding = RedTeamFinding.objects.create(
+        matching_finding = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -604,7 +602,7 @@ class TestIncidentFindingMatching:
         )
         matching_finding.affected_teams.add(team)
 
-        non_matching_finding = RedTeamFinding.objects.create(
+        non_matching_finding = RedTeamScore.objects.create(
             attack_vector="SQLi",
             source_ip="10.0.0.99",
             points_per_team=Decimal("30.00"),
@@ -621,17 +619,17 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        suggestions = suggest_red_finding_matches(incident)
+        suggestions = suggest_red_score_matches(incident)
 
         assert matching_finding in suggestions
         assert len(suggestions) >= 1
 
-    def test_suggest_red_finding_matches_by_box_and_service(self, create_user_with_groups) -> None:
+    def test_suggest_red_score_matches_by_box_and_service(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by affected box and service."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        matching_finding = RedTeamFinding.objects.create(
+        matching_finding = RedTeamScore.objects.create(
             attack_vector="Web Exploit",
             source_ip="10.0.0.5",
             affected_boxes=["web-server"],
@@ -652,7 +650,7 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        suggestions = suggest_red_finding_matches(incident)
+        suggestions = suggest_red_score_matches(incident)
 
         assert matching_finding in suggestions
 
@@ -661,7 +659,7 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -814,7 +812,7 @@ class TestIncidentListView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -828,7 +826,7 @@ class TestIncidentListView:
             source_ip="10.0.0.5",
             attack_detected_at="2025-01-01T12:00:00Z",
             gold_team_reviewed=True,
-            matched_to_red_finding=red_finding,
+            matched_to_red_score=red_finding,
             points_returned=Decimal("24.00"),
             reviewed_by=gold_user,
         )
@@ -913,113 +911,3 @@ class TestIncidentListView:
         content = response.content.decode()
         expected_url = reverse("scoring:view_incident_report", kwargs={"incident_id": incident.id})
         assert expected_url in content
-
-
-class OrangeCheckTypeTests(TestCase):
-    """Test OrangeCheckType model and integration with OrangeTeamBonus."""
-
-    def setUp(self) -> None:
-        """Set up test data."""
-        self.user = User.objects.create_user(username="testuser", password="test123")
-        self.team = Team.objects.create(team_number=1, team_name="Test Team 1")
-
-    def test_orange_check_type_creation(self) -> None:
-        """Test that OrangeCheckType can be created with name."""
-        check_type = OrangeCheckType.objects.create(name="Custom check type")
-
-        self.assertEqual(check_type.name, "Custom check type")
-        self.assertIsNotNone(check_type.created_at)
-        self.assertEqual(str(check_type), "Custom check type")
-
-    def test_bulk_check_type_creation(self) -> None:
-        """Test that multiple check types can be created and queried."""
-        type_names = [
-            "Customer service call answered",
-            "Network diagram completed",
-            "Password reset assistance",
-            "Rule violation",
-            "Professional behavior bonus",
-        ]
-
-        for name in type_names:
-            OrangeCheckType.objects.create(name=name)
-
-        for name in type_names:
-            self.assertTrue(
-                OrangeCheckType.objects.filter(name=name).exists(), f"Expected check type '{name}' to exist"
-            )
-
-    def test_orange_check_type_unique_name(self) -> None:
-        """Test that OrangeCheckType name must be unique."""
-        from django.db.utils import IntegrityError
-
-        OrangeCheckType.objects.create(name="Test unique type")
-
-        with self.assertRaises(IntegrityError):
-            OrangeCheckType.objects.create(name="Test unique type")
-
-    def test_orange_team_bonus_with_check_type(self) -> None:
-        """Test that OrangeTeamBonus can reference a check_type."""
-        check_type = OrangeCheckType.objects.create(name="Password reset assistance")
-
-        bonus = OrangeTeamBonus.objects.create(
-            team=self.team,
-            check_type=check_type,
-            description="Helped reset password",
-            points_awarded=Decimal("10.00"),
-            submitted_by=self.user,
-        )
-
-        self.assertEqual(bonus.check_type, check_type)
-        self.assertEqual(bonus.check_type.name, "Password reset assistance")
-
-    def test_orange_team_bonus_without_check_type(self) -> None:
-        """Test that OrangeTeamBonus can exist without check_type (backwards compatibility)."""
-        bonus = OrangeTeamBonus.objects.create(
-            team=self.team,
-            description="Some other adjustment",
-            points_awarded=Decimal("5.00"),
-            submitted_by=self.user,
-        )
-
-        self.assertIsNone(bonus.check_type)
-
-    def test_deleting_check_type_nullifies_bonus_reference(self) -> None:
-        """Test that deleting a check_type sets bonus.check_type to null."""
-        check_type = OrangeCheckType.objects.create(name="Deletable check type")
-        bonus = OrangeTeamBonus.objects.create(
-            team=self.team,
-            check_type=check_type,
-            description="Rule broken",
-            points_awarded=Decimal("-15.00"),
-            submitted_by=self.user,
-        )
-
-        check_type.delete()
-        bonus.refresh_from_db()
-
-        self.assertIsNone(bonus.check_type)
-
-    def test_multiple_bonuses_can_use_same_check_type(self) -> None:
-        """Test that multiple OrangeTeamBonus entries can reference the same check_type."""
-        check_type = OrangeCheckType.objects.create(name="Professional behavior bonus")
-        team2 = Team.objects.create(team_number=2, team_name="Test Team 2")
-
-        bonus1 = OrangeTeamBonus.objects.create(
-            team=self.team,
-            check_type=check_type,
-            description="Great professionalism",
-            points_awarded=Decimal("20.00"),
-            submitted_by=self.user,
-        )
-        bonus2 = OrangeTeamBonus.objects.create(
-            team=team2,
-            check_type=check_type,
-            description="Excellent behavior",
-            points_awarded=Decimal("25.00"),
-            submitted_by=self.user,
-        )
-
-        self.assertEqual(bonus1.check_type, check_type)
-        self.assertEqual(bonus2.check_type, check_type)
-        self.assertEqual(OrangeTeamBonus.objects.filter(check_type=check_type).count(), 2)

@@ -21,14 +21,13 @@ from .calculator import (
     calculate_team_score,
     get_leaderboard,
     recalculate_all_scores,
-    suggest_red_finding_matches,
+    suggest_red_score_matches,
 )
 from .forms import (
     IncidentMatchForm,
     IncidentReportForm,
-    OrangeCheckTypeForm,
-    OrangeTeamBonusForm,
-    RedTeamFindingForm,
+    OrangeTeamScoreForm,
+    RedTeamScoreForm,
     ScoringTemplateForm,
 )
 from .models import (
@@ -36,11 +35,10 @@ from .models import (
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
-    InjectGrade,
-    OrangeCheckType,
-    OrangeTeamBonus,
+    InjectScore,
+    OrangeTeamScore,
     QuotientMetadataCache,
-    RedTeamFinding,
+    RedTeamScore,
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceDetail,
@@ -48,7 +46,7 @@ from .models import (
 from .quotient_sync import get_cached_team_count, sync_quotient_metadata, sync_service_scores
 
 
-def _normalize_red_finding_post(post_data: QueryDict) -> QueryDict:
+def _normalize_red_score_post(post_data: QueryDict) -> QueryDict:
     """Normalize legacy field names in red team finding POST data.
 
     Supports backwards compatibility for scripted submissions using old field names:
@@ -111,7 +109,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     sort_by = request.GET.get("sort", "-created_at")
     page = request.GET.get("page", "1")
 
-    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
+    base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
 
     # Apply status filter
     if status_filter == "pending":
@@ -147,14 +145,14 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page_num)
 
     # Stats (unfiltered counts)
-    total_findings = RedTeamFinding.objects.count()
-    pending_count = RedTeamFinding.objects.filter(is_approved=False).count()
+    total_findings = RedTeamScore.objects.count()
+    pending_count = RedTeamScore.objects.filter(is_approved=False).count()
     reviewed_count = total_findings - pending_count
 
     # Get available teams, attack types, and submitters for filter dropdowns
-    available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
+    available_teams = Team.objects.filter(red_team_scores__isnull=False).distinct().order_by("team_number")
     available_attack_types = AttackType.objects.filter(findings__isnull=False).distinct().order_by("name")
-    available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
+    available_submitters = User.objects.filter(red_scores_submitted__isnull=False).distinct().order_by("username")
 
     user = cast(User, request.user)
     is_gold_team = has_permission(user, "gold_team")
@@ -192,7 +190,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     "red_team",
     error_message="Only Red Team members can view findings",
 )
-def red_team_findings(request: HttpRequest) -> HttpResponse:
+def red_team_scores(request: HttpRequest) -> HttpResponse:
     """Red team view of all findings (read-only, can delete/leave own)."""
     from django.core.paginator import Paginator
 
@@ -204,7 +202,7 @@ def red_team_findings(request: HttpRequest) -> HttpResponse:
     sort_by = request.GET.get("sort", "-created_at")
     page = request.GET.get("page", "1")
 
-    base_query = RedTeamFinding.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
+    base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
 
     # Apply status filter
     if status_filter == "pending":
@@ -240,9 +238,9 @@ def red_team_findings(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page_num)
 
     # Get available teams, attack types, and submitters for filter dropdowns
-    available_teams = Team.objects.filter(red_team_findings__isnull=False).distinct().order_by("team_number")
+    available_teams = Team.objects.filter(red_team_scores__isnull=False).distinct().order_by("team_number")
     available_attack_types = AttackType.objects.filter(findings__isnull=False).distinct().order_by("name")
-    available_submitters = User.objects.filter(red_findings_submitted__isnull=False).distinct().order_by("username")
+    available_submitters = User.objects.filter(red_scores_submitted__isnull=False).distinct().order_by("username")
 
     context = {
         "findings": page_obj,
@@ -271,7 +269,7 @@ def red_team_findings(request: HttpRequest) -> HttpResponse:
 )
 @transaction.atomic
 @require_http_methods(["POST"])
-def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
+def bulk_approve_red_scores(request: HttpRequest) -> HttpResponse:
     """Bulk approve red team findings (Gold Team only)."""
     user = cast(User, request.user)
 
@@ -295,7 +293,7 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
         return redirect("scoring:red_team_portal")
 
     # Approve findings that are not already approved
-    findings_to_approve = RedTeamFinding.objects.filter(id__in=valid_ids, is_approved=False)
+    findings_to_approve = RedTeamScore.objects.filter(id__in=valid_ids, is_approved=False)
 
     approved_count = 0
     now = timezone.now()
@@ -317,7 +315,7 @@ def bulk_approve_red_findings(request: HttpRequest) -> HttpResponse:
 
 @require_permission("red_team", error_message="Only Red Team members can submit findings")
 @transaction.atomic
-def submit_red_finding(request: HttpRequest) -> HttpResponse:
+def submit_red_score(request: HttpRequest) -> HttpResponse:
     """Submit red team finding with deduplication."""
     from .deduplication import OutcomeData, process_red_team_submission
     from .models import RedTeamIPPool
@@ -329,8 +327,8 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
     user_pools = RedTeamIPPool.objects.filter(created_by=user)
 
     if request.method == "POST":
-        post_data = _normalize_red_finding_post(request.POST)
-        form = RedTeamFindingForm(post_data, request.FILES, team_count=team_count, user=user)
+        post_data = _normalize_red_score_post(request.POST)
+        form = RedTeamScoreForm(post_data, request.FILES, team_count=team_count, user=user)
 
         if form.is_valid():
             # Extract form data for deduplication
@@ -384,7 +382,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
                 if len(screenshots) > max_screenshots:
                     messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
                     finding.delete()
-                    return redirect("scoring:submit_red_finding")
+                    return redirect("scoring:submit_red_score")
 
                 try:
                     for screenshot in screenshots:
@@ -398,7 +396,7 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
                 except Exception as e:
                     messages.error(request, f"File upload failed: {str(e)}")
                     finding.delete()
-                    return redirect("scoring:submit_red_finding")
+                    return redirect("scoring:submit_red_score")
 
             # Show appropriate message based on result
             if result.status == "created":
@@ -406,9 +404,9 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
             elif result.status in ("merged", "partial_merge"):
                 messages.info(request, result.message)
 
-            return redirect("scoring:red_team_findings")
+            return redirect("scoring:red_team_scores")
     else:
-        form = RedTeamFindingForm(team_count=team_count, user=user)
+        form = RedTeamScoreForm(team_count=team_count, user=user)
 
     # Get box metadata from cache for auto-populating IP and services
     box_metadata = {}
@@ -429,10 +427,10 @@ def submit_red_finding(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission("red_team", "gold_team", error_message="Only Red Team or Gold Team can view findings")
-def view_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+def view_red_score(request: HttpRequest, finding_id: int) -> HttpResponse:
     """View red team finding details with screenshot previews."""
     finding = get_object_or_404(
-        RedTeamFinding.objects.select_related(
+        RedTeamScore.objects.select_related(
             "attack_type", "submitted_by", "approved_by", "source_ip_pool"
         ).prefetch_related("affected_teams", "contributors", "screenshots"),
         id=finding_id,
@@ -452,48 +450,48 @@ def view_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
 @require_permission("red_team", error_message="Only Red Team members can delete findings")
 @transaction.atomic
 @require_http_methods(["POST"])
-def delete_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+def delete_red_score(request: HttpRequest, finding_id: int) -> HttpResponse:
     """Delete a red team finding (owner only, before approval)."""
-    finding = get_object_or_404(RedTeamFinding, id=finding_id)
+    finding = get_object_or_404(RedTeamScore, id=finding_id)
     user = cast(User, request.user)
 
     # Only the submitter can delete their own finding
     if finding.submitted_by != user:
         messages.error(request, "You can only delete your own findings")
-        return redirect("scoring:red_team_findings")
+        return redirect("scoring:red_team_scores")
 
     # Cannot delete if already approved
     if finding.is_approved:
         messages.error(request, "Cannot delete a finding that has already been approved")
-        return redirect("scoring:red_team_findings")
+        return redirect("scoring:red_team_scores")
 
     finding_num = finding.id
     finding.delete()
     messages.success(request, f"Red team finding #{finding_num} deleted")
-    return redirect("scoring:red_team_findings")
+    return redirect("scoring:red_team_scores")
 
 
 @require_permission("red_team", error_message="Only Red Team members can leave findings")
 @transaction.atomic
 @require_http_methods(["POST"])
-def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
+def leave_red_score(request: HttpRequest, finding_id: int) -> HttpResponse:
     """Remove yourself as a contributor from a merged finding."""
-    finding = get_object_or_404(RedTeamFinding, id=finding_id)
+    finding = get_object_or_404(RedTeamScore, id=finding_id)
     user = cast(User, request.user)
 
     # Cannot leave if already approved
     if finding.is_approved:
         messages.error(request, "Cannot leave a finding that has already been approved")
-        return redirect("scoring:red_team_findings")
+        return redirect("scoring:red_team_scores")
 
     # Check if user is a contributor (but not the original submitter)
     if finding.submitted_by == user:
         messages.error(request, "You are the original submitter. Use delete instead.")
-        return redirect("scoring:red_team_findings")
+        return redirect("scoring:red_team_scores")
 
     if user not in finding.contributors.all():
         messages.error(request, "You are not a contributor to this finding")
-        return redirect("scoring:red_team_findings")
+        return redirect("scoring:red_team_scores")
 
     # Remove user from contributors
     finding.contributors.remove(user)
@@ -506,7 +504,7 @@ def leave_red_finding(request: HttpRequest, finding_id: int) -> HttpResponse:
     finding.save()
 
     messages.success(request, f"You have been removed from finding #{finding.id}")
-    return redirect("scoring:red_team_findings")
+    return redirect("scoring:red_team_scores")
 
 
 # IP Pool Management Views
@@ -797,16 +795,16 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     is_gold = has_permission(user, "gold_team")
     if is_gold:
-        bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+        bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
     else:
-        bonuses = OrangeTeamBonus.objects.filter(submitted_by=user).select_related("team")
+        bonuses = OrangeTeamScore.objects.filter(submitted_by=user).select_related("team")
     return render(request, "scoring/orange_team_portal.html", {"bonuses": bonuses, "is_gold_team": is_gold})
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review orange team")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Gold team review page for orange team."""
-    bonuses = OrangeTeamBonus.objects.select_related("team", "submitted_by", "approved_by")
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
@@ -814,12 +812,8 @@ def review_orange(request: HttpRequest) -> HttpResponse:
 @transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     """Submit orange team bonus."""
-    if not OrangeCheckType.objects.exists():
-        messages.warning(request, "No check types defined. Set up check types first.")
-        return redirect("scoring:manage_check_types")
-
     if request.method == "POST":
-        form = OrangeTeamBonusForm(request.POST)
+        form = OrangeTeamScoreForm(request.POST)
 
         if form.is_valid():
             bonus = form.save(commit=False)
@@ -829,69 +823,12 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
             messages.success(request, f"Orange team bonus awarded to {bonus.team.team_name}")
             return redirect("scoring:orange_team_portal")
     else:
-        form = OrangeTeamBonusForm()
+        form = OrangeTeamScoreForm()
 
     context = {
         "form": form,
     }
     return render(request, "scoring/submit_orange_bonus.html", context)
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def manage_check_types(request: HttpRequest) -> HttpResponse:
-    """List orange check types."""
-    check_types = OrangeCheckType.objects.all().order_by("name")
-    return render(request, "scoring/manage_check_types.html", {"check_types": check_types})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def create_check_type(request: HttpRequest) -> HttpResponse:
-    """Create a new orange check type."""
-    if request.method == "POST":
-        form = OrangeCheckTypeForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Check type '{form.cleaned_data['name']}' created")
-            return redirect("scoring:manage_check_types")
-    else:
-        form = OrangeCheckTypeForm()
-    return render(request, "scoring/check_type_form.html", {"form": form})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
-    """Edit an orange check type."""
-    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-
-    if request.method == "POST":
-        form = OrangeCheckTypeForm(request.POST, instance=check_type)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Check type '{check_type.name}' updated")
-            return redirect("scoring:manage_check_types")
-    else:
-        form = OrangeCheckTypeForm(instance=check_type)
-
-    return render(request, "scoring/check_type_form.html", {"form": form, "check_type": check_type})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
-    """Delete an orange check type."""
-    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-    adjustment_count = check_type.bonuses.count()
-
-    if request.method == "POST":
-        name = check_type.name
-        check_type.delete()
-        messages.success(request, f"Check type '{name}' deleted")
-        return redirect("scoring:manage_check_types")
-
-    return render(
-        request,
-        "scoring/check_type_delete.html",
-        {"check_type": check_type, "adjustment_count": adjustment_count},
-    )
 
 
 @require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
@@ -930,7 +867,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
             if points_value:
                 try:
                     points = Decimal(points_value)
-                    InjectGrade.objects.update_or_create(
+                    InjectScore.objects.update_or_create(
                         team=team,
                         inject_id=selected_inject_id,
                         defaults={
@@ -951,7 +888,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     # Get existing grades for selected inject and merge with teams
     team_data = []
     if selected_inject:
-        existing = InjectGrade.objects.filter(inject_id=selected_inject_id).select_related("team", "graded_by")
+        existing = InjectScore.objects.filter(inject_id=selected_inject_id).select_related("team", "graded_by")
         grade_by_team = {g.team_id: g for g in existing}
 
         for team in teams:
@@ -1065,7 +1002,7 @@ def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
     incident = get_object_or_404(IncidentReport, id=incident_id)
 
     # Get suggested matches
-    suggested_findings = suggest_red_finding_matches(incident)
+    suggested_findings = suggest_red_score_matches(incident)
 
     if request.method == "POST":
         form = IncidentMatchForm(suggested_findings, request.POST, instance=incident)
@@ -1207,7 +1144,7 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
     """API endpoint for attack type suggestions."""
     # Get distinct attack vectors from previous findings
     attack_vectors = (
-        RedTeamFinding.objects.values_list("attack_vector", flat=True).distinct().order_by("attack_vector")[:50]
+        RedTeamScore.objects.values_list("attack_vector", flat=True).distinct().order_by("attack_vector")[:50]
     )
 
     # Extract unique attack types, truncated to 50 chars
@@ -1222,13 +1159,6 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
                 seen.add(attack_type.lower())
 
     return JsonResponse({"suggestions": sorted(suggestions)})
-
-
-def api_orange_check_types(request: HttpRequest) -> JsonResponse:
-    """API endpoint for orange check types with default points."""
-    check_types = OrangeCheckType.objects.all().order_by("name")
-    data = [{"id": ct.id, "name": ct.name, "default_points": float(ct.default_points)} for ct in check_types]
-    return JsonResponse({"check_types": data})
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review inject grades")
@@ -1247,7 +1177,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     sort_by = request.GET.get("sort", "inject_name")
     page = request.GET.get("page", "1")
 
-    base_query = InjectGrade.objects.select_related("team", "graded_by")
+    base_query = InjectScore.objects.select_related("team", "graded_by")
 
     # Apply status filter
     if status_filter == "pending":
@@ -1265,7 +1195,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     # Calculate outliers for each inject before filtering
     # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
     all_grades_for_outlier_calc = list(base_query)
-    inject_grades_map: dict[str, list[InjectGrade]] = defaultdict(list)
+    inject_grades_map: dict[str, list[InjectScore]] = defaultdict(list)
     for grade in all_grades_for_outlier_calc:
         inject_grades_map[grade.inject_id].append(grade)
 
@@ -1328,12 +1258,12 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     page_obj = paginator.get_page(page_num)
 
     # Stats (unfiltered counts)
-    total_grades = InjectGrade.objects.count()
-    approved_count = InjectGrade.objects.filter(is_approved=True).count()
+    total_grades = InjectScore.objects.count()
+    approved_count = InjectScore.objects.filter(is_approved=True).count()
     unapproved_count = total_grades - approved_count
 
     # Get available injects and teams for filter dropdowns
-    available_injects = InjectGrade.objects.values("inject_id", "inject_name").distinct().order_by("inject_name")
+    available_injects = InjectScore.objects.values("inject_id", "inject_name").distinct().order_by("inject_name")
     available_teams = Team.objects.filter(inject_grades__isnull=False).distinct().order_by("team_number")
 
     context = {
@@ -1385,7 +1315,7 @@ def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
         return redirect("scoring:inject_grades_review")
 
     # Get grades to approve (only unapproved ones)
-    grades_to_approve = InjectGrade.objects.filter(id__in=grade_ids, is_approved=False)
+    grades_to_approve = InjectScore.objects.filter(id__in=grade_ids, is_approved=False)
 
     if not grades_to_approve.exists():
         messages.warning(request, "No unapproved grades found with provided IDs")
@@ -1413,14 +1343,14 @@ def export_index(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
-def export_red_findings(request: HttpRequest) -> HttpResponse:
+def export_red_scores(request: HttpRequest) -> HttpResponse:
     """Export red team findings (admin only)."""
-    from .export import export_red_findings_csv, export_red_findings_json
+    from .export import export_red_scores_csv, export_red_scores_json
 
     export_format = request.GET.get("format", "csv").lower()
     if export_format == "json":
-        return export_red_findings_json()
-    return export_red_findings_csv()
+        return export_red_scores_json()
+    return export_red_scores_csv()
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
@@ -1480,7 +1410,7 @@ def export_all(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
     """Approve individual Orange adjustment."""
-    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+    adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = True
     adjustment.approved_at = timezone.now()
@@ -1496,7 +1426,7 @@ def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpR
 @require_http_methods(["POST"])
 def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
     """Reject individual Orange adjustment."""
-    adjustment = get_object_or_404(OrangeTeamBonus, id=adjustment_id)
+    adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = False
     adjustment.approved_at = None
@@ -1527,7 +1457,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
             continue
 
     # Bulk update adjustments
-    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+    count = OrangeTeamScore.objects.filter(id__in=valid_ids).update(
         is_approved=True,
         approved_at=timezone.now(),
         approved_by=cast(User, request.user),
@@ -1557,7 +1487,7 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
             continue
 
     # Bulk update adjustments
-    count = OrangeTeamBonus.objects.filter(id__in=valid_ids).update(
+    count = OrangeTeamScore.objects.filter(id__in=valid_ids).update(
         is_approved=False,
         approved_at=None,
         approved_by=None,
@@ -1731,13 +1661,13 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
     # Per-inject stats (analogous to per-service stats)
     inject_stats: list[_InjectStat] = []
     team_injects = (
-        InjectGrade.objects.filter(team=team, is_approved=True)
+        InjectScore.objects.filter(team=team, is_approved=True)
         .exclude(inject_id="qualifier-total")
         .order_by("inject_name")
     )
 
     for inj in team_injects:
-        all_inj = InjectGrade.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
+        all_inj = InjectScore.objects.filter(inject_id=inj.inject_id, is_approved=True).exclude(
             team_id__in=excluded_teams
         )
         inj_aggs = all_inj.aggregate(avg=Avg("points_awarded"), mx=Max("points_awarded"))
@@ -1837,7 +1767,7 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     score = get_object_or_404(FinalScore, team__team_number=team_number)
     team = score.team
 
-    red_findings = RedTeamFinding.objects.filter(affected_teams=team, is_approved=True).order_by("attack_vector")
+    red_scores = RedTeamScore.objects.filter(affected_teams=team, is_approved=True).order_by("attack_vector")
 
     stats = _compute_scorecard_stats(team, score)
 
@@ -1862,7 +1792,7 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     context = {
         "team": team,
         "score": score,
-        "red_findings": red_findings,
+        "red_scores": red_scores,
         "stats": stats,
         "chart_data_json": chart_data,
     }

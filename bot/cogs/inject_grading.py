@@ -84,7 +84,7 @@ class InjectGradingCog(commands.Cog):
     ) -> None:
         """Grade an inject for a team."""
         from quotient.client import QuotientClient
-        from scoring.models import InjectGrade
+        from scoring.models import InjectScore
 
         from team.models import Team
 
@@ -130,7 +130,7 @@ class InjectGradingCog(commands.Cog):
         inject_name = inject_obj.title if inject_obj else f"Inject {inject_id}"
 
         # Create or update grade
-        grade, created = await InjectGrade.objects.aupdate_or_create(
+        grade, created = await InjectScore.objects.aupdate_or_create(
             team=team,
             inject_id=inject_id,
             defaults={
@@ -182,10 +182,10 @@ class InjectGradingCog(commands.Cog):
         status: str = "pending",
     ) -> None:
         """List inject grades."""
-        from scoring.models import InjectGrade
+        from scoring.models import InjectScore
 
         # Build query
-        queryset = InjectGrade.objects.select_related("team").order_by("inject_name", "team__team_number")
+        queryset = InjectScore.objects.select_related("team").order_by("inject_name", "team__team_number")
 
         if inject_id:
             queryset = queryset.filter(inject_id=inject_id)
@@ -195,7 +195,7 @@ class InjectGradingCog(commands.Cog):
         elif status == "approved":
             queryset = queryset.filter(is_approved=True)
 
-        grades: list[InjectGrade] = await sync_to_async(lambda: list(queryset[:50]))()
+        grades: list[InjectScore] = await sync_to_async(lambda: list(queryset[:50]))()
 
         if not grades:
             await interaction.response.send_message(

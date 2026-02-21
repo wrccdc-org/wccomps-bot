@@ -7,26 +7,37 @@
     <div class="scorecard">
         <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
         <c-module>
-        <div class="neighbors">
-            {% if stats.neighbors %}
+        <div class="scorecard-header">
+            <div>
+                <span class="text-muted">Rank</span>
+                <strong>
+                    {% if score.rank %}
+                        #{{ score.rank }} of {{ stats.team_count }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </strong>
+            </div>
+            <div>
+                <span class="text-muted">Total</span>
+                <strong class="scorecard-total">{{ score.total_score|floatformat:2 }}</strong>
+            </div>
+        </div>
+        {% if stats.neighbors %}
+            <div class="neighbors">
                 {% for n in stats.neighbors %}
                     {% if n.rank < score.rank %}
                         <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-positive">(+{{ n.gap|floatformat:0 }} ahead)</span></span>
                     {% endif %}
                 {% endfor %}
-            {% endif %}
-            <span class="neighbor-entry neighbor-current">
-                {% if score.rank %}#{{ score.rank }} of {{ stats.team_count }} —{% endif %}
-                {{ score.total_score|floatformat:2 }} (you)
-            </span>
-            {% if stats.neighbors %}
+                <span class="neighbor-entry neighbor-current">#{{ score.rank }} — {{ score.total_score|floatformat:2 }} (you)</span>
                 {% for n in stats.neighbors %}
                     {% if n.rank > score.rank %}
                         <span class="neighbor-entry">#{{ n.rank }} — {{ n.total_score|floatformat:2 }} <span class="score-negative">({{ n.gap|floatformat:0 }} behind)</span></span>
                     {% endif %}
                 {% endfor %}
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
         {% if stats.insights %}
             <div class="scorecard-insights">
                 <ul>
@@ -37,197 +48,188 @@
         </c-module>
         <c-module>
         <h3>Category Breakdown</h3>
-        {% if stats.category_ranks|length > 1 %}<div class="scorecard-category-grid">{% endif %}
+        <c-table id="category_breakdown" aria_label="Category breakdown">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Category</c-table_header>
+            <c-table_header sortable="false" class="text-right">Points</c-table_header>
+            <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+            <c-table_header sortable="false" class="text-right">Avg</c-table_header>
+            <c-table_header sortable="false" class="text-right">Max</c-table_header>
+        </tr>
+        </c-slot>
+        {% with svc_rank=stats.category_ranks.services %}
+            <tr>
+                <td>Service (scaled)</td>
+                <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
+                {% if svc_rank %}
+                    <td class="text-right">#{{ svc_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ svc_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ svc_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with inj_rank=stats.category_ranks.injects %}
+            <tr>
+                <td>Injects (scaled)</td>
+                <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
+                {% if inj_rank %}
+                    <td class="text-right">#{{ inj_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ inj_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ inj_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with ora_rank=stats.category_ranks.orange %}
+            <tr>
+                <td>Orange (scaled)</td>
+                <td class="text-right">
+                    <c-score_value :value="score.orange_points" format="signed" />
+                </td>
+                {% if ora_rank %}
+                    <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ ora_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ ora_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with red_rank=stats.category_ranks.red %}
+            <tr>
+                <td>Red Team</td>
+                <td class="text-right">
+                    <c-score_value :value="score.red_deductions" />
+                </td>
+                {% if red_rank %}
+                    <td class="text-right">#{{ red_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ red_rank.avg|floatformat:2 }}</td>
+                    <td class="text-right">{{ red_rank.max|floatformat:2 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% if score.sla_penalties %}
+            <tr>
+                <td>SLA Violations</td>
+                <td class="text-right">
+                    <c-score_value :value="score.sla_penalties" />
+                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+            </tr>
+        {% endif %}
+        {% if score.incident_recovery_points %}
+            <tr>
+                <td>Incident Recovery</td>
+                <td class="text-right">
+                    <c-score_value :value="score.incident_recovery_points" format="signed" />
+                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+            </tr>
+        {% endif %}
+        {% if score.point_adjustments %}
+            <tr>
+                <td>Point Adjustments</td>
+                <td class="text-right">
+                    <c-score_value :value="score.point_adjustments" />
+                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+            </tr>
+        {% endif %}
+        <tr class="row-total">
+            <td>
+                <strong>Grand Total</strong>
+            </td>
+            <td class="text-right">
+                <strong>{{ score.total_score|floatformat:2 }}</strong>
+            </td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
+        </tr>
+        </c-table>
+        {% if stats.category_ranks|length > 1 %}
+            <div class="scorecard-chart-wrap no-print">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        {% endif %}
+        <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
+        </c-module>
+        <div class="scorecard-grid">
             <div>
-                <c-table id="category_breakdown" aria_label="Category breakdown">
-                <c-slot name="headers">
-                <tr>
-                    <c-table_header sortable="false">Category</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Rank</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Avg</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Max</c-table_header>
-                </tr>
-                </c-slot>
-                {% with svc_rank=stats.category_ranks.services %}
+                <c-module>
+                <h3>Service Uptime Detail</h3>
+                {% if stats.service_stats %}
+                    <c-table id="service_details" aria_label="Service uptime scores">
+                    <c-slot name="headers">
                     <tr>
-                        <td>Service (scaled)</td>
-                        <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
-                        {% if svc_rank %}
-                            <td class="text-right">#{{ svc_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ svc_rank.avg|floatformat:2 }}</td>
-                            <td class="text-right">{{ svc_rank.max|floatformat:2 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
+                        <c-table_header sortable="false">Service</c-table_header>
+                        <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                        <c-table_header sortable="false" class="text-right">vs Avg</c-table_header>
+                        <c-table_header sortable="false" class="text-right">Rank</c-table_header>
                     </tr>
-                {% endwith %}
-                {% with inj_rank=stats.category_ranks.injects %}
-                    <tr>
-                        <td>Injects (scaled)</td>
-                        <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
-                        {% if inj_rank %}
-                            <td class="text-right">#{{ inj_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ inj_rank.avg|floatformat:2 }}</td>
-                            <td class="text-right">{{ inj_rank.max|floatformat:2 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% with ora_rank=stats.category_ranks.orange %}
-                    <tr>
-                        <td>Orange (scaled)</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.orange_points" format="signed" />
-                        </td>
-                        {% if ora_rank %}
-                            <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ ora_rank.avg|floatformat:2 }}</td>
-                            <td class="text-right">{{ ora_rank.max|floatformat:2 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% with red_rank=stats.category_ranks.red %}
-                    <tr>
-                        <td>Red Team</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.red_deductions" />
-                        </td>
-                        {% if red_rank %}
-                            <td class="text-right">#{{ red_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ red_rank.avg|floatformat:2 }}</td>
-                            <td class="text-right">{{ red_rank.max|floatformat:2 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% if score.sla_penalties %}
-                    <tr>
-                        <td>SLA Violations</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.sla_penalties" />
-                        </td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                    </tr>
+                    </c-slot>
+                    {% for svc in stats.service_stats %}
+                        <tr {% if svc.below_avg %}class="row-below-avg"{% endif %}>
+                            <td>{{ svc.name }}</td>
+                            <td class="text-right">{{ svc.points|floatformat:0 }}</td>
+                            <td class="text-right">
+                                <c-score_value value="{{ svc.delta }}" format="signed" />
+                            </td>
+                            <td class="text-right">#{{ svc.rank }}</td>
+                        </tr>
+                    {% endfor %}
+                    </c-table>
+                {% else %}
+                    <p class="text-muted">No service data.</p>
                 {% endif %}
-                {% if score.incident_recovery_points %}
-                    <tr>
-                        <td>Incident Recovery</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.incident_recovery_points" format="signed" />
-                        </td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                    </tr>
-                {% endif %}
-                {% if score.point_adjustments %}
-                    <tr>
-                        <td>Point Adjustments</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.point_adjustments" />
-                        </td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                    </tr>
-                {% endif %}
-                {% if score.black_adjustments %}
-                    <tr>
-                        <td>Black Team Adjustments</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.black_adjustments" format="signed" />
-                        </td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                        <td class="text-right"></td>
-                    </tr>
-                {% endif %}
-                <tr class="row-total">
-                    <td>
-                        <strong>Grand Total</strong>
-                    </td>
-                    <td class="text-right">
-                        <strong>{{ score.total_score|floatformat:2 }}</strong>
-                    </td>
-                    <td class="text-right"></td>
-                    <td class="text-right"></td>
-                    <td class="text-right"></td>
-                </tr>
-                </c-table>
-                <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
+                </c-module>
             </div>
-            {% if stats.category_ranks|length > 1 %}
-                <div class="scorecard-chart-wrap no-print">
-                    <canvas id="categoryChart"></canvas>
-                </div>
+            <div>
+                <c-module>
+                <h3>Red Team Detail</h3>
+                {% if red_scores %}
+                    <c-table id="red_scores" aria_label="Red team deductions">
+                    <c-slot name="headers">
+                    <tr>
+                        <c-table_header sortable="false">Category</c-table_header>
+                        <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                    </tr>
+                    </c-slot>
+                    {% for finding in red_scores %}
+                        <tr>
+                            <td>{{ finding.attack_vector }}</td>
+                            <td class="text-right">
+                                <span class="score-negative">-{{ finding.points_per_team|floatformat:0 }}</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </c-table>
+                {% else %}
+                    <p class="text-muted">No red team deductions.</p>
+                {% endif %}
+                </c-module>
             </div>
-        {% endif %}
-        </c-module>
-        <c-module>
-        <h3>Service Uptime Detail</h3>
-        {% if stats.service_stats %}
-            <c-table id="service_details" aria_label="Service uptime scores">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Service</c-table_header>
-                <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                <c-table_header sortable="false" class="text-right">vs Avg</c-table_header>
-                <c-table_header sortable="false" class="text-right">Rank</c-table_header>
-            </tr>
-            </c-slot>
-            {% for svc in stats.service_stats %}
-                <tr {% if svc.below_avg %}class="row-below-avg"{% endif %}>
-                    <td>{{ svc.name }}</td>
-                    <td class="text-right">{{ svc.points|floatformat:0 }}</td>
-                    <td class="text-right">
-                        <c-score_value value="{{ svc.delta }}" format="signed" />
-                    </td>
-                    <td class="text-right">#{{ svc.rank }}</td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <p class="text-muted">No service data.</p>
-        {% endif %}
-        </c-module>
-        <c-module>
-        <h3>Red Team Detail</h3>
-        {% if red_findings %}
-            <c-table id="red_findings" aria_label="Red team deductions">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Category</c-table_header>
-                <c-table_header sortable="false" class="text-right">Points</c-table_header>
-            </tr>
-            </c-slot>
-            {% for finding in red_findings %}
-                <tr>
-                    <td>{{ finding.attack_vector }}</td>
-                    <td class="text-right">
-                        <span class="score-negative">-{{ finding.points_per_team|floatformat:0 }}</span>
-                    </td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <p class="text-muted">No red team deductions.</p>
-        {% endif %}
-        </c-module>
+        </div>
         {% if stats.inject_stats %}
             <c-module>
             <h3>Inject Detail</h3>

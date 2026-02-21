@@ -10,12 +10,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import UserGroups
-from scoring.models import InjectGrade
+from scoring.models import InjectScore
 from team.models import Team
 
 
 @pytest.mark.django_db
-class TestInjectGradesReviewAccess:
+class TestInjectScoresReviewAccess:
     """Test access control for inject grades review view."""
 
     def test_unauthenticated_user_denied_access(self, create_user_with_groups: Callable[..., User]) -> None:
@@ -79,7 +79,7 @@ class TestInjectGradesReviewAccess:
 
 
 @pytest.mark.django_db
-class TestInjectGradesGrouping:
+class TestInjectScoresGrouping:
     """Test inject grades are grouped correctly by inject."""
 
     def test_grades_displayed_in_page(self, create_user_with_groups: Callable[..., User]) -> None:
@@ -91,7 +91,7 @@ class TestInjectGradesGrouping:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Create grades for two different injects
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -99,7 +99,7 @@ class TestInjectGradesGrouping:
             points_awarded=Decimal("85.00"),
             graded_by=grader,
         )
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -107,7 +107,7 @@ class TestInjectGradesGrouping:
             points_awarded=Decimal("90.00"),
             graded_by=grader,
         )
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-002",
             inject_name="Network Diagram",
@@ -136,7 +136,7 @@ class TestInjectGradesGrouping:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Create approved grade
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -149,7 +149,7 @@ class TestInjectGradesGrouping:
         )
 
         # Create unapproved grade
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -180,7 +180,7 @@ class TestInjectGradesGrouping:
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
 
         # Create only approved grades
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -217,7 +217,7 @@ class TestOutlierDetection:
         # Create grades: 50, 55, 60, 65, 100 (100 is outlier - much higher)
         grades_data = [50, 55, 60, 65, 100]
         for team, points in zip(teams, grades_data, strict=True):
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=team,
                 inject_id="INJ-001",
                 inject_name="Security Policy",
@@ -253,7 +253,7 @@ class TestOutlierDetection:
         # Create grades: 80, 85, 90, 95, 20 (20 is outlier - much lower)
         grades_data = [80, 85, 90, 95, 20]
         for team, points in zip(teams, grades_data, strict=True):
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=team,
                 inject_id="INJ-002",
                 inject_name="Network Diagram",
@@ -286,7 +286,7 @@ class TestOutlierDetection:
         # Create consistent grades: 80, 82, 85, 88, 90
         grades_data = [80, 82, 85, 88, 90]
         for team, points in zip(teams, grades_data, strict=True):
-            InjectGrade.objects.create(
+            InjectScore.objects.create(
                 team=team,
                 inject_id="INJ-003",
                 inject_name="Incident Response",
@@ -317,7 +317,7 @@ class TestOutlierDetection:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Create only 2 grades (not enough for meaningful std dev)
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-004",
             inject_name="Small Inject",
@@ -325,7 +325,7 @@ class TestOutlierDetection:
             points_awarded=Decimal("50.00"),
             graded_by=grader,
         )
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-004",
             inject_name="Small Inject",
@@ -361,7 +361,7 @@ class TestBulkApproval:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
         team3 = Team.objects.create(team_number=3, team_name="Team 3")
 
-        grade1 = InjectGrade.objects.create(
+        grade1 = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -369,7 +369,7 @@ class TestBulkApproval:
             points_awarded=Decimal("85.00"),
             graded_by=grader,
         )
-        grade2 = InjectGrade.objects.create(
+        grade2 = InjectScore.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -377,7 +377,7 @@ class TestBulkApproval:
             points_awarded=Decimal("90.00"),
             graded_by=grader,
         )
-        grade3 = InjectGrade.objects.create(
+        grade3 = InjectScore.objects.create(
             team=team3,
             inject_id="INJ-001",
             inject_name="Security Policy",
@@ -423,7 +423,7 @@ class TestBulkApproval:
 
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-002",
             inject_name="Network Diagram",
@@ -473,7 +473,7 @@ class TestBulkApproval:
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
-        grade1 = InjectGrade.objects.create(
+        grade1 = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-003",
             inject_name="Incident Response",
@@ -481,7 +481,7 @@ class TestBulkApproval:
             points_awarded=Decimal("95.00"),
             graded_by=grader,
         )
-        grade2 = InjectGrade.objects.create(
+        grade2 = InjectScore.objects.create(
             team=team2,
             inject_id="INJ-003",
             inject_name="Incident Response",
@@ -517,7 +517,7 @@ class TestBulkApproval:
 
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
 
-        grade = InjectGrade.objects.create(
+        grade = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-004",
             inject_name="Test Inject",
@@ -570,7 +570,7 @@ class TestBulkApproval:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Grade already approved
-        grade1 = InjectGrade.objects.create(
+        grade1 = InjectScore.objects.create(
             team=team1,
             inject_id="INJ-005",
             inject_name="Test",
@@ -583,7 +583,7 @@ class TestBulkApproval:
         )
 
         # Grade not yet approved
-        grade2 = InjectGrade.objects.create(
+        grade2 = InjectScore.objects.create(
             team=team2,
             inject_id="INJ-005",
             inject_name="Test",
@@ -617,7 +617,7 @@ class TestBulkApproval:
 
 
 @pytest.mark.django_db
-class TestInjectGradesReviewStats:
+class TestInjectScoresReviewStats:
     """Test statistics displayed in inject grades review view."""
 
     def test_stats_show_unapproved_count(self, create_user_with_groups: Callable[..., User]) -> None:
@@ -631,7 +631,7 @@ class TestInjectGradesReviewStats:
         team3 = Team.objects.create(team_number=3, team_name="Team 3")
 
         # 2 unapproved grades
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team1,
             inject_id="INJ-001",
             inject_name="Test",
@@ -639,7 +639,7 @@ class TestInjectGradesReviewStats:
             points_awarded=Decimal("85.00"),
             graded_by=grader,
         )
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team2,
             inject_id="INJ-001",
             inject_name="Test",
@@ -649,7 +649,7 @@ class TestInjectGradesReviewStats:
         )
 
         # 1 approved grade
-        InjectGrade.objects.create(
+        InjectScore.objects.create(
             team=team3,
             inject_id="INJ-001",
             inject_name="Test",

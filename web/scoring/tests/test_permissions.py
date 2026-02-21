@@ -100,7 +100,7 @@ class TestRedTeamPortalPermissions:
         """Red Team should access their own findings view."""
         client = Client()
         client.force_login(red_team_user)
-        response = client.get(reverse("scoring:red_team_findings"))
+        response = client.get(reverse("scoring:red_team_scores"))
         assert response.status_code == 200
 
     def test_gold_team_allowed(self, gold_team_user):

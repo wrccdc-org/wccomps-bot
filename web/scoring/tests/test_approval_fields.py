@@ -1,5 +1,5 @@
 """
-Tests for RedTeamFinding approval fields (MODEL-1).
+Tests for RedTeamScore approval fields (MODEL-1).
 
 Uses parametrization for field default tests and focuses on behavior.
 """
@@ -10,7 +10,7 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth.models import User
 
-from scoring.models import RedTeamFinding
+from scoring.models import RedTeamScore
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -37,7 +37,7 @@ def team():
 @pytest.fixture
 def unapproved_finding(red_user):
     """Create an unapproved finding."""
-    return RedTeamFinding.objects.create(
+    return RedTeamScore.objects.create(
         attack_vector="SQL injection",
         source_ip="10.0.0.5",
         points_per_team=Decimal("0"),
@@ -46,7 +46,7 @@ def unapproved_finding(red_user):
 
 
 class TestFindingDefaults:
-    """Test RedTeamFinding default values."""
+    """Test RedTeamScore default values."""
 
     def test_new_finding_is_not_approved(self, unapproved_finding):
         """New findings should default to unapproved state."""
@@ -56,7 +56,7 @@ class TestFindingDefaults:
 
 
 class TestFindingApprovalWorkflow:
-    """Test RedTeamFinding approval workflow."""
+    """Test RedTeamScore approval workflow."""
 
     def test_can_approve_finding(self, unapproved_finding, gold_user):
         """Should be able to approve a finding."""
@@ -76,7 +76,7 @@ class TestFindingApprovalWorkflow:
         """Finding should preserve is_approved when approver is deleted."""
         approver = User.objects.create_user(username="approver", password="test123")
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -91,15 +91,15 @@ class TestFindingApprovalWorkflow:
 
         assert finding.is_approved is True
         assert finding.approved_by is None
-        assert RedTeamFinding.objects.filter(pk=finding.pk).exists()
+        assert RedTeamScore.objects.filter(pk=finding.pk).exists()
 
 
 class TestFindingQueries:
-    """Test RedTeamFinding query capabilities."""
+    """Test RedTeamScore query capabilities."""
 
     def test_can_filter_by_approval_status(self, red_user, gold_user):
         """Should be able to filter findings by approval status."""
-        RedTeamFinding.objects.create(
+        RedTeamScore.objects.create(
             attack_vector="Approved attack",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -108,19 +108,19 @@ class TestFindingQueries:
             approved_by=gold_user,
             approved_at=datetime.now(UTC),
         )
-        RedTeamFinding.objects.create(
+        RedTeamScore.objects.create(
             attack_vector="Unapproved attack",
             source_ip="10.0.0.6",
             points_per_team=Decimal("0"),
             submitted_by=red_user,
         )
 
-        assert RedTeamFinding.objects.filter(is_approved=True).count() == 1
-        assert RedTeamFinding.objects.filter(is_approved=False).count() == 1
+        assert RedTeamScore.objects.filter(is_approved=True).count() == 1
+        assert RedTeamScore.objects.filter(is_approved=False).count() == 1
 
     def test_approval_works_with_all_model_fields(self, red_user, gold_user, team):
         """Approval fields should work with all other model fields."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="Complex attack vector",
             source_ip="10.0.0.5",
             destination_ip_template="10.100.1X.22",

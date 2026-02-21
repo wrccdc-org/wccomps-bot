@@ -14,7 +14,7 @@ from django.test import Client
 from django.urls import reverse
 
 from core.models import UserGroups
-from scoring.models import RedTeamFinding
+from scoring.models import RedTeamScore
 
 
 @pytest.mark.django_db
@@ -27,7 +27,7 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"))
+        response = client.post(reverse("scoring:bulk_approve_red_scores"))
 
         # Should not be 404, even if we get validation error
         assert response.status_code != 404
@@ -38,7 +38,7 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(red_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": []})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": []})
 
         # Red Team should be denied
         assert response.status_code == 302  # Redirect to leaderboard or error page
@@ -50,13 +50,13 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": []})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": []})
 
         # Admin should have access (not redirected with 302 to leaderboard)
         # Empty list should return redirect to red findings view
         assert response.status_code in [200, 302]
         if response.status_code == 302:
-            assert "red-findings" in response.url or "red-team" in response.url  # type: ignore[attr-defined]
+            assert "red-scores" in response.url or "red-team" in response.url  # type: ignore[attr-defined]
 
     def test_gold_team_can_access_bulk_approve(self, create_user_with_groups: Callable[..., User]) -> None:
         """Gold Team should be able to access bulk approve."""
@@ -64,7 +64,7 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": []})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": []})
 
         # Gold Team should have access
         assert response.status_code in [200, 302]
@@ -75,7 +75,7 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        response = client.get(reverse("scoring:bulk_approve_red_findings"))
+        response = client.get(reverse("scoring:bulk_approve_red_scores"))
 
         # GET should not be allowed
         assert response.status_code == 405
@@ -85,7 +85,7 @@ class TestBulkApproveRedFindingsView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -99,11 +99,11 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": [finding.id]})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": [finding.id]})
 
         # Should redirect to red team portal on success
         assert response.status_code == 302
-        assert "red-findings" in response.url  # type: ignore[attr-defined]
+        assert "red-scores" in response.url  # type: ignore[attr-defined]
 
         finding.refresh_from_db()
         assert finding.is_approved is True
@@ -115,19 +115,19 @@ class TestBulkApproveRedFindingsView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
             submitted_by=red_user,
         )
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.6",
             points_per_team=Decimal("50.00"),
             submitted_by=red_user,
         )
-        finding3 = RedTeamFinding.objects.create(
+        finding3 = RedTeamScore.objects.create(
             attack_vector="XSS",
             source_ip="10.0.0.7",
             points_per_team=Decimal("20.00"),
@@ -138,7 +138,7 @@ class TestBulkApproveRedFindingsView:
         client.force_login(gold_user)
 
         response = client.post(
-            reverse("scoring:bulk_approve_red_findings"),
+            reverse("scoring:bulk_approve_red_scores"),
             {"finding_ids": [finding1.id, finding2.id, finding3.id]},
         )
 
@@ -164,7 +164,7 @@ class TestBulkApproveRedFindingsView:
 
         original_approval_time = datetime(2025, 11, 27, 10, 0, 0, tzinfo=UTC)
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -177,7 +177,7 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": [finding.id]})
+        client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": [finding.id]})
 
         finding.refresh_from_db()
 
@@ -192,11 +192,11 @@ class TestBulkApproveRedFindingsView:
         client = Client()
         client.force_login(gold_user)
 
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": []})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": []})
 
         # Should redirect back to portal
         assert response.status_code == 302
-        assert "red-findings" in response.url  # type: ignore[attr-defined]
+        assert "red-scores" in response.url  # type: ignore[attr-defined]
 
     def test_handles_nonexistent_finding_ids(self, create_user_with_groups: Callable[..., User]) -> None:
         """Should handle nonexistent finding IDs gracefully."""
@@ -205,24 +205,24 @@ class TestBulkApproveRedFindingsView:
         client.force_login(gold_user)
 
         # IDs that don't exist
-        response = client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": [99999, 88888]})
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": [99999, 88888]})
 
         # Should redirect back without error
         assert response.status_code == 302
-        assert "red-findings" in response.url  # type: ignore[attr-defined]
+        assert "red-scores" in response.url  # type: ignore[attr-defined]
 
     def test_uses_transaction_for_bulk_approval(self, create_user_with_groups: Callable[..., User]) -> None:
         """Bulk approval should use atomic transaction."""
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
             submitted_by=red_user,
         )
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.6",
             points_per_team=Decimal("50.00"),
@@ -233,9 +233,7 @@ class TestBulkApproveRedFindingsView:
         client.force_login(gold_user)
 
         # Valid request should succeed
-        response = client.post(
-            reverse("scoring:bulk_approve_red_findings"), {"finding_ids": [finding1.id, finding2.id]}
-        )
+        response = client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": [finding1.id, finding2.id]})
 
         assert response.status_code == 302
 
@@ -250,7 +248,7 @@ class TestBulkApproveRedFindingsView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -261,7 +259,7 @@ class TestBulkApproveRedFindingsView:
 
         client = Client()
         client.force_login(gold_user)
-        client.post(reverse("scoring:bulk_approve_red_findings"), {"finding_ids": [finding.id]})
+        client.post(reverse("scoring:bulk_approve_red_scores"), {"finding_ids": [finding.id]})
 
         after_approval = datetime.now(UTC)
 
@@ -276,13 +274,13 @@ class TestBulkApproveRedFindingsView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
             submitted_by=red_user,
         )
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.6",
             points_per_team=Decimal("50.00"),
@@ -293,7 +291,7 @@ class TestBulkApproveRedFindingsView:
         client.force_login(gold_user)
 
         response = client.post(
-            reverse("scoring:bulk_approve_red_findings"),
+            reverse("scoring:bulk_approve_red_scores"),
             {"finding_ids": [finding1.id, finding2.id]},
             follow=True,
         )
@@ -313,7 +311,7 @@ class TestBulkApproveUIElements:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
 
-        RedTeamFinding.objects.create(
+        RedTeamScore.objects.create(
             attack_vector="SQL injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),

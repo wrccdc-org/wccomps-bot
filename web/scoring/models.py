@@ -200,21 +200,21 @@ class AttackType(models.Model):
         return self.name
 
 
-class RedTeamFinding(models.Model):
-    """Red team vulnerability finding affecting one or more teams."""
+class RedTeamScore(models.Model):
+    """Red team vulnerability score affecting one or more teams."""
 
     event = models.ForeignKey(
         "registration.Event",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="red_team_findings",
+        related_name="red_team_scores",
     )
     submitted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="red_findings_submitted",
+        related_name="red_scores_submitted",
     )
     contributors = models.ManyToManyField(
         User,
@@ -316,7 +316,7 @@ class RedTeamFinding(models.Model):
     # Affected teams and scoring
     affected_teams = models.ManyToManyField(
         "team.Team",
-        related_name="red_team_findings",
+        related_name="red_team_scores",
         help_text="Teams affected by this finding",
     )
     points_per_team = models.DecimalField(
@@ -340,7 +340,7 @@ class RedTeamFinding(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="red_findings_approved",
+        related_name="red_scores_approved",
         help_text="Gold Team member who approved this finding",
     )
 
@@ -353,8 +353,8 @@ class RedTeamFinding(models.Model):
 
     class Meta:
         db_table = "red_team_finding"
-        verbose_name = "Red Team Finding"
-        verbose_name_plural = "Red Team Findings"
+        verbose_name = "Red Team Score"
+        verbose_name_plural = "Red Team Scores"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -457,7 +457,7 @@ class RedTeamScreenshot(models.Model):
     """Screenshots for red team findings (stored in database)."""
 
     finding = models.ForeignKey(
-        RedTeamFinding,
+        RedTeamScore,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
@@ -528,13 +528,13 @@ class IncidentReport(models.Model):
 
     # Gold team review
     gold_team_reviewed = models.BooleanField(default=False)
-    matched_to_red_finding = models.ForeignKey(
-        RedTeamFinding,
+    matched_to_red_score = models.ForeignKey(
+        RedTeamScore,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="matched_incident_reports",
-        help_text="Red team finding this incident matched to",
+        help_text="Red team score this incident matched to",
     )
     points_returned = models.DecimalField(
         max_digits=10,
@@ -606,8 +606,8 @@ class IncidentScreenshot(models.Model):
         return f"{self.filename} ({self.incident})"
 
 
-class InjectGrade(models.Model):
-    """White/Gold team grading of inject submissions."""
+class InjectScore(models.Model):
+    """White/Gold team scoring of inject submissions."""
 
     event = models.ForeignKey(
         "registration.Event",
@@ -666,8 +666,8 @@ class InjectGrade(models.Model):
 
     class Meta:
         db_table = "inject_grade"
-        verbose_name = "Inject Grade"
-        verbose_name_plural = "Inject Grades"
+        verbose_name = "Inject Score"
+        verbose_name_plural = "Inject Scores"
         unique_together = [["team", "inject_id"]]
         ordering = ["inject_name", "team__team_number"]
 
@@ -677,29 +677,7 @@ class InjectGrade(models.Model):
         return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}"
 
 
-class OrangeCheckType(models.Model):
-    """Categories for orange team bonus/penalty checks."""
-
-    name = models.CharField(max_length=100, unique=True)
-    default_points = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        help_text="Default point value when this check type is selected",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "orange_check_type"
-        verbose_name = "Orange Check Type"
-        verbose_name_plural = "Orange Check Types"
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
-
-
-class OrangeTeamBonus(models.Model):
+class OrangeTeamScore(models.Model):
     """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
     event = models.ForeignKey(
@@ -707,29 +685,21 @@ class OrangeTeamBonus(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="orange_team_bonuses",
+        related_name="orange_team_scores",
     )
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.CASCADE,
-        related_name="orange_team_bonuses",
+        related_name="orange_team_scores",
     )
     submitted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="orange_bonuses_submitted",
+        related_name="orange_scores_submitted",
     )
 
     # Point adjustment details
-    check_type = models.ForeignKey(
-        OrangeCheckType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="bonuses",
-        help_text="Category of this check (optional for backwards compatibility)",
-    )
     description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
     points_awarded = models.DecimalField(
         max_digits=10,
@@ -752,7 +722,7 @@ class OrangeTeamBonus(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="orange_bonuses_approved",
+        related_name="orange_scores_approved",
         help_text="User who approved this bonus",
     )
 
@@ -855,50 +825,6 @@ class ServiceDetail(models.Model):
         return f"{self.team.team_name} - {self.service_name}: {self.points}"
 
 
-class BlackTeamAdjustment(models.Model):
-    """Manual point adjustments by admin/black team."""
-
-    event = models.ForeignKey(
-        "registration.Event",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="black_team_adjustments",
-    )
-    team = models.ForeignKey(
-        "team.Team",
-        on_delete=models.CASCADE,
-        related_name="black_team_adjustments",
-    )
-    submitted_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="black_adjustments_submitted",
-    )
-
-    # Adjustment details
-    reason = models.TextField(help_text="Reason for point adjustment")
-    point_adjustment = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Point adjustment (positive or negative)",
-    )
-
-    # Audit
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "black_team_adjustment"
-        verbose_name = "Black Team Adjustment"
-        verbose_name_plural = "Black Team Adjustments"
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        return f"{self.team.team_name}: {self.point_adjustment:+.2f} - {self.reason[:50]}"
-
-
 class FinalScore(models.Model):
     """Calculated final scores for leaderboard."""
 
@@ -916,7 +842,6 @@ class FinalScore(models.Model):
     incident_recovery_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     sla_penalties = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     point_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
-    black_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
 
     # Total and rank
     total_score = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))

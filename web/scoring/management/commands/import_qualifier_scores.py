@@ -10,9 +10,9 @@ from registration.models import Event, EventTeamAssignment, Season, TeamRegistra
 
 from scoring.models import (
     IncidentReport,
-    InjectGrade,
-    OrangeTeamBonus,
-    RedTeamFinding,
+    InjectScore,
+    OrangeTeamScore,
+    RedTeamScore,
     ServiceDetail,
     ServiceScore,
 )
@@ -179,7 +179,7 @@ class Command(BaseCommand):
             raw_total = ws_inj.cell(row=row, column=20).value  # col T
             if raw_total is None or raw_total == 0:
                 continue
-            InjectGrade.objects.update_or_create(
+            InjectScore.objects.update_or_create(
                 team=teams[team_num],
                 inject_id="qualifier-total",
                 defaults={
@@ -202,7 +202,7 @@ class Command(BaseCommand):
             raw_pts = ws_orange.cell(row=row, column=2).value
             if raw_pts is None or raw_pts == 0:
                 continue
-            OrangeTeamBonus.objects.update_or_create(
+            OrangeTeamScore.objects.update_or_create(
                 team=teams[team_num],
                 description="Qualifier orange team score",
                 defaults={
@@ -238,7 +238,7 @@ class Command(BaseCommand):
                 pts = ws_red.cell(row=row, column=col).value
                 if pts is None or pts == 0 or pts == 0.0:
                     continue
-                finding, created = RedTeamFinding.objects.update_or_create(
+                finding, created = RedTeamScore.objects.update_or_create(
                     event=event,
                     notes=f"Qualifier import: {cat_name} (Team {team_num})",
                     defaults={
