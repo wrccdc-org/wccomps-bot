@@ -8,9 +8,9 @@
         <c-page_header title="Sync Roles" />
         <c-module>
         <c-slot name="title">Authentik Role Synchronization</c-slot>
-        <div class="space-y-4">
+        <div>
             <p>Synchronize Discord roles based on Authentik group membership.</p>
-            <ul class="list-disc list-inside text-muted">
+            <ul class="text-muted mb-10">
                 <li>Users in Authentik groups (e.g., WCComps_GoldTeam) will get corresponding Discord roles</li>
                 <li>Users must have linked their Discord account to be synced</li>
                 <li>Users removed from Authentik groups will lose Discord roles</li>
@@ -30,7 +30,7 @@
         <code class="code-block">/admin sync-roles</code>
         </c-module>
         <template x-if="message">
-            <div x-transition class="fixed bottom-4 right-4 z-50">
+            <div x-transition class="toast-position">
                 <div class="alert"
                      :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
                     <span x-text="message"></span>
@@ -40,7 +40,7 @@
         <template x-if="changes.length > 0">
             <c-module class="mt-20">
             <c-slot name="title">Changes Made</c-slot>
-            <ul class="list-none space-y-1">
+            <ul class="list-none">
                 <template x-for="change in changes" :key="change">
                     <li x-text="change" class="font-mono text-sm"></li>
                 </template>

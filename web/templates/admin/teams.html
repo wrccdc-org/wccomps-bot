@@ -8,7 +8,8 @@
         <c-page_header title="Team Management" />
         <c-module>
         <c-slot name="title">Bulk Actions</c-slot>
-        <form @submit.prevent="bulkAction()" class="flex gap-4 items-end flex-wrap">
+        <form @submit.prevent="bulkAction()"
+              class="d-flex gap-10 items-end flex-wrap">
             <c-filter_field label="Team Numbers" id="bulk_team_numbers">
             <input type="text"
                    name="team_numbers"
@@ -80,7 +81,7 @@
         <p class="paginator">{{ teams|length }} team(s)</p>
         </c-module>
         <template x-if="message">
-            <div x-transition class="fixed bottom-4 right-4 z-50">
+            <div x-transition class="toast-position">
                 <div class="alert"
                      :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
                     <span x-text="message"></span>

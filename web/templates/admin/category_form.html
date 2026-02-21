@@ -46,29 +46,29 @@
         </c-fieldset>
         <c-fieldset heading="Required Fields" aligned="true">
         <c-form_field label="Required Fields" help_text="Fields the user must fill in when creating a ticket.">
-        <div class="space-y-2">
-            <label class="flex items-center gap-2">
+        <div class="checkbox-group">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="required_fields"
                        value="hostname"
                        {% if category and category.required_fields and "hostname" in category.required_fields %}checked{% endif %}>
                 hostname
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="required_fields"
                        value="ip_address"
                        {% if category and category.required_fields and "ip_address" in category.required_fields %}checked{% endif %}>
                 ip_address
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="required_fields"
                        value="service_name"
                        {% if category and category.required_fields and "service_name" in category.required_fields %}checked{% endif %}>
                 service_name
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="required_fields"
                        value="description"
@@ -80,29 +80,29 @@
         </c-fieldset>
         <c-fieldset heading="Optional Fields" aligned="true">
         <c-form_field label="Optional Fields" help_text="Fields shown but not required.">
-        <div class="space-y-2">
-            <label class="flex items-center gap-2">
+        <div class="checkbox-group">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="optional_fields"
                        value="hostname"
                        {% if category and category.optional_fields and "hostname" in category.optional_fields %}checked{% endif %}>
                 hostname
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="optional_fields"
                        value="ip_address"
                        {% if category and category.optional_fields and "ip_address" in category.optional_fields %}checked{% endif %}>
                 ip_address
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="optional_fields"
                        value="service_name"
                        {% if category and category.optional_fields and "service_name" in category.optional_fields %}checked{% endif %}>
                 service_name
             </label>
-            <label class="flex items-center gap-2">
+            <label class="d-flex items-center gap-10">
                 <input type="checkbox"
                        name="optional_fields"
                        value="description"
@@ -114,7 +114,7 @@
         </c-fieldset>
         <c-fieldset heading="Options" aligned="true">
         <c-form_field label="Variable Points">
-        <label class="flex items-center gap-2">
+        <label class="d-flex items-center gap-10">
             <input type="checkbox"
                    name="variable_points"
                    {% if category and category.variable_points %}checked{% endif %}>
@@ -122,7 +122,7 @@
         </label>
         </c-form_field>
         <c-form_field label="User Visible">
-        <label class="flex items-center gap-2">
+        <label class="d-flex items-center gap-10">
             <input type="checkbox"
                    name="user_creatable"
                    {% if not category or category.user_creatable %}checked{% endif %}>

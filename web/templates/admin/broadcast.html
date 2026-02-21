@@ -47,16 +47,16 @@
              x-text="message || '(No message entered)'"></div>
         </c-action_box>
         </c-module>
-        <c-module class="mt-6">
+        <c-module class="mt-20">
         <c-slot name="title">Active Teams ({{ teams|length }})</c-slot>
-        <div class="max-h-48 overflow-y-auto">
-            <ul class="list-disc list-inside columns-2 md:columns-3 lg:columns-4">
+        <div class="max-h-300 overflow-y-auto">
+            <ul class="team-list">
                 {% for team in teams %}<li>Team {{ team.team_number }} - {{ team.team_name }}</li>{% endfor %}
             </ul>
         </div>
         </c-module>
         <template x-if="message_alert">
-            <div x-transition class="fixed bottom-4 right-4 z-50">
+            <div x-transition class="toast-position">
                 <div class="alert"
                      :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
                     <span x-text="message_alert"></span>
