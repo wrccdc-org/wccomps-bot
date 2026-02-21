@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "ticketing",
     "quotient",
     "scoring",
+    "challenges",
     "packets",
     "registration",
 ]
