@@ -50,7 +50,7 @@ jobs:
 
       - name: Run type checking
         run: |
-          DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ --exclude 'bot/tests/.*' --exclude 'web/tests/.*' --exclude 'web/integration_tests/.*'
+          DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy
 
       - name: Check for unapplied migrations
         run: |

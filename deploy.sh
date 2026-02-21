@@ -44,9 +44,7 @@ RUFF_RC=0 DJLINT_RC=0 MYPY_RC=0
 uv run ruff check . --quiet > /tmp/deploy_ruff 2>&1 || RUFF_RC=$?
 { uv run djlint web/templates --lint --quiet > /tmp/deploy_djlint 2>&1 || DJLINT_RC=$?; } &
 PID_DJLINT=$!
-{ DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy bot/ web/ \
-    --exclude 'bot/tests/.*' --exclude 'web/tests/.*' \
-    --exclude 'web/integration_tests/.*' --exclude '.*test.*\.py$' \
+{ DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy \
     > /tmp/deploy_mypy 2>&1 || MYPY_RC=$?; } &
 PID_MYPY=$!
 
