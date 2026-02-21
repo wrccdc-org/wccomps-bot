@@ -192,6 +192,7 @@ nav[role="navigation"] {
 /* Font weight */
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
+.font-mono { font-family: monospace; }
 
 /* Display */
 .d-none { display: none !important; }
@@ -199,6 +200,7 @@ nav[role="navigation"] {
 .d-inline-block { display: inline-block; }
 .d-block { display: block; }
 .d-flex { display: flex; }
+.list-none { list-style: none; padding-left: 0; }
 
 /* Modal styles */
 .modal {
@@ -268,6 +270,7 @@ nav[role="navigation"] {
 
 /* Flex utilities */
 .flex-1 { flex: 1; }
+.flex-grow-1 { flex-grow: 1; }
 .flex-wrap { flex-wrap: wrap; }
 .items-center { align-items: center; }
 .items-start { align-items: flex-start; }
@@ -283,7 +286,9 @@ nav[role="navigation"] {
 /* Margins */
 .m-0 { margin: 0; }
 .mt-0 { margin-top: 0; }
+.mt-5 { margin-top: 5px; }
 .mt-10 { margin-top: 10px; }
+.mt-15 { margin-top: 15px; }
 .mt-20 { margin-top: 20px; }
 .mb-0 { margin-bottom: 0; }
 .mb-4 { margin-bottom: 4px; }
@@ -303,7 +308,11 @@ nav[role="navigation"] {
 
 /* Widths */
 .w-40 { width: 40px; }
+.w-150 { width: 150px; }
+.min-w-150 { min-width: 150px; }
+.min-w-200 { min-width: 200px; }
 .w-full { width: 100%; }
+.h-120 { height: 120px; }
 
 /* Backgrounds */
 .bg-light { background-color: var(--darkened-bg, #f8f8f8); }
@@ -316,6 +325,15 @@ nav[role="navigation"] {
 .border-warning { border: 2px solid var(--warning-alert-border); }
 .border-success { border: 2px solid var(--success-fg); }
 .rounded { border-radius: 4px; }
+.checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+.toast-position { position: fixed; bottom: 16px; right: 16px; z-index: 50; }
+.whitespace-pre-wrap { white-space: pre-wrap; }
+.max-h-300 { max-height: 300px; }
+.overflow-y-auto { overflow-y: auto; }
+.table-fixed { table-layout: fixed; }
+.team-list { columns: 2; list-style: disc inside; padding: 0; }
+@media (min-width: 768px) { .team-list { columns: 3; } }
+@media (min-width: 1024px) { .team-list { columns: 4; } }
 
 /* Module header (colored bar at top of module) */
 .module-header {
@@ -604,6 +622,7 @@ nav[role="navigation"] {
 .score-positive { color: var(--success-fg); }
 .score-negative { color: var(--error-fg, #dc3545); }
 .score-zero { color: var(--body-quiet-color, #6c757d); }
+.row-below-avg { background: var(--danger-bg); }
 
 /* ============================================
    STATS CARD COMPONENT

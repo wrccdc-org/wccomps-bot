@@ -56,18 +56,22 @@
             <td>Service (scaled)</td>
             <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
         </tr>
-        <tr>
-            <td>SLA Violations</td>
-            <td class="text-right">
-                <c-score_value :value="score.sla_penalties" />
-            </td>
-        </tr>
-        <tr>
-            <td>Point Adjustments</td>
-            <td class="text-right">
-                <c-score_value :value="score.point_adjustments" />
-            </td>
-        </tr>
+        {% if score.sla_penalties %}
+            <tr>
+                <td>SLA Violations</td>
+                <td class="text-right">
+                    <c-score_value :value="score.sla_penalties" />
+                </td>
+            </tr>
+        {% endif %}
+        {% if score.point_adjustments %}
+            <tr>
+                <td>Point Adjustments</td>
+                <td class="text-right">
+                    <c-score_value :value="score.point_adjustments" />
+                </td>
+            </tr>
+        {% endif %}
         <tr>
             <td>Injects (scaled)</td>
             <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
@@ -110,6 +114,16 @@
         </tr>
         </c-table>
         </c-module>
+        {% if stats.insights %}
+            <c-module>
+            <h3>Key Insights</h3>
+            <div class="info-box info-box-primary">
+                <ul class="insights-list">
+                    {% for insight in stats.insights %}<li>{{ insight }}</li>{% endfor %}
+                </ul>
+            </div>
+            </c-module>
+        {% endif %}
         {% if stats.category_ranks|length > 1 %}
             <c-module>
             <h3>Category Rankings</h3>
@@ -133,6 +147,7 @@
                 </tr>
             {% endfor %}
             </c-table>
+            <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
             <canvas id="categoryChart" class="no-print" width="600" height="250"></canvas>
             </c-module>
         {% endif %}
@@ -146,15 +161,17 @@
                     <tr>
                         <c-table_header sortable="false">Service</c-table_header>
                         <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                        <c-table_header sortable="false" class="text-right">Field Avg</c-table_header>
+                        <c-table_header sortable="false" class="text-right">vs Avg</c-table_header>
                         <c-table_header sortable="false" class="text-right">Rank</c-table_header>
                     </tr>
                     </c-slot>
                     {% for svc in stats.service_stats %}
-                        <tr>
+                        <tr {% if svc.below_avg %}class="row-below-avg"{% endif %}>
                             <td>{{ svc.name }}</td>
                             <td class="text-right">{{ svc.points|floatformat:0 }}</td>
-                            <td class="text-right">{{ svc.avg|floatformat:0 }}</td>
+                            <td class="text-right">
+                                <c-score_value value="{{ svc.delta }}" format="signed" />
+                            </td>
                             <td class="text-right">#{{ svc.rank }}</td>
                         </tr>
                     {% endfor %}
@@ -198,33 +215,21 @@
             <tr>
                 <c-table_header sortable="false">Inject</c-table_header>
                 <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                <c-table_header sortable="false" class="text-right">Field Avg</c-table_header>
+                <c-table_header sortable="false" class="text-right">vs Avg</c-table_header>
                 <c-table_header sortable="false" class="text-right">Rank</c-table_header>
             </tr>
             </c-slot>
             {% for inj in stats.inject_stats %}
-                <tr>
+                <tr {% if inj.below_avg %}class="row-below-avg"{% endif %}>
                     <td>{{ inj.name }}</td>
                     <td class="text-right">{{ inj.points|floatformat:0 }}</td>
-                    <td class="text-right">{{ inj.avg|floatformat:0 }}</td>
+                    <td class="text-right">
+                        <c-score_value value="{{ inj.delta }}" format="signed" />
+                    </td>
                     <td class="text-right">#{{ inj.rank }}</td>
                 </tr>
             {% endfor %}
             </c-table>
-            </c-module>
-        {% endif %}
-        {% if stats.service_stats %}
-            <c-module>
-            <h3>Service Comparison</h3>
-            <canvas id="radarChart" class="no-print" width="500" height="400"></canvas>
-            </c-module>
-        {% endif %}
-        {% if stats.insights %}
-            <c-module>
-            <h3>Key Insights</h3>
-            <ul class="insights-list">
-                {% for insight in stats.insights %}<li>{{ insight }}</li>{% endfor %}
-            </ul>
             </c-module>
         {% endif %}
     </div>
@@ -238,7 +243,7 @@
 
             // Category Rankings — horizontal bar chart
             const catCtx = document.getElementById("categoryChart");
-            if (catCtx && chartData.categoryChart) {
+            if (catCtx && chartData.categoryChart && chartData.categoryChart.labels.length > 0) {
                 const cat = chartData.categoryChart;
                 new Chart(catCtx, {
                     type: "bar",
@@ -270,41 +275,6 @@
                         },
                         scales: {
                             x: { beginAtZero: true },
-                        },
-                    },
-                });
-            }
-
-            // Radar chart — per-service comparison
-            const radarCtx = document.getElementById("radarChart");
-            if (radarCtx && chartData.radarChart && chartData.radarChart.labels.length > 0) {
-                const radar = chartData.radarChart;
-                new Chart(radarCtx, {
-                    type: "radar",
-                    data: {
-                        labels: radar.labels,
-                        datasets: [
-                            {
-                                label: "Team",
-                                data: radar.teamValues,
-                                borderColor: "rgba(54, 162, 235, 1)",
-                                backgroundColor: "rgba(54, 162, 235, 0.2)",
-                            },
-                            {
-                                label: "Field Avg",
-                                data: radar.avgValues,
-                                borderColor: "rgba(201, 203, 207, 1)",
-                                backgroundColor: "rgba(201, 203, 207, 0.2)",
-                            },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { position: "bottom" },
-                        },
-                        scales: {
-                            r: { beginAtZero: true },
                         },
                     },
                 });

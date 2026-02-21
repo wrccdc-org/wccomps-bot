@@ -1,6 +1,5 @@
 """Views for scoring system."""
 
-import json
 from decimal import Decimal
 from typing import TypedDict, cast
 
@@ -1618,6 +1617,8 @@ class _ServiceStat(TypedDict):
     rank: int
     avg: Decimal
     max: Decimal
+    delta: Decimal
+    below_avg: bool
 
 
 class _InjectStat(TypedDict):
@@ -1626,6 +1627,8 @@ class _InjectStat(TypedDict):
     rank: int
     avg: Decimal
     max: Decimal
+    delta: Decimal
+    below_avg: bool
 
 
 class _Neighbor(TypedDict):
@@ -1682,13 +1685,23 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         # so __gt still counts less-negative (better) teams.
         rank = all_scores.filter(**{f"{field}__gt": value}).count() + 1
 
-        category_ranks[label] = _CategoryRank(
-            rank=rank,
-            avg=aggs["avg"] or Decimal("0"),
-            min=mn,
-            max=mx,
-            value=value,
-        )
+        if label == "red":
+            # Store as absolute values; swap min/max so max = most deductions
+            category_ranks[label] = _CategoryRank(
+                rank=rank,
+                avg=abs(aggs["avg"] or Decimal("0")),
+                min=abs(mx),  # SQL max (closest to 0) = least deductions
+                max=abs(mn),  # SQL min (most negative) = most deductions
+                value=abs(value),
+            )
+        else:
+            category_ranks[label] = _CategoryRank(
+                rank=rank,
+                avg=aggs["avg"] or Decimal("0"),
+                min=mn,
+                max=mx,
+                value=value,
+            )
 
     # Per-service stats (2 queries per service — acceptable for admin-only view
     # with ~16 services; could batch with window functions if needed)
@@ -1701,13 +1714,17 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         all_svc = ServiceDetail.objects.filter(service_name=svc.service_name).exclude(team_id__in=excluded_teams)
         svc_aggs = all_svc.aggregate(avg=Avg("points"), mx=Max("points"))
         svc_rank = all_svc.filter(points__gt=svc.points).count() + 1
+        svc_avg = svc_aggs["avg"] or Decimal("0")
+        svc_delta = svc.points - svc_avg
         service_stats.append(
             _ServiceStat(
                 name=svc.service_name,
                 points=svc.points,
                 rank=svc_rank,
-                avg=svc_aggs["avg"] or Decimal("0"),
+                avg=svc_avg,
                 max=svc_aggs["mx"] or Decimal("0"),
+                delta=svc_delta,
+                below_avg=svc_delta < 0,
             )
         )
 
@@ -1725,13 +1742,17 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         )
         inj_aggs = all_inj.aggregate(avg=Avg("points_awarded"), mx=Max("points_awarded"))
         inj_rank = all_inj.filter(points_awarded__gt=inj.points_awarded).count() + 1
+        inj_avg = inj_aggs["avg"] or Decimal("0")
+        inj_delta = inj.points_awarded - inj_avg
         inject_stats.append(
             _InjectStat(
                 name=inj.inject_name,
                 points=inj.points_awarded,
                 rank=inj_rank,
-                avg=inj_aggs["avg"] or Decimal("0"),
+                avg=inj_avg,
                 max=inj_aggs["mx"] or Decimal("0"),
+                delta=inj_delta,
+                below_avg=inj_delta < 0,
             )
         )
 
@@ -1828,18 +1849,12 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "orange": "Orange",
         "red": "Red",
     }
-    is_abs = {"red"}  # categories displayed as absolute values
     chart_data = {
         "categoryChart": {
             "labels": [cat_labels[k] for k in cat_ranks],
-            "teamValues": [float(abs(v["value"]) if k in is_abs else v["value"]) for k, v in cat_ranks.items()],
-            "avgValues": [float(abs(v["avg"]) if k in is_abs else v["avg"]) for k, v in cat_ranks.items()],
-            "maxValues": [float(abs(v["max"]) if k in is_abs else v["max"]) for k, v in cat_ranks.items()],
-        },
-        "radarChart": {
-            "labels": [s["name"] for s in stats["service_stats"]],
-            "teamValues": [float(s["points"]) for s in stats["service_stats"]],
-            "avgValues": [float(s["avg"]) for s in stats["service_stats"]],
+            "teamValues": [float(v["value"]) for v in cat_ranks.values()],
+            "avgValues": [float(v["avg"]) for v in cat_ranks.values()],
+            "maxValues": [float(v["max"]) for v in cat_ranks.values()],
         },
     }
 
@@ -1848,6 +1863,6 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "score": score,
         "red_findings": red_findings,
         "stats": stats,
-        "chart_data_json": json.dumps(chart_data),
+        "chart_data_json": chart_data,
     }
     return render(request, "scoring/scorecard.html", context)

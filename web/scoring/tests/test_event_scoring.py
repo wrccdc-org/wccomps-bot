@@ -73,6 +73,12 @@ class TestComputeScorecardStats:
         assert stats["category_ranks"]["injects"]["rank"] == 2
         assert stats["category_ranks"]["orange"]["rank"] == 2
 
+        # Red values stored as absolute (positive), max = most deductions
+        red = stats["category_ranks"]["red"]
+        assert red["value"] == Decimal("500")  # abs(-500)
+        assert red["max"] == Decimal("800")  # abs(min(-800)) = most deductions
+        assert red["min"] == Decimal("100")  # abs(max(-100)) = least deductions
+
     def test_compute_service_stats(self, teams, scores):
         from scoring.views import _compute_scorecard_stats
 
@@ -89,6 +95,12 @@ class TestComputeScorecardStats:
         assert dns_stat["points"] == Decimal("500")
         assert dns_stat["rank"] == 2
         assert dns_stat["avg"] == Decimal("500")
+        assert dns_stat["delta"] == Decimal("0")
+        assert dns_stat["below_avg"] is False
+
+        ssh_stat = next(s for s in stats["service_stats"] if s["name"] == "ssh")
+        assert ssh_stat["delta"] == Decimal("400") - ssh_stat["avg"]
+        assert ssh_stat["below_avg"] is False
 
     def test_compute_inject_stats(self, teams, scores):
         from scoring.views import _compute_scorecard_stats
