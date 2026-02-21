@@ -17,8 +17,9 @@ docker compose logs -f web bot  # tail logs (production: ssh to 10.0.0.10, cd /o
 ## Notes
 
 - Run `./deploy.sh` before `git push` - deploy catches errors that would break production
-- Tool config (mypy, pytest, ruff) lives in `pyproject.toml` — deploy.sh and CI just run `uv run <tool>` with no extra flags
+- `pyproject.toml` is the single source of truth for tool config (mypy, pytest, ruff, testpaths) — when adding a new app, add its tests/ to `testpaths`
 - Commit messages: 10 words or fewer, no Co-Authored-By
+- Don't test implementation details (init attrs, for-loop iteration, asyncio plumbing) — test observable behavior
 - Strict MyPy enforced - all functions need type annotations
 - Bot state persists in DB via `BotState` model, not env vars
 - Authentik groups are source of truth for permissions
