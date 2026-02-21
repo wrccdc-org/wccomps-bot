@@ -44,6 +44,7 @@ class OrangeTeamCog(commands.Cog):
     ) -> None:
         """Submit an orange team scoring adjustment."""
         from scoring.models import OrangeTeamScore
+
         from team.models import Team
 
         # Validate team number
