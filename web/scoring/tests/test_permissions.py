@@ -200,7 +200,7 @@ class TestIncidentSubmissionPermissions:
 
 
 class TestOrangeTeamPortalPermissions:
-    """Test permissions for Orange Team Portal (/scoring/orange-team/)."""
+    """Test that old Orange Team Portal redirects to challenges dashboard."""
 
     def test_unauthenticated_redirects_to_login(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
@@ -208,61 +208,13 @@ class TestOrangeTeamPortalPermissions:
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
-    def test_blue_team_denied(self, blue_team_user):
-        """Blue Team should not access Orange Team Portal."""
-        client = Client()
-        client.force_login(blue_team_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 302
-
-    def test_red_team_denied(self, red_team_user):
-        """Red Team should not access Orange Team Portal."""
-        client = Client()
-        client.force_login(red_team_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 302
-
-    def test_gold_team_allowed(self, gold_team_user):
-        """Gold Team should access Orange Team Portal."""
+    def test_authenticated_user_redirects_to_dashboard(self, gold_team_user):
+        """Authenticated users are redirected to challenges dashboard."""
         client = Client()
         client.force_login(gold_team_user)
         response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 200
-
-    def test_white_team_denied(self, white_team_user):
-        """White Team should not access Orange Team Portal."""
-        client = Client()
-        client.force_login(white_team_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
         assert response.status_code == 302
-
-    def test_orange_team_allowed(self, orange_team_user):
-        """Orange Team should access Orange Team Portal."""
-        client = Client()
-        client.force_login(orange_team_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 200
-
-    def test_ticketing_support_denied(self, ticketing_support_user):
-        """Ticketing Support should not access Orange Team Portal."""
-        client = Client()
-        client.force_login(ticketing_support_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 302
-
-    def test_ticketing_admin_denied(self, ticketing_admin_user):
-        """Ticketing Admin should not access Orange Team Portal."""
-        client = Client()
-        client.force_login(ticketing_admin_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 302
-
-    def test_admin_allowed(self, admin_user):
-        """Admin (Gold Team) should access Orange Team Portal."""
-        client = Client()
-        client.force_login(admin_user)
-        response = client.get(reverse("scoring:orange_team_portal"))
-        assert response.status_code == 200
+        assert response.url == reverse("challenges:dashboard")
 
 
 class TestInjectGradingPermissions:

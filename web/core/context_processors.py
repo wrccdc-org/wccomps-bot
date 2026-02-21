@@ -40,9 +40,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "ip_pool_create": ("red_findings", "pools"),
     "ip_pool_edit": ("red_findings", "pools"),
     "ip_pool_delete": ("red_findings", "pools"),
-    # Orange Team (scoring app)
-    "orange_team_portal": ("orange", "portal"),
-    "submit_orange_bonus": ("orange", "submit"),
+    # Orange Team approval views (scoring app, still used for legacy OrangeTeamScore records)
     "bulk_approve_orange_adjustments": ("orange", "portal"),
     "approve_orange_adjustment": ("orange", "portal"),
     "reject_orange_adjustment": ("orange", "portal"),
