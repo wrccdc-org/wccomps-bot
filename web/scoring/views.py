@@ -1765,12 +1765,19 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         },
     }
 
+    service_total = sum(s["points"] for s in stats["service_stats"])
+    red_total = sum(r.points_per_team for r in red_scores)
+    inject_total = sum(i["points"] for i in stats["inject_stats"])
+
     context = {
         "team": team,
         "score": score,
         "red_scores": red_scores,
         "stats": stats,
         "chart_data_json": chart_data,
+        "service_total": service_total,
+        "red_total": red_total,
+        "inject_total": inject_total,
     }
     return render(request, "scoring/scorecard.html", context)
 
