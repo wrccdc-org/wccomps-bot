@@ -117,7 +117,7 @@
     {# Lead link #}
     {% if is_lead %}
         <c-button_row>
-        <c-link href="#" variant="change">Manage Checks</c-link>
+        <c-link href="{% url 'challenges:check_list' %}" variant="change">Manage Checks</c-link>
         </c-button_row>
     {% endif %}
 {% endblock content %}

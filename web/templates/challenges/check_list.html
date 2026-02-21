@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load cotton %}
+{% block title %}
+    Manage Checks
+{% endblock title %}
+{% block content %}
+    <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" />
+    {% if messages %}
+        {% for message in messages %}
+            <c-alert variant="{{ message.tags }}">{{ message }}</c-alert>
+        {% endfor %}
+    {% endif %}
+    <c-module>
+    <c-slot name="toolbar">
+    <c-link href="{% url 'challenges:check_create' %}" variant="add">Create Check</c-link>
+    </c-slot>
+    {% if checks %}
+        <c-table id="check-list" aria_label="Orange team checks">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Title</c-table_header>
+            <c-table_header sortable="false">Status</c-table_header>
+            <c-table_header sortable="false">Criteria</c-table_header>
+            <c-table_header sortable="false">Assignments</c-table_header>
+            <c-table_header sortable="false">Created</c-table_header>
+            <c-table_header sortable="false">Actions</c-table_header>
+        </tr>
+        </c-slot>
+        {% for check in checks %}
+            <tr>
+                <td>
+                    <strong>{{ check.title }}</strong>
+                </td>
+                <td>
+                    {% if check.status == "draft" %}
+                        <c-badge variant="neutral">Draft</c-badge>
+                    {% elif check.status == "scheduled" %}
+                        <c-badge variant="info">Scheduled</c-badge>
+                    {% elif check.status == "active" %}
+                        <c-badge variant="success">Active</c-badge>
+                    {% elif check.status == "closed" %}
+                        <c-badge variant="warning">Closed</c-badge>
+                    {% endif %}
+                </td>
+                <td>{{ check.criteria_count }}</td>
+                <td>{{ check.assignment_count }}</td>
+                <td>{{ check.created_at|date:"M d, Y H:i" }}</td>
+                <td>
+                    <c-link href="#" variant="change">View</c-link>
+                </td>
+            </tr>
+        {% endfor %}
+        </c-table>
+    {% else %}
+        <c-empty_state title="No checks" description="Create your first orange team check to get started." />
+    {% endif %}
+    </c-module>
+    <c-button_row>
+    <c-link href="{% url 'challenges:dashboard' %}" variant="history">Back to Dashboard</c-link>
+    </c-button_row>
+{% endblock content %}
