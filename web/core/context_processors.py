@@ -115,6 +115,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "submit_inject_grade": ("scoring", "inject_grading"),
     "inject_grades_review": ("scoring", "inject_grades_review"),
     "inject_grades_bulk_approve": ("scoring", "inject_grades_review"),
+    "review_inject_feedback": ("scoring", "inject_feedback"),
     "ops_review_tickets": ("scoring", "review_tickets"),
     "ops_verify_ticket": ("scoring", "review_tickets"),
     "ops_batch_verify_tickets": ("scoring", "review_tickets"),
