@@ -21,6 +21,12 @@ exec 3>&2 2>/dev/null
 
 echo "deploy ── $(git branch --show-current) @ $(git rev-parse --short HEAD)"
 echo ""
+
+# Require clean working tree so deployed code matches a commit
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    fail "uncommitted changes — commit before deploying"
+fi
+
 echo "Checks"
 
 uv lock --upgrade --quiet
