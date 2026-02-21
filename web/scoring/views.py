@@ -1564,6 +1564,9 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
         ("inject_points", "injects", score.inject_points),
         ("orange_points", "orange", score.orange_points),
         ("red_deductions", "red", score.red_deductions),
+        ("sla_penalties", "sla", score.sla_penalties),
+        ("incident_recovery_points", "recovery", score.incident_recovery_points),
+        ("point_adjustments", "adjustments", score.point_adjustments),
     ]
 
     category_ranks: dict[str, _CategoryRank] = {}
@@ -1661,7 +1664,8 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 
     # Best and worst category (by rank, lower is better; tiebreak by distance above avg)
     if category_ranks:
-        positive_cats = {k: v for k, v in category_ranks.items() if k != "red" and v["max"] != 0}
+        main_cats = {"services", "injects", "orange"}
+        positive_cats = {k: v for k, v in category_ranks.items() if k in main_cats and v["max"] != 0}
         if positive_cats:
             # Sort key: rank ascending, then distance-above-average descending (best first)
             def _cat_sort_key(k: str) -> tuple[int, Decimal]:
@@ -1743,19 +1747,21 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
 
     # Build chart data for template (only categories with data)
     cat_ranks = stats["category_ranks"]
+    chart_cats = ["services", "injects", "orange", "red"]
     cat_labels = {
         "services": "Services",
         "injects": "Injects",
         "orange": "Orange",
         "red": "Red",
     }
+    chart_ranks = {k: v for k, v in cat_ranks.items() if k in chart_cats}
     chart_data = {
         "categoryChart": {
-            "labels": [cat_labels[k] for k in cat_ranks],
-            "teamValues": [float(v["value"]) for v in cat_ranks.values()],
-            "avgValues": [float(v["avg"]) for v in cat_ranks.values()],
-            "maxValues": [float(v["max"]) for v in cat_ranks.values()],
-            "rankValues": [v["rank"] for v in cat_ranks.values()],
+            "labels": [cat_labels[k] for k in chart_ranks],
+            "teamValues": [float(v["value"]) for v in chart_ranks.values()],
+            "avgValues": [float(v["avg"]) for v in chart_ranks.values()],
+            "maxValues": [float(v["max"]) for v in chart_ranks.values()],
+            "rankValues": [v["rank"] for v in chart_ranks.values()],
         },
     }
 
