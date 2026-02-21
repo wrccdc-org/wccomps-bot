@@ -1,5 +1,6 @@
 """Shared pytest fixtures for all web tests."""
 
+import socket
 from collections.abc import Callable
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -7,6 +8,23 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Fail fast if the test database is not reachable."""
+    host = "localhost"
+    port = 5433
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(2)
+    try:
+        sock.connect((host, port))
+    except OSError:
+        raise pytest.UsageError(
+            f"Test database not reachable at {host}:{port}. "
+            "Run: docker compose -f docker-compose.test.yml up -d --wait"
+        )
+    finally:
+        sock.close()
 
 from core.models import UserGroups
 from team.models import DiscordLink
