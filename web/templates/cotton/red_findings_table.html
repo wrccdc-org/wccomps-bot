@@ -5,7 +5,7 @@
      @bulk-approve.document="submitBulk()">
     <form id="bulk-approve-form"
           method="post"
-          action="{% url 'scoring:bulk_approve_red_findings' %}"
+          action="{% url 'scoring:bulk_approve_red_scores' %}"
           x-ref="bulkForm">
         {% csrf_token %}
         <div class="results">
@@ -65,7 +65,7 @@
                                 </td>
                             {% endif %}
                             <th class="field-id">
-                                <c-link href="{% url 'scoring:view_red_finding' finding.id %}">#{{ finding.id }}</c-link>
+                                <c-link href="{% url 'scoring:view_red_score' finding.id %}">#{{ finding.id }}</c-link>
                             </th>
                             <td class="field-attack_type">{{ finding.attack_type.name|default:"—" }}</td>
                             <td class="field-box">{{ finding.affected_boxes_display|default:"—" }}</td>
@@ -112,7 +112,7 @@
                             <td class="field-actions">
                                 {% if finding.submitted_by == current_user and not finding.is_approved %}
                                     <form method="post"
-                                          action="{% url 'scoring:delete_red_finding' finding.id %}"
+                                          action="{% url 'scoring:delete_red_score' finding.id %}"
                                           class="d-inline"
                                           onsubmit="return confirm('Delete this finding?');">
                                         {% csrf_token %}
@@ -120,7 +120,7 @@
                                     </form>
                                 {% elif current_user in finding.contributors.all and finding.submitted_by != current_user and not finding.is_approved %}
                                     <form method="post"
-                                          action="{% url 'scoring:leave_red_finding' finding.id %}"
+                                          action="{% url 'scoring:leave_red_score' finding.id %}"
                                           class="d-inline"
                                           onsubmit="return confirm('Remove yourself from this finding?');">
                                         {% csrf_token %}

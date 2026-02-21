@@ -9,7 +9,7 @@ from scoring.deduplication import (
     OutcomeData,
     process_red_team_submission,
 )
-from scoring.models import AttackType, RedTeamFinding
+from scoring.models import AttackType, RedTeamScore
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -135,11 +135,11 @@ class TestProcessRedTeamSubmission:
 
 
 class TestCalculatePoints:
-    """Tests for RedTeamFinding.calculate_points method."""
+    """Tests for RedTeamScore.calculate_points method."""
 
     def test_root_access_only(self, users, attack_type):
         """Root access gives 100 points."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -151,7 +151,7 @@ class TestCalculatePoints:
 
     def test_user_access_only(self, users, attack_type):
         """User access gives 25 points."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -163,7 +163,7 @@ class TestCalculatePoints:
 
     def test_root_overrides_user_access(self, users, attack_type):
         """If both root and user access, only root is scored."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -177,7 +177,7 @@ class TestCalculatePoints:
 
     def test_privilege_escalation_additional(self, users, attack_type):
         """Privilege escalation adds 100 on top of user access."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -191,7 +191,7 @@ class TestCalculatePoints:
 
     def test_all_data_recovery_outcomes(self, users, attack_type):
         """All data recovery outcomes are cumulative."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -209,7 +209,7 @@ class TestCalculatePoints:
 
     def test_max_possible_points(self, users, attack_type):
         """Maximum possible points with all outcomes checked."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -229,7 +229,7 @@ class TestCalculatePoints:
 
     def test_no_outcomes_zero_points(self, users, attack_type):
         """No outcomes checked gives 0 points."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -240,11 +240,11 @@ class TestCalculatePoints:
 
 
 class TestOutcomesDisplay:
-    """Tests for RedTeamFinding.outcomes_display property."""
+    """Tests for RedTeamScore.outcomes_display property."""
 
     def test_outcomes_display_empty(self, users, attack_type):
         """No outcomes returns empty list."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -255,7 +255,7 @@ class TestOutcomesDisplay:
 
     def test_outcomes_display_root_access(self, users, attack_type):
         """Root access is shown in display."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",
@@ -267,7 +267,7 @@ class TestOutcomesDisplay:
 
     def test_outcomes_display_user_access_not_shown_with_root(self, users, attack_type):
         """User access not shown when root access present (matching calculate logic)."""
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_type=attack_type,
             affected_boxes=["Web Server"],
             source_ip="10.0.0.1",

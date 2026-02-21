@@ -12,7 +12,7 @@ from scoring.models import (
     IncidentReport,
     InjectScore,
     OrangeTeamScore,
-    RedTeamFinding,
+    RedTeamScore,
     ServiceDetail,
     ServiceScore,
 )
@@ -238,7 +238,7 @@ class Command(BaseCommand):
                 pts = ws_red.cell(row=row, column=col).value
                 if pts is None or pts == 0 or pts == 0.0:
                     continue
-                finding, created = RedTeamFinding.objects.update_or_create(
+                finding, created = RedTeamScore.objects.update_or_create(
                     event=event,
                     notes=f"Qualifier import: {cat_name} (Team {team_num})",
                     defaults={

@@ -200,21 +200,21 @@ class AttackType(models.Model):
         return self.name
 
 
-class RedTeamFinding(models.Model):
-    """Red team vulnerability finding affecting one or more teams."""
+class RedTeamScore(models.Model):
+    """Red team vulnerability score affecting one or more teams."""
 
     event = models.ForeignKey(
         "registration.Event",
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="red_team_findings",
+        related_name="red_team_scores",
     )
     submitted_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="red_findings_submitted",
+        related_name="red_scores_submitted",
     )
     contributors = models.ManyToManyField(
         User,
@@ -316,7 +316,7 @@ class RedTeamFinding(models.Model):
     # Affected teams and scoring
     affected_teams = models.ManyToManyField(
         "team.Team",
-        related_name="red_team_findings",
+        related_name="red_team_scores",
         help_text="Teams affected by this finding",
     )
     points_per_team = models.DecimalField(
@@ -340,7 +340,7 @@ class RedTeamFinding(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="red_findings_approved",
+        related_name="red_scores_approved",
         help_text="Gold Team member who approved this finding",
     )
 
@@ -353,8 +353,8 @@ class RedTeamFinding(models.Model):
 
     class Meta:
         db_table = "red_team_finding"
-        verbose_name = "Red Team Finding"
-        verbose_name_plural = "Red Team Findings"
+        verbose_name = "Red Team Score"
+        verbose_name_plural = "Red Team Scores"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -457,7 +457,7 @@ class RedTeamScreenshot(models.Model):
     """Screenshots for red team findings (stored in database)."""
 
     finding = models.ForeignKey(
-        RedTeamFinding,
+        RedTeamScore,
         on_delete=models.CASCADE,
         related_name="screenshots",
     )
@@ -528,13 +528,13 @@ class IncidentReport(models.Model):
 
     # Gold team review
     gold_team_reviewed = models.BooleanField(default=False)
-    matched_to_red_finding = models.ForeignKey(
-        RedTeamFinding,
+    matched_to_red_score = models.ForeignKey(
+        RedTeamScore,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="matched_incident_reports",
-        help_text="Red team finding this incident matched to",
+        help_text="Red team score this incident matched to",
     )
     points_returned = models.DecimalField(
         max_digits=10,

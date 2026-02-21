@@ -13,8 +13,8 @@ from .models import (
     OrangeCheckType,
     OrangeTeamScore,
     QuotientMetadataCache,
-    RedTeamFinding,
     RedTeamIPPool,
+    RedTeamScore,
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceScore,
@@ -38,14 +38,14 @@ class AttackTypeAdmin(admin.ModelAdmin[AttackType]):
         return obj.findings.count()
 
 
-class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamFinding]):
+class RedTeamScreenshotInline(admin.TabularInline[RedTeamScreenshot, RedTeamScore]):
     model = RedTeamScreenshot
     extra = 1
     fields = ["filename", "description"]
 
 
-@admin.register(RedTeamFinding)
-class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
+@admin.register(RedTeamScore)
+class RedTeamScoreAdmin(admin.ModelAdmin[RedTeamScore]):
     list_display = [
         "id",
         "attack_type",
@@ -62,7 +62,7 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     autocomplete_fields = ["attack_type"]
 
     @admin.display(description="Boxes")
-    def affected_boxes_display(self, obj: RedTeamFinding) -> str:
+    def affected_boxes_display(self, obj: RedTeamScore) -> str:
         if obj.affected_boxes:
             items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
             boxes = items[:3]
@@ -103,11 +103,11 @@ class RedTeamFindingAdmin(admin.ModelAdmin[RedTeamFinding]):
     ]
 
     @admin.display(description="Teams")
-    def team_count(self, obj: RedTeamFinding) -> int:
+    def team_count(self, obj: RedTeamScore) -> int:
         return obj.affected_teams.count()
 
     @admin.display(description="Contributors")
-    def contributors_count(self, obj: RedTeamFinding) -> int:
+    def contributors_count(self, obj: RedTeamScore) -> int:
         return obj.contributors.count()
 
 
@@ -164,7 +164,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
             {
                 "fields": [
                     "gold_team_reviewed",
-                    "matched_to_red_finding",
+                    "matched_to_red_score",
                     "points_returned",
                     "reviewer_notes",
                     "reviewed_by",

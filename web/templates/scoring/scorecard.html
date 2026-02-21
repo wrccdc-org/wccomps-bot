@@ -218,15 +218,15 @@
             <div>
                 <c-module>
                 <h3>Red Team Detail</h3>
-                {% if red_findings %}
-                    <c-table id="red_findings" aria_label="Red team deductions">
+                {% if red_scores %}
+                    <c-table id="red_scores" aria_label="Red team deductions">
                     <c-slot name="headers">
                     <tr>
                         <c-table_header sortable="false">Category</c-table_header>
                         <c-table_header sortable="false" class="text-right">Points</c-table_header>
                     </tr>
                     </c-slot>
-                    {% for finding in red_findings %}
+                    {% for finding in red_scores %}
                         <tr>
                             <td>{{ finding.attack_vector }}</td>
                             <td class="text-right">

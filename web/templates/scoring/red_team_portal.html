@@ -6,7 +6,7 @@
 {% block red_content %}
     <c-page_header title="All Findings" />
     <c-module filtered="true" id="changelist">
-    <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:red_team_findings' %}" hx_target="#red-findings-content" hx_swap="outerHTML" hx_push_url="true">
+    <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:red_team_scores' %}" hx_target="#red-findings-content" hx_swap="outerHTML" hx_push_url="true">
     {% if is_gold_team and pending_findings %}
         <c-slot name="actions">
         <c-button type="button" id="bulk-approve-btn" onclick="document.dispatchEvent(new CustomEvent('bulk-approve'))" variant="primary">Approve Selected</c-button>

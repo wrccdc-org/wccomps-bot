@@ -14,7 +14,7 @@ from .models import (
     IncidentReport,
     InjectScore,
     OrangeTeamScore,
-    RedTeamFinding,
+    RedTeamScore,
     ScoringTemplate,
     ServiceScore,
 )
@@ -72,8 +72,8 @@ def get_approved_red_deductions(team: Team, event: Event | None = None) -> Decim
     filters = {"affected_teams": team, "is_approved": True}
     if event:
         filters["event"] = event
-    red_findings = RedTeamFinding.objects.filter(**filters)
-    total = sum(finding.points_per_team for finding in red_findings)
+    red_scores = RedTeamScore.objects.filter(**filters)
+    total = sum(red_score.points_per_team for red_score in red_scores)
     return Decimal(str(total)) * Decimal("-1")  # Return as negative
 
 
@@ -252,9 +252,9 @@ def get_leaderboard() -> list[FinalScore]:
     )
 
 
-def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFinding]:
+def suggest_red_score_matches(incident: IncidentReport) -> QuerySet[RedTeamScore]:
     """
-    Suggest potential red team findings that match an incident report.
+    Suggest potential red team scores that match an incident report.
 
     Matching criteria (prioritized):
     1. Source IP match (most reliable - same attacker IP, including IP pools)
@@ -265,7 +265,7 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
         incident: IncidentReport instance
 
     Returns:
-        QuerySet of potential RedTeamFinding matches, ordered by relevance
+        QuerySet of potential RedTeamScore matches ordered by relevance
     """
     from .models import RedTeamIPPool
 
@@ -283,7 +283,7 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
         if pool_ids:
             filters |= Q(source_ip_pool_id__in=pool_ids)
     if incident.affected_boxes:
-        # Match if any of the incident's boxes is in the finding's list of affected boxes
+        # Match if any of the incident's boxes is in the score's list of affected boxes
         for box in incident.affected_boxes:
             filters |= Q(affected_boxes__contains=[box])
     if incident.affected_service:
@@ -292,12 +292,12 @@ def suggest_red_finding_matches(incident: IncidentReport) -> QuerySet[RedTeamFin
     if filters:
         query &= filters
 
-    findings = RedTeamFinding.objects.filter(query).distinct().order_by("-created_at")
+    scores = RedTeamScore.objects.filter(query).distinct().order_by("-created_at")
 
-    return findings[:10]  # Return top 10 matches
+    return scores[:10]  # Return top 10 matches
 
 
-def calculate_suggested_recovery_points(incident: IncidentReport, red_finding: RedTeamFinding) -> Decimal:
+def calculate_suggested_recovery_points(incident: IncidentReport, red_score: RedTeamScore) -> Decimal:
     """
     Calculate suggested points to return based on red team deduction.
 
@@ -305,11 +305,11 @@ def calculate_suggested_recovery_points(incident: IncidentReport, red_finding: R
 
     Args:
         incident: IncidentReport instance
-        red_finding: RedTeamFinding instance
+        red_score: RedTeamScore instance
 
     Returns:
         Suggested points to award (positive value)
     """
-    deduction_amount = abs(red_finding.points_per_team)
+    deduction_amount = abs(red_score.points_per_team)
     suggested_return = deduction_amount * Decimal("0.80")
     return suggested_return

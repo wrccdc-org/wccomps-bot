@@ -7,7 +7,7 @@ from scoring.models import (
     IncidentScreenshot,
     InjectScore,
     OrangeTeamScore,
-    RedTeamFinding,
+    RedTeamScore,
     RedTeamScreenshot,
     ServiceScore,
 )
@@ -45,7 +45,7 @@ def wipe_competition_data() -> dict[str, int]:
         "RedTeamScreenshot": RedTeamScreenshot.objects.all().delete()[0],
         "IncidentScreenshot": IncidentScreenshot.objects.all().delete()[0],
         "IncidentReport": IncidentReport.objects.all().delete()[0],
-        "RedTeamFinding": RedTeamFinding.objects.all().delete()[0],
+        "RedTeamScore": RedTeamScore.objects.all().delete()[0],
         "InjectScore": InjectScore.objects.all().delete()[0],
         "OrangeTeamScore": OrangeTeamScore.objects.all().delete()[0],
         "ServiceScore": ServiceScore.objects.all().delete()[0],

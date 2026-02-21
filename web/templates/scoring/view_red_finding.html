@@ -155,15 +155,15 @@
     <c-button_row class="mt-20 justify-end">
     {% if can_delete %}
         <form method="post"
-              action="{% url 'scoring:delete_red_finding' finding.id %}"
+              action="{% url 'scoring:delete_red_score' finding.id %}"
               class="d-inline"
               onsubmit="return confirm('Are you sure you want to delete this finding? This cannot be undone.');">
             {% csrf_token %}
             <c-button type="submit" variant="danger">Delete Finding</c-button>
         </form>
     {% endif %}
-    <c-link href="{% url 'scoring:red_team_findings' %}" variant="default">Back to Findings</c-link>
-    <c-link href="{% url 'scoring:submit_red_finding' %}" variant="primary">Submit Another</c-link>
+    <c-link href="{% url 'scoring:red_team_scores' %}" variant="default">Back to Findings</c-link>
+    <c-link href="{% url 'scoring:submit_red_score' %}" variant="primary">Submit Another</c-link>
     </c-button_row>
     </c-module>
 {% endblock red_content %}

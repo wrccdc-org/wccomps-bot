@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from scoring.models import AttackType, RedTeamFinding
+from scoring.models import AttackType, RedTeamScore
 from team.models import Team
 
 
@@ -23,7 +23,7 @@ class TestRedTeamPortalFiltering:
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
         # Create findings targeting different teams
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL Injection on Team 1",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -31,7 +31,7 @@ class TestRedTeamPortalFiltering:
         )
         finding1.affected_teams.add(team1)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="XSS on Team 2",
             source_ip="10.0.0.6",
             points_per_team=Decimal("30.00"),
@@ -39,7 +39,7 @@ class TestRedTeamPortalFiltering:
         )
         finding2.affected_teams.add(team2)
 
-        finding3 = RedTeamFinding.objects.create(
+        finding3 = RedTeamScore.objects.create(
             attack_vector="RCE on both teams",
             source_ip="10.0.0.7",
             points_per_team=Decimal("100.00"),
@@ -51,7 +51,7 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user)
 
         # Filter by team1 (default status is "all" for red team view)
-        response = client.get(reverse("scoring:red_team_findings"), {"team": team1.id, "status": "all"})
+        response = client.get(reverse("scoring:red_team_scores"), {"team": team1.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -64,7 +64,7 @@ class TestRedTeamPortalFiltering:
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 1")
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -72,7 +72,7 @@ class TestRedTeamPortalFiltering:
         )
         finding1.affected_teams.add(team)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="XSS Attack",
             source_ip="10.0.0.6",
             points_per_team=Decimal("30.00"),
@@ -87,7 +87,7 @@ class TestRedTeamPortalFiltering:
         sql_type, _ = AttackType.objects.get_or_create(name="SQL Injection")
         finding1.attack_type = sql_type
         finding1.save()
-        response = client.get(reverse("scoring:red_team_findings"), {"attack_type": sql_type.id, "status": "all"})
+        response = client.get(reverse("scoring:red_team_scores"), {"attack_type": sql_type.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -100,7 +100,7 @@ class TestRedTeamPortalFiltering:
         red_user2 = create_user_with_groups("red_user2", ["WCComps_RedTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 1")
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -108,7 +108,7 @@ class TestRedTeamPortalFiltering:
         )
         finding1.affected_teams.add(team)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="XSS Attack",
             source_ip="10.0.0.6",
             points_per_team=Decimal("30.00"),
@@ -120,7 +120,7 @@ class TestRedTeamPortalFiltering:
         client.force_login(red_user1)
 
         # Filter by submitter
-        response = client.get(reverse("scoring:red_team_findings"), {"submitter": red_user1.id, "status": "all"})
+        response = client.get(reverse("scoring:red_team_scores"), {"submitter": red_user1.id, "status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         finding_ids = {f.id for f in findings}
@@ -134,7 +134,7 @@ class TestRedTeamPortalFiltering:
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -142,7 +142,7 @@ class TestRedTeamPortalFiltering:
         )
         finding1.affected_teams.add(team1)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.6",
             points_per_team=Decimal("30.00"),
@@ -150,7 +150,7 @@ class TestRedTeamPortalFiltering:
         )
         finding2.affected_teams.add(team1)
 
-        finding3 = RedTeamFinding.objects.create(
+        finding3 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.7",
             points_per_team=Decimal("40.00"),
@@ -163,7 +163,7 @@ class TestRedTeamPortalFiltering:
 
         # Filter by team AND submitter
         response = client.get(
-            reverse("scoring:red_team_findings"), {"team": team1.id, "submitter": red_user1.id, "status": "all"}
+            reverse("scoring:red_team_scores"), {"team": team1.id, "submitter": red_user1.id, "status": "all"}
         )
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
@@ -177,7 +177,7 @@ class TestRedTeamPortalFiltering:
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 1")
 
-        finding1 = RedTeamFinding.objects.create(
+        finding1 = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -185,7 +185,7 @@ class TestRedTeamPortalFiltering:
         )
         finding1.affected_teams.add(team)
 
-        finding2 = RedTeamFinding.objects.create(
+        finding2 = RedTeamScore.objects.create(
             attack_vector="XSS Attack",
             source_ip="10.0.0.6",
             points_per_team=Decimal("30.00"),
@@ -196,7 +196,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_findings"), {"status": "all"})
+        response = client.get(reverse("scoring:red_team_scores"), {"status": "all"})
         assert response.status_code == 200
         findings = list(response.context["page_obj"])
         assert len(findings) == 2
@@ -207,7 +207,7 @@ class TestRedTeamPortalFiltering:
         team1 = Team.objects.create(team_number=1, team_name="Team 1")
         team2 = Team.objects.create(team_number=2, team_name="Team 2")
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -218,7 +218,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_findings"))
+        response = client.get(reverse("scoring:red_team_scores"))
         assert response.status_code == 200
         assert "available_teams" in response.context
         assert "available_submitters" in response.context
@@ -231,7 +231,7 @@ class TestRedTeamPortalFiltering:
         red_user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 1")
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -243,7 +243,7 @@ class TestRedTeamPortalFiltering:
         client = Client()
         client.force_login(red_user)
 
-        response = client.get(reverse("scoring:red_team_findings"))
+        response = client.get(reverse("scoring:red_team_scores"))
         assert response.status_code == 200
 
         # Check that template does not contain approval-related info in Red Team view
@@ -259,7 +259,7 @@ class TestRedTeamPortalFiltering:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 1")
 
-        finding = RedTeamFinding.objects.create(
+        finding = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),

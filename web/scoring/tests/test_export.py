@@ -18,7 +18,7 @@ from scoring.models import (
     InjectScore,
     OrangeCheckType,
     OrangeTeamScore,
-    RedTeamFinding,
+    RedTeamScore,
 )
 from team.models import Team
 
@@ -67,7 +67,7 @@ def red_team_findings(test_teams, admin_user):
     findings = []
 
     # Finding 1: Approved, affecting teams 1 and 2
-    finding1 = RedTeamFinding.objects.create(
+    finding1 = RedTeamScore.objects.create(
         attack_vector="SQL Injection in login form",
         source_ip="10.0.0.1",
         destination_ip_template="10.100.1X.22",
@@ -86,7 +86,7 @@ def red_team_findings(test_teams, admin_user):
     findings.append(finding1)
 
     # Finding 2: Not approved, affecting team 3
-    finding2 = RedTeamFinding.objects.create(
+    finding2 = RedTeamScore.objects.create(
         attack_vector="XSS in comments",
         source_ip="10.0.0.2",
         destination_ip_template="10.100.1X.80",
@@ -121,7 +121,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         attack_detected_at=timezone.now(),
         attack_mitigated=True,
         gold_team_reviewed=True,
-        matched_to_red_finding=red_team_findings[0],
+        matched_to_red_score=red_team_findings[0],
         points_returned=Decimal("30.00"),
         submitted_by=admin_user,
         reviewed_by=admin_user,
@@ -261,7 +261,7 @@ class TestExportPermissions:
         client = Client()
         client.force_login(regular_user)
 
-        response = client.get(reverse("scoring:export_red_findings"))
+        response = client.get(reverse("scoring:export_red_scores"))
         assert response.status_code == 302  # Redirect to login/forbidden
 
     def test_non_admin_user_cannot_access_incidents_export(self, regular_user):
@@ -302,7 +302,7 @@ class TestExportPermissions:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -322,7 +322,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         assert response["Content-Type"] == "text/csv"
 
     def test_csv_export_has_correct_filename(self, admin_user, red_team_findings):
@@ -330,7 +330,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         assert 'filename="red_findings.csv"' in response["Content-Disposition"]
 
     def test_csv_export_contains_all_required_headers(self, admin_user, red_team_findings):
@@ -338,7 +338,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.reader(StringIO(content))
         headers = next(reader)
@@ -369,7 +369,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.DictReader(StringIO(content))
         rows = list(reader)
@@ -390,7 +390,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "csv"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "csv"})
         content = response.content.decode("utf-8")
         reader = csv.reader(StringIO(content))
         rows = list(reader)
@@ -403,7 +403,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         assert response["Content-Type"] == "application/json"
 
     def test_json_export_has_correct_filename(self, admin_user, red_team_findings):
@@ -411,7 +411,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         assert 'filename="red_findings.json"' in response["Content-Disposition"]
 
     def test_json_export_is_valid_json(self, admin_user, red_team_findings):
@@ -419,7 +419,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
 
         assert "red_findings" in data
@@ -430,7 +430,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
         findings = data["red_findings"]
 
@@ -462,7 +462,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "json"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "json"})
         data = json.loads(response.content)
         findings = data["red_findings"]
 
@@ -479,7 +479,7 @@ class TestRedFindingsExport:
         client = Client()
         client.force_login(admin_user)
 
-        response = client.get(reverse("scoring:export_red_findings"))
+        response = client.get(reverse("scoring:export_red_scores"))
         assert response["Content-Type"] == "text/csv"
 
 
@@ -561,7 +561,7 @@ class TestIncidentsExport:
             "attack_mitigated",
             "points_returned",
             "gold_team_reviewed",
-            "matched_to_red_finding_id",
+            "matched_to_red_score_id",
             "reviewed_by",
             "reviewed_at",
             "submitted_by",
@@ -846,7 +846,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -863,7 +863,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -880,7 +880,7 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         endpoints = [
-            "scoring:export_red_findings",
+            "scoring:export_red_scores",
             "scoring:export_incidents",
             "scoring:export_orange_adjustments",
             "scoring:export_inject_grades",
@@ -897,11 +897,11 @@ class TestExportFormatParameter:
         client.force_login(admin_user)
 
         # Test CSV
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "CSV"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "CSV"})
         assert response["Content-Type"] == "text/csv"
 
         # Test JSON
-        response = client.get(reverse("scoring:export_red_findings"), {"format": "JSON"})
+        response = client.get(reverse("scoring:export_red_scores"), {"format": "JSON"})
         assert response["Content-Type"] == "application/json"
 
 

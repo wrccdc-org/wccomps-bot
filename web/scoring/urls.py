@@ -11,14 +11,14 @@ urlpatterns = [
     path("", views.leaderboard, name="leaderboard"),
     path("team/<int:team_number>/scorecard/", views.scorecard, name="scorecard"),
     # Red Team
-    path("red-team/", views.submit_red_finding, name="submit_red_finding"),
-    path("red-team/findings/", views.red_team_findings, name="red_team_findings"),
-    path("red-team/finding/<int:finding_id>/", views.view_red_finding, name="view_red_finding"),
+    path("red-team/", views.submit_red_score, name="submit_red_score"),
+    path("red-team/scores/", views.red_team_scores, name="red_team_scores"),
+    path("red-team/score/<int:finding_id>/", views.view_red_score, name="view_red_score"),
     # Gold Team Review
-    path("gold-team/red-findings/", views.red_team_portal, name="red_team_portal"),
-    path("red-team/<int:finding_id>/delete/", views.delete_red_finding, name="delete_red_finding"),
-    path("red-team/<int:finding_id>/leave/", views.leave_red_finding, name="leave_red_finding"),
-    path("red-team/bulk-approve/", views.bulk_approve_red_findings, name="bulk_approve_red_findings"),
+    path("gold-team/red-scores/", views.red_team_portal, name="red_team_portal"),
+    path("red-team/<int:finding_id>/delete/", views.delete_red_score, name="delete_red_score"),
+    path("red-team/<int:finding_id>/leave/", views.leave_red_score, name="leave_red_score"),
+    path("red-team/bulk-approve/", views.bulk_approve_red_scores, name="bulk_approve_red_scores"),
     path("red-team/screenshot/<int:screenshot_id>/", views.red_screenshot_download, name="red_screenshot"),
     # IP Pools (Red Team)
     path("red-team/ip-pools/", views.ip_pool_list, name="ip_pool_list"),
@@ -65,7 +65,7 @@ urlpatterns = [
     # Export endpoints
     path("export/", views.export_index, name="export_index"),
     path("export/all/", views.export_all, name="export_all"),
-    path("export/red-findings/", views.export_red_findings, name="export_red_findings"),
+    path("export/red-scores/", views.export_red_scores, name="export_red_scores"),
     path("export/incidents/", views.export_incidents, name="export_incidents"),
     path("export/orange-adjustments/", views.export_orange_adjustments, name="export_orange_adjustments"),
     path("export/inject-grades/", views.export_inject_grades, name="export_inject_grades"),

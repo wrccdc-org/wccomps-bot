@@ -27,7 +27,7 @@ from scoring.calculator import (
     calculate_suggested_recovery_points,
     calculate_team_score,
     recalculate_all_scores,
-    suggest_red_finding_matches,
+    suggest_red_score_matches,
 )
 from scoring.models import (
     FinalScore,
@@ -35,7 +35,7 @@ from scoring.models import (
     InjectScore,
     OrangeCheckType,
     OrangeTeamScore,
-    RedTeamFinding,
+    RedTeamScore,
     ScoringTemplate,
     ServiceScore,
 )
@@ -92,7 +92,7 @@ class ScoringFormulaTests(TestCase):
         )
 
         # Red: -100 (subtracted directly)
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
             points_per_team=Decimal("100.00"),
@@ -130,7 +130,7 @@ class ScoringFormulaTests(TestCase):
 
     def test_only_red_deductions(self) -> None:
         """Team with only red findings gets negative total."""
-        red = RedTeamFinding.objects.create(
+        red = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.1",
             points_per_team=Decimal("200.00"),
@@ -162,7 +162,7 @@ class ScoringFormulaTests(TestCase):
             submitted_by=self.user,
             is_approved=False,
         )
-        red = RedTeamFinding.objects.create(
+        red = RedTeamScore.objects.create(
             attack_vector="Unapproved finding",
             source_ip="10.0.0.2",
             points_per_team=Decimal("50.00"),
@@ -482,7 +482,7 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="SQL Injection",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -499,12 +499,12 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.gold_team_reviewed is False
         assert incident.reviewed_by is None
         assert incident.reviewed_at is None
 
-        incident.matched_to_red_finding = red_finding
+        incident.matched_to_red_score = red_finding
         incident.gold_team_reviewed = True
         incident.reviewed_by = user
         incident.reviewed_at = "2025-01-01T13:00:00Z"
@@ -512,7 +512,7 @@ class TestIncidentFindingMatching:
         incident.save()
 
         incident.refresh_from_db()
-        assert incident.matched_to_red_finding == red_finding
+        assert incident.matched_to_red_score == red_finding
         assert incident.gold_team_reviewed is True
         assert incident.reviewed_by == user
         assert incident.reviewed_at is not None
@@ -532,7 +532,7 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        incident.matched_to_red_finding = None
+        incident.matched_to_red_score = None
         incident.gold_team_reviewed = True
         incident.reviewed_by = user
         incident.reviewed_at = "2025-01-01T13:00:00Z"
@@ -541,7 +541,7 @@ class TestIncidentFindingMatching:
         incident.save()
 
         incident.refresh_from_db()
-        assert incident.matched_to_red_finding is None
+        assert incident.matched_to_red_score is None
         assert incident.gold_team_reviewed is True
         assert incident.reviewed_by == user
         assert incident.reviewed_at is not None
@@ -591,12 +591,12 @@ class TestIncidentFindingMatching:
         # (40 points returned from reviewed incident)
         assert scores["incident_recovery_points"] == Decimal("40.00")
 
-    def test_suggest_red_finding_matches_by_source_ip(self, create_user_with_groups) -> None:
+    def test_suggest_red_score_matches_by_source_ip(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by source IP."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        matching_finding = RedTeamFinding.objects.create(
+        matching_finding = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -604,7 +604,7 @@ class TestIncidentFindingMatching:
         )
         matching_finding.affected_teams.add(team)
 
-        non_matching_finding = RedTeamFinding.objects.create(
+        non_matching_finding = RedTeamScore.objects.create(
             attack_vector="SQLi",
             source_ip="10.0.0.99",
             points_per_team=Decimal("30.00"),
@@ -621,17 +621,17 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        suggestions = suggest_red_finding_matches(incident)
+        suggestions = suggest_red_score_matches(incident)
 
         assert matching_finding in suggestions
         assert len(suggestions) >= 1
 
-    def test_suggest_red_finding_matches_by_box_and_service(self, create_user_with_groups) -> None:
+    def test_suggest_red_score_matches_by_box_and_service(self, create_user_with_groups) -> None:
         """Finding suggestion algorithm matches by affected box and service."""
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        matching_finding = RedTeamFinding.objects.create(
+        matching_finding = RedTeamScore.objects.create(
             attack_vector="Web Exploit",
             source_ip="10.0.0.5",
             affected_boxes=["web-server"],
@@ -652,7 +652,7 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        suggestions = suggest_red_finding_matches(incident)
+        suggestions = suggest_red_score_matches(incident)
 
         assert matching_finding in suggestions
 
@@ -661,7 +661,7 @@ class TestIncidentFindingMatching:
         user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Test Team")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="RCE",
             source_ip="10.0.0.5",
             points_per_team=Decimal("50.00"),
@@ -814,7 +814,7 @@ class TestIncidentListView:
         gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
         team = Team.objects.create(team_number=1, team_name="Team 01")
 
-        red_finding = RedTeamFinding.objects.create(
+        red_finding = RedTeamScore.objects.create(
             attack_vector="Test attack",
             source_ip="10.0.0.5",
             points_per_team=Decimal("30.00"),
@@ -828,7 +828,7 @@ class TestIncidentListView:
             source_ip="10.0.0.5",
             attack_detected_at="2025-01-01T12:00:00Z",
             gold_team_reviewed=True,
-            matched_to_red_finding=red_finding,
+            matched_to_red_score=red_finding,
             points_returned=Decimal("24.00"),
             reviewed_by=gold_user,
         )

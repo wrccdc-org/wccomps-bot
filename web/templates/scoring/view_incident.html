@@ -115,10 +115,10 @@
             <dd>
                 {{ incident.reviewed_at|date:"Y-m-d H:i:s" }}
             </dd>
-            {% if incident.matched_to_red_finding %}
+            {% if incident.matched_to_red_score %}
                 <dt>Matched To</dt>
                 <dd>
-                    Red Team Finding #{{ incident.matched_to_red_finding.id }}
+                    Red Team Finding #{{ incident.matched_to_red_score.id }}
                 </dd>
             {% endif %}
             <dt>Points Returned</dt>
