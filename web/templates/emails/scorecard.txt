@@ -12,7 +12,6 @@ Score Summary:
 - Red Team Deductions: {{ red_deductions }}
 - Incident Recovery: {{ incident_recovery_points }}
 - SLA Penalties: {{ sla_penalties }}
-- Black Team Adjustments: {{ black_adjustments }}
 
 Total Score: {{ total_score }}
 Rank: {{ rank }} of {{ total_teams }}

@@ -376,7 +376,6 @@ def export_final_scores_csv() -> HttpResponse:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
     )
@@ -396,7 +395,6 @@ def export_final_scores_csv() -> HttpResponse:
                 score.red_deductions,
                 score.incident_recovery_points,
                 score.sla_penalties,
-                score.black_adjustments,
                 score.calculated_at.isoformat(),
             ]
         )
@@ -422,7 +420,6 @@ def export_final_scores_json() -> HttpResponse:
             "red_deductions": str(score.red_deductions),
             "incident_recovery_points": str(score.incident_recovery_points),
             "sla_penalties": str(score.sla_penalties),
-            "black_adjustments": str(score.black_adjustments),
             "calculated_at": score.calculated_at.isoformat(),
         }
         for score in scores
@@ -742,7 +739,6 @@ def _get_final_scores_csv_content() -> str:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
     )
@@ -760,7 +756,6 @@ def _get_final_scores_csv_content() -> str:
                 score.red_deductions,
                 score.incident_recovery_points,
                 score.sla_penalties,
-                score.black_adjustments,
                 score.calculated_at.isoformat(),
             ]
         )
@@ -782,7 +777,6 @@ def _get_final_scores_json_content() -> str:
             "red_deductions": str(score.red_deductions),
             "incident_recovery_points": str(score.incident_recovery_points),
             "sla_penalties": str(score.sla_penalties),
-            "black_adjustments": str(score.black_adjustments),
             "calculated_at": score.calculated_at.isoformat(),
         }
         for score in scores

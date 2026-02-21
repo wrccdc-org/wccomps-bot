@@ -22,7 +22,6 @@
             <c-table_header sortable="false" class="text-right">Red</c-table_header>
             <c-table_header sortable="false" class="text-right">Recovery</c-table_header>
             <c-table_header sortable="false" class="text-right">SLA</c-table_header>
-            <c-table_header sortable="false" class="text-right">Adjustments</c-table_header>
             <c-table_header sortable="false" class="text-right">Total</c-table_header>
             <c-table_header sortable="false">Scorecard</c-table_header>
         </tr>
@@ -47,7 +46,6 @@
                 <td class="text-right">
                     <c-score_value :value="score.sla_penalties" />
                 </td>
-                <td class="text-right">{{ score.black_adjustments|floatformat:2 }}</td>
                 <td class="text-right">
                     <strong>{{ score.total_score|floatformat:2 }}</strong>
                 </td>

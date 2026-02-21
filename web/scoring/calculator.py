@@ -9,7 +9,6 @@ from registration.models import Event
 from team.models import Team
 
 from .models import (
-    BlackTeamAdjustment,
     FinalScore,
     IncidentReport,
     InjectScore,
@@ -86,7 +85,6 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
               + (orange × orange_modifier)
               + sla_violations + point_adjustments
               + red_deductions + incident_recovery
-              + black_adjustments
     """
     template = ScoringTemplate.objects.first() or ScoringTemplate()
     svc_mod, inj_mod, ora_mod = _get_modifiers(template)
@@ -117,27 +115,13 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    # 6. Black Team Adjustments
-    black_adjustments = BlackTeamAdjustment.objects.filter(team=team).aggregate(total=Sum("point_adjustment"))[
-        "total"
-    ] or Decimal("0")
-
     # Apply scaling modifiers (derived from weights + raw maxes)
     scaled_service = service_raw * svc_mod
     scaled_inject = inject_total * inj_mod
     scaled_orange = orange_total * ora_mod
 
     # Total: scaled positives + raw negatives
-    total_score = (
-        scaled_service
-        + scaled_inject
-        + scaled_orange
-        + sla_raw
-        + point_adj
-        + red_raw
-        + recovery_raw
-        + black_adjustments
-    )
+    total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
 
     return {
         "service_points": scaled_service,
@@ -147,7 +131,6 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
         "sla_penalties": sla_raw,
         "point_adjustments": point_adj,
         "incident_recovery_points": recovery_raw,
-        "black_adjustments": black_adjustments,
         "total_score": total_score,
     }
 
@@ -164,7 +147,6 @@ def _has_scoring_activity(scores: ScoreBreakdown) -> bool:
             "incident_recovery_points",
             "sla_penalties",
             "point_adjustments",
-            "black_adjustments",
         ]
     )
 
@@ -203,7 +185,6 @@ def recalculate_all_scores() -> None:
                 "incident_recovery_points": scores["incident_recovery_points"],
                 "sla_penalties": scores["sla_penalties"],
                 "point_adjustments": scores["point_adjustments"],
-                "black_adjustments": scores["black_adjustments"],
                 "total_score": scores["total_score"],
                 "rank": rank,
             },
@@ -221,7 +202,6 @@ def recalculate_all_scores() -> None:
                 "incident_recovery_points": scores["incident_recovery_points"],
                 "sla_penalties": scores["sla_penalties"],
                 "point_adjustments": scores["point_adjustments"],
-                "black_adjustments": scores["black_adjustments"],
                 "total_score": scores["total_score"],
                 "rank": None,
             },
@@ -245,7 +225,6 @@ def get_leaderboard() -> list[FinalScore]:
             incident_recovery_points=0,
             sla_penalties=0,
             point_adjustments=0,
-            black_adjustments=0,
         )
         .select_related("team")
         .order_by("rank")

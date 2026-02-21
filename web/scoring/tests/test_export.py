@@ -230,7 +230,6 @@ def final_scores(test_teams):
         red_deductions=Decimal("-50.00"),
         incident_recovery_points=Decimal("30.00"),
         sla_penalties=Decimal("-10.00"),
-        black_adjustments=Decimal("0.00"),
         total_score=Decimal("644.00"),
         rank=1,
     )
@@ -244,7 +243,6 @@ def final_scores(test_teams):
         red_deductions=Decimal("-25.00"),
         incident_recovery_points=Decimal("0.00"),
         sla_penalties=Decimal("-5.00"),
-        black_adjustments=Decimal("10.00"),
         total_score=Decimal("528.00"),
         rank=2,
     )
@@ -766,7 +764,6 @@ class TestFinalScoresExport:
             "Red Deductions",
             "Incident Recovery Points",
             "SLA Penalties",
-            "Black Adjustments",
             "Calculated At",
         ]
 
@@ -814,7 +811,6 @@ class TestFinalScoresExport:
             "red_deductions",
             "incident_recovery_points",
             "sla_penalties",
-            "black_adjustments",
             "calculated_at",
         ]
 

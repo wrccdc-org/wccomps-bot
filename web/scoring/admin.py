@@ -5,7 +5,6 @@ from django.utils.html import format_html
 
 from .models import (
     AttackType,
-    BlackTeamAdjustment,
     FinalScore,
     IncidentReport,
     IncidentScreenshot,
@@ -271,24 +270,6 @@ class ServiceScoreAdmin(admin.ModelAdmin[ServiceScore]):
         total = obj.service_points + obj.sla_violations
         color = "green" if total > 0 else "red" if total < 0 else "black"
         return format_html(f'<span style="color: {color};">{total:.2f}</span>')
-
-
-@admin.register(BlackTeamAdjustment)
-class BlackTeamAdjustmentAdmin(admin.ModelAdmin[BlackTeamAdjustment]):
-    list_display = [
-        "team",
-        "reason_short",
-        "point_adjustment",
-        "submitted_by",
-        "created_at",
-    ]
-    list_filter = ["created_at"]
-    search_fields = ["team__team_name", "reason"]
-    readonly_fields = ["created_at", "updated_at"]
-
-    @admin.display(description="Reason")
-    def reason_short(self, obj: BlackTeamAdjustment) -> str:
-        return obj.reason[:50] + "..." if len(obj.reason) > 50 else obj.reason
 
 
 @admin.register(FinalScore)

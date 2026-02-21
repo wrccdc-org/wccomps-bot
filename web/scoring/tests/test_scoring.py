@@ -9,7 +9,6 @@ Weighted Scoring (modifier derived from weights + raw maxes):
     modifier = (weight/100) × total_pool / raw_max
     total = (service × svc_mod) + (inject × inj_mod) + (orange × ora_mod)
           + sla + point_adjustments + red_deductions + incident_recovery
-          + black_adjustments
 
 Default Weights / Raw Maxes:
     service: 40% / 11454     inject: 40% / 3060     orange: 20% / 160

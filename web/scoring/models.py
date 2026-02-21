@@ -855,50 +855,6 @@ class ServiceDetail(models.Model):
         return f"{self.team.team_name} - {self.service_name}: {self.points}"
 
 
-class BlackTeamAdjustment(models.Model):
-    """Manual point adjustments by admin/black team."""
-
-    event = models.ForeignKey(
-        "registration.Event",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="black_team_adjustments",
-    )
-    team = models.ForeignKey(
-        "team.Team",
-        on_delete=models.CASCADE,
-        related_name="black_team_adjustments",
-    )
-    submitted_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="black_adjustments_submitted",
-    )
-
-    # Adjustment details
-    reason = models.TextField(help_text="Reason for point adjustment")
-    point_adjustment = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Point adjustment (positive or negative)",
-    )
-
-    # Audit
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "black_team_adjustment"
-        verbose_name = "Black Team Adjustment"
-        verbose_name_plural = "Black Team Adjustments"
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        return f"{self.team.team_name}: {self.point_adjustment:+.2f} - {self.reason[:50]}"
-
-
 class FinalScore(models.Model):
     """Calculated final scores for leaderboard."""
 
@@ -916,7 +872,6 @@ class FinalScore(models.Model):
     incident_recovery_points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     sla_penalties = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     point_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
-    black_adjustments = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
 
     # Total and rank
     total_score = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
