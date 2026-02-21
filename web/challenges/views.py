@@ -1,5 +1,6 @@
 import json
 import random
+from datetime import timedelta
 from typing import cast
 
 from django.contrib import messages
@@ -371,4 +372,45 @@ def assignment_submit(request: HttpRequest, assignment_id: int) -> HttpResponse:
         f" - Team {assignment.team.team_number}"
         f" ({assignment.score}/{assignment.orange_check.max_score})",
     )
+    return redirect("challenges:dashboard")
+
+
+@require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
+def followup_create(request: HttpRequest) -> HttpResponse:
+    """Create a follow-up reminder for an assignment."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+
+    user = cast(User, request.user)
+    assignment_id = request.POST.get("assignment_id")
+    minutes_str = request.POST.get("minutes", "15")
+    note = request.POST.get("note", "").strip()
+
+    try:
+        minutes = int(minutes_str)
+    except (ValueError, TypeError):
+        messages.error(request, "Invalid minutes value.")
+        return redirect("challenges:dashboard")
+
+    assignment = get_object_or_404(OrangeAssignment, pk=assignment_id, user=user)
+    OrangeFollowUp.objects.create(
+        user=user,
+        assignment=assignment,
+        remind_at=timezone.now() + timedelta(minutes=minutes),
+        note=note,
+    )
+    messages.success(request, f"Reminder set for {minutes} minutes.")
+    return redirect("challenges:dashboard")
+
+
+@require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
+def followup_dismiss(request: HttpRequest, followup_id: int) -> HttpResponse:
+    """Dismiss a follow-up reminder."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+
+    user = cast(User, request.user)
+    followup = get_object_or_404(OrangeFollowUp, pk=followup_id, user=user)
+    followup.dismissed = True
+    followup.save()
     return redirect("challenges:dashboard")

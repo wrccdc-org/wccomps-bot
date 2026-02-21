@@ -46,6 +46,7 @@
             <c-table_header sortable="false">Team</c-table_header>
             <c-table_header sortable="false">Remind At</c-table_header>
             <c-table_header sortable="false">Note</c-table_header>
+            <c-table_header sortable="false">Actions</c-table_header>
         </tr>
         </c-slot>
         {% for followup in followups %}
@@ -54,6 +55,12 @@
                 <td>Team {{ followup.assignment.team.team_number }}</td>
                 <td>{{ followup.remind_at|date:"m/d H:i" }}</td>
                 <td>{{ followup.note|default:"—" }}</td>
+                <td>
+                    <form method="post" action="{% url 'challenges:followup_dismiss' followup.pk %}">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="danger">Dismiss</c-button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
         </c-table>
@@ -136,6 +143,16 @@
                         {% else %}
                             <c-badge variant="claimed">Submitted</c-badge>
                         {% endif %}
+                        <details>
+                            <summary>Set Reminder</summary>
+                            <form method="post" action="{% url 'challenges:followup_create' %}" class="d-flex gap-10 items-end">
+                                {% csrf_token %}
+                                <input type="hidden" name="assignment_id" value="{{ assignment.pk }}">
+                                <label>Minutes: <input type="number" name="minutes" value="15" min="1" max="480" style="width:80px"></label>
+                                <label>Note: <input type="text" name="note" placeholder="Optional note"></label>
+                                <c-button type="submit" variant="primary">Set</c-button>
+                            </form>
+                        </details>
                     </td>
                 </tr>
             {% endfor %}
