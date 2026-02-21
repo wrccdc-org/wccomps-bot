@@ -20,7 +20,6 @@ from django.utils import timezone
 from scoring.models import (
     IncidentReport,
     InjectScore,
-    OrangeCheckType,
     OrangeTeamScore,
     RedTeamScore,
 )
@@ -395,12 +394,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Customer Service")
-
         adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Excellent customer interaction and problem solving",
             points_awarded=Decimal("10.00"),
         )
@@ -418,12 +414,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Professionalism")
-
         adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Professional communication",
             points_awarded=Decimal("5.00"),
             is_approved=False,
@@ -439,12 +432,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Technical Knowledge")
-
         adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Demonstrated excellent troubleshooting",
             points_awarded=Decimal("15.00"),
             is_approved=False,
@@ -467,12 +457,9 @@ class TestOrangeAdjustmentWorkflow:
         team1, team2 = setup_teams
         users = setup_users
 
-        check_type = OrangeCheckType.objects.create(name="Responsiveness")
-
         adjustment = OrangeTeamScore.objects.create(
             team=team1,
             submitted_by=users["orange"],
-            check_type=check_type,
             description="Questionable justification",
             points_awarded=Decimal("20.00"),
             is_approved=False,

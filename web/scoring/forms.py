@@ -12,7 +12,6 @@ from team.models import Team
 from .models import (
     AttackType,
     IncidentReport,
-    OrangeCheckType,
     OrangeTeamScore,
     RedTeamIPPool,
     RedTeamScore,
@@ -367,7 +366,7 @@ class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
 
     class Meta:
         model = OrangeTeamScore
-        fields = ["team", "check_type", "description", "points_awarded"]
+        fields = ["team", "description", "points_awarded"]
         widgets = {
             "description": forms.Textarea(
                 attrs={
@@ -377,7 +376,6 @@ class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
             ),
         }
         labels = {
-            "check_type": "Check Type",
             "description": "Notes",
             "points_awarded": "Points",
         }
@@ -387,26 +385,8 @@ class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
         # Only show active teams
         team_field = cast("forms.ModelChoiceField[Team]", self.fields["team"])
         team_field.queryset = Team.objects.filter(is_active=True).order_by("team_number")
-        # Make check_type required, description optional
-        self.fields["check_type"].required = True
+        # Description is optional
         self.fields["description"].required = False
-
-
-class OrangeCheckTypeForm(forms.ModelForm[OrangeCheckType]):
-    """Form for managing orange check types."""
-
-    class Meta:
-        model = OrangeCheckType
-        fields = ["name", "default_points"]
-        widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "e.g., Customer service call"}),
-        }
-        labels = {
-            "default_points": "Default Points",
-        }
-        help_texts = {
-            "default_points": "Use negative for penalties",
-        }
 
 
 class IncidentMatchForm(forms.ModelForm[IncidentReport]):

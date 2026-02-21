@@ -677,28 +677,6 @@ class InjectScore(models.Model):
         return f"{self.team.team_name} - {self.inject_name}: {self.points_awarded}"
 
 
-class OrangeCheckType(models.Model):
-    """Categories for orange team bonus/penalty checks."""
-
-    name = models.CharField(max_length=100, unique=True)
-    default_points = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        help_text="Default point value when this check type is selected",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "orange_check_type"
-        verbose_name = "Orange Check Type"
-        verbose_name_plural = "Orange Check Types"
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
-
-
 class OrangeTeamScore(models.Model):
     """Orange team point adjustments for customer service evaluation (positive or negative)."""
 
@@ -722,14 +700,6 @@ class OrangeTeamScore(models.Model):
     )
 
     # Point adjustment details
-    check_type = models.ForeignKey(
-        OrangeCheckType,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="scores",
-        help_text="Category of this check (optional for backwards compatibility)",
-    )
     description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
     points_awarded = models.DecimalField(
         max_digits=10,

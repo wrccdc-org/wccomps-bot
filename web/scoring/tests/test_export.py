@@ -16,7 +16,6 @@ from scoring.models import (
     FinalScore,
     IncidentReport,
     InjectScore,
-    OrangeCheckType,
     OrangeTeamScore,
     RedTeamScore,
 )
@@ -151,13 +150,11 @@ def incident_reports(test_teams, admin_user, red_team_findings):
 @pytest.fixture
 def orange_adjustments(test_teams, admin_user):
     """Create orange team adjustments for testing."""
-    check_type = OrangeCheckType.objects.create(name="Customer Service")
     adjustments = []
 
     # Adjustment 1: Approved bonus
     adj1 = OrangeTeamScore.objects.create(
         team=test_teams[0],
-        check_type=check_type,
         description="Excellent customer service during incident response",
         points_awarded=Decimal("10.00"),
         is_approved=True,
@@ -170,7 +167,6 @@ def orange_adjustments(test_teams, admin_user):
     # Adjustment 2: Not approved penalty
     adj2 = OrangeTeamScore.objects.create(
         team=test_teams[1],
-        check_type=check_type,
         description="Unprofessional communication",
         points_awarded=Decimal("-5.00"),
         is_approved=False,
@@ -602,7 +598,6 @@ class TestOrangeAdjustmentsExport:
         required_headers = [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -648,7 +643,6 @@ class TestOrangeAdjustmentsExport:
             "id",
             "team",
             "team_number",
-            "check_type",
             "description",
             "points_awarded",
             "is_approved",

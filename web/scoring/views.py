@@ -26,7 +26,6 @@ from .calculator import (
 from .forms import (
     IncidentMatchForm,
     IncidentReportForm,
-    OrangeCheckTypeForm,
     OrangeTeamScoreForm,
     RedTeamScoreForm,
     ScoringTemplateForm,
@@ -37,7 +36,6 @@ from .models import (
     IncidentReport,
     IncidentScreenshot,
     InjectScore,
-    OrangeCheckType,
     OrangeTeamScore,
     QuotientMetadataCache,
     RedTeamScore,
@@ -814,10 +812,6 @@ def review_orange(request: HttpRequest) -> HttpResponse:
 @transaction.atomic
 def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     """Submit orange team bonus."""
-    if not OrangeCheckType.objects.exists():
-        messages.warning(request, "No check types defined. Set up check types first.")
-        return redirect("scoring:manage_check_types")
-
     if request.method == "POST":
         form = OrangeTeamScoreForm(request.POST)
 
@@ -835,63 +829,6 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
         "form": form,
     }
     return render(request, "scoring/submit_orange_bonus.html", context)
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def manage_check_types(request: HttpRequest) -> HttpResponse:
-    """List orange check types."""
-    check_types = OrangeCheckType.objects.all().order_by("name")
-    return render(request, "scoring/manage_check_types.html", {"check_types": check_types})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def create_check_type(request: HttpRequest) -> HttpResponse:
-    """Create a new orange check type."""
-    if request.method == "POST":
-        form = OrangeCheckTypeForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Check type '{form.cleaned_data['name']}' created")
-            return redirect("scoring:manage_check_types")
-    else:
-        form = OrangeCheckTypeForm()
-    return render(request, "scoring/check_type_form.html", {"form": form})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def edit_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
-    """Edit an orange check type."""
-    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-
-    if request.method == "POST":
-        form = OrangeCheckTypeForm(request.POST, instance=check_type)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Check type '{check_type.name}' updated")
-            return redirect("scoring:manage_check_types")
-    else:
-        form = OrangeCheckTypeForm(instance=check_type)
-
-    return render(request, "scoring/check_type_form.html", {"form": form, "check_type": check_type})
-
-
-@require_permission("orange_team", error_message="Only Orange Team can manage check types")
-def delete_check_type(request: HttpRequest, check_type_id: int) -> HttpResponse:
-    """Delete an orange check type."""
-    check_type = get_object_or_404(OrangeCheckType, pk=check_type_id)
-    adjustment_count = check_type.scores.count()
-
-    if request.method == "POST":
-        name = check_type.name
-        check_type.delete()
-        messages.success(request, f"Check type '{name}' deleted")
-        return redirect("scoring:manage_check_types")
-
-    return render(
-        request,
-        "scoring/check_type_delete.html",
-        {"check_type": check_type, "adjustment_count": adjustment_count},
-    )
 
 
 @require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
@@ -1222,13 +1159,6 @@ def api_attack_types(request: HttpRequest) -> JsonResponse:
                 seen.add(attack_type.lower())
 
     return JsonResponse({"suggestions": sorted(suggestions)})
-
-
-def api_orange_check_types(request: HttpRequest) -> JsonResponse:
-    """API endpoint for orange check types with default points."""
-    check_types = OrangeCheckType.objects.all().order_by("name")
-    data = [{"id": ct.id, "name": ct.name, "default_points": float(ct.default_points)} for ct in check_types]
-    return JsonResponse({"check_types": data})
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can review inject grades")

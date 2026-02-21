@@ -9,7 +9,6 @@ from .models import (
     IncidentReport,
     IncidentScreenshot,
     InjectScore,
-    OrangeCheckType,
     OrangeTeamScore,
     QuotientMetadataCache,
     RedTeamIPPool,
@@ -225,24 +224,16 @@ class InjectScoreAdmin(admin.ModelAdmin[InjectScore]):
         return "N/A"
 
 
-@admin.register(OrangeCheckType)
-class OrangeCheckTypeAdmin(admin.ModelAdmin[OrangeCheckType]):
-    list_display = ["name", "default_points", "created_at"]
-    search_fields = ["name"]
-    readonly_fields = ["created_at"]
-
-
 @admin.register(OrangeTeamScore)
 class OrangeTeamScoreAdmin(admin.ModelAdmin[OrangeTeamScore]):
     list_display = [
         "team",
-        "check_type",
         "description_short",
         "points_awarded",
         "submitted_by",
         "created_at",
     ]
-    list_filter = ["check_type", "created_at"]
+    list_filter = ["created_at"]
     search_fields = ["team__team_name", "description"]
     readonly_fields = ["created_at", "updated_at"]
 

@@ -214,7 +214,6 @@ def export_orange_adjustments_csv() -> HttpResponse:
         [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -225,16 +224,13 @@ def export_orange_adjustments_csv() -> HttpResponse:
         ]
     )
 
-    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
 
     for bonus in bonuses:
         writer.writerow(
             [
                 bonus.id,
                 bonus.team.team_name,
-                bonus.check_type.name if bonus.check_type else "",
                 bonus.description,
                 bonus.points_awarded,
                 bonus.is_approved,
@@ -252,16 +248,13 @@ def export_orange_adjustments_csv() -> HttpResponse:
 
 def export_orange_adjustments_json() -> HttpResponse:
     """Export orange team adjustments to JSON format."""
-    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
 
     data = [
         {
             "id": bonus.id,
             "team": bonus.team.team_name,
             "team_number": bonus.team.team_number,
-            "check_type": bonus.check_type.name if bonus.check_type else None,
             "description": bonus.description,
             "points_awarded": str(bonus.points_awarded),
             "is_approved": bonus.is_approved,
@@ -603,7 +596,6 @@ def _get_orange_adjustments_csv_content() -> str:
         [
             "ID",
             "Team",
-            "Check Type",
             "Description",
             "Points",
             "Approved",
@@ -613,15 +605,12 @@ def _get_orange_adjustments_csv_content() -> str:
             "Created At",
         ]
     )
-    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
     for bonus in bonuses:
         writer.writerow(
             [
                 bonus.id,
                 bonus.team.team_name,
-                bonus.check_type.name if bonus.check_type else "",
                 bonus.description,
                 bonus.points_awarded,
                 bonus.is_approved,
@@ -636,15 +625,12 @@ def _get_orange_adjustments_csv_content() -> str:
 
 def _get_orange_adjustments_json_content() -> str:
     """Get orange team adjustments as JSON string."""
-    bonuses = OrangeTeamScore.objects.select_related("team", "check_type", "submitted_by", "approved_by").order_by(
-        "-created_at"
-    )
+    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
     data = [
         {
             "id": bonus.id,
             "team": bonus.team.team_name,
             "team_number": bonus.team.team_number,
-            "check_type": bonus.check_type.name if bonus.check_type else None,
             "description": bonus.description,
             "points_awarded": str(bonus.points_awarded),
             "is_approved": bonus.is_approved,

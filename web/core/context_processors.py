@@ -46,11 +46,6 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "bulk_approve_orange_adjustments": ("orange", "portal"),
     "approve_orange_adjustment": ("orange", "portal"),
     "reject_orange_adjustment": ("orange", "portal"),
-    "manage_check_types": ("orange", "check_types"),
-    "create_check_type": ("orange", "check_types"),
-    "edit_check_type": ("orange", "check_types"),
-    "delete_check_type": ("orange", "check_types"),
-    "api_orange_check_types": ("orange", "check_types"),
     # Ops Admin
     "admin_competition": ("ops_admin", "competition"),
     "admin_competition_action": ("ops_admin", "competition"),
