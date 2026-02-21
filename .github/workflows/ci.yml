@@ -67,7 +67,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest bot/tests web/core/tests --tb=short -v
+          uv run pytest
         env:
           DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
           DJANGO_SETTINGS_MODULE: wccomps.settings
