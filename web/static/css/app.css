@@ -650,10 +650,14 @@ nav[role="navigation"] {
 .scorecard-insights li {
     margin-bottom: 4px;
 }
+.scorecard-category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    align-items: start;
+}
 .scorecard-chart-wrap {
-    max-width: 600px;
-    height: 200px;
-    margin-top: 15px;
+    min-height: 200px;
 }
 .scorecard-grid {
     display: grid;
@@ -666,6 +670,9 @@ nav[role="navigation"] {
     background: var(--darkened-bg, #f8f8f8);
 }
 @media (max-width: 768px) {
+    .scorecard-category-grid {
+        grid-template-columns: 1fr;
+    }
     .scorecard-grid {
         grid-template-columns: 1fr;
     }

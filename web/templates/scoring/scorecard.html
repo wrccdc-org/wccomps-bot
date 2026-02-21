@@ -36,6 +36,10 @@
         </c-module>
         <c-module>
         <h3>Category Breakdown</h3>
+        {% if stats.category_ranks|length > 1 %}
+        <div class="scorecard-category-grid">
+        {% endif %}
+        <div>
         <c-table id="category_breakdown" aria_label="Category breakdown">
         <c-slot name="headers">
         <tr>
@@ -166,12 +170,14 @@
             <td class="text-right"></td>
         </tr>
         </c-table>
+        <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
+        </div>
         {% if stats.category_ranks|length > 1 %}
             <div class="scorecard-chart-wrap no-print">
                 <canvas id="categoryChart"></canvas>
             </div>
+        </div>
         {% endif %}
-        <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
         </c-module>
         <div class="scorecard-grid">
             <div>
