@@ -162,8 +162,92 @@
         <c-empty_state title="No assignments" description="You have no pending checks assigned to you." />
     {% endif %}
     </c-module>
-    {# Lead link #}
     {% if is_lead %}
+        {# Checked-in Members #}
+        <c-module>
+        <h2>Checked-In Members</h2>
+        {% if checked_in_members %}
+            <c-table id="checked_in" aria_label="Checked-in members">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Member</c-table_header>
+                <c-table_header sortable="false">Since</c-table_header>
+                <c-table_header sortable="false">Actions</c-table_header>
+            </tr>
+            </c-slot>
+            {% for checkin in checked_in_members %}
+                <tr>
+                    <td>{{ checkin.user.username }}</td>
+                    <td>{{ checkin.checked_in_at|date:"H:i" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}">
+                            {% csrf_token %}
+                            <c-button type="submit" variant="danger">Check Out</c-button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </c-table>
+        {% else %}
+            <c-empty_state title="No one checked in" description="No orange team members are currently checked in." />
+        {% endif %}
+        </c-module>
+
+        {# Scores Overview / Review #}
+        <c-module>
+        <h2>Scores for Review</h2>
+        <c-slot name="toolbar">
+            <c-link href="{% url 'challenges:export_scores' %}" variant="change">Export CSV</c-link>
+        </c-slot>
+        {% if review_assignments %}
+            <c-table id="review" aria_label="Assignments for review">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Check</c-table_header>
+                <c-table_header sortable="false">Team</c-table_header>
+                <c-table_header sortable="false">Assignee</c-table_header>
+                <c-table_header sortable="false">Score</c-table_header>
+                <c-table_header sortable="false">Status</c-table_header>
+                <c-table_header sortable="false">Actions</c-table_header>
+            </tr>
+            </c-slot>
+            {% for assignment in review_assignments %}
+                <tr>
+                    <td>{{ assignment.orange_check.title }}</td>
+                    <td>Team {{ assignment.team.team_number }}</td>
+                    <td>{{ assignment.user.username }}</td>
+                    <td>{{ assignment.score|default:"—" }} / {{ assignment.orange_check.max_score }}</td>
+                    <td>
+                        {% if assignment.status == "submitted" %}
+                            <c-badge variant="claimed">Submitted</c-badge>
+                        {% elif assignment.status == "in_progress" %}
+                            <c-badge variant="info">In Progress</c-badge>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if assignment.status == "submitted" %}
+                            <div class="d-flex gap-10">
+                                <form method="post" action="{% url 'challenges:assignment_approve' assignment.pk %}">
+                                    {% csrf_token %}
+                                    <c-button type="submit" variant="primary">Approve</c-button>
+                                </form>
+                                <form method="post" action="{% url 'challenges:assignment_reject' assignment.pk %}">
+                                    {% csrf_token %}
+                                    <input type="text" name="notes" placeholder="Reason (optional)" style="width:150px">
+                                    <c-button type="submit" variant="danger">Reject</c-button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </c-table>
+        {% else %}
+            <c-empty_state title="No assignments for review" description="No submitted assignments awaiting review." />
+        {% endif %}
+        </c-module>
+
+        {# Lead link #}
         <c-button_row>
         <c-link href="{% url 'challenges:check_list' %}" variant="change">Manage Checks</c-link>
         </c-button_row>

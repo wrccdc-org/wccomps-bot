@@ -1,3 +1,4 @@
+import csv
 import json
 import random
 from datetime import timedelta
@@ -45,16 +46,27 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "assignment__orange_check", "assignment__team"
     )
 
-    return render(
-        request,
-        "challenges/dashboard.html",
-        {
-            "active_checkin": active_checkin,
-            "assignments": my_assignments,
-            "followups": followups,
-            "is_lead": has_permission(user, "gold_team"),
-        },
-    )
+    is_lead = has_permission(user, "gold_team")
+    context: dict[str, object] = {
+        "active_checkin": active_checkin,
+        "assignments": my_assignments,
+        "followups": followups,
+        "is_lead": is_lead,
+    }
+
+    if is_lead:
+        # Checked-in members
+        checked_in_members = OrangeCheckIn.objects.filter(is_active=True).select_related("user")
+        # All submitted/in-progress assignments for review
+        review_assignments = (
+            OrangeAssignment.objects.filter(status__in=["submitted", "in_progress"])
+            .select_related("orange_check", "team", "user")
+            .order_by("-submitted_at")
+        )
+        context["checked_in_members"] = checked_in_members
+        context["review_assignments"] = review_assignments
+
+    return render(request, "challenges/dashboard.html", context)
 
 
 @require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
@@ -414,3 +426,112 @@ def followup_dismiss(request: HttpRequest, followup_id: int) -> HttpResponse:
     followup.dismissed = True
     followup.save()
     return redirect("challenges:dashboard")
+
+
+@require_permission("gold_team", error_message="Only leads can approve assignments")
+def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    """Approve a submitted assignment, creating an OrangeTeamScore record."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+
+    from scoring.models import OrangeTeamScore
+
+    user = cast(User, request.user)
+    assignment = get_object_or_404(
+        OrangeAssignment.objects.select_related("orange_check", "team", "user"),
+        pk=assignment_id,
+    )
+
+    if assignment.status != "submitted":
+        messages.error(request, "Only submitted assignments can be approved.")
+        return redirect("challenges:dashboard")
+
+    assignment.status = "approved"
+    assignment.reviewed_by = user
+    assignment.reviewed_at = timezone.now()
+    assignment.save()
+
+    # Create OrangeTeamScore to feed the leaderboard
+    OrangeTeamScore.objects.create(
+        team=assignment.team,
+        submitted_by=assignment.user,
+        description=f"Check: {assignment.orange_check.title}",
+        points_awarded=assignment.score or 0,
+        is_approved=True,
+        approved_by=user,
+        approved_at=timezone.now(),
+    )
+
+    messages.success(
+        request,
+        f"Approved: {assignment.orange_check.title} - Team {assignment.team.team_number} "
+        f"({assignment.score} pts)",
+    )
+    return redirect("challenges:dashboard")
+
+
+@require_permission("gold_team", error_message="Only leads can reject assignments")
+def assignment_reject(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    """Reject a submitted assignment, sending it back to the teamer."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+
+    user = cast(User, request.user)
+    assignment = get_object_or_404(OrangeAssignment, pk=assignment_id)
+
+    if assignment.status != "submitted":
+        messages.error(request, "Only submitted assignments can be rejected.")
+        return redirect("challenges:dashboard")
+
+    notes = request.POST.get("notes", "").strip()
+    assignment.status = "rejected"
+    assignment.reviewed_by = user
+    assignment.reviewed_at = timezone.now()
+    assignment.notes = notes
+    assignment.save()
+
+    messages.success(
+        request,
+        f"Rejected: {assignment.orange_check.title} - Team {assignment.team.team_number}",
+    )
+    return redirect("challenges:dashboard")
+
+
+@require_permission("gold_team", error_message="Only leads can export scores")
+def export_scores(request: HttpRequest) -> HttpResponse:
+    """Export all assignments as CSV."""
+    assignments = (
+        OrangeAssignment.objects.filter(status__in=["submitted", "approved"])
+        .select_related("orange_check", "team", "user", "reviewed_by")
+        .order_by("orange_check__title", "team__team_number")
+    )
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="orange_scores.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        "Check",
+        "Team Number",
+        "Team Name",
+        "Assignee",
+        "Score",
+        "Max Score",
+        "Status",
+        "Submitted At",
+        "Reviewed By",
+        "Reviewed At",
+    ])
+    for a in assignments:
+        writer.writerow([
+            a.orange_check.title,
+            a.team.team_number,
+            a.team.team_name,
+            a.user.username,
+            a.score or 0,
+            a.orange_check.max_score,
+            a.status,
+            a.submitted_at.strftime("%Y-%m-%d %H:%M") if a.submitted_at else "",
+            a.reviewed_by.username if a.reviewed_by else "",
+            a.reviewed_at.strftime("%Y-%m-%d %H:%M") if a.reviewed_at else "",
+        ])
+    return response
