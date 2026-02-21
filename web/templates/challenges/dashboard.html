@@ -77,7 +77,28 @@
             </tr>
             </c-slot>
             {% for assignment in check.list %}
-                <tr>
+                <tr x-data="{
+                    score: {{ assignment.score|default:'0' }},
+                    maxScore: {{ assignment.orange_check.max_score }},
+                    saving: false,
+                    async save(criterionId, met) {
+                        this.saving = true;
+                        const resp = await fetch('{% url 'challenges:assignment_save' assignment.pk %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({criterion_id: criterionId, met: met})
+                        });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            this.score = data.score;
+                            this.maxScore = data.max_score;
+                        }
+                        this.saving = false;
+                    }
+                }">
                     <td>Team {{ assignment.team.team_number }} — {{ assignment.team.team_name }}</td>
                     <td>
                         {% if assignment.status == "pending" %}
@@ -88,13 +109,16 @@
                             <c-badge variant="claimed">Submitted</c-badge>
                         {% endif %}
                     </td>
-                    <td>{{ assignment.score|default:"—" }} / {{ assignment.orange_check.max_score }}</td>
+                    <td><span x-text="score + ' / ' + maxScore">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span></td>
                     <td>
                         <ul class="plain-list">
                             {% for result in assignment.results.all %}
                                 <li>
                                     <label>
-                                        <input type="checkbox" {% if result.met %}checked{% endif %} disabled>
+                                        <input type="checkbox"
+                                               {% if result.met %}checked{% endif %}
+                                               @change="save({{ result.criterion.pk }}, $el.checked)"
+                                               {% if assignment.status == "submitted" %}disabled{% endif %}>
                                         {{ result.criterion.label }} ({{ result.criterion.points }} pts)
                                     </label>
                                 </li>
@@ -104,7 +128,14 @@
                         </ul>
                     </td>
                     <td>
-                        <c-button type="button" variant="primary" disabled>Submit</c-button>
+                        {% if assignment.status != "submitted" %}
+                            <form method="post" action="{% url 'challenges:assignment_submit' assignment.pk %}">
+                                {% csrf_token %}
+                                <c-button type="submit" variant="primary">Submit</c-button>
+                            </form>
+                        {% else %}
+                            <c-badge variant="claimed">Submitted</c-badge>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}

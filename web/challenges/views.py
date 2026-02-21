@@ -1,3 +1,4 @@
+import json
 import random
 from typing import cast
 
@@ -5,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -311,3 +312,63 @@ def check_assign(request: HttpRequest, check_id: int) -> HttpResponse:
 
     messages.success(request, f"Assigned {len(active_teams)} teams across {len(users)} users.")
     return redirect("challenges:check_detail", check_id=check_id)
+
+
+@require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
+def assignment_save(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    """Autosave a criterion result for an assignment."""
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    user = cast(User, request.user)
+    assignment = get_object_or_404(OrangeAssignment, pk=assignment_id, user=user)
+
+    if assignment.status in ("submitted", "approved"):
+        return JsonResponse({"error": "Assignment already submitted"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        criterion_id = data["criterion_id"]
+        met = data["met"]
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({"error": "Invalid data"}, status=400)
+
+    result = get_object_or_404(OrangeAssignmentResult, assignment=assignment, criterion_id=criterion_id)
+    result.met = met
+    result.save()
+
+    # Update assignment status to in_progress if still pending
+    if assignment.status == "pending":
+        assignment.status = "in_progress"
+        assignment.save()
+
+    score = assignment.calculate_score()
+    max_score = assignment.orange_check.max_score
+    return JsonResponse({"score": score, "max_score": max_score})
+
+
+@require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
+def assignment_submit(request: HttpRequest, assignment_id: int) -> HttpResponse:
+    """Submit a completed assignment for review."""
+    if request.method != "POST":
+        return redirect("challenges:dashboard")
+
+    user = cast(User, request.user)
+    assignment = get_object_or_404(OrangeAssignment, pk=assignment_id, user=user)
+
+    if assignment.status in ("submitted", "approved"):
+        messages.error(request, "Assignment already submitted.")
+        return redirect("challenges:dashboard")
+
+    assignment.score = assignment.calculate_score()
+    assignment.status = "submitted"
+    assignment.submitted_at = timezone.now()
+    assignment.save()
+
+    messages.success(
+        request,
+        f"Assignment submitted: {assignment.orange_check.title}"
+        f" - Team {assignment.team.team_number}"
+        f" ({assignment.score}/{assignment.orange_check.max_score})",
+    )
+    return redirect("challenges:dashboard")

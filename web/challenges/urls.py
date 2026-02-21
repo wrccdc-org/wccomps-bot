@@ -13,4 +13,6 @@ urlpatterns = [
     path("checks/<int:check_id>/edit/", views.check_edit, name="check_edit"),
     path("checks/<int:check_id>/duplicate/", views.check_duplicate, name="check_duplicate"),
     path("checks/<int:check_id>/assign/", views.check_assign, name="check_assign"),
+    path("assignments/<int:assignment_id>/save/", views.assignment_save, name="assignment_save"),
+    path("assignments/<int:assignment_id>/submit/", views.assignment_submit, name="assignment_submit"),
 ]
