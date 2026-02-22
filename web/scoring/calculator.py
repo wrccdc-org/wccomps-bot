@@ -115,10 +115,10 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    # Apply scaling modifiers (derived from weights + raw maxes)
-    scaled_service = service_raw * svc_mod
-    scaled_inject = inject_total * inj_mod
-    scaled_orange = orange_total * ora_mod
+    # Apply scaling modifiers (derived from weights + raw maxes), round to whole points
+    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"))
+    scaled_inject = (inject_total * inj_mod).quantize(Decimal("1"))
+    scaled_orange = (orange_total * ora_mod).quantize(Decimal("1"))
 
     # Total: scaled positives + raw negatives
     total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw

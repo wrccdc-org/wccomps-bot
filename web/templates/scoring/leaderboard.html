@@ -32,8 +32,8 @@
                     <strong>{{ score.rank }}</strong>
                 </td>
                 <td>{{ score.team.team_name }}</td>
-                <td class="text-right">{{ score.service_points|floatformat:2 }}</td>
-                <td class="text-right">{{ score.inject_points|floatformat:2 }}</td>
+                <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
+                <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
                 <td class="text-right">
                     <c-score_value :value="score.orange_points" format="signed" />
                 </td>
@@ -47,7 +47,7 @@
                     <c-score_value :value="score.sla_penalties" />
                 </td>
                 <td class="text-right">
-                    <strong>{{ score.total_score|floatformat:2 }}</strong>
+                    <strong>{{ score.total_score|floatformat:0 }}</strong>
                 </td>
                 <td>
                     <c-link href="{% url 'scoring:scorecard' score.team.team_number %}">View</c-link>
