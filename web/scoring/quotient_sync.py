@@ -8,7 +8,7 @@ from quotient.client import QuotientClient
 
 from team.models import Team
 
-from .models import QuotientMetadataCache, ScoringTemplate, ServiceScore
+from .models import QuotientMetadataCache, ScoringTemplate, ServiceDetail, ServiceScore
 
 
 class ServiceData(TypedDict):
@@ -121,6 +121,8 @@ def sync_service_scores(user: User | None = None) -> dict[str, int]:
     """
     Sync service scores from Quotient for all teams.
 
+    Syncs both aggregate ServiceScore records and per-service ServiceDetail records.
+
     Args:
         user: User performing the sync (optional)
 
@@ -128,29 +130,37 @@ def sync_service_scores(user: User | None = None) -> dict[str, int]:
         Dict with sync statistics
     """
     client = QuotientClient()
-    scores = client.get_scores()
 
-    if not scores:
-        return {"teams_created": 0, "teams_updated": 0, "total": 0}
+    # Fetch per-service export data
+    export_data = client.get_service_export()
+    if not export_data:
+        return {"teams_created": 0, "teams_updated": 0, "total": 0, "details_synced": 0}
+
+    # Fetch uptime percentages
+    uptimes_data = client.get_uptimes()
+    uptimes_by_team: dict[int, dict[str, float]] = {}
+    if uptimes_data:
+        for tu in uptimes_data:
+            uptimes_by_team[tu.team_id] = tu.uptimes
 
     teams_updated = 0
     teams_created = 0
+    details_synced = 0
 
-    for team_score in scores:
+    for team_export in export_data:
+        # Extract team number from name (e.g., "team09" -> 9)
+        team_num = int("".join(c for c in team_export.team_name if c.isdigit()) or "0")
         try:
-            team = Team.objects.get(team_number=team_score.team_number)
+            team = Team.objects.get(team_number=team_num)
         except Team.DoesNotExist:
             continue
 
-        # Update or create service score
-        # Quotient's total_score includes service points
-        # Note: point_adjustments not included - uses model default for creates,
-        # preserves existing value for updates
-        service_score, created = ServiceScore.objects.update_or_create(
+        # Update or create aggregate ServiceScore
+        _service_score, created = ServiceScore.objects.update_or_create(
             team=team,
             defaults={
-                "service_points": Decimal(str(team_score.total_score)),
-                "sla_violations": Decimal("0"),
+                "service_points": Decimal(str(team_export.gross_points)),
+                "sla_violations": Decimal(str(team_export.total_sla_penalty)),
                 "synced_by": user,
             },
         )
@@ -160,10 +170,26 @@ def sync_service_scores(user: User | None = None) -> dict[str, int]:
         else:
             teams_updated += 1
 
+        # Sync per-service details
+        team_uptimes = uptimes_by_team.get(team_num, {})
+        ServiceDetail.objects.filter(team=team).delete()
+        details = [
+            ServiceDetail(
+                team=team,
+                service_name=svc.service_name,
+                points=Decimal(str(svc.service_points)),
+                uptime=Decimal(str(team_uptimes.get(svc.service_name, 0))),
+            )
+            for svc in team_export.services
+        ]
+        ServiceDetail.objects.bulk_create(details)
+        details_synced += len(details)
+
     return {
         "teams_created": teams_created,
         "teams_updated": teams_updated,
         "total": teams_created + teams_updated,
+        "details_synced": details_synced,
     }
 
 
