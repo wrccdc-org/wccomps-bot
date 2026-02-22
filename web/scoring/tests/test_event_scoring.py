@@ -6,7 +6,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from scoring.models import FinalScore, InjectScore
+from scoring.models import FinalScore, InjectScore, ServiceDetail
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -206,6 +206,47 @@ class TestComputeScorecardStats:
 
         assert len(stats["insights"]) >= 2
         assert all(isinstance(i, str) for i in stats["insights"])
+
+    def test_compute_service_stats(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        for t, pts in [(teams[0], 400), (teams[1], 450), (teams[2], 300)]:
+            ServiceDetail.objects.create(team=t, service_name="tahoe-dns", points=Decimal(str(pts)))
+        for t, pts in [(teams[0], 200), (teams[1], 350), (teams[2], 250)]:
+            ServiceDetail.objects.create(team=t, service_name="berryessa-ssh", points=Decimal(str(pts)))
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        assert len(stats["service_stats"]) == 2
+        tahoe = next(s for s in stats["service_stats"] if s["name"] == "tahoe-dns")
+        assert tahoe["points"] == Decimal("400")
+        assert tahoe["rank"] == 2
+        berry = next(s for s in stats["service_stats"] if s["name"] == "berryessa-ssh")
+        assert berry["points"] == Decimal("200")
+        assert berry["rank"] == 3
+        assert berry["below_avg"] is True
+
+    def test_service_stats_excludes_unranked_teams(self, teams, scores):
+        from scoring.views import _compute_scorecard_stats
+
+        unranked_team = Team.objects.create(team_number=50, team_name="Unranked", is_active=True)
+        FinalScore.objects.create(
+            team=unranked_team,
+            service_points=Decimal("0"),
+            total_score=Decimal("0"),
+            rank=None,
+        )
+
+        for t, pts in [(teams[0], 400), (teams[1], 450), (teams[2], 300)]:
+            ServiceDetail.objects.create(team=t, service_name="tahoe-dns", points=Decimal(str(pts)))
+        ServiceDetail.objects.create(team=unranked_team, service_name="tahoe-dns", points=Decimal("0"))
+
+        stats = _compute_scorecard_stats(teams[0], scores[0])
+
+        tahoe = stats["service_stats"][0]
+        # avg should be (400+450+300)/3, not (400+450+300+0)/4
+        assert round(tahoe["avg"], 2) == round(Decimal("1150") / 3, 2)
+        assert tahoe["rank"] == 2
 
     def test_excluded_team_not_in_stats(self, teams, scores):
         from scoring.views import _compute_scorecard_stats
