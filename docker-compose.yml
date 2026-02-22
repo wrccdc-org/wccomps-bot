@@ -78,6 +78,7 @@ services:
         condition: service_started
     volumes:
       - ./bot:/app/bot
+      - ./web:/app/web
       - ./logs:/app/logs
     restart: unless-stopped
     logging:
