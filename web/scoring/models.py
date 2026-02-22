@@ -831,6 +831,12 @@ class ServiceDetail(models.Model):
     )
     service_name = models.CharField(max_length=100, help_text="Service identifier (e.g., balrog-ntp)")
     points = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    uptime = models.DecimalField(
+        max_digits=6,
+        decimal_places=4,
+        default=Decimal("0"),
+        help_text="Uptime percentage (0.0000–1.0000)",
+    )
 
     class Meta:
         db_table = "service_detail"
