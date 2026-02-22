@@ -51,6 +51,37 @@ class TeamScore:
 
 
 @dataclass
+class ServiceExportEntry:
+    """Per-service score data from export endpoint."""
+
+    service_name: str
+    service_points: int
+    sla_violations: int
+    sla_penalty: int
+
+
+@dataclass
+class TeamServiceExport:
+    """Per-team service export from Quotient."""
+
+    team_id: int
+    team_name: str
+    services: list[ServiceExportEntry]
+    gross_points: int
+    total_sla_penalty: int
+    total_points: int
+
+
+@dataclass
+class TeamUptime:
+    """Per-team uptime data from Quotient."""
+
+    team_name: str
+    team_id: int
+    uptimes: dict[str, float]  # service_name -> uptime (0.0-1.0)
+
+
+@dataclass
 class Inject:
     """Inject from Quotient."""
 
@@ -306,6 +337,101 @@ class QuotientClient:
             return None
         except (KeyError, ValueError) as e:
             logger.exception(f"Failed to parse injects response: {e}")
+            return None
+
+    def get_service_export(self, force_refresh: bool = False) -> list[TeamServiceExport] | None:
+        """
+        Fetch per-service score breakdown from Quotient.
+
+        Returns:
+            List of TeamServiceExport objects or None if unavailable
+        """
+        cache_key = "quotient_service_export"
+
+        if not force_refresh:
+            cached: list[TeamServiceExport] | None = cache.get(cache_key)
+            if cached:
+                return cached
+
+        try:
+            response = self._request("get", "/api/engine/export/scores")
+            response.raise_for_status()
+
+            data = response.json()
+            exports = []
+            for team_data in data:
+                services = [
+                    ServiceExportEntry(
+                        service_name=s["service_name"],
+                        service_points=s["service_points"],
+                        sla_violations=s["sla_violations"],
+                        sla_penalty=s["sla_penalty"],
+                    )
+                    for s in team_data.get("services", [])
+                ]
+                exports.append(
+                    TeamServiceExport(
+                        team_id=team_data["team_id"],
+                        team_name=team_data["team_name"],
+                        services=services,
+                        gross_points=team_data.get("gross_points", 0),
+                        total_sla_penalty=team_data.get("total_sla_penalty", 0),
+                        total_points=team_data.get("total_points", 0),
+                    )
+                )
+
+            cache.set(cache_key, exports, self.cache_ttl)
+            logger.info(f"Fetched service export for {len(exports)} teams")
+            return exports
+
+        except requests.RequestException as e:
+            logger.exception(f"Failed to fetch service export: {e}")
+            return None
+        except (KeyError, ValueError) as e:
+            logger.exception(f"Failed to parse service export: {e}")
+            return None
+
+    def get_uptimes(self, force_refresh: bool = False) -> list[TeamUptime] | None:
+        """
+        Fetch per-service uptime percentages from Quotient.
+
+        Returns:
+            List of TeamUptime objects or None if unavailable
+        """
+        cache_key = "quotient_uptimes"
+
+        if not force_refresh:
+            cached: list[TeamUptime] | None = cache.get(cache_key)
+            if cached:
+                return cached
+
+        try:
+            response = self._request("get", "/api/graphs/uptimes")
+            response.raise_for_status()
+
+            data = response.json()
+            result = []
+            for team_data in data.get("series", []):
+                team_name = team_data["Name"]
+                team_num = int("".join(c for c in team_name if c.isdigit()) or "0")
+                uptimes = {entry["Service"]: entry["Uptime"] for entry in team_data.get("Data", [])}
+                result.append(
+                    TeamUptime(
+                        team_name=team_name,
+                        team_id=team_num,
+                        uptimes=uptimes,
+                    )
+                )
+
+            cache.set(cache_key, result, self.cache_ttl)
+            logger.info(f"Fetched uptimes for {len(result)} teams")
+            return result
+
+        except requests.RequestException as e:
+            logger.exception(f"Failed to fetch uptimes: {e}")
+            return None
+        except (KeyError, ValueError) as e:
+            logger.exception(f"Failed to parse uptimes: {e}")
             return None
 
     def get_service_choices(self) -> list[dict[str, str]]:
