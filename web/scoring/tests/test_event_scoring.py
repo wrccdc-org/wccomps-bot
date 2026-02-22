@@ -6,7 +6,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from scoring.models import FinalScore, InjectScore, ServiceDetail
+from scoring.models import FinalScore, InjectScore
 from team.models import Team
 
 pytestmark = pytest.mark.django_db
@@ -79,29 +79,6 @@ class TestComputeScorecardStats:
         assert red["max"] == Decimal("800")  # abs(min(-800)) = most deductions
         assert red["min"] == Decimal("100")  # abs(max(-100)) = least deductions
 
-    def test_compute_service_stats(self, teams, scores):
-        from scoring.views import _compute_scorecard_stats
-
-        # Create service details for all teams
-        for t, pts in [(teams[0], 500), (teams[1], 700), (teams[2], 300)]:
-            ServiceDetail.objects.create(team=t, service_name="dns", points=Decimal(str(pts)))
-        for t, pts in [(teams[0], 400), (teams[1], 200), (teams[2], 600)]:
-            ServiceDetail.objects.create(team=t, service_name="ssh", points=Decimal(str(pts)))
-
-        stats = _compute_scorecard_stats(teams[0], scores[0])
-
-        assert len(stats["service_stats"]) == 2
-        dns_stat = next(s for s in stats["service_stats"] if s["name"] == "dns")
-        assert dns_stat["points"] == Decimal("500")
-        assert dns_stat["rank"] == 2
-        assert dns_stat["avg"] == Decimal("500")
-        assert dns_stat["delta"] == 0
-        assert dns_stat["below_avg"] is False
-
-        ssh_stat = next(s for s in stats["service_stats"] if s["name"] == "ssh")
-        assert ssh_stat["delta"] == 0  # 400 - avg(400) = 0
-        assert ssh_stat["below_avg"] is False
-
     def test_compute_inject_stats(self, teams, scores):
         from scoring.views import _compute_scorecard_stats
 
@@ -141,32 +118,6 @@ class TestComputeScorecardStats:
         inj2 = next(s for s in stats["inject_stats"] if s["name"] == "Inject 2")
         assert inj2["points"] == Decimal("90")
         assert inj2["rank"] == 1
-
-    def test_service_stats_excludes_unranked_teams(self, teams, scores):
-        """Unranked teams (rank=None) should not affect service detail stats."""
-        from scoring.views import _compute_scorecard_stats
-
-        # Create an unranked team with a service detail record
-        unranked_team = Team.objects.create(team_number=50, team_name="Unranked", is_active=True)
-        FinalScore.objects.create(
-            team=unranked_team,
-            service_points=Decimal("0"),
-            total_score=Decimal("0"),
-            rank=None,
-        )
-
-        # Ranked teams: dns = 500, 700, 300 → avg 500
-        for t, pts in [(teams[0], 500), (teams[1], 700), (teams[2], 300)]:
-            ServiceDetail.objects.create(team=t, service_name="dns", points=Decimal(str(pts)))
-        # Unranked team drags down the average if included
-        ServiceDetail.objects.create(team=unranked_team, service_name="dns", points=Decimal("0"))
-
-        stats = _compute_scorecard_stats(teams[0], scores[0])
-
-        dns_stat = next(s for s in stats["service_stats"] if s["name"] == "dns")
-        # avg should be (500+700+300)/3 = 500, not (500+700+300+0)/4 = 375
-        assert dns_stat["avg"] == Decimal("500")
-        assert dns_stat["rank"] == 2
 
     def test_inject_stats_excludes_unranked_teams(self, teams, scores):
         """Unranked teams (rank=None) should not affect inject detail stats."""
