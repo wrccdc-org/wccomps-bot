@@ -51,7 +51,7 @@
         <c-slot name="title">Active Teams ({{ teams|length }})</c-slot>
         <div class="max-h-300 overflow-y-auto">
             <ul class="team-list">
-                {% for team in teams %}<li>Team {{ team.team_number }} - {{ team.team_name }}</li>{% endfor %}
+                {% for team in teams %}<li>Team {{ team.team_number }}</li>{% endfor %}
             </ul>
         </div>
         </c-module>

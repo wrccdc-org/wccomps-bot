@@ -40,7 +40,7 @@ class Team(models.Model):
         ordering = ["team_number"]
 
     def __str__(self) -> str:
-        return f"{self.team_name}"
+        return f"Team {self.team_number}"
 
     def clean(self) -> None:
         """Validate team constraints."""
@@ -146,7 +146,7 @@ class DiscordLink(models.Model):
 
     def __str__(self) -> str:
         if self.team:
-            return f"{self.discord_username} → {self.team.team_name}"
+            return f"{self.discord_username} → Team {self.team.team_number}"
         return f"{self.discord_username} → {self.user.username}"
 
     def set_helper(self, role_name: str, role_id: int | None = None) -> None:

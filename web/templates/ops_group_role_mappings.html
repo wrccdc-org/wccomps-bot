@@ -96,11 +96,10 @@
                             {% for item in team_status %}
                                 <tr class="{% cycle 'row1' 'row2' %} team-row"
                                     data-team="{{ item.team.team_number }}"
-                                    data-name="{{ item.team.team_name|lower }}">
+                                    data-name="team {{ item.team.team_number }}">
                                     <td class="field-team">
                                         <strong>Team {{ item.team.team_number }}</strong>
                                         <br>
-                                        <span class="mini quiet">{{ item.team.team_name }}</span>
                                     </td>
                                     <td class="field-status">
                                         <strong>{{ item.current_count }}/{{ item.max_count }}</strong>

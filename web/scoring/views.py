@@ -1079,7 +1079,7 @@ def api_scores(request: HttpRequest) -> JsonResponse:
     data = [
         {
             "rank": score.rank,
-            "team": score.team.team_name,
+            "team": f"Team {score.team.team_number}",
             "team_number": score.team.team_number,
             "total": float(score.total_score),
             "services": float(score.service_points),
@@ -1101,7 +1101,7 @@ def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
     scores = calculate_team_score(team)
     return JsonResponse(
         {
-            "team": team.team_name,
+            "team": f"Team {team.team_number}",
             "team_number": team.team_number,
             "scores": {k: float(v) for k, v in scores.items()},
         }
@@ -1835,7 +1835,7 @@ def save_inject_feedback(request: HttpRequest) -> HttpResponse:
     score.feedback = feedback_text
     score.save(update_fields=["feedback"])
 
-    messages.success(request, f"Saved feedback for {score.inject_name} - {score.team.team_name}")
+    messages.success(request, f"Saved feedback for {score.inject_name} - Team {score.team.team_number}")
     return redirect("scoring:review_inject_feedback")
 
 
@@ -1856,7 +1856,7 @@ def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
     score.feedback_approved_by = user
     score.save(update_fields=["feedback_approved", "feedback_approved_by"])
 
-    messages.success(request, f"Approved feedback for {score.inject_name} - {score.team.team_name}")
+    messages.success(request, f"Approved feedback for {score.inject_name} - Team {score.team.team_number}")
     return redirect("scoring:review_inject_feedback")
 
 

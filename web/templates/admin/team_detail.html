@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block admin_content %}
     <div x-data="teamDetail()">
-        <c-page_header title="Team {{ team.team_number }}: {{ team.team_name }}">
+        <c-page_header title="Team {{ team.team_number }}">
         <c-slot name="actions">
         <c-link href="{% url 'admin_teams' %}" variant="history">← Back to Teams</c-link>
         </c-slot>
@@ -15,7 +15,6 @@
             <c-slot name="title">Team Information</c-slot>
             <c-detail_grid>
             <c-detail_row label="Team Number">{{ team.team_number }}</c-detail_row>
-            <c-detail_row label="Team Name">{{ team.team_name }}</c-detail_row>
             <c-detail_row label="Status">
             {% if team.is_active %}
                 <c-badge variant="success">Active</c-badge>

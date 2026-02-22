@@ -67,7 +67,7 @@
     <c-fieldset heading="Affected Teams">
     {% if finding.affected_teams.exists %}
         <div class="d-flex gap-10 flex-wrap">
-            {% for team in finding.affected_teams.all %}<c-badge>{{ team.team_name }}</c-badge>{% endfor %}
+            {% for team in finding.affected_teams.all %}<c-badge>Team {{ team.team_number }}</c-badge>{% endfor %}
         </div>
     {% else %}
         <p class="text-muted">No teams specified.</p>

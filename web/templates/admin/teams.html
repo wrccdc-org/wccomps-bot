@@ -56,7 +56,7 @@
                 <th class="field-team_number">
                     <a href="{% url 'admin_team_detail' item.team.team_number %}">{{ item.team.team_number }}</a>
                 </th>
-                <td class="field-name">{{ item.team.team_name }}</td>
+                <td class="field-name">Team {{ item.team.team_number }}</td>
                 <td class="field-members">{{ item.member_count }}/{{ item.team.max_members }}</td>
                 <td class="field-status">
                     {% if item.team.is_active %}

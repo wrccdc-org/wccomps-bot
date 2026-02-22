@@ -4,7 +4,7 @@
     {% if is_ops %}
         Tickets
     {% else %}
-        {{ team.team_name }} — Tickets
+        Team {{ team.team_number }} — Tickets
     {% endif %}
 {% endblock title %}
 {% block home_url %}
@@ -16,7 +16,7 @@
         {% if is_ops %}
             Support Tickets
         {% else %}
-            {{ team.team_name }} - Tickets
+            Team {{ team.team_number }} - Tickets
         {% endif %}
         " />
         <c-module filtered="true" id="changelist">

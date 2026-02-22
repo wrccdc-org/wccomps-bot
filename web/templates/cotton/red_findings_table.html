@@ -74,7 +74,7 @@
                                 <c-badge>{{ finding.affected_teams.count }} teams</c-badge>
                                 <div class="text-sm text-muted">
                                     {% for team in finding.affected_teams.all|slice:":3" %}
-                                        {{ team.team_name }}
+                                        Team {{ team.team_number }}
                                         {% if not forloop.last %},{% endif %}
                                     {% endfor %}
                                     {% if finding.affected_teams.count > 3 %}...{% endif %}

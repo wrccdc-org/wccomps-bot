@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static cotton %}
 {% block title %}
-    Create Ticket - {{ team.team_name }}
+    Create Ticket - Team {{ team.team_number }}
 {% endblock title %}
 {% block home_url %}
     {% url 'ticket_list' %}
@@ -19,7 +19,7 @@
 {% endblock extra_css %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Create Support Ticket" subtitle="{{ team.team_name }}" />
+        <c-page_header title="Create Support Ticket" subtitle="Team {{ team.team_number }}" />
         <form method="post"
               id="ticketForm"
               x-data="ticketForm()"
@@ -35,7 +35,7 @@
                     {% for t in teams %}
                         <option value="{{ t.id }}"
                                 {% if form_data.team_id == t.id|stringformat:"s" %}selected{% endif %}>
-                            Team {{ t.team_number }} - {{ t.team_name }}
+                            Team {{ t.team_number }}
                         </option>
                     {% endfor %}
                 </select>

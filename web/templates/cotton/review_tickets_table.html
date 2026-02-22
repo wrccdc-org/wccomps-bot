@@ -33,7 +33,7 @@
                         <th class="field-ticket_number">
                             <c-link href="{% url 'ticket_detail' item.ticket.ticket_number %}">{{ item.ticket.ticket_number }}</c-link>
                         </th>
-                        <td class="field-team">{{ item.ticket.team.team_name }}</td>
+                        <td class="field-team">Team {{ item.ticket.team.team_number }}</td>
                         <td class="field-category">{{ item.category_name }}</td>
                         <td class="field-resolved-by">
                             {% if item.ticket.resolved_by %}

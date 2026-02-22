@@ -129,7 +129,7 @@ hx-get="{% url 'ticket_list' %}?status={{ status_filter }}&category={{ category_
                         {% endif %}
                     </th>
                     <td role="gridcell">{{ item.ticket.title|truncatechars:50 }}</td>
-                    {% if is_ops %}<td class="field-team" role="gridcell">{{ item.ticket.team.team_name }}</td>{% endif %}
+                    {% if is_ops %}<td class="field-team" role="gridcell">Team {{ item.ticket.team.team_number }}</td>{% endif %}
                     <td class="field-category" role="gridcell">{{ item.category_name }}</td>
                     <td class="field-status" role="gridcell">
                         <c-badge variant="{{ item.ticket.status }}" aria_label="Status: {{ item.status_display }}">{{ item.status_display }}</c-badge>

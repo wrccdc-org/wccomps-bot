@@ -417,7 +417,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
         request,
         "link_success.html",
         {
-            "team_name": team.team_name if team else None,
+            "team_name": f"Team {team.team_number}" if team else None,
             "team_number": team_number,
             "discord_username": discord_username,
             "authentik_username": authentik_username,

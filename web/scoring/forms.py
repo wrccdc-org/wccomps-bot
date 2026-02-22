@@ -20,6 +20,13 @@ from .models import (
 from .quotient_sync import get_box_choices, get_service_choices
 
 
+class TeamNumberChoiceField(forms.ModelMultipleChoiceField["Team"]):
+    """Show 'Team N' instead of team names to maintain impartiality."""
+
+    def label_from_instance(self, obj: "Team") -> str:
+        return f"Team {obj.team_number}"
+
+
 class RedTeamIPPoolForm(forms.ModelForm[RedTeamIPPool]):
     """Form for managing IP pools."""
 
@@ -218,11 +225,16 @@ class RedTeamScoreForm(forms.ModelForm[RedTeamScore]):
         )
 
         # Only show active teams, limited by Quotient team count if available
-        affected_teams_field = cast("forms.ModelMultipleChoiceField[Team]", self.fields["affected_teams"])
+        # Replace default field with TeamNumberChoiceField to hide team names
         queryset = Team.objects.filter(is_active=True).order_by("team_number")
         if team_count is not None:
             queryset = queryset.filter(team_number__lte=team_count)
-        affected_teams_field.queryset = queryset
+        self.fields["affected_teams"] = TeamNumberChoiceField(
+            queryset=queryset,
+            widget=forms.CheckboxSelectMultiple(),
+            label="Affected Teams (select all that apply)",
+            help_text="Select all teams that were successfully compromised.",
+        )
 
     def clean(self) -> dict[str, object]:
         """Validate that either source_ip or source_ip_pool is provided."""

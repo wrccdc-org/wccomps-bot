@@ -32,7 +32,7 @@
             <th class="field-id">
                 <c-link href="{% url 'scoring:view_incident_report' incident.id %}">#{{ incident.id }}</c-link>
             </th>
-            <td class="field-team">{{ incident.team.team_name }}</td>
+            <td class="field-team">Team {{ incident.team.team_number }}</td>
             <td class="field-box">
                 {{ incident.affected_boxes_display|default:"—" }}
                 <div class="text-sm text-muted">{{ incident.affected_service }}</div>

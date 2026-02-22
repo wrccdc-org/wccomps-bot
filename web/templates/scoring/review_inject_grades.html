@@ -42,7 +42,7 @@
             {% for team in available_teams %}
                 <option value="{{ team.id }}"
                         {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
-                    {{ team.team_name }}
+                    Team {{ team.team_number }}
                 </option>
             {% endfor %}
         </select>
