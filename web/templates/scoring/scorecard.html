@@ -191,6 +191,41 @@
             </div>
         {% endif %}
         </c-module>
+        {% if stats.service_stats %}
+            <c-module>
+            <h3>Service Uptime Detail</h3>
+            <c-table id="service_details" aria_label="Service uptime scores">
+            <c-slot name="headers">
+            <tr>
+                <c-table_header sortable="false">Service</c-table_header>
+                <c-table_header sortable="false" class="text-right">Points</c-table_header>
+                <c-table_header sortable="false" class="text-right">vs Avg</c-table_header>
+                <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+            </tr>
+            </c-slot>
+            {% for svc in stats.service_stats %}
+                <tr {% if svc.below_avg %}class="row-below-avg"{% endif %}>
+                    <td>{{ svc.name }}</td>
+                    <td class="text-right">{{ svc.points|floatformat:0 }}</td>
+                    <td class="text-right">
+                        <c-score_value value="{{ svc.delta }}" format="signed" />
+                    </td>
+                    <td class="text-right">#{{ svc.rank }}</td>
+                </tr>
+            {% endfor %}
+            <tr class="row-total">
+                <td>
+                    <strong>Total</strong>
+                </td>
+                <td class="text-right">
+                    <strong>{{ service_total|floatformat:0 }}</strong>
+                </td>
+                <td class="text-right"></td>
+                <td class="text-right"></td>
+            </tr>
+            </c-table>
+            </c-module>
+        {% endif %}
         <c-module>
         <h3>Red Team Detail</h3>
         {% if red_scores %}
