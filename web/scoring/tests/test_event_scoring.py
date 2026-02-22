@@ -204,7 +204,7 @@ class TestComputeScorecardStats:
 
         stats = _compute_scorecard_stats(teams[0], scores[0])
 
-        assert len(stats["insights"]) >= 2
+        assert len(stats["insights"]) >= 1
         assert all(isinstance(i, str) for i in stats["insights"])
 
     def test_compute_service_stats(self, teams, scores):

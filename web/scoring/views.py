@@ -1671,12 +1671,8 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 
             sorted_cats = sorted(positive_cats, key=_cat_sort_key)
             best_cat = sorted_cats[0]
-            worst_cat = sorted_cats[-1]
             best_rank = positive_cats[best_cat]["rank"]
-            worst_rank = positive_cats[worst_cat]["rank"]
             insights.append(f"Strongest category: {best_cat.title()} (rank #{best_rank} of {team_count})")
-            if len(sorted_cats) > 1:
-                insights.append(f"Needs improvement: {worst_cat.title()} (rank #{worst_rank} of {team_count})")
 
     # SLA insight
     if score.sla_penalties and score.sla_penalties < 0:
