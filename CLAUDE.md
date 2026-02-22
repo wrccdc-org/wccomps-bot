@@ -27,3 +27,4 @@ docker compose logs -f web bot  # tail logs (production: ssh to 10.0.0.10, cd /o
 - Gunicorn workers capped at 4 to stay under DB connection limit
 - Templates use Cotton components (`c-button`, `c-link`, `c-slot`, etc.) - don't use raw HTML/Bootstrap for buttons, links, or form elements
 - `<c-alert>` is for transient messages only (flash, error, warning) - use `.status-bar` + `<c-badge>` for status displays
+- Never display `team_name` in templates or views — use `Team {{ team.team_number }}` everywhere except school-info pages
