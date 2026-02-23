@@ -101,7 +101,7 @@ class TestCancelFlow:
 
         client = Client()
         client.force_login(blue_team_user)
-        response = client.post(reverse("ticket_cancel", kwargs={"ticket_number": open_ticket.ticket_number}))
+        client.post(reverse("ticket_cancel", kwargs={"ticket_number": open_ticket.ticket_number}))
         # Should fail — ticket is not open (view renders error page, 200)
         open_ticket.refresh_from_db()
         assert open_ticket.status == "claimed"
@@ -172,7 +172,7 @@ class TestInvalidTransitions:
 
         client = Client()
         client.force_login(ticketing_admin_user)
-        response = client.post(
+        client.post(
             reverse("ticket_reopen", kwargs={"ticket_number": open_ticket.ticket_number}),
             {"reopen_reason": "Try again"},
         )
@@ -222,7 +222,7 @@ class TestCrossRole:
         """A different blue team can't cancel another team's ticket."""
         client = Client()
         client.force_login(blue_team_02_user)
-        response = client.post(reverse("ticket_cancel", kwargs={"ticket_number": open_ticket.ticket_number}))
+        client.post(reverse("ticket_cancel", kwargs={"ticket_number": open_ticket.ticket_number}))
         open_ticket.refresh_from_db()
         assert open_ticket.status == "open"
 
