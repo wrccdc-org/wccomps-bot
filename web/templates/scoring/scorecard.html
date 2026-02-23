@@ -40,159 +40,159 @@
         </c-module>
         <c-module>
         <h3>Category Breakdown</h3>
-                <c-table id="category_breakdown" aria_label="Category breakdown">
-                <c-slot name="headers">
+        <c-table id="category_breakdown" aria_label="Category breakdown">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Category</c-table_header>
+            <c-table_header sortable="false" class="text-right">Points</c-table_header>
+            <c-table_header sortable="false" class="text-right">Rank</c-table_header>
+            <c-table_header sortable="false" class="text-right">Avg</c-table_header>
+            <c-table_header sortable="false" class="text-right">Max</c-table_header>
+        </tr>
+        </c-slot>
+        {% with svc_rank=stats.category_ranks.services %}
+            <tr>
+                <td>Service (scaled)</td>
+                <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
+                {% if svc_rank %}
+                    <td class="text-right">#{{ svc_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ svc_rank.avg|floatformat:0 }}</td>
+                    <td class="text-right">{{ svc_rank.max|floatformat:0 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with inj_rank=stats.category_ranks.injects %}
+            <tr>
+                <td>Injects (scaled)</td>
+                <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
+                {% if inj_rank %}
+                    <td class="text-right">#{{ inj_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ inj_rank.avg|floatformat:0 }}</td>
+                    <td class="text-right">{{ inj_rank.max|floatformat:0 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with ora_rank=stats.category_ranks.orange %}
+            <tr>
+                <td>Orange (scaled)</td>
+                <td class="text-right">
+                    <c-score_value :value="score.orange_points" format="signed" />
+                </td>
+                {% if ora_rank %}
+                    <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ ora_rank.avg|floatformat:0 }}</td>
+                    <td class="text-right">{{ ora_rank.max|floatformat:0 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% with red_rank=stats.category_ranks.red %}
+            <tr>
+                <td>Red Team</td>
+                <td class="text-right">
+                    <c-score_value :value="score.red_deductions" />
+                </td>
+                {% if red_rank %}
+                    <td class="text-right">#{{ red_rank.rank }} of {{ stats.team_count }}</td>
+                    <td class="text-right">{{ red_rank.avg|floatformat:0 }}</td>
+                    <td class="text-right">{{ red_rank.max|floatformat:0 }}</td>
+                {% else %}
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                    <td class="text-right">—</td>
+                {% endif %}
+            </tr>
+        {% endwith %}
+        {% if score.sla_penalties %}
+            {% with sla_rank=stats.category_ranks.sla %}
                 <tr>
-                    <c-table_header sortable="false">Category</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Rank</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Avg</c-table_header>
-                    <c-table_header sortable="false" class="text-right">Max</c-table_header>
-                </tr>
-                </c-slot>
-                {% with svc_rank=stats.category_ranks.services %}
-                    <tr>
-                        <td>Service (scaled)</td>
-                        <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
-                        {% if svc_rank %}
-                            <td class="text-right">#{{ svc_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ svc_rank.avg|floatformat:0 }}</td>
-                            <td class="text-right">{{ svc_rank.max|floatformat:0 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% with inj_rank=stats.category_ranks.injects %}
-                    <tr>
-                        <td>Injects (scaled)</td>
-                        <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
-                        {% if inj_rank %}
-                            <td class="text-right">#{{ inj_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ inj_rank.avg|floatformat:0 }}</td>
-                            <td class="text-right">{{ inj_rank.max|floatformat:0 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% with ora_rank=stats.category_ranks.orange %}
-                    <tr>
-                        <td>Orange (scaled)</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.orange_points" format="signed" />
-                        </td>
-                        {% if ora_rank %}
-                            <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ ora_rank.avg|floatformat:0 }}</td>
-                            <td class="text-right">{{ ora_rank.max|floatformat:0 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% with red_rank=stats.category_ranks.red %}
-                    <tr>
-                        <td>Red Team</td>
-                        <td class="text-right">
-                            <c-score_value :value="score.red_deductions" />
-                        </td>
-                        {% if red_rank %}
-                            <td class="text-right">#{{ red_rank.rank }} of {{ stats.team_count }}</td>
-                            <td class="text-right">{{ red_rank.avg|floatformat:0 }}</td>
-                            <td class="text-right">{{ red_rank.max|floatformat:0 }}</td>
-                        {% else %}
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                            <td class="text-right">—</td>
-                        {% endif %}
-                    </tr>
-                {% endwith %}
-                {% if score.sla_penalties %}
-                    {% with sla_rank=stats.category_ranks.sla %}
-                        <tr>
-                            <td>SLA Violations</td>
-                            <td class="text-right">
-                                <c-score_value :value="score.sla_penalties" />
-                            </td>
-                            {% if sla_rank %}
-                                <td class="text-right">#{{ sla_rank.rank }} of {{ stats.team_count }}</td>
-                                <td class="text-right">{{ sla_rank.avg|floatformat:0 }}</td>
-                                <td class="text-right">{{ sla_rank.max|floatformat:0 }}</td>
-                            {% else %}
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                            {% endif %}
-                        </tr>
-                    {% endwith %}
-                {% endif %}
-                {% if score.incident_recovery_points %}
-                    {% with rec_rank=stats.category_ranks.recovery %}
-                        <tr>
-                            <td>Incident Recovery</td>
-                            <td class="text-right">
-                                <c-score_value :value="score.incident_recovery_points" format="signed" />
-                            </td>
-                            {% if rec_rank %}
-                                <td class="text-right">#{{ rec_rank.rank }} of {{ stats.team_count }}</td>
-                                <td class="text-right">{{ rec_rank.avg|floatformat:0 }}</td>
-                                <td class="text-right">{{ rec_rank.max|floatformat:0 }}</td>
-                            {% else %}
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                            {% endif %}
-                        </tr>
-                    {% endwith %}
-                {% endif %}
-                {% if score.point_adjustments %}
-                    {% with adj_rank=stats.category_ranks.adjustments %}
-                        <tr>
-                            <td>Point Adjustments</td>
-                            <td class="text-right">
-                                <c-score_value :value="score.point_adjustments" />
-                            </td>
-                            {% if adj_rank %}
-                                <td class="text-right">#{{ adj_rank.rank }} of {{ stats.team_count }}</td>
-                                <td class="text-right">{{ adj_rank.avg|floatformat:0 }}</td>
-                                <td class="text-right">{{ adj_rank.max|floatformat:0 }}</td>
-                            {% else %}
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                                <td class="text-right">—</td>
-                            {% endif %}
-                        </tr>
-                    {% endwith %}
-                {% endif %}
-                <tr class="row-total">
-                    <td>
-                        <strong>Grand Total</strong>
-                    </td>
+                    <td>SLA Violations</td>
                     <td class="text-right">
-                        <strong>{{ score.total_score|floatformat:0 }}</strong>
+                        <c-score_value :value="score.sla_penalties" />
                     </td>
-                    <td class="text-right"></td>
-                    <td class="text-right"></td>
-                    <td class="text-right"></td>
+                    {% if sla_rank %}
+                        <td class="text-right">#{{ sla_rank.rank }} of {{ stats.team_count }}</td>
+                        <td class="text-right">{{ sla_rank.avg|floatformat:0 }}</td>
+                        <td class="text-right">{{ sla_rank.max|floatformat:0 }}</td>
+                    {% else %}
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                    {% endif %}
                 </tr>
-                </c-table>
-                <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
-                {% if scaling %}
-                    <p class="text-muted text-xs">
-                        Scoring weights: Service {{ scaling.service_weight|floatformat:0 }}%, Inject {{ scaling.inject_weight|floatformat:0 }}%, Orange {{ scaling.orange_weight|floatformat:0 }}%.
-                        <br>
-                        Service: {{ scaling.service_raw|floatformat:0 }} raw &times; {{ scaling.svc_modifier|floatformat:2 }}
-                        | Inject: {{ scaling.inject_raw|floatformat:0 }} raw &times; {{ scaling.inj_modifier|floatformat:2 }}
-                        | Orange: {{ scaling.orange_raw|floatformat:0 }} raw &times; {{ scaling.ora_modifier|floatformat:2 }}
-                    </p>
-                {% endif %}
+            {% endwith %}
+        {% endif %}
+        {% if score.incident_recovery_points %}
+            {% with rec_rank=stats.category_ranks.recovery %}
+                <tr>
+                    <td>Incident Recovery</td>
+                    <td class="text-right">
+                        <c-score_value :value="score.incident_recovery_points" format="signed" />
+                    </td>
+                    {% if rec_rank %}
+                        <td class="text-right">#{{ rec_rank.rank }} of {{ stats.team_count }}</td>
+                        <td class="text-right">{{ rec_rank.avg|floatformat:0 }}</td>
+                        <td class="text-right">{{ rec_rank.max|floatformat:0 }}</td>
+                    {% else %}
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                    {% endif %}
+                </tr>
+            {% endwith %}
+        {% endif %}
+        {% if score.point_adjustments %}
+            {% with adj_rank=stats.category_ranks.adjustments %}
+                <tr>
+                    <td>Point Adjustments</td>
+                    <td class="text-right">
+                        <c-score_value :value="score.point_adjustments" />
+                    </td>
+                    {% if adj_rank %}
+                        <td class="text-right">#{{ adj_rank.rank }} of {{ stats.team_count }}</td>
+                        <td class="text-right">{{ adj_rank.avg|floatformat:0 }}</td>
+                        <td class="text-right">{{ adj_rank.max|floatformat:0 }}</td>
+                    {% else %}
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                        <td class="text-right">—</td>
+                    {% endif %}
+                </tr>
+            {% endwith %}
+        {% endif %}
+        <tr class="row-total">
+            <td>
+                <strong>Grand Total</strong>
+            </td>
+            <td class="text-right">
+                <strong>{{ score.total_score|floatformat:0 }}</strong>
+            </td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
+            <td class="text-right"></td>
+        </tr>
+        </c-table>
+        <p class="text-muted text-xs">Red values shown as total deductions (lower is better).</p>
+        {% if scaling %}
+            <p class="text-muted text-xs">
+                Scoring weights: Service {{ scaling.service_weight|floatformat:0 }}%, Inject {{ scaling.inject_weight|floatformat:0 }}%, Orange {{ scaling.orange_weight|floatformat:0 }}%.
+                <br>
+                Service: {{ scaling.service_raw|floatformat:0 }} raw &times; {{ scaling.svc_modifier|floatformat:2 }}
+                | Inject: {{ scaling.inject_raw|floatformat:0 }} raw &times; {{ scaling.inj_modifier|floatformat:2 }}
+                | Orange: {{ scaling.orange_raw|floatformat:0 }} raw &times; {{ scaling.ora_modifier|floatformat:2 }}
+            </p>
+        {% endif %}
         </c-module>
         {% if stats.service_stats %}
             <c-module>
