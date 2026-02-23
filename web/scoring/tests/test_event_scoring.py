@@ -350,3 +350,28 @@ class TestScorecardRedTeamDetail:
         content = response.content.decode()
         assert "Root Access (-100)" in content
         assert "Credentials (-50)" in content
+
+
+class TestScorecardScalingContext:
+    """Tests for scaling context footnote on scorecard."""
+
+    def test_scorecard_shows_scaling_weights(self, gold_team_user, teams, scores):
+        from scoring.models import ScoringTemplate
+
+        ScoringTemplate.objects.create(
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("40"),
+            orange_weight=Decimal("20"),
+            service_max=Decimal("11454"),
+            inject_max=Decimal("3060"),
+            orange_max=Decimal("160"),
+        )
+
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:scorecard", args=[1]))
+
+        content = response.content.decode()
+        assert "Service 40%" in content
+        assert "Inject 40%" in content
+        assert "Orange 20%" in content

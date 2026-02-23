@@ -698,6 +698,52 @@ class TestIncidentFindingMatching:
         assert incident.gold_team_reviewed is False
 
 
+class ScalingContextTests(TestCase):
+    """Test that calculator exposes raw scores and modifiers."""
+
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(username="testuser", password="test123")
+        self.team = Team.objects.create(team_number=1, team_name="Test Team")
+        ScoringTemplate.objects.create(
+            service_weight=Decimal("40"),
+            inject_weight=Decimal("40"),
+            orange_weight=Decimal("20"),
+            service_max=Decimal("11454"),
+            inject_max=Decimal("3060"),
+            orange_max=Decimal("160"),
+        )
+        ServiceScore.objects.create(
+            team=self.team,
+            service_points=Decimal("8000"),
+            sla_violations=Decimal("0"),
+            point_adjustments=Decimal("0"),
+        )
+        InjectScore.objects.create(
+            team=self.team,
+            inject_id="inj-1",
+            inject_name="Inject 1",
+            points_awarded=Decimal("2000"),
+            is_approved=True,
+        )
+
+    def test_calculate_team_score_detailed_returns_raw_and_modifiers(self) -> None:
+        from scoring.calculator import calculate_team_score_detailed
+
+        result = calculate_team_score_detailed(self.team)
+
+        assert "service_raw" in result
+        assert "inject_raw" in result
+        assert "orange_raw" in result
+        assert "svc_modifier" in result
+        assert "inj_modifier" in result
+        assert "ora_modifier" in result
+        assert "service_weight" in result
+        assert "inject_weight" in result
+        assert "orange_weight" in result
+        assert result["service_raw"] == Decimal("8000")
+        assert result["inject_raw"] == Decimal("2000")
+
+
 @pytest.mark.django_db
 class TestIncidentListView:
     """Test blue team incident list view."""

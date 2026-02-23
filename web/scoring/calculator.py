@@ -20,6 +20,7 @@ from .models import (
 
 # Type alias for score breakdown dictionaries
 ScoreBreakdown = dict[str, Decimal]
+DetailedScoreBreakdown = dict[str, Decimal]
 
 
 def _get_modifiers(template: ScoringTemplate) -> tuple[Decimal, Decimal, Decimal]:
@@ -132,6 +133,60 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
         "point_adjustments": point_adj,
         "incident_recovery_points": recovery_raw,
         "total_score": total_score,
+    }
+
+
+def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
+    """Like calculate_team_score but also returns raw scores, modifiers, and weights."""
+    template = ScoringTemplate.objects.first() or ScoringTemplate()
+    svc_mod, inj_mod, ora_mod = _get_modifiers(template)
+
+    service_score = ServiceScore.objects.filter(team=team).first()
+    if service_score:
+        service_raw = service_score.service_points
+        sla_raw = service_score.sla_violations
+        point_adj = service_score.point_adjustments
+    else:
+        service_raw = Decimal("0")
+        sla_raw = Decimal("0")
+        point_adj = Decimal("0")
+
+    inject_raw = get_approved_inject_total(team)
+    orange_raw = get_approved_orange_total(team)
+    red_raw = get_approved_red_deductions(team)
+    recovery_raw = IncidentReport.objects.filter(
+        team=team,
+        gold_team_reviewed=True,
+    ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
+
+    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"))
+    scaled_inject = (inject_raw * inj_mod).quantize(Decimal("1"))
+    scaled_orange = (orange_raw * ora_mod).quantize(Decimal("1"))
+
+    total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
+
+    return {
+        # Standard fields (same as calculate_team_score)
+        "service_points": scaled_service,
+        "inject_points": scaled_inject,
+        "orange_points": scaled_orange,
+        "red_deductions": red_raw,
+        "sla_penalties": sla_raw,
+        "point_adjustments": point_adj,
+        "incident_recovery_points": recovery_raw,
+        "total_score": total_score,
+        # Raw scores (before scaling)
+        "service_raw": service_raw,
+        "inject_raw": inject_raw,
+        "orange_raw": orange_raw,
+        # Modifiers
+        "svc_modifier": svc_mod,
+        "inj_modifier": inj_mod,
+        "ora_modifier": ora_mod,
+        # Weights
+        "service_weight": template.service_weight,
+        "inject_weight": template.inject_weight,
+        "orange_weight": template.orange_weight,
     }
 
 

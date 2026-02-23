@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, render
 from core.auth_utils import require_permission
 from team.models import Team
 
-from ..calculator import get_leaderboard
+from ..calculator import calculate_team_score_detailed, get_leaderboard
 from ..models import (
     FinalScore,
     InjectScore,
@@ -265,6 +265,7 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     ).select_related("attack_type").order_by("attack_type__name", "pk")
 
     stats = _compute_scorecard_stats(team, score)
+    detailed = calculate_team_score_detailed(team)
 
     # Build chart data for template (only categories with data)
     cat_ranks = stats["category_ranks"]
@@ -299,5 +300,16 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "red_total": red_total,
         "inject_total": inject_total,
         "service_total": service_total,
+        "scaling": {
+            "service_raw": detailed["service_raw"],
+            "inject_raw": detailed["inject_raw"],
+            "orange_raw": detailed["orange_raw"],
+            "svc_modifier": detailed["svc_modifier"],
+            "inj_modifier": detailed["inj_modifier"],
+            "ora_modifier": detailed["ora_modifier"],
+            "service_weight": detailed["service_weight"],
+            "inject_weight": detailed["inject_weight"],
+            "orange_weight": detailed["orange_weight"],
+        },
     }
     return render(request, "scoring/scorecard.html", context)
