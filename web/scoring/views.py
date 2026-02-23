@@ -1776,9 +1776,9 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
 # --- Inject Feedback Review (Gold Team) ---
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can review inject feedback")
+@require_permission("gold_team", "white_team", error_message="Only Gold/White Team members can review inject feedback")
 def review_inject_feedback(request: HttpRequest) -> HttpResponse:
-    """Gold team review of inject feedback before showing to teams."""
+    """Gold/White team review of inject feedback before showing to teams."""
     inject_filter = request.GET.get("inject", "")
     status_filter = request.GET.get("status", "pending")
 
@@ -1819,7 +1819,7 @@ def review_inject_feedback(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_inject_feedback.html", context)
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can edit inject feedback")
+@require_permission("gold_team", "white_team", error_message="Only Gold/White Team members can edit inject feedback")
 @transaction.atomic
 @require_http_methods(["POST"])
 def save_inject_feedback(request: HttpRequest) -> HttpResponse:
@@ -1839,7 +1839,7 @@ def save_inject_feedback(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:review_inject_feedback")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can approve inject feedback")
+@require_permission("gold_team", "white_team", error_message="Only Gold/White Team members can approve inject feedback")
 @transaction.atomic
 @require_http_methods(["POST"])
 def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
@@ -1860,7 +1860,7 @@ def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
     return redirect("scoring:review_inject_feedback")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can approve inject feedback")
+@require_permission("gold_team", "white_team", error_message="Only Gold/White Team members can approve inject feedback")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_approve_inject_feedback(request: HttpRequest) -> HttpResponse:

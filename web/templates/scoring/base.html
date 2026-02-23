@@ -12,13 +12,13 @@
             <c-nav_item name="orange_team" href="{% url 'scoring:review_orange' %}">Review Orange Team</c-nav_item>
             <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Review Incidents</c-nav_item>
             <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Review Injects</c-nav_item>
-            <c-nav_item name="inject_feedback" href="{% url 'scoring:review_inject_feedback' %}">Review Feedback</c-nav_item>
         {% endif %}
         {% if is_ticketing_admin or is_admin %}
             <c-nav_item name="review_tickets" href="{% url 'ops_review_tickets' %}">Review Tickets</c-nav_item>
         {% endif %}
         {% if is_white_team or is_gold_team or is_admin %}
             <c-nav_item name="inject_grading" href="{% url 'scoring:inject_grading' %}">Inject Grading</c-nav_item>
+            <c-nav_item name="inject_feedback" href="{% url 'scoring:review_inject_feedback' %}">Review Feedback</c-nav_item>
         {% endif %}
         {% if is_admin %}
             <c-nav_item name="config" href="{% url 'scoring:scoring_config' %}">Configuration</c-nav_item>
