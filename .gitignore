@@ -62,3 +62,10 @@ mutants/
 # Hypothesis
 .hypothesis/
 backups/
+
+# Data files
+*.xlsx
+*.pdf
+*.json
+!package.json
+!package-lock.json

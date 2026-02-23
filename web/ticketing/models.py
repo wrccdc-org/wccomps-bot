@@ -127,7 +127,7 @@ class Ticket(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.ticket_number} - {self.team.team_name}"
+        return f"{self.ticket_number} - Team {self.team.team_number}"
 
 
 class TicketAttachment(models.Model):

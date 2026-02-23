@@ -25,7 +25,6 @@ dependencies = [
     "xkcdpass>=1.19.9",
     "django-smart-ratelimit>=0.8.11",
     "httpx>=0.28.1",
-    "pytest-xdist>=3.8.0",
     "openpyxl>=3.1.5",
 ]
 
@@ -34,7 +33,6 @@ dev = [
     "pytest>=7.4",
     "pytest-django>=4.7",
     "pytest-asyncio>=0.21",
-    "black>=23.0",
     "ruff>=0.14.0",
 ]
 
@@ -62,6 +60,7 @@ dev = [
     "pyotp>=2.9.0",
     "djlint>=1.36.4",
     "types-openpyxl>=3.1.5.20250919",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.mypy]
