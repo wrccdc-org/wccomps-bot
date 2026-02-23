@@ -3,9 +3,11 @@
 from decimal import Decimal
 from typing import TypedDict
 
+import weasyprint
 from django.db.models import Avg, Max, Min
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 
 from core.auth_utils import require_permission
 from team.models import Team
@@ -260,9 +262,11 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     score = get_object_or_404(FinalScore, team__team_number=team_number)
     team = score.team
 
-    red_scores = RedTeamScore.objects.filter(
-        affected_teams=team, is_approved=True
-    ).select_related("attack_type").order_by("attack_type__name", "pk")
+    red_scores = (
+        RedTeamScore.objects.filter(affected_teams=team, is_approved=True)
+        .select_related("attack_type")
+        .order_by("attack_type__name", "pk")
+    )
 
     stats = _compute_scorecard_stats(team, score)
     detailed = calculate_team_score_detailed(team)
@@ -313,3 +317,56 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         },
     }
     return render(request, "scoring/scorecard.html", context)
+
+
+@require_permission(
+    "gold_team",
+    "white_team",
+    "ticketing_admin",
+    error_message="Only authorized staff can export scorecards",
+)
+def scorecard_pdf(request: HttpRequest, team_number: int) -> HttpResponse:
+    """Generate PDF scorecard for a single team."""
+    score = get_object_or_404(FinalScore, team__team_number=team_number)
+    team = score.team
+
+    red_scores = (
+        RedTeamScore.objects.filter(affected_teams=team, is_approved=True)
+        .select_related("attack_type")
+        .order_by("attack_type__name", "pk")
+    )
+
+    stats = _compute_scorecard_stats(team, score)
+    detailed = calculate_team_score_detailed(team)
+
+    red_total = sum(r.points_per_team for r in red_scores)
+    inject_total = sum(i["points"] for i in stats["inject_stats"])
+    service_total = sum(s["points"] for s in stats["service_stats"])
+
+    context = {
+        "team": team,
+        "score": score,
+        "red_scores": red_scores,
+        "stats": stats,
+        "red_total": red_total,
+        "inject_total": inject_total,
+        "service_total": service_total,
+        "scaling": {
+            "service_raw": detailed["service_raw"],
+            "inject_raw": detailed["inject_raw"],
+            "orange_raw": detailed["orange_raw"],
+            "svc_modifier": detailed["svc_modifier"],
+            "inj_modifier": detailed["inj_modifier"],
+            "ora_modifier": detailed["ora_modifier"],
+            "service_weight": detailed["service_weight"],
+            "inject_weight": detailed["inject_weight"],
+            "orange_weight": detailed["orange_weight"],
+        },
+    }
+
+    html_string = render_to_string("scoring/scorecard_print.html", context, request=request)
+    pdf_bytes = weasyprint.HTML(string=html_string).write_pdf()
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="team-{team_number:02d}-scorecard.pdf"'
+    return response

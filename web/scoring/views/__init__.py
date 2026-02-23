@@ -10,6 +10,7 @@ from .export import (
     export_inject_grades,
     export_orange_adjustments,
     export_red_scores,
+    export_scorecards,
 )
 from .incidents import (
     delete_incident_report,
@@ -38,6 +39,7 @@ from .leaderboard import (
     _ServiceStat,
     leaderboard,
     scorecard,
+    scorecard_pdf,
 )
 from .orange import (
     approve_orange_adjustment,
@@ -69,6 +71,7 @@ __all__ = [
     # leaderboard
     "leaderboard",
     "scorecard",
+    "scorecard_pdf",
     "_compute_scorecard_stats",
     "_CategoryRank",
     "_InjectStat",
@@ -127,6 +130,7 @@ __all__ = [
     "export_inject_grades",
     "export_final_scores",
     "export_all",
+    "export_scorecards",
     # api
     "api_scores",
     "api_team_detail",

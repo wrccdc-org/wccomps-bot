@@ -10,6 +10,7 @@ urlpatterns = [
     # Leaderboard
     path("", views.leaderboard, name="leaderboard"),
     path("team/<int:team_number>/scorecard/", views.scorecard, name="scorecard"),
+    path("team/<int:team_number>/scorecard/pdf/", views.scorecard_pdf, name="scorecard_pdf"),
     # Red Team
     path("red-team/", views.submit_red_score, name="submit_red_score"),
     path("red-team/scores/", views.red_team_scores, name="red_team_scores"),
@@ -74,4 +75,5 @@ urlpatterns = [
     path("export/orange-adjustments/", views.export_orange_adjustments, name="export_orange_adjustments"),
     path("export/inject-grades/", views.export_inject_grades, name="export_inject_grades"),
     path("export/final-scores/", views.export_final_scores, name="export_final_scores"),
+    path("export/scorecards/", views.export_scorecards, name="export_scorecards"),
 ]

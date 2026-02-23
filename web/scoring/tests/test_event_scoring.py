@@ -375,3 +375,29 @@ class TestScorecardScalingContext:
         assert "Service 40%" in content
         assert "Inject 40%" in content
         assert "Orange 20%" in content
+
+
+class TestScorecardPdf:
+    """Tests for PDF scorecard export."""
+
+    def test_pdf_returns_pdf_content_type(self, gold_team_user, teams, scores):
+        client = Client()
+        client.force_login(gold_team_user)
+        url = reverse("scoring:scorecard_pdf", args=[1])
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/pdf"
+        assert 'filename="team-01-scorecard.pdf"' in response["Content-Disposition"]
+
+    def test_pdf_requires_authentication(self, client, teams, scores):
+        url = reverse("scoring:scorecard_pdf", args=[1])
+        response = client.get(url)
+        assert response.status_code == 302
+
+    def test_pdf_returns_404_for_missing_team(self, gold_team_user, teams, scores):
+        client = Client()
+        client.force_login(gold_team_user)
+        url = reverse("scoring:scorecard_pdf", args=[99])
+        response = client.get(url)
+        assert response.status_code == 404

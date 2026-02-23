@@ -6,6 +6,9 @@
 {% block scoring_content %}
     <div class="scorecard">
         <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
+        <div class="mb-10">
+            <c-link href="{% url 'scoring:scorecard_pdf' team.team_number %}">Download PDF</c-link>
+        </div>
         <c-module>
         <div class="neighbors">
             {% if stats.neighbors %}

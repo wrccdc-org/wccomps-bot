@@ -8,6 +8,7 @@
     <c-module>
     <c-slot name="title">Live Scores</c-slot>
     <c-slot name="toolbar">
+    <c-link href="{% url 'scoring:export_scorecards' %}">Download All PDFs</c-link>
     <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
     </c-slot>
     {% if scores %}
