@@ -25,6 +25,13 @@ jobs:
         ports:
           - 5432:5432
 
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: wccomps
+      DB_PASSWORD: wccomps
+      DB_NAME: wccomps_test
+
     steps:
       - uses: actions/checkout@v6
 
@@ -55,21 +62,17 @@ jobs:
       - name: Check for unapplied migrations
         run: |
           cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py makemigrations --check --dry-run
-        env:
-          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
 
       - name: Collect static files
         run: |
           cd web && DJANGO_SETTINGS_MODULE=wccomps.settings uv run python manage.py collectstatic --noinput
         env:
-          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
           SECRET_KEY: test-secret-key-for-ci
 
       - name: Run tests
         run: |
           uv run pytest
         env:
-          DATABASE_URL: postgresql://wccomps:wccomps@localhost:5432/wccomps_test
           DJANGO_SETTINGS_MODULE: wccomps.settings
           PYTHONPATH: ${{ github.workspace }}/web:${{ github.workspace }}
           SECRET_KEY: test-secret-key-for-ci

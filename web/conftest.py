@@ -1,5 +1,6 @@
 """Shared pytest fixtures for all web tests."""
 
+import os
 import socket
 from collections.abc import Callable
 from typing import Any
@@ -12,8 +13,8 @@ from django.test import Client
 
 def pytest_configure(config: pytest.Config) -> None:
     """Fail fast if the test database is not reachable."""
-    host = "localhost"
-    port = 5433
+    host = os.environ.get("DB_HOST", "localhost")
+    port = int(os.environ.get("DB_PORT", "5433"))
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(2)
     try:
