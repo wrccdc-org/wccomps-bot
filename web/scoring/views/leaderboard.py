@@ -260,7 +260,9 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     score = get_object_or_404(FinalScore, team__team_number=team_number)
     team = score.team
 
-    red_scores = RedTeamScore.objects.filter(affected_teams=team, is_approved=True).order_by("attack_vector")
+    red_scores = RedTeamScore.objects.filter(
+        affected_teams=team, is_approved=True
+    ).select_related("attack_type").order_by("attack_type__name", "pk")
 
     stats = _compute_scorecard_stats(team, score)
 

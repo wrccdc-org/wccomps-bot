@@ -283,3 +283,70 @@ class TestScorecardView:
         url = reverse("scoring:scorecard", args=[99])
         response = client.get(url)
         assert response.status_code == 404
+
+
+class TestScorecardRedTeamDetail:
+    """Tests for detailed red team findings on scorecard."""
+
+    def test_scorecard_shows_attack_type(self, gold_team_user, teams, scores):
+        from scoring.models import AttackType, RedTeamScore
+
+        attack_type, _ = AttackType.objects.get_or_create(name="Default Credentials")
+        finding = RedTeamScore.objects.create(
+            attack_type=attack_type,
+            attack_vector=".240 Default Creds",
+            points_per_team=Decimal("100"),
+            is_approved=True,
+        )
+        finding.affected_teams.add(teams[0])
+
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:scorecard", args=[1]))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "Default Credentials" in content  # attack_type.name shown
+        assert ".240 Default Creds" not in content  # raw attack_vector NOT shown
+
+    def test_scorecard_shows_affected_boxes(self, gold_team_user, teams, scores):
+        from scoring.models import AttackType, RedTeamScore
+
+        attack_type = AttackType.objects.create(name="RCE")
+        finding = RedTeamScore.objects.create(
+            attack_type=attack_type,
+            affected_boxes=["web-01", "db-02"],
+            affected_service="ssh",
+            points_per_team=Decimal("100"),
+            is_approved=True,
+        )
+        finding.affected_teams.add(teams[0])
+
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:scorecard", args=[1]))
+
+        content = response.content.decode()
+        assert "web-01, db-02" in content
+        assert "ssh" in content
+
+    def test_scorecard_shows_outcome_flags(self, gold_team_user, teams, scores):
+        from scoring.models import AttackType, RedTeamScore
+
+        attack_type, _ = AttackType.objects.get_or_create(name="Privilege Escalation")
+        finding = RedTeamScore.objects.create(
+            attack_type=attack_type,
+            root_access=True,
+            credentials_recovered=True,
+            points_per_team=Decimal("150"),
+            is_approved=True,
+        )
+        finding.affected_teams.add(teams[0])
+
+        client = Client()
+        client.force_login(gold_team_user)
+        response = client.get(reverse("scoring:scorecard", args=[1]))
+
+        content = response.content.decode()
+        assert "Root Access (-100)" in content
+        assert "Credentials (-50)" in content
