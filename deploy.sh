@@ -38,6 +38,11 @@ uv run ruff format . --quiet
 uv run ruff check --fix --quiet . || true
 uv run djlint web/templates --reformat --quiet
 
+# Auto-commit any formatting changes so deployed code matches a commit
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    git add -u && git commit -m "autoformat" --quiet
+fi
+
 # Run all lint checks in parallel
 RUFF_RC=0 DJLINT_RC=0 MYPY_RC=0
 
