@@ -8,6 +8,8 @@ from urllib.parse import quote
 import requests
 from django.conf import settings
 
+from team.models import MAX_TEAMS
+
 
 class AuthentikUser(TypedDict):
     pk: int
@@ -98,7 +100,7 @@ def toggle_all_blueteam_accounts_sync(is_active: bool) -> tuple[int, int]:
     """
     success_count = 0
     failed_count = 0
-    for i in range(1, 51):
+    for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
         success, _ = toggle_authentik_user(username, is_active)
         if success:
@@ -173,8 +175,8 @@ def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]
     Returns:
         Tuple of (success: bool, error_message: str or None)
     """
-    if team_number < 1 or team_number > 50:
-        return (False, "Team number must be between 1 and 50")
+    if team_number < 1 or team_number > MAX_TEAMS:
+        return (False, f"Team number must be between 1 and {MAX_TEAMS}")
 
     username = f"team{team_number:02d}"
 
@@ -262,8 +264,8 @@ def parse_team_range(range_str: str) -> list[int]:
 
             if start_num > end_num:
                 raise ValueError(f"Invalid range: {part} (start > end)")
-            if start_num < 1 or end_num > 50:
-                raise ValueError(f"Team numbers must be 1-50, got: {part}")
+            if start_num < 1 or end_num > MAX_TEAMS:
+                raise ValueError(f"Team numbers must be 1-{MAX_TEAMS}, got: {part}")
 
             team_numbers.update(range(start_num, end_num + 1))
         else:
@@ -273,8 +275,8 @@ def parse_team_range(range_str: str) -> list[int]:
             except ValueError as e:
                 raise ValueError(f"Invalid team number: {part}") from e
 
-            if num < 1 or num > 50:
-                raise ValueError(f"Team number must be 1-50, got: {num}")
+            if num < 1 or num > MAX_TEAMS:
+                raise ValueError(f"Team number must be 1-{MAX_TEAMS}, got: {num}")
             team_numbers.add(num)
 
     return sorted(team_numbers)

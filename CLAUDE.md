@@ -22,7 +22,8 @@ docker compose logs -f web bot  # tail logs (production: ssh to 10.0.0.10, cd /o
 - Don't test implementation details (init attrs, for-loop iteration, asyncio plumbing) — test observable behavior
 - Strict MyPy enforced - all functions need type annotations
 - Bot state persists in DB via `BotState` model, not env vars
-- Authentik groups are source of truth for permissions
+- Authentik groups are source of truth for permissions — hierarchy defined in `core/permission_constants.py`, used by both web (`auth_utils.py`) and bot (`permissions.py`)
+- For async wrappers of sync Django functions, use thin `await sync_to_async(func)(...)` — don't duplicate parameter lists
 - DiscordQueue handles rate limiting - don't call Discord API directly from cogs
 - Gunicorn workers capped at 4 to stay under DB connection limit
 - Templates use Cotton components (`c-button`, `c-link`, `c-slot`, etc.) - don't use raw HTML/Bootstrap for buttons, links, or form elements

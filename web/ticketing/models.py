@@ -56,6 +56,14 @@ class Ticket(models.Model):
         ("cancelled", "Cancelled"),
     ]
 
+    # Valid state transitions: {current_status: [allowed_next_statuses]}
+    VALID_TRANSITIONS: dict[str, list[str]] = {
+        "open": ["claimed", "resolved", "cancelled"],
+        "claimed": ["open", "resolved"],  # unclaim goes back to open
+        "resolved": ["open"],  # reopen goes back to open
+        "cancelled": [],  # terminal state
+    }
+
     # Identity
     ticket_number = models.CharField(max_length=20, unique=True)
     team = models.ForeignKey("team.Team", on_delete=models.CASCADE, related_name="tickets")
@@ -125,6 +133,10 @@ class Ticket(models.Model):
                 name="ticket_number_not_empty",
             ),
         ]
+
+    def can_transition_to(self, new_status: str) -> bool:
+        """Check if this ticket can transition to the given status."""
+        return new_status in self.VALID_TRANSITIONS.get(self.status, [])
 
     def __str__(self) -> str:
         return f"{self.ticket_number} - Team {self.team.team_number}"

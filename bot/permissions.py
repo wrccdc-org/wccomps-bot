@@ -7,6 +7,7 @@ from typing import TypedDict
 import discord
 
 from core.models import UserGroups
+from core.permission_constants import check_groups_for_permission
 from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
@@ -86,76 +87,42 @@ async def get_authentik_groups_async(discord_user_id: int) -> list[str]:
 
 
 async def is_admin_async(interaction: discord.Interaction) -> bool:
-    """
-    Check if user has admin permissions via Authentik groups.
-
-    Requires WCComps_Discord_Admin Authentik group.
-    User must be linked via /link.
-
-    Admin can:
-    - All team management commands
-    - All ticket management commands
-    - Access Django admin interface
-    """
+    """Check if user has admin permissions via Authentik groups."""
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_Discord_Admin" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "admin")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for admin permission: {e}")
+        logger.exception(f"Failed to check admin permission: {e}")
         return False
 
 
 async def can_manage_tickets_async(interaction: discord.Interaction) -> bool:
-    """
-    Check if user can manage tickets via Authentik groups.
-
-    Requires WCComps_Ticketing_Admin or WCComps_Discord_Admin group.
-    User must be linked via /link.
-    """
-    if await is_admin_async(interaction):
-        return True
-
+    """Check if user can manage tickets via Authentik groups."""
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_Ticketing_Admin" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "ticketing_admin")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for ticketing admin permission: {e}")
+        logger.exception(f"Failed to check ticketing admin permission: {e}")
         return False
 
 
 async def can_support_tickets_async(interaction: discord.Interaction) -> bool:
-    """
-    Check if user can work on tickets via Authentik groups.
-
-    Requires WCComps_Ticketing_Support, WCComps_Ticketing_Admin, or WCComps_Discord_Admin group.
-    User must be linked via /link.
-    """
-    if await is_admin_async(interaction) or await can_manage_tickets_async(interaction):
-        return True
-
+    """Check if user can work on tickets via Authentik groups."""
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_Ticketing_Support" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "ticketing_support")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for ticketing support permission: {e}")
+        logger.exception(f"Failed to check ticketing support permission: {e}")
         return False
 
 
 async def is_gold_team_async(interaction: discord.Interaction) -> bool:
-    """
-    Check if user is member of GoldTeam via Authentik groups.
-
-    Requires WCComps_GoldTeam or WCComps_Discord_Admin group.
-    User must be linked via /link.
-    """
-    if await is_admin_async(interaction):
-        return True
-
+    """Check if user is member of GoldTeam via Authentik groups."""
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_GoldTeam" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "gold_team")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for GoldTeam permission: {e}")
+        logger.exception(f"Failed to check GoldTeam permission: {e}")
         return False
 
 
@@ -214,16 +181,11 @@ async def check_gold_team(interaction: discord.Interaction) -> bool:
 
 async def is_white_team_async(interaction: discord.Interaction) -> bool:
     """Check if user is member of WhiteTeam via Authentik groups."""
-    if await is_admin_async(interaction):
-        return True
-    if await is_gold_team_async(interaction):
-        return True
-
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_WhiteTeam" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "white_team")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for WhiteTeam permission: {e}")
+        logger.exception(f"Failed to check WhiteTeam permission: {e}")
         return False
 
 
@@ -242,16 +204,11 @@ async def check_white_team(interaction: discord.Interaction) -> bool:
 
 async def is_orange_team_async(interaction: discord.Interaction) -> bool:
     """Check if user is member of OrangeTeam via Authentik groups."""
-    if await is_admin_async(interaction):
-        return True
-    if await is_gold_team_async(interaction):
-        return True
-
     try:
-        authentik_groups = await get_authentik_groups_async(interaction.user.id)
-        return "WCComps_OrangeTeam" in authentik_groups
+        groups = await get_authentik_groups_async(interaction.user.id)
+        return check_groups_for_permission(groups, "orange_team")
     except Exception as e:
-        logger.exception(f"Failed to check Authentik groups for OrangeTeam permission: {e}")
+        logger.exception(f"Failed to check OrangeTeam permission: {e}")
         return False
 
 

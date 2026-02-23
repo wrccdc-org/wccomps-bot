@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from team.models import Team
+from team.models import MAX_TEAMS, Team
 
 
 def parse_datetime_to_utc(datetime_str: str, tz_name: str = "America/Los_Angeles") -> datetime:
@@ -45,7 +45,7 @@ def get_team_from_groups(
         team_match = re.match(r"^WCComps_BlueTeam(\d+)$", group)
         if team_match:
             team_number = int(team_match.group(1))
-            if 1 <= team_number <= 50:
+            if 1 <= team_number <= MAX_TEAMS:
                 try:
                     team = Team.objects.get(team_number=team_number)
                     return team, team_number, True

@@ -1,0 +1,85 @@
+"""Scoring configuration, sync, and recalculate views."""
+
+from typing import cast
+
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
+
+from core.auth_utils import require_permission
+
+from ..calculator import recalculate_all_scores
+from ..forms import ScoringTemplateForm
+from ..models import QuotientMetadataCache, ScoringTemplate
+from ..quotient_sync import sync_quotient_metadata, sync_service_scores
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
+def scoring_config(request: HttpRequest) -> HttpResponse:
+    """Scoring configuration (admin)."""
+
+    # Get or create scoring template (singleton)
+    template = ScoringTemplate.objects.first()
+    if not template:
+        template = ScoringTemplate.objects.create()
+
+    # Get metadata sync status
+    try:
+        metadata = QuotientMetadataCache.objects.first()
+    except QuotientMetadataCache.DoesNotExist:
+        metadata = None
+
+    if request.method == "POST":
+        form = ScoringTemplateForm(request.POST, instance=template)
+        if form.is_valid():
+            template = form.save(commit=False)
+            template.updated_by = cast(User, request.user)
+            template.save()
+            messages.success(request, "Scoring configuration updated")
+            return redirect("scoring:scoring_config")
+    else:
+        form = ScoringTemplateForm(instance=template)
+
+    context = {
+        "form": form,
+        "template": template,
+        "metadata": metadata,
+    }
+    return render(request, "scoring/scoring_config.html", context)
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
+@require_http_methods(["POST"])
+def sync_metadata(request: HttpRequest) -> HttpResponse:
+    """Sync metadata from Quotient."""
+    try:
+        sync_quotient_metadata(cast(User, request.user))
+        messages.success(request, "Metadata synced successfully")
+    except ValueError as e:
+        messages.error(request, f"Failed to sync metadata: {e}")
+    except Exception as e:
+        messages.error(request, f"Unexpected error syncing metadata: {e}")
+    return redirect("scoring:scoring_config")
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
+@require_http_methods(["POST"])
+def sync_scores(request: HttpRequest) -> HttpResponse:
+    """Sync service scores from Quotient."""
+    try:
+        result = sync_service_scores(cast(User, request.user))
+        messages.success(request, f"Synced {result['total']} teams")
+    except Exception as e:
+        messages.error(request, f"Failed to sync scores: {e}")
+    return redirect("scoring:scoring_config")
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
+@require_http_methods(["POST"])
+def recalculate_scores(request: HttpRequest) -> HttpResponse:
+    """Recalculate all scores."""
+    recalculate_all_scores()
+    messages.success(request, "Scores recalculated successfully")
+    return redirect("scoring:leaderboard")

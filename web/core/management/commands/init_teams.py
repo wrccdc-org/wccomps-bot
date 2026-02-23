@@ -1,13 +1,13 @@
-"""Initialize 50 teams in the database."""
+"""Initialize teams in the database."""
 
 from django.core.management.base import BaseCommand
 
 from core.models import CompetitionConfig
-from team.models import Team
+from team.models import MAX_TEAMS, Team
 
 
 class Command(BaseCommand):
-    help = "Initialize 50 teams in the database"
+    help = "Initialize teams in the database"
 
     def handle(self, *args: str, **options: object) -> None:
         created_count = 0
@@ -17,7 +17,7 @@ class Command(BaseCommand):
         config = CompetitionConfig.get_config()
         max_members = config.max_team_members
 
-        for team_num in range(1, 51):
+        for team_num in range(1, MAX_TEAMS + 1):
             team_name = f"BlueTeam{team_num:02d}"
             authentik_group = f"WCComps_BlueTeam{team_num:02d}"
 

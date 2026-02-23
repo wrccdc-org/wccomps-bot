@@ -102,6 +102,7 @@ class Command(BaseCommand):
         self.stdout.write("Testing view imports...")
         try:
             from core import auth_utils, utils, views
+            from ticketing import views as ticketing_views
 
             # Verify key functions exist
             if not callable(auth_utils.get_authentik_groups):
@@ -112,8 +113,8 @@ class Command(BaseCommand):
                 raise RuntimeError("auth_utils.has_permission is not callable")
             if not callable(views.home):
                 raise RuntimeError("views.home is not callable")
-            if not callable(views.ticket_list):
-                raise RuntimeError("views.ticket_list is not callable")
+            if not callable(ticketing_views.ticket_list):
+                raise RuntimeError("ticketing_views.ticket_list is not callable")
 
             self.stdout.write(self.style.SUCCESS("✓ View imports OK"))
         except Exception as e:

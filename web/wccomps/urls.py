@@ -20,6 +20,7 @@ from django.shortcuts import redirect
 from django.urls import include, path
 
 from core import admin_views, oauth, views
+from ticketing import views as ticketing_views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -54,36 +55,15 @@ urlpatterns = [
     path("orange-team/", include("challenges.urls")),
     path("register/", include("registration.urls")),
     # Ticketing routes (unified under /tickets/)
-    path("tickets/", views.ticket_list, name="ticket_list"),
-    path("tickets/create/", views.create_ticket, name="create_ticket"),
-    path("tickets/bulk-claim/", views.tickets_bulk_claim, name="tickets_bulk_claim"),
-    path("tickets/bulk-resolve/", views.tickets_bulk_resolve, name="tickets_bulk_resolve"),
-    path("tickets/clear-all/", views.tickets_clear_all, name="tickets_clear_all"),
-    path("tickets/notifications/", views.ticket_notifications, name="ticket_notifications"),
-    path("tickets/<str:ticket_number>/", views.ticket_detail, name="ticket_detail"),
-    path("tickets/<str:ticket_number>/dynamic/", views.ticket_detail_dynamic, name="ticket_detail_dynamic"),
-    path("tickets/<str:ticket_number>/comment/", views.ticket_comment, name="ticket_comment"),
-    path("tickets/<str:ticket_number>/cancel/", views.ticket_cancel, name="ticket_cancel"),
-    path("tickets/<str:ticket_number>/claim/", views.ticket_claim, name="ticket_claim"),
-    path("tickets/<str:ticket_number>/unclaim/", views.ticket_unclaim, name="ticket_unclaim"),
-    path("tickets/<str:ticket_number>/reassign/", views.ticket_reassign, name="ticket_reassign"),
-    path("tickets/<str:ticket_number>/resolve/", views.ticket_resolve, name="ticket_resolve"),
-    path("tickets/<str:ticket_number>/reopen/", views.ticket_reopen, name="ticket_reopen"),
-    path("tickets/<str:ticket_number>/change-category/", views.ticket_change_category, name="ticket_change_category"),
+    path("tickets/", include("ticketing.urls")),
+    # Ops ticket review routes (stay under /ops/)
+    path("ops/review-tickets/", ticketing_views.ops_review_tickets, name="ops_review_tickets"),
+    path("ops/ticket/<str:ticket_number>/verify/", ticketing_views.ops_verify_ticket, name="ops_verify_ticket"),
     path(
-        "tickets/<str:ticket_number>/attachment/upload/",
-        views.ticket_attachment_upload,
-        name="ticket_attachment_upload",
+        "ops/tickets/batch-verify-points/",
+        ticketing_views.ops_batch_verify_tickets,
+        name="ops_batch_verify_tickets",
     ),
-    path(
-        "tickets/<str:ticket_number>/attachment/<int:attachment_id>/",
-        views.ticket_attachment_download,
-        name="ticket_attachment_download",
-    ),
-    # Scoring routes (stay under /ops/)
-    path("ops/review-tickets/", views.ops_review_tickets, name="ops_review_tickets"),
-    path("ops/ticket/<str:ticket_number>/verify/", views.ops_verify_ticket, name="ops_verify_ticket"),
-    path("ops/tickets/batch-verify-points/", views.ops_batch_verify_tickets, name="ops_batch_verify_tickets"),
     # Backwards-compat redirects for old /ops/tickets/ URLs
     path("ops/tickets/", lambda r: redirect("ticket_list", permanent=True), name="ops_ticket_list_redirect"),
     path(

@@ -109,41 +109,19 @@ async def acreate_ticket_atomic(
     hostname: str = "",
     ip_address: str | None = None,
     service_name: str = "",
-    actor_username: str = "discord",
+    actor_username: str = "system",
 ) -> Ticket:
-    """
-    Async version of create_ticket_atomic for Discord bot usage.
-
-    Wraps the sync version to ensure proper transaction handling.
-
-    Args:
-        team: Team to create ticket for
-        category: TicketCategory instance
-        title: Ticket title
-        description: Ticket description
-        hostname: Hostname (optional)
-        ip_address: IP address (optional)
-        service_name: Service name (optional)
-        actor_username: Username of person creating ticket (for history)
-
-    Returns:
-        Created Ticket instance
-    """
-
-    @sync_to_async
-    def create_sync() -> Ticket:
-        return create_ticket_atomic(
-            team=team,
-            category=category,
-            title=title,
-            description=description,
-            hostname=hostname,
-            ip_address=ip_address,
-            service_name=service_name,
-            actor_username=actor_username,
-        )
-
-    return await create_sync()
+    """Async wrapper for create_ticket_atomic (Discord bot usage)."""
+    return await sync_to_async(create_ticket_atomic)(
+        team=team,
+        category=category,
+        title=title,
+        description=description,
+        hostname=hostname,
+        ip_address=ip_address,
+        service_name=service_name,
+        actor_username=actor_username,
+    )
 
 
 def claim_ticket_atomic(
@@ -206,30 +184,16 @@ async def aclaim_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
-    """
-    Async version of claim_ticket_atomic.
-
-    Args:
-        ticket_id: ID of ticket to claim
-        actor_username: Username for history (e.g., "discord:user" or "web:user")
-        discord_id: Discord user ID (optional)
-        discord_username: Discord username (optional)
-
-    Returns:
-        Tuple of (ticket, error_message). If error, ticket is None.
-    """
-
-    @sync_to_async
-    def claim_atomic() -> tuple[Ticket | None, str | None]:
-        return claim_ticket_atomic(
-            ticket_id=ticket_id,
-            actor_username=actor_username,
-            discord_id=discord_id,
-            discord_username=discord_username,
-        )
-
-    return await claim_atomic()
+    """Async wrapper for claim_ticket_atomic."""
+    return await sync_to_async(claim_ticket_atomic)(
+        ticket_id=ticket_id,
+        actor_username=actor_username,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        user=user,
+    )
 
 
 def resolve_ticket_atomic(
@@ -335,34 +299,18 @@ async def aresolve_ticket_atomic(
     points_override: int | None = None,
     discord_id: int | None = None,
     discord_username: str | None = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
-    """
-    Async version of resolve_ticket_atomic.
-
-    Args:
-        ticket_id: ID of ticket to resolve
-        actor_username: Username for history (e.g., "discord:user" or "web:user")
-        resolution_notes: Notes describing resolution
-        points_override: Override points for variable-point categories
-        discord_id: Discord user ID (optional)
-        discord_username: Discord username (optional)
-
-    Returns:
-        Tuple of (ticket, error_message). If error, ticket is None.
-    """
-
-    @sync_to_async
-    def resolve_atomic() -> tuple[Ticket | None, str | None]:
-        return resolve_ticket_atomic(
-            ticket_id=ticket_id,
-            actor_username=actor_username,
-            resolution_notes=resolution_notes,
-            points_override=points_override,
-            discord_id=discord_id,
-            discord_username=discord_username,
-        )
-
-    return await resolve_atomic()
+    """Async wrapper for resolve_ticket_atomic."""
+    return await sync_to_async(resolve_ticket_atomic)(
+        ticket_id=ticket_id,
+        actor_username=actor_username,
+        resolution_notes=resolution_notes,
+        points_override=points_override,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        user=user,
+    )
 
 
 def unclaim_ticket_atomic(
@@ -410,26 +358,14 @@ def unclaim_ticket_atomic(
 async def aunclaim_ticket_atomic(
     ticket_id: int,
     actor_username: str,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
-    """
-    Async version of unclaim_ticket_atomic.
-
-    Args:
-        ticket_id: ID of ticket to unclaim
-        actor_username: Username for history (e.g., "discord:user" or "web:user")
-
-    Returns:
-        Tuple of (ticket, error_message). If error, ticket is None.
-    """
-
-    @sync_to_async
-    def unclaim_atomic() -> tuple[Ticket | None, str | None]:
-        return unclaim_ticket_atomic(
-            ticket_id=ticket_id,
-            actor_username=actor_username,
-        )
-
-    return await unclaim_atomic()
+    """Async wrapper for unclaim_ticket_atomic."""
+    return await sync_to_async(unclaim_ticket_atomic)(
+        ticket_id=ticket_id,
+        actor_username=actor_username,
+        user=user,
+    )
 
 
 def reassign_ticket_atomic(
@@ -493,27 +429,13 @@ async def areassign_ticket_atomic(
     actor_username: str,
     discord_id: int | None = None,
     discord_username: str | None = None,
+    user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
-    """
-    Async version of reassign_ticket_atomic.
-
-    Args:
-        ticket_id: ID of ticket to reassign
-        actor_username: Username for history (e.g., "discord:user" or "web:user")
-        discord_id: Discord user ID of new assignee (optional)
-        discord_username: Discord username of new assignee (optional)
-
-    Returns:
-        Tuple of (ticket, error_message). If error, ticket is None.
-    """
-
-    @sync_to_async
-    def reassign_atomic() -> tuple[Ticket | None, str | None]:
-        return reassign_ticket_atomic(
-            ticket_id=ticket_id,
-            actor_username=actor_username,
-            discord_id=discord_id,
-            discord_username=discord_username,
-        )
-
-    return await reassign_atomic()
+    """Async wrapper for reassign_ticket_atomic."""
+    return await sync_to_async(reassign_ticket_atomic)(
+        ticket_id=ticket_id,
+        actor_username=actor_username,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        user=user,
+    )

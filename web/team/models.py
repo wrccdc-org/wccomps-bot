@@ -11,6 +11,8 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+MAX_TEAMS = 50
+
 
 class Team(models.Model):
     """Competition team (1-50)."""
@@ -50,9 +52,10 @@ class Team(models.Model):
         if not self.authentik_group and self.team_number:
             self.authentik_group = f"WCComps_BlueTeam{self.team_number:02d}"
 
-        # Validate team_number range (1-50)
-        if self.team_number is not None and (self.team_number < 1 or self.team_number > 50):
-            raise ValidationError({"team_number": f"Team number must be between 1 and 50, got {self.team_number}"})
+        # Validate team_number range (1-MAX_TEAMS)
+        if self.team_number is not None and (self.team_number < 1 or self.team_number > MAX_TEAMS):
+            msg = f"Team number must be between 1 and {MAX_TEAMS}, got {self.team_number}"
+            raise ValidationError({"team_number": msg})
 
         # Validate max_members (must be positive)
         if self.max_members is not None and self.max_members < 1:

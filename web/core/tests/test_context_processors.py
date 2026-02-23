@@ -88,8 +88,8 @@ class TestPermissionsContextProcessor:
         assert context["is_white_team"] is True
         assert context["is_orange_team"] is True
 
-    def test_non_white_team_user_has_is_white_team_false(self, request_factory):
-        """User not in WCComps_WhiteTeam group should have is_white_team = False."""
+    def test_gold_team_user_has_white_and_orange_team(self, request_factory):
+        """Gold team user should have is_white_team and is_orange_team True (hierarchy)."""
         user = User.objects.create_user(username="goldteam", password="test")
         UserGroups.objects.create(user=user, authentik_id="gold-team-uid", groups=["WCComps_GoldTeam"])
 
@@ -98,8 +98,8 @@ class TestPermissionsContextProcessor:
 
         context = permissions(request)
 
-        assert context["is_white_team"] is False
-        assert context["is_orange_team"] is False
+        assert context["is_white_team"] is True
+        assert context["is_orange_team"] is True
         assert context["is_gold_team"] is True
 
     def test_admin_user_has_all_team_flags(self, request_factory):

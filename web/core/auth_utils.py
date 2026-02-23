@@ -9,6 +9,8 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpRequest, HttpResponse
 
 from .models import UserGroups
+from .permission_constants import PERMISSION_MAP as PERMISSION_MAP
+from .permission_constants import check_groups_for_permission as check_groups_for_permission
 
 P = ParamSpec("P")
 type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
@@ -52,44 +54,14 @@ def get_permissions_context(user: User) -> dict[str, bool]:
     }
 
 
-PERMISSION_MAP: dict[str, list[str]] = {
-    "admin": ["WCComps_Discord_Admin"],
-    "ticketing_admin": ["WCComps_Ticketing_Admin", "WCComps_Discord_Admin"],
-    "ticketing_support": ["WCComps_Ticketing_Support", "WCComps_Discord_Admin"],
-    "gold_team": ["WCComps_GoldTeam", "WCComps_Discord_Admin"],
-    "white_team": ["WCComps_WhiteTeam", "WCComps_Discord_Admin"],
-    "orange_team": ["WCComps_OrangeTeam", "WCComps_Discord_Admin"],
-    "red_team": ["WCComps_RedTeam", "WCComps_Discord_Admin"],
-    "helper_eligible": ["WCComps_Ticketing_Support", "WCComps_Quotient_Injects", "WCComps_Discord_Admin"],
-}
-
-
 def has_permission(user: User | AnonymousUser, permission_name: str) -> bool:
     """
     Check if user has a specific permission based on Authentik groups.
 
-    Uses SocialAccount as source of truth.
+    Uses Authentik groups as source of truth.
     """
     groups = get_authentik_groups(user)
     return check_groups_for_permission(groups, permission_name)
-
-
-def check_groups_for_permission(groups: list[str], permission_name: str) -> bool:
-    """
-    Check if a list of groups grants a permission.
-
-    Can be used with groups from UserGroups.groups.
-    """
-    if permission_name == "blue_team":
-        return any(
-            g.startswith("WCComps_BlueTeam") or g in ("WCComps_GoldTeam", "WCComps_Discord_Admin") for g in groups
-        )
-
-    if permission_name in PERMISSION_MAP:
-        return any(g in groups for g in PERMISSION_MAP[permission_name])
-
-    # Direct group check
-    return permission_name in groups
 
 
 def get_user_team_number(user: User) -> int | None:

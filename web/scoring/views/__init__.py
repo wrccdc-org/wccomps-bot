@@ -1,0 +1,134 @@
+"""Scoring views package - re-exports all view functions for backwards compatibility."""
+
+from .api import api_attack_types, api_scores, api_team_detail
+from .config import recalculate_scores, scoring_config, sync_metadata, sync_scores
+from .export import (
+    export_all,
+    export_final_scores,
+    export_incidents,
+    export_index,
+    export_inject_grades,
+    export_orange_adjustments,
+    export_red_scores,
+)
+from .incidents import (
+    delete_incident_report,
+    incident_list,
+    incident_screenshot_download,
+    match_incident,
+    review_incidents,
+    submit_incident_report,
+    view_incident_report,
+)
+from .injects import (
+    approve_inject_feedback,
+    bulk_approve_inject_feedback,
+    inject_grades_bulk_approve,
+    inject_grades_review,
+    inject_grading,
+    review_inject_feedback,
+    save_inject_feedback,
+)
+from .leaderboard import (
+    _CategoryRank,
+    _compute_scorecard_stats,
+    _InjectStat,
+    _Neighbor,
+    _ScorecardStats,
+    _ServiceStat,
+    leaderboard,
+    scorecard,
+)
+from .orange import (
+    approve_orange_adjustment,
+    bulk_approve_orange_adjustments,
+    bulk_reject_orange_adjustments,
+    orange_team_portal,
+    reject_orange_adjustment,
+    review_orange,
+    submit_orange_bonus,
+)
+from .red_team import (
+    _normalize_red_score_post,
+    api_user_ip_pools,
+    bulk_approve_red_scores,
+    delete_red_score,
+    ip_pool_create,
+    ip_pool_delete,
+    ip_pool_edit,
+    ip_pool_list,
+    leave_red_score,
+    red_screenshot_download,
+    red_team_portal,
+    red_team_scores,
+    submit_red_score,
+    view_red_score,
+)
+
+__all__ = [
+    # leaderboard
+    "leaderboard",
+    "scorecard",
+    "_compute_scorecard_stats",
+    "_CategoryRank",
+    "_InjectStat",
+    "_ServiceStat",
+    "_Neighbor",
+    "_ScorecardStats",
+    # red_team
+    "_normalize_red_score_post",
+    "red_team_portal",
+    "red_team_scores",
+    "bulk_approve_red_scores",
+    "submit_red_score",
+    "view_red_score",
+    "delete_red_score",
+    "leave_red_score",
+    "red_screenshot_download",
+    "ip_pool_list",
+    "ip_pool_create",
+    "ip_pool_edit",
+    "ip_pool_delete",
+    "api_user_ip_pools",
+    # orange
+    "orange_team_portal",
+    "review_orange",
+    "submit_orange_bonus",
+    "approve_orange_adjustment",
+    "reject_orange_adjustment",
+    "bulk_approve_orange_adjustments",
+    "bulk_reject_orange_adjustments",
+    # incidents
+    "submit_incident_report",
+    "incident_list",
+    "view_incident_report",
+    "delete_incident_report",
+    "incident_screenshot_download",
+    "review_incidents",
+    "match_incident",
+    # injects
+    "inject_grading",
+    "inject_grades_review",
+    "inject_grades_bulk_approve",
+    "review_inject_feedback",
+    "save_inject_feedback",
+    "approve_inject_feedback",
+    "bulk_approve_inject_feedback",
+    # config
+    "scoring_config",
+    "sync_metadata",
+    "sync_scores",
+    "recalculate_scores",
+    # export
+    "export_index",
+    "export_red_scores",
+    "export_incidents",
+    "export_orange_adjustments",
+    "export_inject_grades",
+    "export_final_scores",
+    "export_all",
+    # api
+    "api_scores",
+    "api_team_detail",
+    "api_attack_types",
+]
