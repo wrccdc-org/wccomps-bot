@@ -271,26 +271,6 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
     stats = _compute_scorecard_stats(team, score)
     detailed = calculate_team_score_detailed(team)
 
-    # Build chart data for template (only categories with data)
-    cat_ranks = stats["category_ranks"]
-    chart_cats = ["services", "injects", "orange", "red"]
-    cat_labels = {
-        "services": "Services",
-        "injects": "Injects",
-        "orange": "Orange",
-        "red": "Red",
-    }
-    chart_ranks = {k: v for k, v in cat_ranks.items() if k in chart_cats}
-    chart_data = {
-        "categoryChart": {
-            "labels": [cat_labels[k] for k in chart_ranks],
-            "teamValues": [float(v["value"]) for v in chart_ranks.values()],
-            "avgValues": [float(v["avg"]) for v in chart_ranks.values()],
-            "maxValues": [float(v["max"]) for v in chart_ranks.values()],
-            "rankValues": [v["rank"] for v in chart_ranks.values()],
-        },
-    }
-
     red_total = sum(r.points_per_team for r in red_scores)
     inject_total = sum(i["points"] for i in stats["inject_stats"])
     service_total = sum(s["points"] for s in stats["service_stats"])
@@ -300,7 +280,6 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         "score": score,
         "red_scores": red_scores,
         "stats": stats,
-        "chart_data_json": chart_data,
         "red_total": red_total,
         "inject_total": inject_total,
         "service_total": service_total,

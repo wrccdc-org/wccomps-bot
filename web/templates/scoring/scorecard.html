@@ -40,8 +40,6 @@
         </c-module>
         <c-module>
         <h3>Category Breakdown</h3>
-        {% if stats.category_ranks|length > 1 %}<div class="scorecard-category-grid">{% endif %}
-            <div>
                 <c-table id="category_breakdown" aria_label="Category breakdown">
                 <c-slot name="headers">
                 <tr>
@@ -195,13 +193,6 @@
                         | Orange: {{ scaling.orange_raw|floatformat:0 }} raw &times; {{ scaling.ora_modifier|floatformat:2 }}
                     </p>
                 {% endif %}
-            </div>
-            {% if stats.category_ranks|length > 1 %}
-                <div class="scorecard-chart-wrap no-print">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-        {% endif %}
         </c-module>
         {% if stats.service_stats %}
             <c-module>
@@ -331,64 +322,4 @@
             </c-module>
         {% endif %}
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
-            integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"
-            integrity="sha384-hnFo1gVSHP8jBk0P5PEB4ooNkE+OH5jRBqfLGqf6oXcPMr/UDlKB48GGaIVlEHi"
-            crossorigin="anonymous"></script>
-    {{ chart_data_json|json_script:"chart-data" }}
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const chartData = JSON.parse(document.getElementById("chart-data").textContent);
-            Chart.register(ChartDataLabels);
-
-            const catCtx = document.getElementById("categoryChart");
-            if (catCtx && chartData.categoryChart && chartData.categoryChart.labels.length > 0) {
-                const cat = chartData.categoryChart;
-                new Chart(catCtx, {
-                    type: "bar",
-                    data: {
-                        labels: cat.labels,
-                        datasets: [
-                            {
-                                label: "Team",
-                                data: cat.teamValues,
-                                backgroundColor: "rgba(54, 162, 235, 0.7)",
-                            },
-                            {
-                                label: "Field Avg",
-                                data: cat.avgValues,
-                                backgroundColor: "rgba(201, 203, 207, 0.7)",
-                            },
-                            {
-                                label: "Max",
-                                data: cat.maxValues,
-                                backgroundColor: "rgba(75, 192, 192, 0.3)",
-                            },
-                        ],
-                    },
-                    options: {
-                        indexAxis: "y",
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: "bottom" },
-                            datalabels: {
-                                anchor: "end",
-                                align: "start",
-                                font: { size: 10 },
-                                formatter: function (value) {
-                                    return Math.round(value);
-                                },
-                            },
-                        },
-                        scales: {
-                            x: { beginAtZero: true },
-                        },
-                    },
-                });
-            }
-        });
-    </script>
 {% endblock scoring_content %}

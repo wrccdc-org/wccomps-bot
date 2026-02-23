@@ -650,23 +650,9 @@ nav[role="navigation"] {
 .scorecard-insights li {
     margin-bottom: 4px;
 }
-.scorecard-category-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    align-items: start;
-}
-.scorecard-chart-wrap {
-    min-height: 200px;
-}
 .row-total td {
     border-top: 2px solid var(--hairline-color, #ddd);
     background: var(--darkened-bg, #f8f8f8);
-}
-@media (max-width: 768px) {
-    .scorecard-category-grid {
-        grid-template-columns: 1fr;
-    }
 }
 @media print {
     .no-print,
