@@ -9,7 +9,7 @@ from django.test import Client
 from django.urls import reverse
 
 from team.models import Team
-from ticketing.models import Ticket, TicketCategory, TicketComment, TicketHistory
+from ticketing.models import Ticket, TicketCategory, TicketComment
 
 pytestmark = pytest.mark.django_db
 
