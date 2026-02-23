@@ -80,11 +80,22 @@
                             <small class="text-muted">{{ score.notes }}</small>
                         </details>
                     </td>
-                    <td>
-                        <textarea name="feedback"
+                    <td x-data="{ editing: false }">
+                        <div x-show="!editing"
+                             @click="editing = true"
+                             class="click-to-edit"
+                             role="button"
+                             tabindex="0"
+                             @keydown.enter="editing = true"
+                             title="Click to edit">{{ score.feedback|default:"(click to add)" }}</div>
+                        <textarea x-show="editing"
+                                  x-ref="editor"
+                                  @click.away="editing = false"
+                                  @keydown.escape="editing = false"
+                                  x-init="$watch('editing', v => { if (v) $nextTick(() => { $refs.editor.style.height = $refs.editor.scrollHeight + 'px'; $refs.editor.focus() }) })"
+                                  @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                  name="feedback"
                                   form="save-{{ score.id }}"
-                                  rows="3"
-                                  cols="40"
                                   aria-label="Feedback for {{ score.inject_name }} Team {{ score.team.team_number }}">{{ score.feedback }}</textarea>
                     </td>
                     <td>

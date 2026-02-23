@@ -849,3 +849,32 @@ label.required::after {
     font-size: 11px;
     color: var(--body-quiet-color, #666);
 }
+
+/* ============================================
+   CLICK-TO-EDIT
+   ============================================ */
+.click-to-edit {
+    cursor: pointer;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--body-quiet-color, #666);
+}
+.click-to-edit:hover {
+    border-color: var(--hairline-color, #ddd);
+    background: var(--darkened-bg, #f8f8f8);
+}
+td textarea[x-ref="editor"] {
+    width: 100%;
+    min-height: 60px;
+    padding: 4px 6px;
+    border: 1px solid var(--primary, #417690);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+    font-family: inherit;
+}
