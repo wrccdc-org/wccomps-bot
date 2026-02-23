@@ -26,6 +26,7 @@ dependencies = [
     "django-smart-ratelimit>=0.8.11",
     "httpx>=0.28.1",
     "openpyxl>=3.1.5",
+    "weasyprint>=63.0",
 ]
 
 [project.optional-dependencies]
@@ -125,6 +126,10 @@ ignore_errors = true
 module = "django_smart_ratelimit"
 follow_imports = "normal"
 no_implicit_reexport = false
+
+[[tool.mypy.overrides]]
+module = "weasyprint"
+ignore_missing_imports = true
 
 [tool.django-stubs]
 django_settings_module = "wccomps.settings"
