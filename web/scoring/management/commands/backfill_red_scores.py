@@ -7,7 +7,6 @@ from django.db import transaction
 
 from scoring.models import AttackType, QuotientMetadataCache, RedTeamScore
 
-
 # Map keywords in attack_vector to AttackType names
 ATTACK_TYPE_KEYWORDS: dict[str, str] = {
     "default creds": "Default Credentials",
@@ -66,7 +65,11 @@ class Command(BaseCommand):
             return
 
         octet_map = _build_octet_map(metadata)
-        self.stdout.write(f"Octet map: {', '.join(f'.{k}={v['name']}' for k, v in sorted(octet_map.items(), key=lambda x: int(x[0])))}")
+        self.stdout.write(
+            f"Octet map: {', '.join(f'.{k}={v["name"]}' for k, v in sorted(octet_map.items(), key=lambda x: int(
+                        x[0]
+                    )))}"
+        )
 
         # Pre-fetch attack types
         attack_types: dict[str, AttackType] = {}
