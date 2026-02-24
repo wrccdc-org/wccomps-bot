@@ -66,9 +66,9 @@ class Command(BaseCommand):
 
         octet_map = _build_octet_map(metadata)
         self.stdout.write(
-            f"Octet map: {', '.join(f'.{k}={v["name"]}' for k, v in sorted(octet_map.items(), key=lambda x: int(
-                        x[0]
-                    )))}"
+            f"Octet map: {
+                ', '.join(f'.{k}={v["name"]}' for k, v in sorted(octet_map.items(), key=lambda x: int(x[0])))
+            }"
         )
 
         # Pre-fetch attack types
