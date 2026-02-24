@@ -23,12 +23,12 @@ class TestLeaderboardPermissions:
         response = client.get(reverse("scoring:leaderboard"))
         assert response.status_code == 302
 
-    def test_red_team_denied(self, red_team_user):
-        """Red Team should not access leaderboard."""
+    def test_red_team_allowed(self, red_team_user):
+        """Red Team should access leaderboard."""
         client = Client()
         client.force_login(red_team_user)
         response = client.get(reverse("scoring:leaderboard"))
-        assert response.status_code == 302
+        assert response.status_code == 200
 
     def test_gold_team_allowed(self, gold_team_user):
         """Gold Team should access leaderboard."""

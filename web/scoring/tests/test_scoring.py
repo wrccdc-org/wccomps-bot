@@ -271,15 +271,15 @@ class TestLeaderboardAccess:
 
         assert response.status_code == 302
 
-    def test_red_team_denied_access(self, create_user_with_groups) -> None:
-        """Red Team members should be denied access to the leaderboard."""
+    def test_red_team_allowed_access(self, create_user_with_groups) -> None:
+        """Red Team members should have access to the leaderboard."""
         user = create_user_with_groups("red_user", ["WCComps_RedTeam"])
         client = Client()
         client.force_login(user)
 
         response = client.get(reverse("scoring:leaderboard"))
 
-        assert response.status_code == 302
+        assert response.status_code == 200
 
     def test_orange_team_denied_access(self, create_user_with_groups) -> None:
         """Orange Team members should be denied access to the leaderboard."""
