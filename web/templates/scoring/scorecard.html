@@ -84,7 +84,7 @@
             <tr>
                 <td>Orange (scaled)</td>
                 <td class="text-right">
-                    <c-score_value :value="score.orange_points" format="signed" />
+{{ score.orange_points|floatformat:0 }}
                 </td>
                 {% if ora_rank %}
                     <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
