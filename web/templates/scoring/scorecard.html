@@ -83,9 +83,7 @@
         {% with ora_rank=stats.category_ranks.orange %}
             <tr>
                 <td>Orange (scaled)</td>
-                <td class="text-right">
-{{ score.orange_points|floatformat:0 }}
-                </td>
+                <td class="text-right">{{ score.orange_points|floatformat:0 }}</td>
                 {% if ora_rank %}
                     <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
                     <td class="text-right">{{ ora_rank.avg|floatformat:0 }}</td>
