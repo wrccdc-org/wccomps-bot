@@ -63,6 +63,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
     sort_by = request.GET.get("sort", "-created_at")
+    if sort_by == "default":
+        sort_by = ""
     page = request.GET.get("page", "1")
 
     base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
@@ -88,9 +90,10 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 
     # Validate and apply sort
     valid_sort_fields = ["created_at", "-created_at", "attack_type__name", "-attack_type__name"]
-    if sort_by not in valid_sort_fields:
+    if sort_by and sort_by not in valid_sort_fields:
         sort_by = "-created_at"
-    base_query = base_query.order_by(sort_by)
+    if sort_by:
+        base_query = base_query.order_by(sort_by)
 
     # Pagination
     paginator = Paginator(base_query, 50)
@@ -156,6 +159,8 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
     sort_by = request.GET.get("sort", "-created_at")
+    if sort_by == "default":
+        sort_by = ""
     page = request.GET.get("page", "1")
 
     base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
@@ -180,10 +185,11 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
         base_query = base_query.filter(submitted_by_id=int(submitter_filter))
 
     # Apply sorting
-    if sort_by.lstrip("-") in ["created_at", "points_per_team"]:
+    if sort_by and sort_by.lstrip("-") in ["created_at", "points_per_team"]:
         base_query = base_query.order_by(sort_by)
-    else:
+    elif sort_by:
         base_query = base_query.order_by("-created_at")
+        sort_by = "-created_at"
 
     # Paginate
     paginator = Paginator(base_query.distinct(), 25)

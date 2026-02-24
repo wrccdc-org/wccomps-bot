@@ -1,5 +1,6 @@
 """Tests for Red Team findings filtering functionality."""
 
+import time
 from collections.abc import Callable
 from decimal import Decimal
 
@@ -277,3 +278,98 @@ class TestRedTeamPortalFiltering:
         # Gold Team should see points per team in reviewed findings
         content = response.content.decode()
         assert "50" in content or "50.00" in content
+
+
+@pytest.mark.django_db
+class TestRedTeamSortCycle:
+    """Test that the 3-state sort cycle (asc -> desc -> unsort) works."""
+
+    def _create_findings(self, user: User) -> tuple[RedTeamScore, RedTeamScore, RedTeamScore]:
+        """Create 3 findings with different timestamps."""
+        team = Team.objects.create(team_number=1, team_name="Team 1")
+        findings = []
+        for i, vector in enumerate(["Alpha Attack", "Beta Attack", "Gamma Attack"]):
+            f = RedTeamScore.objects.create(
+                attack_vector=vector,
+                source_ip=f"10.0.0.{i}",
+                points_per_team=Decimal("10.00"),
+                submitted_by=user,
+            )
+            f.affected_teams.add(team)
+            findings.append(f)
+            time.sleep(0.01)  # ensure distinct created_at timestamps
+        return findings[0], findings[1], findings[2]
+
+    def test_sort_ascending(self, create_user_with_groups: Callable[..., User]) -> None:
+        """sort=created_at returns findings oldest-first."""
+        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+        f1, f2, f3 = self._create_findings(gold_user)
+
+        client = Client()
+        client.force_login(gold_user)
+        response = client.get(reverse("scoring:red_team_portal"), {"sort": "created_at", "status": "all"})
+        assert response.status_code == 200
+
+        ids = [f.id for f in response.context["page_obj"]]
+        assert ids == [f1.id, f2.id, f3.id]
+        assert response.context["sort_by"] == "created_at"
+
+    def test_sort_descending(self, create_user_with_groups: Callable[..., User]) -> None:
+        """sort=-created_at returns findings newest-first."""
+        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+        f1, f2, f3 = self._create_findings(gold_user)
+
+        client = Client()
+        client.force_login(gold_user)
+        response = client.get(reverse("scoring:red_team_portal"), {"sort": "-created_at", "status": "all"})
+        assert response.status_code == 200
+
+        ids = [f.id for f in response.context["page_obj"]]
+        assert ids == [f3.id, f2.id, f1.id]
+        assert response.context["sort_by"] == "-created_at"
+
+    def test_sort_default_unsorts(self, create_user_with_groups: Callable[..., User]) -> None:
+        """sort=default should NOT re-apply the view's default sort.
+
+        This is the key bug fix: previously, 'sort=default' failed validation
+        and silently fell back to '-created_at', trapping users in a loop.
+        Now sort_by should be empty string, meaning no column shows as active.
+        """
+        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+        self._create_findings(gold_user)
+
+        client = Client()
+        client.force_login(gold_user)
+        response = client.get(reverse("scoring:red_team_portal"), {"sort": "default", "status": "all"})
+        assert response.status_code == 200
+        # sort_by must be empty so no column header shows an arrow
+        assert response.context["sort_by"] == ""
+
+    def test_sort_cycle_no_arrow_after_unsort(self, create_user_with_groups: Callable[..., User]) -> None:
+        """After unsort (sort=default), no column header should show ▲ or ▼."""
+        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+        self._create_findings(gold_user)
+
+        client = Client()
+        client.force_login(gold_user)
+        response = client.get(reverse("scoring:red_team_portal"), {"sort": "default", "status": "all"})
+        content = response.content.decode()
+        # The sort indicators should NOT appear in any table header
+        # (they only appear when current_sort matches a sort_field)
+        assert "▲" not in content
+        assert "▼" not in content
+
+    def test_first_visit_uses_default_sort(self, create_user_with_groups: Callable[..., User]) -> None:
+        """First visit (no sort param) should use the view's default sort."""
+        gold_user = create_user_with_groups("gold_user", ["WCComps_GoldTeam"])
+        f1, f2, f3 = self._create_findings(gold_user)
+
+        client = Client()
+        client.force_login(gold_user)
+        response = client.get(reverse("scoring:red_team_portal"), {"status": "all"})
+        assert response.status_code == 200
+
+        # Default is -created_at (newest first)
+        ids = [f.id for f in response.context["page_obj"]]
+        assert ids == [f3.id, f2.id, f1.id]
+        assert response.context["sort_by"] == "-created_at"

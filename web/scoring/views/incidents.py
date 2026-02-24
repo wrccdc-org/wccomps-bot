@@ -201,6 +201,8 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     box_filter = request.GET.get("box", "")
     sort_by = request.GET.get("sort", "-created_at")
+    if sort_by == "default":
+        sort_by = ""
     page = request.GET.get("page", "1")
 
     base_query = IncidentReport.objects.select_related("team").prefetch_related("screenshots")
@@ -227,9 +229,10 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
         "attack_detected_at",
         "-attack_detected_at",
     ]
-    if sort_by not in valid_sort_fields:
+    if sort_by and sort_by not in valid_sort_fields:
         sort_by = "-created_at"
-    base_query = base_query.order_by(sort_by)
+    if sort_by:
+        base_query = base_query.order_by(sort_by)
 
     # Pagination
     paginator = Paginator(base_query, 50)

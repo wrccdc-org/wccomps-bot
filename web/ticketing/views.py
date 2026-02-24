@@ -90,6 +90,8 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
     category_filter = request.GET.get("category", "all") or "all"
     search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
+    if sort_by == "default":
+        sort_by = ""
     page_size_str = request.GET.get("page_size", "50")
     page = request.GET.get("page", "1")
 
@@ -168,10 +170,11 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
         "assigned_to__username",
         "-assigned_to__username",
     ]
-    if sort_by not in valid_sort_fields:
+    if sort_by and sort_by not in valid_sort_fields:
         sort_by = "-created_at"
 
-    query = query.order_by(sort_by)
+    if sort_by:
+        query = query.order_by(sort_by)
 
     # Enrich tickets with category info and stale status
     thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
@@ -1276,6 +1279,8 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-resolved_at")
+    if sort_by == "default":
+        sort_by = ""
     page_size_str = request.GET.get("page_size", "50")
     page = request.GET.get("page", "1")
 
@@ -1323,10 +1328,11 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         "category",
         "-category",
     ]
-    if sort_by not in valid_sort_fields:
+    if sort_by and sort_by not in valid_sort_fields:
         sort_by = "-resolved_at"
 
-    query = query.order_by(sort_by)
+    if sort_by:
+        query = query.order_by(sort_by)
 
     # Enrich tickets with category info
     tickets_with_info = []

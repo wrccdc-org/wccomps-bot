@@ -117,6 +117,8 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     show_outliers_only = request.GET.get("outliers") == "1"
     sort_by = request.GET.get("sort", "inject_name")
+    if sort_by == "default":
+        sort_by = ""
     page = request.GET.get("page", "1")
 
     base_query = InjectScore.objects.select_related("team", "graded_by")
@@ -176,20 +178,21 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         "graded_at",
         "-graded_at",
     ]
-    if sort_by not in valid_sort_fields:
+    if sort_by and sort_by not in valid_sort_fields:
         sort_by = "inject_name"
 
     # Sort in Python since we already have the list
-    reverse = sort_by.startswith("-")
-    sort_key = sort_by.lstrip("-")
-    if sort_key == "team__team_number":
-        all_grades_for_outlier_calc.sort(key=lambda g: g.team.team_number, reverse=reverse)
-    elif sort_key == "inject_name":
-        all_grades_for_outlier_calc.sort(key=lambda g: g.inject_name, reverse=reverse)
-    elif sort_key == "points_awarded":
-        all_grades_for_outlier_calc.sort(key=lambda g: float(g.points_awarded), reverse=reverse)
-    elif sort_key == "graded_at":
-        all_grades_for_outlier_calc.sort(key=lambda g: g.graded_at, reverse=reverse)
+    if sort_by:
+        reverse = sort_by.startswith("-")
+        sort_key = sort_by.lstrip("-")
+        if sort_key == "team__team_number":
+            all_grades_for_outlier_calc.sort(key=lambda g: g.team.team_number, reverse=reverse)
+        elif sort_key == "inject_name":
+            all_grades_for_outlier_calc.sort(key=lambda g: g.inject_name, reverse=reverse)
+        elif sort_key == "points_awarded":
+            all_grades_for_outlier_calc.sort(key=lambda g: float(g.points_awarded), reverse=reverse)
+        elif sort_key == "graded_at":
+            all_grades_for_outlier_calc.sort(key=lambda g: g.graded_at, reverse=reverse)
 
     # Pagination
     paginator = Paginator(all_grades_for_outlier_calc, 50)
