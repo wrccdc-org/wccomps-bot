@@ -64,9 +64,9 @@ class _ScorecardStats(TypedDict):
     insights: list[str]
 
 
-@require_permission("gold_team", "white_team", "ticketing_admin")
+@require_permission("gold_team", "white_team", "red_team", "ticketing_admin")
 def leaderboard(request: HttpRequest) -> HttpResponse:
-    """Restricted leaderboard view - accessible only by Gold/White Team, Ticketing Admin, and System Admin."""
+    """Restricted leaderboard view."""
     scores = get_leaderboard()
 
     context = {
@@ -254,6 +254,7 @@ def _compute_scorecard_stats(team: Team, score: FinalScore) -> _ScorecardStats:
 @require_permission(
     "gold_team",
     "white_team",
+    "red_team",
     "ticketing_admin",
     error_message="Only authorized staff can view scorecards",
 )
@@ -301,6 +302,7 @@ def scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
 @require_permission(
     "gold_team",
     "white_team",
+    "red_team",
     "ticketing_admin",
     error_message="Only authorized staff can export scorecards",
 )
