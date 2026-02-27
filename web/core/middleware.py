@@ -15,6 +15,32 @@ logger = logging.getLogger("wccomps.access")
 error_logger = logging.getLogger("wccomps.errors")
 
 
+class SecurityHeadersMiddleware:
+    """Add security headers to all responses."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+
+        # Content-Security-Policy
+        if "Content-Security-Policy" not in response:
+            response["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "font-src 'self'; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none'; "
+                "form-action 'self'; "
+                "base-uri 'self'"
+            )
+
+        return response
+
+
 class SubdomainRedirectMiddleware:
     """Redirect subdomain root paths to their corresponding app paths."""
 

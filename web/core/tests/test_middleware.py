@@ -394,3 +394,21 @@ class TestSecuritySettings:
     def test_session_cookie_httponly_explicit(self):
         """SESSION_COOKIE_HTTPONLY should be explicitly True."""
         assert settings.SESSION_COOKIE_HTTPONLY is True
+
+
+class TestSecurityHeadersMiddleware:
+    """Tests for security headers middleware."""
+
+    def test_csp_header_present(self):
+        """Responses should include Content-Security-Policy header."""
+        client = Client()
+        response = client.get("/health/")
+        assert "Content-Security-Policy" in response
+
+    def test_csp_restricts_scripts(self):
+        """CSP should restrict script sources."""
+        client = Client()
+        response = client.get("/health/")
+        csp = response["Content-Security-Policy"]
+        assert "script-src" in csp
+        assert "unsafe-eval" not in csp
