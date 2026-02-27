@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -14,6 +15,7 @@ class RegistrationViewTestCase(TestCase):
 
     def setUp(self):
         """Set up test client and create an active season with event."""
+        cache.clear()
         self.client = Client()
         self.season = Season.objects.create(name="2026 Season", year=2026, is_active=True)
         self.event = Event.objects.create(
@@ -79,6 +81,45 @@ class RegistrationViewTestCase(TestCase):
         response = self.client.post(reverse("registration_register"), data=form_data)
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response.context["form"], "school_name", "This field is required.")
+
+    def test_rate_limit_after_10_successful_submissions(self):
+        """Test that 11th registration from same IP gets 429."""
+        url = reverse("registration_register")
+        for i in range(10):
+            form_data = {
+                "school_name": f"School {i}",
+                "region": "wrccdc",
+                "captain_name": "John Doe",
+                "captain_email": f"captain{i}@example.com",
+                "captain_phone": "555-1234",
+                "coach_name": "Dr. Smith",
+                "coach_email": f"coach{i}@example.com",
+                "coach_phone": "",
+                "events": [self.event.id],
+                "agree_to_rules": True,
+            }
+            response = self.client.post(url, data=form_data)
+            self.assertEqual(response.status_code, 302, f"Submission {i + 1} should succeed")
+
+        self.assertEqual(TeamRegistration.objects.count(), 10)
+
+        # 11th submission should be rate limited
+        form_data = {
+            "school_name": "School 10",
+            "region": "wrccdc",
+            "captain_name": "John Doe",
+            "captain_email": "captain10@example.com",
+            "captain_phone": "555-1234",
+            "coach_name": "Dr. Smith",
+            "coach_email": "coach10@example.com",
+            "coach_phone": "",
+            "events": [self.event.id],
+            "agree_to_rules": True,
+        }
+        response = self.client.post(url, data=form_data)
+        self.assertEqual(response.status_code, 429)
+        self.assertContains(response, "Too many registration submissions", status_code=429)
+        self.assertEqual(TeamRegistration.objects.count(), 10)
 
 
 class AdminReviewListViewTestCase(TestCase):
