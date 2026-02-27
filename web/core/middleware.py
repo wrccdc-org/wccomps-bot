@@ -75,6 +75,13 @@ class AuthentikRequiredMiddleware:
             safe_next = quote(next_url, safe="")
             return redirect(f"/auth/login/?next={safe_next}")
 
+        # Django admin requires Authentik admin permission
+        if request.path.startswith("/admin/"):
+            from .auth_utils import has_permission
+
+            if not has_permission(request.user, "admin"):
+                return HttpResponse("Forbidden", status=403)
+
         return self.get_response(request)
 
 
