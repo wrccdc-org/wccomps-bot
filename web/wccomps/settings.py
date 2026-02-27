@@ -32,24 +32,17 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", secrets.token_urlsafe(50))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # CSRF trusted origins for reverse proxy
 CSRF_TRUSTED_ORIGINS = [
     "https://bot.wccomps.org",
-    "http://bot.wccomps.org",
     "https://register.wccomps.org",
-    "http://register.wccomps.org",
     "https://team.wccomps.org",
-    "http://team.wccomps.org",
     "https://teams.wccomps.org",
-    "http://teams.wccomps.org",
     "https://ticket.wccomps.org",
-    "http://ticket.wccomps.org",
     "https://tickets.wccomps.org",
-    "http://tickets.wccomps.org",
     "https://portal.wccomps.org",
-    "http://portal.wccomps.org",
 ]
 
 
@@ -247,6 +240,7 @@ AUTHENTIK_OIDC_URL = os.environ.get(
 SESSION_COOKIE_AGE = 43200
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_SAMESITE = "Lax"  # Allow cookies across OAuth redirects
+SESSION_COOKIE_HTTPONLY = True  # Explicit (Django default, but important for security audits)
 
 # WCComps specific settings
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")

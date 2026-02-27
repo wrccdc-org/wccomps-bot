@@ -29,6 +29,11 @@ class TestMiddlewareConfiguration:
 class TestSubdomainRedirectMiddleware:
     """Tests for SubdomainRedirectMiddleware."""
 
+    @pytest.fixture(autouse=True)
+    def _allow_all_hosts(self, settings):
+        """Allow any host header in subdomain redirect tests."""
+        settings.ALLOWED_HOSTS = ["*"]
+
     @pytest.fixture
     def middleware(self):
         """Create middleware instance with mock get_response."""
@@ -346,3 +351,26 @@ class TestAllEndpointsRequireAuth:
         assert unprotected == [], "The following endpoints are accessible without authentication:\n" + "\n".join(
             f"  {p}" for p in unprotected
         )
+
+
+class TestSecuritySettings:
+    """Tests for security-critical settings."""
+
+    def test_allowed_hosts_not_wildcard(self):
+        """ALLOWED_HOSTS should not default to wildcard."""
+        assert "*" not in settings.ALLOWED_HOSTS, (
+            "ALLOWED_HOSTS contains '*' which disables host header validation. "
+            "Set ALLOWED_HOSTS in .env for production."
+        )
+
+    def test_csrf_trusted_origins_https_only(self):
+        """CSRF_TRUSTED_ORIGINS should only contain HTTPS origins."""
+        http_origins = [o for o in settings.CSRF_TRUSTED_ORIGINS if o.startswith("http://")]
+        assert http_origins == [], (
+            f"CSRF_TRUSTED_ORIGINS contains HTTP origins: {http_origins}. "
+            "Remove HTTP variants — production uses HTTPS only."
+        )
+
+    def test_session_cookie_httponly_explicit(self):
+        """SESSION_COOKIE_HTTPONLY should be explicitly True."""
+        assert settings.SESSION_COOKIE_HTTPONLY is True
