@@ -324,6 +324,10 @@ def review_inject_feedback(request: HttpRequest) -> HttpResponse:
         "status_filter": status_filter,
         "has_unapproved": has_unapproved,
     }
+
+    if request.headers.get("HX-Request"):
+        return render(request, "scoring/partials/inject_feedback_table.html", context)
+
     return render(request, "scoring/review_inject_feedback.html", context)
 
 
