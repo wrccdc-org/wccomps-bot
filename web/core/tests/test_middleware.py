@@ -412,3 +412,11 @@ class TestSecurityHeadersMiddleware:
         csp = response["Content-Security-Policy"]
         assert "script-src" in csp
         assert "unsafe-eval" not in csp
+
+    def test_csp_allows_external_script_domains(self):
+        """CSP should allow script domains used in templates."""
+        client = Client()
+        response = client.get("/health/")
+        csp = response["Content-Security-Policy"]
+        assert "https://unpkg.com" in csp
+        assert "https://static.cloudflareinsights.com" in csp
