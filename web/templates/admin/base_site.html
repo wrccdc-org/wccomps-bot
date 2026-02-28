@@ -30,7 +30,6 @@
                     <a href="{% url 'ticket_list' %}"
                        {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets
                         <span class="notif-count"
-                              x-data=""
                               x-text="$store.ticketNotifs.openCount"
                               x-show="$store.ticketNotifs.openCount > 0"
                               x-cloak></span>
@@ -73,12 +72,12 @@
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <button type="button"
                             class="audio-toggle"
-                            x-data="{ enabled: localStorage.getItem('ticketAudioEnabled') === 'true' }"
-                            @click="enabled = !enabled; localStorage.setItem('ticketAudioEnabled', enabled)"
-                            :title="enabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
-                            :aria-label="enabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'">
-                        <span x-show="!enabled">&#x1F507;</span>
-                        <span x-show="enabled" x-cloak>&#x1F514;</span>
+                            @click="$store.ticketNotifs.toggleAudio()"
+                            :title="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
+                            :aria-label="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
+                            x-cloak>
+                        <span x-show="!$store.ticketNotifs.audioEnabled">&#x1F507;</span>
+                        <span x-show="$store.ticketNotifs.audioEnabled">&#x1F514;</span>
                     </button>
                 {% endif %}
                 <span class="nav-user">{{ authentik_username|default:user.username }}</span>
@@ -427,6 +426,7 @@
                 toastTitle: '',
                 toastCategory: '',
                 toastUrl: '',
+                audioEnabled: localStorage.getItem('ticketAudioEnabled') === 'true',
                 _lastSeenId: parseInt(localStorage.getItem('ticketLastSeenId') || '0', 10),
                 _queue: [],
                 _timer: null,
@@ -435,6 +435,11 @@
                 init() {
                     this.poll();
                     this._timer = setInterval(() => this.poll(), 15000);
+                },
+
+                toggleAudio() {
+                    this.audioEnabled = !this.audioEnabled;
+                    localStorage.setItem('ticketAudioEnabled', this.audioEnabled);
                 },
 
                 async poll() {
@@ -477,7 +482,7 @@
                 },
 
                 _playAudio() {
-                    if (localStorage.getItem('ticketAudioEnabled') !== 'true') return;
+                    if (!this.audioEnabled) return;
                     try {
                         const ctx = new (window.AudioContext || window.webkitAudioContext)();
                         const osc = ctx.createOscillator();
