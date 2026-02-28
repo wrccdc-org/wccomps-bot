@@ -28,7 +28,8 @@ class SecurityHeadersMiddleware:
         if "Content-Security-Policy" not in response:
             response["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' https://unpkg.com https://static.cloudflareinsights.com; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+                "https://unpkg.com https://static.cloudflareinsights.com; "
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data:; "
                 "font-src 'self'; "
