@@ -62,14 +62,18 @@ def oauth_login(request: HttpRequest) -> HttpResponse:
 
     # Generate state for CSRF protection
     state = secrets.token_urlsafe(32)
-    request.session["oauth_state"] = state
-    request.session["oauth_state_created"] = timezone.now().isoformat()
 
     # Store next URL for redirect after login
     next_url = request.GET.get("next", "/")
     if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         next_url = "/"
-    request.session["oauth_next"] = next_url
+
+    # Store as list of pending states so concurrent OAuth flows (e.g. background
+    # notification polls triggering login redirects) don't clobber each other.
+    pending: list[dict[str, str]] = request.session.get("oauth_pending_states", [])
+    pending.append({"state": state, "created": timezone.now().isoformat(), "next": next_url})
+    # Keep only the 5 most recent to bound session size
+    request.session["oauth_pending_states"] = pending[-5:]
 
     # Build authorization URL
     redirect_uri = request.build_absolute_uri("/auth/callback/")
@@ -106,11 +110,11 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
             {"error_title": "Login Failed", "error_message": "Please try again."},
         )
 
-    # Verify state parameter
+    # Verify state parameter against list of pending states
     state = request.GET.get("state")
-    session_state = request.session.get("oauth_state")
+    pending: list[dict[str, str]] = request.session.get("oauth_pending_states", [])
 
-    if not state or not session_state:
+    if not state or not pending:
         logger.warning("OAuth state missing")
         return render(
             request,
@@ -118,7 +122,29 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
             {"error_title": "Session Expired", "error_message": "Please try again."},
         )
 
-    if not secrets.compare_digest(state, session_state):
+    # Find matching state entry
+    from datetime import datetime
+
+    now = timezone.now()
+    matched_entry: dict[str, str] | None = None
+    for entry in pending:
+        if secrets.compare_digest(state, entry["state"]):
+            # Check expiry
+            created_time = datetime.fromisoformat(entry["created"])
+            if hasattr(created_time, "tzinfo") and created_time.tzinfo is None:
+                created_time = created_time.replace(tzinfo=UTC)
+            age = (now - created_time).total_seconds()
+            if age > STATE_EXPIRY_SECONDS:
+                logger.warning(f"OAuth state expired (age: {age}s)")
+                return render(
+                    request,
+                    "core/oauth_error.html",
+                    {"error_title": "Session Expired", "error_message": "Please try again."},
+                )
+            matched_entry = entry
+            break
+
+    if not matched_entry:
         logger.warning("OAuth state mismatch")
         return render(
             request,
@@ -126,28 +152,14 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
             {"error_title": "Security Error", "error_message": "Please try again."},
         )
 
-    # Check state expiry
-    state_created = request.session.get("oauth_state_created")
-    if state_created:
-        from datetime import datetime
-
-        created_time = datetime.fromisoformat(state_created)
-        now = timezone.now()
-        if hasattr(created_time, "tzinfo") and created_time.tzinfo is None:
-            created_time = created_time.replace(tzinfo=UTC)
-        age = (now - created_time).total_seconds()
-        if age > STATE_EXPIRY_SECONDS:
-            logger.warning(f"OAuth state expired (age: {age}s)")
-            return render(
-                request,
-                "core/oauth_error.html",
-                {"error_title": "Session Expired", "error_message": "Please try again."},
-            )
-
-    # Clear state (single-use)
-    del request.session["oauth_state"]
-    if "oauth_state_created" in request.session:
-        del request.session["oauth_state_created"]
+    # Consume matched state and prune expired entries (single-use)
+    pending = [
+        e
+        for e in pending
+        if e is not matched_entry
+        and (now - datetime.fromisoformat(e["created"]).replace(tzinfo=UTC)).total_seconds() <= STATE_EXPIRY_SECONDS
+    ]
+    request.session["oauth_pending_states"] = pending
 
     # Get authorization code
     code = request.GET.get("code")
@@ -262,8 +274,8 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
     # Log user in
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
-    # Get next URL - use role-based default if going to root
-    next_url = request.session.pop("oauth_next", "/")
+    # Get next URL from the matched OAuth state entry
+    next_url = matched_entry.get("next", "/")
     if next_url == "/":
         next_url = _get_role_based_landing(groups)
 

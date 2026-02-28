@@ -30,8 +30,9 @@ def oauth_state_session(client: Client) -> tuple[Client, str]:
         response = client.get("/auth/login/")
         assert response.status_code == 302
 
-    state = client.session.get("oauth_state")
-    assert state is not None
+    pending = client.session.get("oauth_pending_states", [])
+    assert len(pending) == 1
+    state = pending[0]["state"]
     return client, state
 
 
@@ -72,8 +73,9 @@ class TestOAuthLogin:
             }
             client.get("/auth/login/")
 
-        assert "oauth_state" in client.session
-        assert len(client.session["oauth_state"]) > 20  # Secure random
+        pending = client.session.get("oauth_pending_states", [])
+        assert len(pending) == 1
+        assert len(pending[0]["state"]) > 20  # Secure random
 
     def test_login_stores_next_url(self):
         """Login should store next URL for post-login redirect."""
@@ -89,7 +91,9 @@ class TestOAuthLogin:
             }
             client.get("/auth/login/?next=/dashboard/")
 
-        assert client.session.get("oauth_next") == "/dashboard/"
+        pending = client.session.get("oauth_pending_states", [])
+        assert len(pending) == 1
+        assert pending[0]["next"] == "/dashboard/"
 
     def test_login_without_client_id_shows_error(self):
         """Login without client ID configured should show error."""
@@ -273,8 +277,9 @@ class TestOAuthCallback:
         client = Client()
         # Set up session with different state
         session = client.session
-        session["oauth_state"] = "correct-state"
-        session["oauth_state_created"] = "2025-01-01T00:00:00"
+        session["oauth_pending_states"] = [
+            {"state": "correct-state", "created": "2025-01-01T00:00:00+00:00", "next": "/"},
+        ]
         session.save()
 
         response = client.get("/auth/callback/?code=test-code&state=wrong-state")
@@ -301,7 +306,9 @@ class TestOAuthCallback:
         from django.utils import timezone
 
         old_time = timezone.now() - timedelta(minutes=10)
-        session["oauth_state_created"] = old_time.isoformat()
+        session["oauth_pending_states"] = [
+            {"state": state, "created": old_time.isoformat(), "next": "/"},
+        ]
         session.save()
 
         response = client.get(f"/auth/callback/?code=test-code&state={state}")
@@ -363,9 +370,12 @@ class TestOAuthCallback:
         """Callback should redirect to stored next URL."""
         client, state = oauth_state_session
 
-        # Set next URL
+        # Set next URL in the pending state entry
         session = client.session
-        session["oauth_next"] = "/my-dashboard/"
+        pending = session.get("oauth_pending_states", [])
+        if pending:
+            pending[0]["next"] = "/my-dashboard/"
+            session["oauth_pending_states"] = pending
         session.save()
 
         mock_token_response = MagicMock()
