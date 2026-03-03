@@ -72,8 +72,7 @@
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <button type="button"
                             class="audio-toggle"
-                            x-data="audioToggle"
-                            @click="toggle"
+                            @click="toggleAudio"
                             :title="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
                             :aria-label="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
                             x-cloak>
@@ -421,13 +420,11 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('nav', () => ({
             navOpen: false,
-            toggle() { this.navOpen = !this.navOpen; }
+            toggle() { this.navOpen = !this.navOpen; },
+            toggleAudio() { this.$store.ticketNotifs.toggleAudio(); }
         }));
         Alpine.data('toastClicker', () => ({
             go() { window.location.href = this.$store.ticketNotifs.toastUrl; }
-        }));
-        Alpine.data('audioToggle', () => ({
-            toggle() { this.$store.ticketNotifs.toggleAudio(); }
         }));
     });
     </script>
