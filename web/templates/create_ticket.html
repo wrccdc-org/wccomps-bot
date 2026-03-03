@@ -22,7 +22,7 @@
         <c-page_header title="Create Support Ticket" subtitle="Team {{ team.team_number }}" />
         <form method="post"
               id="ticketForm"
-              x-data="ticketForm()"
+              x-data="ticketForm"
               @submit="validateForm($event)">
             {% csrf_token %}
             <c-module>
@@ -151,100 +151,102 @@
     {{ box_ip_map|json_script:"box-ip-map-data" }}
     {{ service_choices|json_script:"service-choices-data" }}
     <script>
-            function ticketForm() {
-                const categories = JSON.parse(document.getElementById('categories-data').textContent);
-                const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
-                const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('ticketForm', () => {
+            const categories = JSON.parse(document.getElementById('categories-data').textContent);
+            const boxIpMap = JSON.parse(document.getElementById('box-ip-map-data').textContent);
+            const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
 
-                return {
-                    selectedCategory: '{{ form_data.category|default:"" }}',
-                    selectedHostname: '{{ form_data.hostname|default:"" }}',
-                    selectedService: '{{ form_data.service_name|default:"" }}',
-                    ipAddress: '{{ form_data.ip_address|default:"" }}',
-                    visibleFields: [],
-                    requiredFields: [],
+            return {
+                selectedCategory: '{{ form_data.category|default:"" }}',
+                selectedHostname: '{{ form_data.hostname|default:"" }}',
+                selectedService: '{{ form_data.service_name|default:"" }}',
+                ipAddress: '{{ form_data.ip_address|default:"" }}',
+                visibleFields: [],
+                requiredFields: [],
 
-                    init() {
-                        this.rebuildServiceOptions();
-                        if (this.selectedCategory) {
-                            this.onCategoryChange();
+                init() {
+                    this.rebuildServiceOptions();
+                    if (this.selectedCategory) {
+                        this.onCategoryChange();
+                    }
+                    if (this.selectedHostname) {
+                        this.onHostnameChange();
+                    }
+                },
+
+                getFilteredServices() {
+                    if (this.selectedHostname) {
+                        return allServiceChoices.filter(s => s.box_name === this.selectedHostname);
+                    }
+                    return allServiceChoices;
+                },
+
+                rebuildServiceOptions() {
+                    const select = this.$refs.serviceSelect;
+                    if (!select) return;
+
+                    const currentValue = this.selectedService;
+                    select.innerHTML = '<option value="">Select a service...</option>';
+
+                    const services = this.getFilteredServices();
+                    services.forEach(svc => {
+                        const option = document.createElement('option');
+                        option.value = svc.value;
+                        option.textContent = this.selectedHostname ? svc.service_name : svc.label;
+                        if (svc.value === currentValue) {
+                            option.selected = true;
                         }
-                        if (this.selectedHostname) {
+                        select.appendChild(option);
+                    });
+                },
+
+                onCategoryChange() {
+                    const catData = categories[this.selectedCategory];
+                    if (!catData) {
+                        this.visibleFields = [];
+                        this.requiredFields = [];
+                        return;
+                    }
+
+                    this.requiredFields = catData.required_fields || [];
+                    this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
+                },
+
+                onHostnameChange() {
+                    if (this.selectedHostname && boxIpMap[this.selectedHostname]) {
+                        this.ipAddress = boxIpMap[this.selectedHostname];
+                    } else {
+                        this.ipAddress = '';
+                    }
+                    if (this.selectedService) {
+                        const svc = allServiceChoices.find(s => s.value === this.selectedService);
+                        if (svc && svc.box_name !== this.selectedHostname) {
+                            this.selectedService = '';
+                        }
+                    }
+                    this.rebuildServiceOptions();
+                },
+
+                onServiceChange() {
+                    if (!this.selectedService) return;
+                    const svc = allServiceChoices.find(s => s.value === this.selectedService);
+                    if (svc) {
+                        if (this.visibleFields.includes('hostname') && !this.selectedHostname) {
+                            this.selectedHostname = svc.box_name;
                             this.onHostnameChange();
                         }
-                    },
-
-                    getFilteredServices() {
-                        if (this.selectedHostname) {
-                            return allServiceChoices.filter(s => s.box_name === this.selectedHostname);
+                        if (this.visibleFields.includes('ip_address')) {
+                            this.ipAddress = svc.box_ip;
                         }
-                        return allServiceChoices;
-                    },
-
-                    rebuildServiceOptions() {
-                        const select = this.$refs.serviceSelect;
-                        if (!select) return;
-
-                        const currentValue = this.selectedService;
-                        select.innerHTML = '<option value="">Select a service...</option>';
-
-                        const services = this.getFilteredServices();
-                        services.forEach(svc => {
-                            const option = document.createElement('option');
-                            option.value = svc.value;
-                            option.textContent = this.selectedHostname ? svc.service_name : svc.label;
-                            if (svc.value === currentValue) {
-                                option.selected = true;
-                            }
-                            select.appendChild(option);
-                        });
-                    },
-
-                    onCategoryChange() {
-                        const catData = categories[this.selectedCategory];
-                        if (!catData) {
-                            this.visibleFields = [];
-                            this.requiredFields = [];
-                            return;
-                        }
-
-                        this.requiredFields = catData.required_fields || [];
-                        this.visibleFields = [...this.requiredFields, ...(catData.optional_fields || [])];
-                    },
-
-                    onHostnameChange() {
-                        if (this.selectedHostname && boxIpMap[this.selectedHostname]) {
-                            this.ipAddress = boxIpMap[this.selectedHostname];
-                        } else {
-                            this.ipAddress = '';
-                        }
-                        if (this.selectedService) {
-                            const svc = allServiceChoices.find(s => s.value === this.selectedService);
-                            if (svc && svc.box_name !== this.selectedHostname) {
-                                this.selectedService = '';
-                            }
-                        }
-                        this.rebuildServiceOptions();
-                    },
-
-                    onServiceChange() {
-                        if (!this.selectedService) return;
-                        const svc = allServiceChoices.find(s => s.value === this.selectedService);
-                        if (svc) {
-                            if (this.visibleFields.includes('hostname') && !this.selectedHostname) {
-                                this.selectedHostname = svc.box_name;
-                                this.onHostnameChange();
-                            }
-                            if (this.visibleFields.includes('ip_address')) {
-                                this.ipAddress = svc.box_ip;
-                            }
-                        }
-                    },
-
-                    validateForm(event) {
-                        return true;
                     }
-                };
-            }
+                },
+
+                validateForm(event) {
+                    return true;
+                }
+            };
+        });
+    });
     </script>
 {% endblock content %}

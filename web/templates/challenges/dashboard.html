@@ -4,6 +4,38 @@
     Orange Team Dashboard
 {% endblock title %}
 {% block content %}
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('assignmentRow', () => ({
+            score: 0,
+            maxScore: 0,
+            saving: false,
+            _saveUrl: '',
+            init() {
+                this.score = parseInt(this.$el.dataset.score) || 0;
+                this.maxScore = parseInt(this.$el.dataset.maxScore) || 0;
+                this._saveUrl = this.$el.dataset.saveUrl;
+            },
+            async saveCriterion(e) {
+                const criterionId = parseInt(e.target.dataset.criterionId);
+                const met = e.target.checked;
+                this.saving = true;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const resp = await fetch(this._saveUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({criterion_id: criterionId, met: met})
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.score = data.score;
+                    this.maxScore = data.max_score;
+                }
+                this.saving = false;
+            }
+        }));
+    });
+    </script>
     <c-page_header title="Orange Team Dashboard" subtitle="Check-in status and assigned checks" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
@@ -82,7 +114,10 @@
             </tr>
             </c-slot>
             {% for assignment in check.list %}
-                <tr x-data="{ score: {{ assignment.score|default:'0' }}, maxScore: {{ assignment.orange_check.max_score }}, saving: false, async save(criterionId, met) { this.saving = true; const resp = await fetch('{% url 'challenges:assignment_save' assignment.pk %}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({criterion_id: criterionId, met: met}) }); if (resp.ok) { const data = await resp.json(); this.score = data.score; this.maxScore = data.max_score; } this.saving = false; } }">
+                <tr x-data="assignmentRow"
+                    data-score="{{ assignment.score|default:'0' }}"
+                    data-max-score="{{ assignment.orange_check.max_score }}"
+                    data-save-url="{% url 'challenges:assignment_save' assignment.pk %}">
                     <td>Team {{ assignment.team.team_number }}</td>
                     <td>
                         {% if assignment.status == "pending" %}
@@ -103,7 +138,8 @@
                                     <label>
                                         <input type="checkbox"
                                                {% if result.met %}checked{% endif %}
-                                               @change="save({{ result.criterion.pk }}, $el.checked)"
+                                               data-criterion-id="{{ result.criterion.pk }}"
+                                               @change="saveCriterion"
                                                {% if assignment.status == "submitted" %}disabled{% endif %}>
                                         {{ result.criterion.label }} ({{ result.criterion.points }} pts)
                                     </label>

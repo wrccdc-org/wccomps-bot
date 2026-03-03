@@ -4,7 +4,7 @@
     Packets - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="packetAdmin()">
+    <div x-data="packetAdmin">
         <c-page_header title="Packets" />
         {% if messages %}
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
@@ -144,8 +144,8 @@
     </div>
     {% if active_packet %}
         <script>
-        function packetAdmin() {
-            return {
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('packetAdmin', () => ({
                 loading: false,
                 message: '',
                 messageType: 'success',
@@ -261,10 +261,10 @@
                     this.loading = false;
                     setTimeout(() => this.message = '', 5000);
                 }
-            };
-        }
+            }));
+        });
         </script>
     {% else %}
-        <script>function packetAdmin() { return {}; }</script>
+        <script>document.addEventListener('alpine:init', () => { Alpine.data('packetAdmin', () => ({})); });</script>
     {% endif %}
 {% endblock admin_content %}

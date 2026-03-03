@@ -4,7 +4,7 @@
     Team Management - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="teamsAdmin()">
+    <div x-data="teamsAdmin">
         <c-page_header title="Team Management" />
         <c-module>
         <c-slot name="title">Bulk Actions</c-slot>
@@ -90,8 +90,8 @@
         </template>
     </div>
     <script>
-        function teamsAdmin() {
-            return {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('teamsAdmin', () => ({
                 loading: false,
                 message: '',
                 messageType: 'success',
@@ -149,7 +149,7 @@
                     this.loading = false;
                     setTimeout(() => this.message = '', 5000);
                 }
-            };
-        }
+            }));
+    });
     </script>
 {% endblock admin_content %}

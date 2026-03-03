@@ -1,5 +1,12 @@
 {% extends "scoring/base.html" %}
 {% block scoring_content %}
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('clearableForm', () => ({
+            clearForm() { this.$el.querySelectorAll("input[name^='points_team_']").forEach(i => i.value = ''); }
+        }));
+    });
+    </script>
     {% load cotton %}
     <c-page_header title="Inject Grading" />
     <c-module>

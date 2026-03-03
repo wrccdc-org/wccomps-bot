@@ -7,6 +7,22 @@
     Review Inject Grades
 {% endblock scoring_title %}
 {% block scoring_content %}
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('injectGradesBulkSelect', () => ({
+            selected: [],
+            selectableIds: [],
+            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-grade-id]')).map(el => el.dataset.gradeId); },
+            get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
+            get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
+            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
+            submitBulk() {
+                if (this.selected.length === 0) { alert('Please select at least one grade to approve'); return; }
+                if (confirm('Approve ' + this.selected.length + ' grade(s)? This action cannot be undone.')) { this.$refs.bulkForm.submit(); }
+            }
+        }));
+    });
+    </script>
     <div id="content-main">
         <c-page_header title="Review Inject Grades" />
         <c-module filtered="true" id="changelist">

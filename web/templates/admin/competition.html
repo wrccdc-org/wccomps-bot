@@ -4,7 +4,7 @@
     Competition Management - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="competitionAdmin()">
+    <div x-data="competitionAdmin">
         <c-page_header title="Competition Management" />
         <!-- Status Banner -->
         <div class="status-bar mb-20">
@@ -45,12 +45,14 @@
             {% if config.competition_start_time or config.competition_end_time %}
                 <div class="text-sm mt-5">
                     {% if config.competition_start_time %}
-                        <strong>Starts:</strong> <span x-data="formatTime('{{ config.competition_start_time|date:'c' }}')"
+                        <strong>Starts:</strong> <span x-data="formatTime"
+       data-iso="{{ config.competition_start_time|date:'c' }}"
        x-text="formatted"></span>
                     {% endif %}
                     {% if config.competition_end_time %}
                         {% if config.competition_start_time %}&nbsp;•&nbsp;{% endif %}
-                        <strong>Ends:</strong> <span x-data="formatTime('{{ config.competition_end_time|date:'c' }}')"
+                        <strong>Ends:</strong> <span x-data="formatTime"
+       data-iso="{{ config.competition_end_time|date:'c' }}"
        x-text="formatted"></span>
                     {% endif %}
                 </div>
@@ -257,16 +259,22 @@
         </template>
     </div>
     <script>
-function formatTime(iso) {
-    const date = new Date(iso);
-    const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
-    const local = date.toLocaleString('en-US', opts);
-    const ca = date.toLocaleString('en-US', { ...opts, timeZone: 'America/Los_Angeles' });
-    return { formatted: `${local} (Local) / ${ca} (CA)` };
-}
+document.addEventListener('alpine:init', () => {
+    Alpine.data('formatTime', function() {
+        return {
+            formatted: '',
+            init() {
+                const iso = this.$el.dataset.iso;
+                const date = new Date(iso);
+                const opts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+                const local = date.toLocaleString('en-US', opts);
+                const ca = date.toLocaleString('en-US', { ...opts, timeZone: 'America/Los_Angeles' });
+                this.formatted = `${local} (Local) / ${ca} (CA)`;
+            }
+        };
+    });
 
-function competitionAdmin() {
-    return {
+    Alpine.data('competitionAdmin', () => ({
         loading: false,
         message: '',
         messageType: 'success',
@@ -473,7 +481,7 @@ function competitionAdmin() {
             a.click();
             URL.revokeObjectURL(url);
         }
-    };
-}
+    }));
+});
     </script>
 {% endblock admin_content %}

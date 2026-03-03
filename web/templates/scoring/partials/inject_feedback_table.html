@@ -1,14 +1,10 @@
 {% load cotton %}
 <div id="inject-feedback-content">
     {% if scores %}
-        <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_inject_feedback' %}" x-data="{ selected: [], selectableIds: [
-            {% for score in scores %}
-                {% if not score.feedback_approved %}
-                    '{{ score.id }}'
-                    {% if not forloop.last %},{% endif %}
-                {% endif %}
-            {% endfor %}
-            ], get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 }, get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length }, toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; } }">
+        <form id="bulk-approve-form"
+              method="post"
+              action="{% url 'scoring:bulk_approve_inject_feedback' %}"
+              x-data="feedbackBulkSelect">
             {% csrf_token %}
             <c-table id="inject_feedback" aria_label="Inject feedback review">
             <c-slot name="headers">
@@ -46,20 +42,19 @@
                     <td>
                         <small class="text-muted">{{ score.notes }}</small>
                     </td>
-                    <td x-data="{ editing: false }">
+                    <td x-data="editableCell">
                         <div x-show="!editing"
-                             @click="editing = true"
+                             @click="startEditing"
                              class="click-to-edit"
                              role="button"
                              tabindex="0"
-                             @keydown.enter="editing = true"
+                             @keydown.enter="startEditing"
                              title="Click to edit">{{ score.feedback|default:"(click to add)" }}</div>
                         <textarea x-show="editing"
                                   x-ref="editor"
-                                  @click.away="editing = false"
-                                  @keydown.escape="editing = false"
-                                  x-init="$watch('editing', v => { if (v) $nextTick(() => { $refs.editor.style.height = $refs.editor.scrollHeight + 'px'; $refs.editor.focus() }) })"
-                                  @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                  @click.away="stopEditing"
+                                  @keydown.escape="stopEditing"
+                                  @input="autoResize"
                                   name="feedback"
                                   form="save-{{ score.id }}"
                                   aria-label="Feedback for {{ score.inject_name }} Team {{ score.team.team_number }}">{{ score.feedback }}</textarea>

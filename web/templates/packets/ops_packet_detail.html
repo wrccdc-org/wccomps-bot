@@ -4,7 +4,7 @@
     Packet: {{ packet.title }} - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="packetAdmin()">
+    <div x-data="packetAdmin">
         <c-page_header title="Packet" subtitle="{{ packet.title }}" />
         <!-- Status bar -->
         <div class="status-bar">
@@ -174,8 +174,8 @@
         </c-fieldset>
     </div>
     <script>
-    function packetAdmin() {
-        return {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('packetAdmin', () => ({
             loading: false,
             message: '',
             messageType: 'success',
@@ -291,7 +291,7 @@
                 this.loading = false;
                 setTimeout(() => this.message = '', 5000);
             }
-        };
-    }
+        }));
+    });
     </script>
 {% endblock admin_content %}

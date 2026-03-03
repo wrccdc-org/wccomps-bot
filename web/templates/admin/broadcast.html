@@ -4,7 +4,7 @@
     Broadcast Message - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="broadcastAdmin()">
+    <div x-data="broadcastAdmin">
         <c-page_header title="Broadcast Message" />
         <c-module>
         <c-slot name="title">Send Broadcast</c-slot>
@@ -65,8 +65,8 @@
         </template>
     </div>
     <script>
-        function broadcastAdmin() {
-            return {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('broadcastAdmin', () => ({
                 loading: false,
                 message_alert: '',
                 messageType: 'success',
@@ -144,7 +144,7 @@
                     this.loading = false;
                     setTimeout(() => this.message_alert = '', 5000);
                 }
-            };
-        }
+            }));
+    });
     </script>
 {% endblock admin_content %}

@@ -4,6 +4,22 @@
     All Findings - Red Team
 {% endblock title %}
 {% block red_content %}
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('redFindingsBulkSelect', () => ({
+            selected: [],
+            selectableIds: [],
+            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-finding-id]')).map(el => el.dataset.findingId); },
+            get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
+            get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
+            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
+            submitBulk() {
+                if (this.selected.length === 0) { alert('Please select at least one finding to approve'); return; }
+                if (confirm('Approve ' + this.selected.length + ' finding(s)?')) { this.$refs.bulkForm.submit(); }
+            }
+        }));
+    });
+    </script>
     <c-page_header title="All Findings" />
     <c-module filtered="true" id="changelist">
     <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:red_team_scores' %}" hx_target="#red-findings-content" hx_swap="outerHTML" hx_push_url="true">

@@ -4,7 +4,7 @@
     Sync Roles - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="syncRolesAdmin()">
+    <div x-data="syncRolesAdmin">
         <c-page_header title="Sync Roles" />
         <c-module>
         <c-slot name="title">Authentik Role Synchronization</c-slot>
@@ -49,8 +49,8 @@
         </template>
     </div>
     <script>
-        function syncRolesAdmin() {
-            return {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('syncRolesAdmin', () => ({
                 loading: false,
                 message: '',
                 messageType: 'success',
@@ -132,7 +132,7 @@
                         this.loading = false;
                     }
                 }
-            };
-        }
+            }));
+    });
     </script>
 {% endblock admin_content %}

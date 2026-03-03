@@ -21,7 +21,7 @@
     <c-module>
     <form method="post"
           {% if mode == "edit" %}action="{% url 'challenges:check_edit' orange_check.pk %}"{% endif %}
-          x-data="criteriaForm()">
+          x-data="criteriaForm">
         {% csrf_token %}
         <c-fieldset heading="Check Details">
         <c-form_field label="Title" required="true" id="id_title">
@@ -97,7 +97,8 @@
     </form>
     </c-module>
     <script>
-        function criteriaForm() {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('criteriaForm', () => {
             {% if existing_criteria %}
             var initial = {{ existing_criteria|safe }};
             return {
@@ -120,6 +121,7 @@
                 }
             };
             {% endif %}
-        }
+        });
+    });
     </script>
 {% endblock content %}

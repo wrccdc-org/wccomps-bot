@@ -4,8 +4,7 @@
     {% if selected_inject %}
         <c-fieldset heading="{{ selected_inject.title }}">
         {% if selected_inject.description %}<p class="text-muted mb-15">{{ selected_inject.description }}</p>{% endif %}
-        <form method="post"
-              x-data="{ clearForm() { this.$el.querySelectorAll('input[name^=\'points_team_\']').forEach(i => i.value = ''); } }">
+        <form method="post" x-data="clearableForm">
             {% csrf_token %}
             <input type="hidden" name="inject_id" value="{{ selected_inject_id }}">
             <c-table aria_label="Team grades">

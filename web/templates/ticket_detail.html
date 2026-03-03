@@ -64,12 +64,13 @@
                             <form method="post"
                                   action="{% url 'ticket_change_category' ticket.ticket_number %}"
                                   class="d-inline-block m-0"
-                                  x-data="{ newCat: '{{ ticket.category_id }}' }"
-                                  @submit="if (!confirm('Change category? This may change points charged.')) $event.preventDefault()">
+                                  x-data="categoryChanger"
+                                  data-initial-cat="{{ ticket.category_id }}"
+                                  @submit="confirmChange">
                                 {% csrf_token %}
                                 <select name="new_category"
                                         x-model="newCat"
-                                        @change="$el.closest('form').requestSubmit()"
+                                        @change="submitForm"
                                         class="py-5 px-10">
                                     {% for cat_id, cat_info in categories.items %}
                                         <option value="{{ cat_id }}"
@@ -373,4 +374,16 @@
         {% endif %}
         </c-module>
     </div>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('categoryChanger', () => ({
+            newCat: '',
+            init() { this.newCat = this.$el.dataset.initialCat; },
+            confirmChange(e) {
+                if (!confirm('Change category? This may change points charged.')) e.preventDefault();
+            },
+            submitForm() { this.$el.closest('form').requestSubmit(); }
+        }));
+    });
+    </script>
 {% endblock content %}

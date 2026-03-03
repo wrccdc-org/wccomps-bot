@@ -4,7 +4,7 @@
     Team {{ team.team_number }} - WCComps
 {% endblock title %}
 {% block admin_content %}
-    <div x-data="teamDetail()">
+    <div x-data="teamDetail">
         <c-page_header title="Team {{ team.team_number }}">
         <c-slot name="actions">
         <c-link href="{% url 'admin_teams' %}" variant="history">← Back to Teams</c-link>
@@ -105,8 +105,8 @@
         </template>
     </div>
     <script>
-        function teamDetail() {
-            return {
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('teamDetail', () => ({
                 loading: false,
                 message: '',
                 messageType: 'success',
@@ -240,7 +240,7 @@
                     this.loading = false;
                     setTimeout(() => this.message = '', 5000);
                 }
-            };
-        }
+            }));
+    });
     </script>
 {% endblock admin_content %}

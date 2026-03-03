@@ -4,18 +4,28 @@
 {% endblock title %}
 {% block scoring_content %}
     {% load cotton %}
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('orangeBulkSelect', () => ({
+            selected: [],
+            selectableIds: [],
+            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('input[name="adjustment_ids"]')).map(el => el.value); },
+            get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
+            get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
+            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; }
+        }));
+    });
+    </script>
     <c-page_header title="Review Orange Team Adjustments" subtitle="Approve or reject customer service bonuses and penalties" />
     <c-module>
     {% if bonuses %}
         <c-slot name="toolbar">
         <c-button type="submit" form="bulk-approve-form" variant="primary">Approve Selected</c-button>
         </c-slot>
-        <form id="bulk-approve-form" method="post" action="{% url 'scoring:bulk_approve_orange_adjustments' %}" x-data="{ selected: [], selectableIds: [
-            {% for bonus in bonuses %}
-                '{{ bonus.id }}'
-                {% if not forloop.last %},{% endif %}
-            {% endfor %}
-            ], get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 }, get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length }, toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; } }">
+        <form id="bulk-approve-form"
+              method="post"
+              action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
+              x-data="orangeBulkSelect">
             {% csrf_token %}
             <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
             <c-slot name="headers">

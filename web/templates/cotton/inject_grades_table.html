@@ -1,7 +1,7 @@
 {# Inject grades review table - swappable content for htmx #}
 <div id="inject-grades-content"
-     x-data="{ selected: [], selectableIds: [], init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-grade-id]')).map(el => el.dataset.gradeId); }, get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0 }, get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length }, toggleAll() { if (this.allSelected) { this.selected = []; } else { this.selected = [...this.selectableIds]; } }, submitBulk() { if (this.selected.length === 0) { alert('Please select at least one grade to approve'); return; } if (confirm('Approve ' + this.selected.length + ' grade(s)? This action cannot be undone.')) { this.$refs.bulkForm.submit(); } } }"
-     @bulk-approve-grades.document="submitBulk()">
+     x-data="injectGradesBulkSelect"
+     @bulk-approve-grades.document="submitBulk">
     <form id="bulk-approve-form"
           method="post"
           action="{% url 'scoring:inject_grades_bulk_approve' %}"

@@ -412,12 +412,12 @@ class TestSecurityHeadersMiddleware:
         csp = response["Content-Security-Policy"]
         assert "script-src" in csp
 
-    def test_csp_allows_unsafe_eval_for_alpine(self):
-        """CSP must allow unsafe-eval for Alpine.js expression evaluation."""
+    def test_csp_disallows_unsafe_eval(self):
+        """CSP must not allow unsafe-eval (Alpine.js CSP build does not require it)."""
         client = Client()
         response = client.get("/health/")
         csp = response["Content-Security-Policy"]
-        assert "'unsafe-eval'" in csp
+        assert "'unsafe-eval'" not in csp
 
     def test_csp_allows_external_script_domains(self):
         """CSP should allow script domains used in templates."""
