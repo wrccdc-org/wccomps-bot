@@ -72,12 +72,14 @@
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <button type="button"
                             class="audio-toggle"
-                            :class="enabled ? '' : 'audio-toggle--off'"
                             x-data="audioToggle"
                             @click="toggle"
                             :title="label"
                             :aria-label="label"
-                            x-cloak>&#x1F514;</button>
+                            x-cloak>
+                        <span x-show="!enabled">&#x1F507;</span>
+                        <span x-show="enabled">&#x1F514;</span>
+                    </button>
                 {% endif %}
                 <span class="nav-user">{{ authentik_username|default:user.username }}</span>
                 <a href="{% url 'oauth_logout' %}">Log out</a>
@@ -315,10 +317,6 @@
 
         .audio-toggle:hover {
             background: var(--primary-dark, #2e5266);
-        }
-
-        .audio-toggle--off {
-            opacity: 0.4;
         }
 
         /* Ticket notification badge */
