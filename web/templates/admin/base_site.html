@@ -72,12 +72,13 @@
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <button type="button"
                             class="audio-toggle"
-                            @click="toggleAudio"
-                            :title="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
-                            :aria-label="$store.ticketNotifs.audioEnabled ? 'Ticket notification sound: on. Click to disable.' : 'Ticket notification sound: off. Click to enable.'"
+                            x-data="audioToggle"
+                            @click="toggle"
+                            :title="label"
+                            :aria-label="label"
                             x-cloak>
-                        <span x-show="!$store.ticketNotifs.audioEnabled">&#x1F515;</span>
-                        <span x-show="$store.ticketNotifs.audioEnabled">&#x1F514;</span>
+                        <span x-show="!enabled">&#x1F515;</span>
+                        <span x-show="enabled">&#x1F514;</span>
                     </button>
                 {% endif %}
                 <span class="nav-user">{{ authentik_username|default:user.username }}</span>
@@ -420,11 +421,27 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('nav', () => ({
             navOpen: false,
-            toggle() { this.navOpen = !this.navOpen; },
-            toggleAudio() { this.$store.ticketNotifs.toggleAudio(); }
+            toggle() { this.navOpen = !this.navOpen; }
         }));
         Alpine.data('toastClicker', () => ({
             go() { window.location.href = this.$store.ticketNotifs.toastUrl; }
+        }));
+        Alpine.data('audioToggle', () => ({
+            enabled: false,
+            label: '',
+            init() {
+                this.sync();
+            },
+            sync() {
+                this.enabled = this.$store.ticketNotifs.audioEnabled;
+                this.label = this.enabled
+                    ? 'Ticket notification sound: on. Click to disable.'
+                    : 'Ticket notification sound: off. Click to enable.';
+            },
+            toggle() {
+                this.$store.ticketNotifs.toggleAudio();
+                this.sync();
+            }
         }));
     });
     </script>
