@@ -116,18 +116,20 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    # Apply scaling modifiers (derived from weights + raw maxes), round to whole points
-    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    scaled_inject = (inject_total * inj_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    scaled_orange = (orange_total * ora_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    # Apply scaling modifiers (derived from weights + raw maxes)
+    scaled_service = service_raw * svc_mod
+    scaled_inject = inject_total * inj_mod
+    scaled_orange = orange_total * ora_mod
 
-    # Total: scaled positives + raw negatives
-    total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
+    # Round the total once (not each component) to match spreadsheet behavior
+    total_score = (scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw).quantize(
+        Decimal("1"), rounding=ROUND_HALF_UP
+    )
 
     return {
-        "service_points": scaled_service,
-        "inject_points": scaled_inject,
-        "orange_points": scaled_orange,
+        "service_points": scaled_service.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        "inject_points": scaled_inject.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        "orange_points": scaled_orange.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
         "red_deductions": red_raw,
         "sla_penalties": sla_raw,
         "point_adjustments": point_adj,
@@ -159,17 +161,19 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    scaled_inject = (inject_raw * inj_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    scaled_orange = (orange_raw * ora_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    scaled_service = service_raw * svc_mod
+    scaled_inject = inject_raw * inj_mod
+    scaled_orange = orange_raw * ora_mod
 
-    total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
+    total_score = (scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw).quantize(
+        Decimal("1"), rounding=ROUND_HALF_UP
+    )
 
     return {
         # Standard fields (same as calculate_team_score)
-        "service_points": scaled_service,
-        "inject_points": scaled_inject,
-        "orange_points": scaled_orange,
+        "service_points": scaled_service.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        "inject_points": scaled_inject.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        "orange_points": scaled_orange.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
         "red_deductions": red_raw,
         "sla_penalties": sla_raw,
         "point_adjustments": point_adj,
