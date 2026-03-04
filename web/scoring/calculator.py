@@ -229,9 +229,7 @@ def recalculate_all_scores() -> None:
     active_teams.sort(key=lambda x: x[1]["total_score"], reverse=True)
 
     # Look up which teams are excluded so we can skip them during ranking
-    excluded_team_ids = set(
-        FinalScore.objects.filter(is_excluded=True).values_list("team_id", flat=True)
-    )
+    excluded_team_ids = set(FinalScore.objects.filter(is_excluded=True).values_list("team_id", flat=True))
 
     # Update or create FinalScore records; only non-excluded teams get a rank
     rank = 0
