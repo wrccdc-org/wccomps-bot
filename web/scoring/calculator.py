@@ -1,6 +1,6 @@
 """Score calculation logic for competitions."""
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum
@@ -117,9 +117,9 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
     # Apply scaling modifiers (derived from weights + raw maxes), round to whole points
-    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"))
-    scaled_inject = (inject_total * inj_mod).quantize(Decimal("1"))
-    scaled_orange = (orange_total * ora_mod).quantize(Decimal("1"))
+    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    scaled_inject = (inject_total * inj_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    scaled_orange = (orange_total * ora_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     # Total: scaled positives + raw negatives
     total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
@@ -159,9 +159,9 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
         gold_team_reviewed=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"))
-    scaled_inject = (inject_raw * inj_mod).quantize(Decimal("1"))
-    scaled_orange = (orange_raw * ora_mod).quantize(Decimal("1"))
+    scaled_service = (service_raw * svc_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    scaled_inject = (inject_raw * inj_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    scaled_orange = (orange_raw * ora_mod).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     total_score = scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
 
