@@ -122,9 +122,9 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
     scaled_orange = orange_total * ora_mod
 
     # Round the total once (not each component) to match spreadsheet behavior
-    total_score = (scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw).quantize(
-        Decimal("1"), rounding=ROUND_HALF_UP
-    )
+    total_score = (
+        scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
+    ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     return {
         "service_points": scaled_service.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
@@ -165,9 +165,9 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
     scaled_inject = inject_raw * inj_mod
     scaled_orange = orange_raw * ora_mod
 
-    total_score = (scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw).quantize(
-        Decimal("1"), rounding=ROUND_HALF_UP
-    )
+    total_score = (
+        scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
+    ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     return {
         # Standard fields (same as calculate_team_score)
