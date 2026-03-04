@@ -228,8 +228,17 @@ def recalculate_all_scores() -> None:
     # Sort active teams by total_score descending to assign ranks
     active_teams.sort(key=lambda x: x[1]["total_score"], reverse=True)
 
-    # Update or create FinalScore records with ranks for active teams
-    for rank, (team, scores) in enumerate(active_teams, start=1):
+    # Look up which teams are excluded so we can skip them during ranking
+    excluded_team_ids = set(
+        FinalScore.objects.filter(is_excluded=True).values_list("team_id", flat=True)
+    )
+
+    # Update or create FinalScore records; only non-excluded teams get a rank
+    rank = 0
+    for team, scores in active_teams:
+        is_excluded = team.pk in excluded_team_ids
+        if not is_excluded:
+            rank += 1
         FinalScore.objects.update_or_create(
             team=team,
             defaults={
@@ -241,7 +250,7 @@ def recalculate_all_scores() -> None:
                 "sla_penalties": scores["sla_penalties"],
                 "point_adjustments": scores["point_adjustments"],
                 "total_score": scores["total_score"],
-                "rank": rank,
+                "rank": rank if not is_excluded else None,
             },
         )
 
