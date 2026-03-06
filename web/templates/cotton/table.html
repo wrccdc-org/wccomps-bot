@@ -2,7 +2,7 @@
 {# Usage: <c-table id="results"><c-slot name="headers">...</c-slot><c-slot name="body">...</c-slot></c-table> #}
 {# Props: id, class, aria_label, fixed_layout (bool) #}
 <c-vars id="result_list" class aria_label="Data table" fixed_layout="false" />
-<div class="results">
+<div {{ attrs }} class="results">
     <table id="{{ id }}"
            role="grid"
            aria-label="{{ aria_label }}"

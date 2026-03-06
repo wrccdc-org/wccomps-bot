@@ -1,6 +1,6 @@
 {# Navigation wrapper component - horizontal navigation with current page highlighting #}
 {# Usage: <c-nav><c-nav_item name="leaderboard" href="/scoring/">Leaderboard</c-nav_item></c-nav> #}
 {# Note: Current page highlighting uses subnav_active from context processor #}
-<nav role="navigation" aria-label="Section navigation">
+<nav {{ attrs }} role="navigation" aria-label="Section navigation">
     {{ slot }}
 </nav>

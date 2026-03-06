@@ -4,7 +4,7 @@
 {# Props: value (numeric), format (optional: "default" or "signed") #}
 <c-vars value="0" format="default" />
 {% with num_value=value|add:0 %}
-    <span class="{% if num_value > 0 %}score-positive{% elif num_value < 0 %}score-negative{% else %}score-zero{% endif %}">
+    <span {{ attrs }} class="{% if num_value > 0 %}score-positive{% elif num_value < 0 %}score-negative{% else %}score-zero{% endif %}">
         {% if format == "signed" and num_value > 0 %}+{% endif %}
     {{ value }}</span>
 {% endwith %}

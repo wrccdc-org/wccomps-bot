@@ -2,7 +2,7 @@
 {# Usage: <c-form_field label="Email" required="true">{{ form.email }}</c-form_field> #}
 {# Props: label, required (bool), help_text, error, id #}
 <c-vars label required="false" help_text error id />
-<div class="form-row">
+<div {{ attrs }} class="form-row">
     <div>
         <label {% if id %}for="{{ id }}"{% endif %}
                {% if required == "true" %}class="required"{% endif %}>{{ label }}:</label>

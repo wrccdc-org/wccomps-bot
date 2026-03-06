@@ -4,5 +4,6 @@
 {# Note: Uses subnav_active from context processor for current page highlighting #}
 <c-vars name href="#" />
 <a href="{{ href }}"
+   {{ attrs }}
    class="nav-item {% if name == subnav_active %}nav-item--current{% endif %}"
    {% if name == subnav_active %}aria-current="page"{% endif %}>{{ slot }}</a>

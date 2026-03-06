@@ -2,7 +2,7 @@
 {# Usage: <c-action_box heading="Actions" variant="warning">Form content</c-action_box> #}
 {# Props: heading (optional), variant (default|warning), class #}
 <c-vars heading variant="default" class />
-<div class="action-box {% if variant == 'warning' %}action-box-warning{% endif %} {{ class }}">
+<div {{ attrs }} class="action-box {% if variant == 'warning' %}action-box-warning{% endif %} {{ class }}">
     {% if heading %}<h3>{{ heading }}</h3>{% endif %}
     {{ slot }}
 </div>

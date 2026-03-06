@@ -4,4 +4,5 @@
 <c-vars variant="default" aria_label />
 <span role="status"
       aria-label="{{ aria_label|default:variant|title }}"
+      {{ attrs }}
       class="badge {% if variant == 'open' or variant == 'info' %}badge--info{% elif variant == 'claimed' or variant == 'warning' or variant == 'draft' or variant == 'distributing' %}badge--warning{% elif variant == 'resolved' or variant == 'success' or variant == 'completed' or variant == 'sent' %}badge--success{% elif variant == 'cancelled' or variant == 'pending' or variant == 'neutral' or variant == 'secondary' %}badge--neutral{% elif variant == 'danger' or variant == 'failed' %}badge--danger{% else %}badge--default{% endif %}">{{ slot }}</span>
