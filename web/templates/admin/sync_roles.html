@@ -16,8 +16,8 @@
                 <li>Users removed from Authentik groups will lose Discord roles</li>
             </ul>
             <c-button_row class="mt-20">
-            <c-button variant="primary" @click="requestSync(true)" ::disabled="loading">
-            <span x-show="!loading">Preview Changes (Dry Run)</span>
+            <c-button variant="primary" @click="requestSyncPreview" ::disabled="loading">
+            <span x-show="notLoading">Preview Changes (Dry Run)</span>
             <span x-show="loading">Previewing...</span>
             </c-button>
             </c-button_row>
@@ -32,12 +32,12 @@
         <template x-if="message">
             <div x-transition class="toast-position">
                 <div class="alert"
-                     :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+                     :class="alertClass">
                     <span x-text="message"></span>
                 </div>
             </div>
         </template>
-        <template x-if="changes.length > 0">
+        <template x-if="hasChanges">
             <c-module class="mt-20">
             <c-slot name="title">Changes Made</c-slot>
             <ul class="list-none">
@@ -57,6 +57,10 @@
                 taskId: null,
                 changes: [],
                 isDryRun: false,
+                get notLoading() { return !this.loading; },
+                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
+                get hasChanges() { return this.changes.length > 0; },
+                requestSyncPreview() { this.requestSync(true); },
 
                 async requestSync(dryRun) {
                     const confirmMsg = dryRun ?

@@ -51,31 +51,31 @@
         <template x-for="(criterion, index) in criteria" :key="index">
             <div class="form-row d-flex items-end gap-10">
                 <div class="flex-grow">
-                    <label :for="'criterion_label_' + index" class="required">Label:</label>
+                    <label :for="criterion.labelId" class="required">Label:</label>
                     <input type="text"
                            class="vTextField"
-                           :id="'criterion_label_' + index"
-                           :name="'criterion_label_' + index"
+                           :id="criterion.labelId"
+                           :name="criterion.labelName"
                            x-model="criterion.label"
                            required>
                 </div>
                 <div class="input-sm-wrap">
-                    <label :for="'criterion_points_' + index" class="required">Points:</label>
+                    <label :for="criterion.pointsId" class="required">Points:</label>
                     <input type="number"
                            class="vTextField"
-                           :id="'criterion_points_' + index"
-                           :name="'criterion_points_' + index"
+                           :id="criterion.pointsId"
+                           :name="criterion.pointsName"
                            x-model="criterion.points"
                            min="1"
                            required>
                 </div>
                 <div class="mb-5">
-                    <c-button type="button" variant="danger" x-show="criteria.length > 1" x-on:click="removeCriterion(index)">Remove</c-button>
+                    <c-button type="button" variant="danger" x-show="canRemove" x-on:click="removeCriterion" :data-index="index">Remove</c-button>
                 </div>
             </div>
         </template>
         <div class="mt-10">
-            <c-button type="button" variant="default" x-on:click="addCriterion()">Add Criterion</c-button>
+            <c-button type="button" variant="default" x-on:click="addCriterion">Add Criterion</c-button>
         </div>
         </c-fieldset>
         <c-button_row class="justify-end">
@@ -101,22 +101,58 @@
         Alpine.data('criteriaForm', () => {
             {% if existing_criteria %}
             var initial = {{ existing_criteria|safe }};
+            var _nextId = initial.length;
             return {
-                criteria: initial.map(function(c) { return {label: c.label, points: String(c.points)}; }),
+                criteria: initial.map(function(c, i) {
+                    return {
+                        label: c.label,
+                        points: String(c.points),
+                        labelId: 'criterion_label_' + i,
+                        labelName: 'criterion_label_' + i,
+                        pointsId: 'criterion_points_' + i,
+                        pointsName: 'criterion_points_' + i
+                    };
+                }),
+                _nextId: _nextId,
+                get canRemove() { return this.criteria.length > 1; },
                 addCriterion() {
-                    this.criteria.push({label: '', points: ''});
+                    this.criteria.push({
+                        label: '', points: '',
+                        labelId: 'criterion_label_' + this._nextId,
+                        labelName: 'criterion_label_' + this._nextId,
+                        pointsId: 'criterion_points_' + this._nextId,
+                        pointsName: 'criterion_points_' + this._nextId
+                    });
+                    this._nextId++;
                 },
-                removeCriterion(index) {
+                removeCriterion(e) {
+                    var index = parseInt(e.currentTarget.dataset.index);
                     this.criteria.splice(index, 1);
                 }
             };
             {% else %}
             return {
-                criteria: [{label: '', points: ''}],
+                criteria: [{
+                    label: '', points: '',
+                    labelId: 'criterion_label_0',
+                    labelName: 'criterion_label_0',
+                    pointsId: 'criterion_points_0',
+                    pointsName: 'criterion_points_0'
+                }],
+                _nextId: 1,
+                get canRemove() { return this.criteria.length > 1; },
                 addCriterion() {
-                    this.criteria.push({label: '', points: ''});
+                    this.criteria.push({
+                        label: '', points: '',
+                        labelId: 'criterion_label_' + this._nextId,
+                        labelName: 'criterion_label_' + this._nextId,
+                        pointsId: 'criterion_points_' + this._nextId,
+                        pointsName: 'criterion_points_' + this._nextId
+                    });
+                    this._nextId++;
                 },
-                removeCriterion(index) {
+                removeCriterion(e) {
+                    var index = parseInt(e.currentTarget.dataset.index);
                     this.criteria.splice(index, 1);
                 }
             };

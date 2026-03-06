@@ -27,7 +27,7 @@
                             <input type="checkbox"
                                    :checked="allSelected"
                                    :indeterminate="someSelected"
-                                   @click="toggleAll()"
+                                   @click="toggleAll"
                                    title="Select all">
                         </th>
                         <c-table_header sort_field="inject_name" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Inject</c-table_header>

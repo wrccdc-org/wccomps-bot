@@ -21,17 +21,17 @@
                 :aria-expanded="navOpen"
                 aria-controls="nav-menu"
                 aria-label="Toggle navigation">
-            <span x-show="!navOpen">&#9776;</span>
+            <span x-show="navClosed">&#9776;</span>
             <span x-show="navOpen" x-cloak>&#10005;</span>
         </button>
-        <div id="nav-menu" class="nav-menu" :class="{ 'nav-menu--open': navOpen }">
+        <div id="nav-menu" class="nav-menu" :class="navMenuClass">
             <div class="nav-links">
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <a href="{% url 'ticket_list' %}"
                        {% if nav_active == 'tickets' %}class="current"{% endif %}>Tickets
                         <span class="notif-count"
-                              x-text="$store.ticketNotifs.openCount"
-                              x-show="$store.ticketNotifs.openCount > 0"
+                              x-text="openCount"
+                              x-show="hasOpenTickets"
                               x-cloak></span>
                     </a>
                 {% endif %}
@@ -89,7 +89,7 @@
     {% if is_ticketing_support or is_ticketing_admin %}
         <div class="ticket-toast"
              x-data="toastClicker"
-             x-show="$store.ticketNotifs.showToast"
+             x-show="showToast"
              x-transition:enter="toast-enter"
              x-transition:enter-start="toast-enter-start"
              x-transition:enter-end="toast-enter-end"
@@ -99,13 +99,13 @@
              x-cloak
              role="status"
              aria-live="polite"
-             :aria-label="'New ticket: ' + $store.ticketNotifs.toastNumber + ', ' + $store.ticketNotifs.toastTitle + '. Click to view.'"
+             :aria-label="toastAriaLabel"
              @click="go">
             <div class="toast-line1">
-                <strong x-text="$store.ticketNotifs.toastNumber"></strong>
-                <span x-text="$store.ticketNotifs.toastTitle"></span>
+                <strong x-text="toastNumber"></strong>
+                <span x-text="toastTitle"></span>
             </div>
-            <div class="toast-line2" x-text="$store.ticketNotifs.toastCategory"></div>
+            <div class="toast-line2" x-text="toastCategory"></div>
         </div>
     {% endif %}
 {% endblock nav-global %}
@@ -421,9 +421,21 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('nav', () => ({
             navOpen: false,
+            get navClosed() { return !this.navOpen; },
+            get navMenuClass() { return this.navOpen ? 'nav-menu--open' : ''; },
+            get openCount() { return this.$store.ticketNotifs ? this.$store.ticketNotifs.openCount : 0; },
+            get hasOpenTickets() { return this.openCount > 0; },
             toggle() { this.navOpen = !this.navOpen; }
         }));
         Alpine.data('toastClicker', () => ({
+            get showToast() { return this.$store.ticketNotifs ? this.$store.ticketNotifs.showToast : false; },
+            get toastNumber() { return this.$store.ticketNotifs ? this.$store.ticketNotifs.toastNumber : ''; },
+            get toastTitle() { return this.$store.ticketNotifs ? this.$store.ticketNotifs.toastTitle : ''; },
+            get toastCategory() { return this.$store.ticketNotifs ? this.$store.ticketNotifs.toastCategory : ''; },
+            get toastAriaLabel() {
+                const s = this.$store.ticketNotifs;
+                return s ? 'New ticket: ' + s.toastNumber + ', ' + s.toastTitle + '. Click to view.' : '';
+            },
             go() { window.location.href = this.$store.ticketNotifs.toastUrl; }
         }));
         Alpine.data('audioToggle', () => ({

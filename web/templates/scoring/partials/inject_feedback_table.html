@@ -13,7 +13,7 @@
                     <input type="checkbox"
                            :checked="allSelected"
                            :indeterminate="someSelected"
-                           @click="toggleAll()"
+                           @click="toggleAll"
                            aria-label="Select all">
                 </th>
                 <c-table_header sortable="false">Inject</c-table_header>
@@ -43,7 +43,7 @@
                         <small class="text-muted">{{ score.notes }}</small>
                     </td>
                     <td x-data="editableCell">
-                        <div x-show="!editing"
+                        <div x-show="notEditing"
                              @click="startEditing"
                              class="click-to-edit"
                              role="button"

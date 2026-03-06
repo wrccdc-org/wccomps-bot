@@ -11,6 +11,7 @@
             maxScore: 0,
             saving: false,
             _saveUrl: '',
+            get scoreDisplay() { return this.score + ' / ' + this.maxScore; },
             init() {
                 this.score = parseInt(this.$el.dataset.score) || 0;
                 this.maxScore = parseInt(this.$el.dataset.maxScore) || 0;
@@ -129,7 +130,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span x-text="score + ' / ' + maxScore">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span>
+                        <span x-text="scoreDisplay">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span>
                     </td>
                     <td>
                         <ul class="plain-list">

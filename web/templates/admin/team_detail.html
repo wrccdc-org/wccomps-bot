@@ -33,18 +33,18 @@
             <c-slot name="title">Actions</c-slot>
             <div class="checkbox-group">
                 {% if team.is_active %}
-                    <c-button variant="default" class="w-full" @click="teamAction('deactivate')" ::disabled="loading">
+                    <c-button variant="default" class="w-full" @click="teamAction" data-action="deactivate" ::disabled="loading">
                     Deactivate Team
                     </c-button>
                 {% else %}
-                    <c-button variant="primary" class="w-full" @click="teamAction('activate')" ::disabled="loading">
+                    <c-button variant="primary" class="w-full" @click="teamAction" data-action="activate" ::disabled="loading">
                     Activate Team
                     </c-button>
                 {% endif %}
-                <c-link href="#" variant="danger" class="w-full" @click.prevent="resetTeam()" ::class="loading && 'disabled'">
+                <c-link href="#" variant="danger" class="w-full" @click.prevent="resetTeam" ::class="disabledClass">
                 Reset Team (Unlink All + New Password)
                 </c-link>
-                <c-button variant="default" class="w-full" @click="teamAction('recreate_channels')" ::disabled="loading">
+                <c-button variant="default" class="w-full" @click="teamAction" data-action="recreate_channels" ::disabled="loading">
                 Recreate Discord Channels
                 </c-button>
             </div>
@@ -86,7 +86,7 @@
                     <td class="field-discord_id">{{ member.discord_id }}</td>
                     <td class="field-linked_at">{{ member.linked_at|timesince }} ago</td>
                     <td class="field-action">
-                        <c-button variant="danger" @click="unlinkUser('{{ member.discord_id }}', '{{ member.discord_username }}')" :disabled="loading">Unlink</c-button>
+                        <c-button variant="danger" @click="unlinkUser" data-discord-id="{{ member.discord_id }}" data-username="{{ member.discord_username }}" :disabled="loading">Unlink</c-button>
                     </td>
                 </tr>
             {% endfor %}
@@ -98,7 +98,7 @@
         <template x-if="message">
             <div x-transition class="toast-position">
                 <div class="alert"
-                     :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+                     :class="alertClass">
                     <span x-text="message"></span>
                 </div>
             </div>
@@ -112,7 +112,11 @@
                 messageType: 'success',
                 newPassword: '',
 
-                async teamAction(action) {
+                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
+                get disabledClass() { return this.loading ? 'disabled' : ''; },
+
+                async teamAction(e) {
+                    const action = e.currentTarget.dataset.action;
                     const actionDesc = {
                         'activate': 'activate this team',
                         'deactivate': 'deactivate this team',
@@ -201,7 +205,9 @@
                     setTimeout(() => this.message = '', 10000);
                 },
 
-                async unlinkUser(discordId, username) {
+                async unlinkUser(e) {
+                    const discordId = e.currentTarget.dataset.discordId;
+                    const username = e.currentTarget.dataset.username;
                     if (!confirm(`Unlink ${username} from this team?`)) {
                         return;
                     }

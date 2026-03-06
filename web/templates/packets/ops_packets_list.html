@@ -35,17 +35,17 @@
                     </div>
                     <div class="d-flex gap-10">
                         {% if active_packet.status == "draft" %}
-                            <c-button variant="primary" @click="if(confirm('Distribute this packet to all teams now?')) doStreamAction('distribute')" ::disabled="loading">
+                            <c-button variant="primary" @click="distributePacket" ::disabled="loading">
                             Distribute
                             </c-button>
                         {% endif %}
                         {% if active_stats.failed > 0 %}
-                            <c-button variant="warning" @click="if(confirm('Resend to all failed teams?')) doStreamAction('resend_failed')" ::disabled="loading">
+                            <c-button variant="warning" @click="resendFailed" ::disabled="loading">
                             Resend Failed
                             </c-button>
                         {% endif %}
                         {% if active_packet.status not in "cancelled" %}
-                            <c-link href="#" variant="danger" @click.prevent="if(confirm('Cancel this packet distribution?')) doStreamAction('cancel')" ::class="loading && 'disabled'">
+                            <c-link href="#" variant="danger" @click.prevent="cancelPacket" ::class="loading && 'disabled'">
                             Cancel
                             </c-link>
                         {% endif %}
@@ -54,19 +54,19 @@
                 </div>
             </div>
             <!-- Progress bar -->
-            <template x-if="progressTotal > 0">
+            <template x-if="hasProgress">
                 <div class="mt-10">
                     <div class="d-flex justify-between mb-5">
                         <span class="text-sm" x-text="progressStep"></span>
-                        <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
+                        <span class="text-sm" x-text="progressText"></span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-bar__fill"
-                             :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
-                             :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
+                             :class="progressBarClass"
+                             :style="progressStyle"></div>
                     </div>
-                    <template x-if="progressFailed > 0">
-                        <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
+                    <template x-if="hasFailures">
+                        <div class="text-sm text-warning mt-5" x-text="failedText"></div>
                     </template>
                 </div>
             </template>
@@ -92,7 +92,7 @@
                        placeholder="test@example.com"
                        class="vTextField">
                 </c-form_field>
-                <c-button variant="default" @click="doTestEmail()" ::disabled="loading">
+                <c-button variant="default" @click="doTestEmail" ::disabled="loading">
                 Send Test
                 </c-button>
             </div>
@@ -153,6 +153,23 @@
                 progressCurrent: 0,
                 progressTotal: 0,
                 progressFailed: 0,
+
+                get hasProgress() { return this.progressTotal > 0; },
+                get progressText() { return this.progressCurrent + '/' + this.progressTotal; },
+                get progressBarClass() { return this.progressFailed > 0 ? 'progress-bar__fill--warn' : ''; },
+                get progressStyle() { return this.progressTotal > 0 ? 'width:' + Math.round(this.progressCurrent / this.progressTotal * 100) + '%' : 'width: 0%'; },
+                get hasFailures() { return this.progressFailed > 0; },
+                get failedText() { return this.progressFailed + ' failed'; },
+
+                distributePacket() {
+                    if (confirm('Distribute this packet to all teams now?')) this.doStreamAction('distribute');
+                },
+                resendFailed() {
+                    if (confirm('Resend to all failed teams?')) this.doStreamAction('resend_failed');
+                },
+                cancelPacket() {
+                    if (confirm('Cancel this packet distribution?')) this.doStreamAction('cancel');
+                },
 
                 async doStreamAction(action) {
                     this.loading = true;

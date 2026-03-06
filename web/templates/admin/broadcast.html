@@ -8,7 +8,7 @@
         <c-page_header title="Broadcast Message" />
         <c-module>
         <c-slot name="title">Send Broadcast</c-slot>
-        <form @submit.prevent="sendBroadcast()">
+        <form @submit.prevent="sendBroadcast">
             <c-fieldset heading="Compose" aligned="true">
             <c-form_field label="Target" id="target">
             <select name="target" x-model="target" class="vTextField">
@@ -17,7 +17,7 @@
                 <option value="custom">Specific Teams</option>
             </select>
             </c-form_field>
-            <template x-if="target === 'custom'">
+            <template x-if="isCustomTarget">
                 <c-form_field label="Team Numbers" id="team_numbers">
                 <input type="text"
                        name="team_numbers"
@@ -39,12 +39,12 @@
             </div>
             </c-fieldset>
             <c-button_row class="justify-end">
-            <c-button type="submit" variant="primary" ::disabled="loading || !message.trim()">Send Broadcast</c-button>
+            <c-button type="submit" variant="primary" ::disabled="sendDisabled">Send Broadcast</c-button>
             </c-button_row>
         </form>
         <c-action_box heading="Preview" class="mt-20">
         <div class="whitespace-pre-wrap"
-             x-text="message || '(No message entered)'"></div>
+             x-text="previewText"></div>
         </c-action_box>
         </c-module>
         <c-module class="mt-20">
@@ -58,7 +58,7 @@
         <template x-if="message_alert">
             <div x-transition class="toast-position">
                 <div class="alert"
-                     :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+                     :class="alertClass">
                     <span x-text="message_alert"></span>
                 </div>
             </div>
@@ -74,6 +74,10 @@
                 teamNumbers: '',
                 message: '',
                 mentionTeam: false,
+                get isCustomTarget() { return this.target === 'custom'; },
+                get sendDisabled() { return this.loading || !this.message.trim(); },
+                get previewText() { return this.message || '(No message entered)'; },
+                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
 
                 async sendBroadcast() {
                     if (!this.message.trim()) {

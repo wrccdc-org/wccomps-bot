@@ -64,7 +64,7 @@
             <!-- Team Configuration -->
             <div>
                 <h3 class="mt-0 mb-10">Team Configuration</h3>
-                <form @submit.prevent="setMaxMembers()"
+                <form @submit.prevent="setMaxMembers"
                       class="d-flex gap-10 items-end mb-15">
                     <c-form_field label="Max Team Members" id="max_members" class="flex-1">
                     <input type="number"
@@ -84,29 +84,29 @@
                             <c-badge variant="default" class="d-flex items-center gap-10">
                             <span x-text="app"></span>
                             <button type="button"
-                                    @click="removeApp(index)"
+                                    @click="removeApp" :data-app="app"
                                     class="text-danger btn-reset text-md">×</button>
                             </c-badge>
                         </template>
-                        <template x-if="apps.length === 0">
+                        <template x-if="noApps">
                             <span class="text-muted text-sm">No apps configured</span>
                         </template>
                     </div>
-                    <form @submit.prevent="addApp()" class="d-flex gap-10 items-center">
+                    <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
                         <select x-model="newApp" class="vTextField w-200">
                             <option value="">Select app...</option>
                             {% for app in available_apps %}
-                                <option value="{{ app }}" x-bind:disabled="apps.includes('{{ app }}')">{{ app }}</option>
+                                <option value="{{ app }}">{{ app }}</option>
                             {% endfor %}
                         </select>
-                        <c-button type="submit" variant="default" ::disabled="loading || !newApp">Add</c-button>
+                        <c-button type="submit" variant="default" ::disabled="addDisabled">Add</c-button>
                     </form>
                 </div>
             </div>
             <!-- Schedule -->
             <div>
                 <h3 class="mt-0 mb-10">Schedule</h3>
-                <form @submit.prevent="setStartTime()"
+                <form @submit.prevent="setStartTime"
                       class="d-flex gap-10 items-end mb-15">
                     <c-form_field label="Start Time" id="start_datetime" class="flex-1">
                     <input type="datetime-local"
@@ -125,7 +125,7 @@
                     </c-form_field>
                     <c-button type="submit" variant="default" ::disabled="loading">Set</c-button>
                 </form>
-                <form @submit.prevent="setEndTime()" class="d-flex gap-10 items-end">
+                <form @submit.prevent="setEndTime" class="d-flex gap-10 items-end">
                     <c-form_field label="End Time" id="end_datetime" class="flex-1">
                     <input type="datetime-local"
                            name="end_datetime"
@@ -149,26 +149,26 @@
         <!-- Section 2: Competition Controls -->
         <c-fieldset heading="Competition Controls" class="mb-20">
         <div class="d-flex gap-10 flex-wrap mt-10">
-            <c-button variant="primary" @click="startCompetition()" ::disabled="loading">
+            <c-button variant="primary" @click="startCompetition" ::disabled="loading">
             Start Competition
             </c-button>
-            <c-button variant="warning" @click="stopCompetition()" ::disabled="loading">
+            <c-button variant="warning" @click="stopCompetition" ::disabled="loading">
             Stop Competition
             </c-button>
         </div>
-        <template x-if="progressTotal > 0">
+        <template x-if="hasProgress">
             <div class="mt-10">
                 <div class="d-flex justify-between mb-5">
                     <span class="text-sm" x-text="progressStep"></span>
-                    <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
+                    <span class="text-sm" x-text="progressText"></span>
                 </div>
                 <div class="progress-bar">
                     <div class="progress-bar__fill"
-                         :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
-                         :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
+                         :class="progressBarClass"
+                         :style="progressStyle"></div>
                 </div>
-                <template x-if="progressFailed > 0">
-                    <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
+                <template x-if="hasFailures">
+                    <div class="text-sm text-warning mt-5" x-text="failedText"></div>
                 </template>
             </div>
         </template>
@@ -197,7 +197,7 @@
         {% else %}
             <p class="text-muted mb-10">Metadata not synced yet.</p>
         {% endif %}
-        <c-button variant="default" @click="syncQuotient()" ::disabled="loading">
+        <c-button variant="default" @click="syncQuotient" ::disabled="loading">
         Sync Quotient Metadata
         </c-button>
         </c-fieldset>
@@ -206,7 +206,7 @@
         <!-- Password Reset -->
         <div class="mb-20">
             <h3 class="mt-0 mb-10">Password Management</h3>
-            <form @submit.prevent="resetPasswords()" class="max-w-500">
+            <form @submit.prevent="resetPasswords" class="max-w-500">
                 <c-form_field label="Team Numbers" id="team_numbers" help_text="Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.">
                 <input type="text"
                        name="team_numbers"
@@ -225,7 +225,7 @@
                           class="w-full vTextField h-120 font-mono text-sm"
                           x-text="csvContent"></textarea>
                 <c-button_row class="mt-10">
-                <c-button type="button" variant="default" @click="downloadCsv()">Download CSV</c-button>
+                <c-button type="button" variant="default" @click="downloadCsv">Download CSV</c-button>
                 </c-button_row>
                 </c-action_box>
             </template>
@@ -236,14 +236,14 @@
             <p class="help-text mb-10">
                 Deactivates Discord links and clears queued announcements. Competition must be stopped first.
             </p>
-            <c-link href="#" variant="danger" @click.prevent="cleanupCompetition()" ::class="loading && 'disabled'">
+            <c-link href="#" variant="danger" @click.prevent="cleanupCompetition" ::class="disabledClass">
             Cleanup Competition
             </c-link>
         </div>
         <!-- Danger Zone -->
         <c-action_box variant="warning" heading="Danger Zone">
         <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
-        <c-link href="#" variant="danger" @click.prevent="wipeCompetition()" ::class="loading && 'disabled'">
+        <c-link href="#" variant="danger" @click.prevent="wipeCompetition" ::class="disabledClass">
         Wipe All Data
         </c-link>
         </c-action_box>
@@ -252,7 +252,7 @@
         <template x-if="message">
             <div x-transition class="toast-position">
                 <div class="alert"
-                     :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+                     :class="alertClass">
                     <span x-text="message"></span>
                 </div>
             </div>
@@ -291,6 +291,17 @@ document.addEventListener('alpine:init', () => {
         endTimezone: 'America/Los_Angeles',
         teamNumbers: '',
         csvContent: '',
+
+        get noApps() { return this.apps.length === 0; },
+        get addDisabled() { return this.loading || !this.newApp; },
+        get hasProgress() { return this.progressTotal > 0; },
+        get progressText() { return this.progressCurrent + '/' + this.progressTotal; },
+        get progressBarClass() { return this.progressFailed > 0 ? 'progress-bar__fill--warn' : ''; },
+        get progressStyle() { return 'width:' + Math.round(this.progressCurrent / this.progressTotal * 100) + '%'; },
+        get hasFailures() { return this.progressFailed > 0; },
+        get failedText() { return this.progressFailed + ' failed'; },
+        get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
+        get disabledClass() { return this.loading ? 'disabled' : ''; },
 
         async doAction(action, data = {}) {
             this.loading = true;
@@ -438,9 +449,13 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        removeApp(index) {
-            this.apps.splice(index, 1);
-            this.saveApps();
+        removeApp(e) {
+            const app = e.currentTarget.dataset.app;
+            const index = this.apps.indexOf(app);
+            if (index > -1) {
+                this.apps.splice(index, 1);
+                this.saveApps();
+            }
         },
 
         saveApps() {

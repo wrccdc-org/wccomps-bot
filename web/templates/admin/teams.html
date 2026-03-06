@@ -8,7 +8,7 @@
         <c-page_header title="Team Management" />
         <c-module>
         <c-slot name="title">Bulk Actions</c-slot>
-        <form @submit.prevent="bulkAction()"
+        <form @submit.prevent="bulkAction"
               class="d-flex gap-10 items-end flex-wrap">
             <c-filter_field label="Team Numbers" id="bulk_team_numbers">
             <input type="text"
@@ -83,7 +83,7 @@
         <template x-if="message">
             <div x-transition class="toast-position">
                 <div class="alert"
-                     :class="messageType === 'success' ? 'alert--success' : 'alert--error'">
+                     :class="alertClass">
                     <span x-text="message"></span>
                 </div>
             </div>
@@ -97,6 +97,7 @@
                 messageType: 'success',
                 bulkTeamNumbers: '',
                 bulkActionType: 'activate',
+                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
 
                 async bulkAction() {
                     if (!this.bulkTeamNumbers) {

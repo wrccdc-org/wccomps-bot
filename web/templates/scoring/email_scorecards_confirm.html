@@ -61,7 +61,7 @@
         <c-button_row class="mt-20 justify-end">
         <div x-show="showForm" class="d-flex gap-10 items-center">
             <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
-            <c-button variant="primary" @click="sendEmails()" ::disabled="loading">
+            <c-button variant="primary" @click="sendEmails" ::disabled="loading">
             Send {{ teams_with_email }} Email(s)
             </c-button>
         </div>

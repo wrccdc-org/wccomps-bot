@@ -16,6 +16,7 @@
         }));
         Alpine.data('editableCell', () => ({
             editing: false,
+            get notEditing() { return !this.editing; },
             startEditing() { this.editing = true; },
             stopEditing() { this.editing = false; },
             autoResize() { this.$el.style.height = 'auto'; this.$el.style.height = this.$el.scrollHeight + 'px'; },
