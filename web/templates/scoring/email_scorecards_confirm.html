@@ -24,7 +24,9 @@
                      :class="progressFillClass"
                      :style="progressFillStyle"></div>
             </div>
-            <div x-show="progressFailed" class="text-sm text-warning mt-5" x-text="progressFailedText"></div>
+            <div x-show="progressFailed"
+                 class="text-sm text-warning mt-5"
+                 x-text="progressFailedText"></div>
         </div>
         <!-- Result message -->
         <div x-show="done" x-cloak x-transition class="mb-10">
