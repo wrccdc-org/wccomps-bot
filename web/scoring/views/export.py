@@ -145,9 +145,7 @@ def export_scorecards(request: HttpRequest) -> HttpResponse:
     return response
 
 
-def _build_email_context(
-    team: Team, score: FinalScore, total_teams: int
-) -> dict[str, object]:
+def _build_email_context(team: Team, score: FinalScore, total_teams: int) -> dict[str, object]:
     """Build email template context for a team's scorecard."""
     from team.models import SchoolInfo
 
@@ -236,11 +234,7 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
 
     logger = logging.getLogger(__name__)
 
-    scores = (
-        FinalScore.objects.filter(is_excluded=False, rank__isnull=False)
-        .select_related("team")
-        .order_by("rank")
-    )
+    scores = FinalScore.objects.filter(is_excluded=False, rank__isnull=False).select_related("team").order_by("rank")
 
     if not scores.exists():
         messages.error(request, "No scores available. Recalculate scores first.")
@@ -257,21 +251,25 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
             emails = [school_info.contact_email]
             if school_info.secondary_email:
                 emails.append(school_info.secondary_email)
-            team_rows.append({
-                "team": team,
-                "score": score,
-                "school_name": school_info.school_name,
-                "emails": emails,
-                "has_email": True,
-            })
+            team_rows.append(
+                {
+                    "team": team,
+                    "score": score,
+                    "school_name": school_info.school_name,
+                    "emails": emails,
+                    "has_email": True,
+                }
+            )
         except SchoolInfo.DoesNotExist:
-            team_rows.append({
-                "team": team,
-                "score": score,
-                "school_name": "",
-                "emails": [],
-                "has_email": False,
-            })
+            team_rows.append(
+                {
+                    "team": team,
+                    "score": score,
+                    "school_name": "",
+                    "emails": [],
+                    "has_email": False,
+                }
+            )
 
     if request.method == "POST":
         from core.email import send_templated_email
@@ -296,9 +294,7 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
                 to=row_emails,
                 template_name="scorecard",
                 context=email_ctx,
-                attachments=[
-                    (f"team-{row_team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")
-                ],
+                attachments=[(f"team-{row_team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
             )
 
             if success:
@@ -321,12 +317,16 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
     teams_with_email = sum(1 for r in team_rows if r["has_email"])
     teams_without_email = sum(1 for r in team_rows if not r["has_email"])
 
-    return render(request, "scoring/email_scorecards_confirm.html", {
-        "team_rows": team_rows,
-        "teams_with_email": teams_with_email,
-        "teams_without_email": teams_without_email,
-        "total_teams": total_teams,
-    })
+    return render(
+        request,
+        "scoring/email_scorecards_confirm.html",
+        {
+            "team_rows": team_rows,
+            "teams_with_email": teams_with_email,
+            "teams_without_email": teams_without_email,
+            "total_teams": total_teams,
+        },
+    )
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
@@ -363,9 +363,7 @@ def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
             to=emails,
             template_name="scorecard",
             context=email_ctx,
-            attachments=[
-                (f"team-{team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")
-            ],
+            attachments=[(f"team-{team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
         )
 
         if success:
@@ -375,9 +373,13 @@ def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
 
         return redirect("scoring:scorecard", team_number=team_number)
 
-    return render(request, "scoring/email_scorecard_confirm.html", {
-        "team": team,
-        "score": score,
-        "school_name": school_name,
-        "emails": emails,
-    })
+    return render(
+        request,
+        "scoring/email_scorecard_confirm.html",
+        {
+            "team": team,
+            "score": score,
+            "school_name": school_name,
+            "emails": emails,
+        },
+    )
