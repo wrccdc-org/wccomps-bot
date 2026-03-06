@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from django.http import HttpRequest, HttpResponse
 
@@ -278,30 +278,32 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
         failed: list[str] = []
         skipped = 0
 
-        for row in team_rows:
-            if not row["has_email"]:
+        for final_score in scores:
+            team = final_score.team
+            try:
+                school_info = team.school_info
+                emails = [school_info.contact_email]
+                if school_info.secondary_email:
+                    emails.append(school_info.secondary_email)
+            except SchoolInfo.DoesNotExist:
                 skipped += 1
                 continue
 
-            row_team = cast(Team, row["team"])
-            score_obj = cast(FinalScore, row["score"])
+            email_ctx = _build_email_context(team, final_score, total_teams)
+            pdf_bytes = _generate_team_pdf(team, final_score, request)
 
-            email_ctx = _build_email_context(row_team, score_obj, total_teams)
-            pdf_bytes = _generate_team_pdf(row_team, score_obj, request)
-
-            row_emails = cast(list[str], row["emails"])
             success = send_templated_email(
-                to=row_emails,
+                to=emails,
                 template_name="scorecard",
                 context=email_ctx,
-                attachments=[(f"team-{row_team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
+                attachments=[(f"team-{team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
             )
 
             if success:
                 sent += 1
             else:
-                failed.append(f"Team {row_team.team_number}")
-                logger.error("Failed to email scorecard to Team %d", row_team.team_number)
+                failed.append(f"Team {team.team_number}")
+                logger.error("Failed to email scorecard to Team %d", team.team_number)
 
         msg = f"Emailed scorecards to {sent} team(s)."
         if skipped:
