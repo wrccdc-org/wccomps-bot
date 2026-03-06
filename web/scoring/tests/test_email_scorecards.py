@@ -1,7 +1,7 @@
 """Tests for email scorecard views."""
 
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth.models import User
@@ -149,7 +149,7 @@ class TestBulkEmailScorecardsGET:
 class TestBulkEmailScorecardsPost:
     """Test the bulk email POST action."""
 
-    @patch("core.email.send_templated_email", return_value=True)
+    @patch("scoring.views.export._send_scorecard_email", return_value=True)
     def test_sends_emails_to_all_teams_with_school_info(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
@@ -157,7 +157,7 @@ class TestBulkEmailScorecardsPost:
         assert response.status_code == 302
         assert mock_send.call_count == 2
 
-    @patch("core.email.send_templated_email", return_value=True)
+    @patch("scoring.views.export._send_scorecard_email", return_value=True)
     def test_skips_teams_without_school_info(self, mock_send, gold_user, teams, final_scores):
         """Teams without SchoolInfo should be skipped, not crash."""
         # No school_infos fixture — neither team has email
@@ -167,42 +167,64 @@ class TestBulkEmailScorecardsPost:
         assert response.status_code == 302
         assert mock_send.call_count == 0
 
-    @patch("core.email.send_templated_email", return_value=True)
-    def test_email_includes_pdf_attachment(self, mock_send, gold_user, final_scores, school_infos):
-        client = Client()
-        client.force_login(gold_user)
-        client.post(reverse("scoring:email_scorecards"))
-
-        call_kwargs = mock_send.call_args_list[0][1]
-        attachments = call_kwargs["attachments"]
-        assert len(attachments) == 1
-        filename, content, mime = attachments[0]
-        assert filename == "team-01-scorecard.pdf"
-        assert mime == "application/pdf"
-        assert isinstance(content, bytes)
-        assert len(content) > 0
-
-    @patch("core.email.send_templated_email", return_value=True)
-    def test_email_sent_to_both_contact_emails(self, mock_send, gold_user, final_scores, school_infos):
+    @patch("scoring.views.export._send_scorecard_email", return_value=True)
+    def test_email_includes_correct_recipients_and_pdf(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
         client.post(reverse("scoring:email_scorecards"))
 
         # Team 1 has both primary and secondary email
-        call_kwargs = mock_send.call_args_list[0][1]
-        assert call_kwargs["to"] == ["alpha@example.edu", "alpha2@example.edu"]
+        call_args = mock_send.call_args_list[0]
+        assert call_args[0][0] == ["alpha@example.edu", "alpha2@example.edu"]
+        assert call_args[0][2] == 1  # team_number
+        assert isinstance(call_args[0][3], bytes)  # pdf_bytes
 
         # Team 2 has only primary
-        call_kwargs = mock_send.call_args_list[1][1]
-        assert call_kwargs["to"] == ["beta@example.edu"]
+        call_args = mock_send.call_args_list[1]
+        assert call_args[0][0] == ["beta@example.edu"]
+        assert call_args[0][2] == 2  # team_number
 
-    @patch("core.email.send_templated_email", return_value=False)
+    @patch("scoring.views.export._send_scorecard_email", return_value=False)
     def test_reports_failed_emails(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
         response = client.post(reverse("scoring:email_scorecards"), follow=True)
         content = response.content.decode()
         assert "Failed" in content
+
+
+class TestSendScorecardEmail:
+    """Test the _send_scorecard_email helper directly."""
+
+    @patch("django.core.mail.EmailMultiAlternatives")
+    def test_sends_email_with_correct_recipients(self, mock_email_cls):
+        from scoring.views.export import _send_scorecard_email
+
+        mock_email = MagicMock()
+        mock_email_cls.return_value = mock_email
+
+        ctx = {"event_name": "Test Event", "school_name": "Test School"}
+        result = _send_scorecard_email(["a@test.com", "b@test.com"], ctx, 1, b"pdf-bytes")
+
+        assert result is True
+        mock_email_cls.assert_called_once()
+        assert mock_email_cls.call_args[1]["to"] == ["a@test.com", "b@test.com"]
+        mock_email.attach_alternative.assert_called_once()
+        mock_email.attach.assert_called_once_with("team-01-scorecard.pdf", b"pdf-bytes", "application/pdf")
+        mock_email.send.assert_called_once_with(fail_silently=False)
+
+    @patch("django.core.mail.EmailMultiAlternatives")
+    def test_returns_false_on_send_failure(self, mock_email_cls):
+        from scoring.views.export import _send_scorecard_email
+
+        mock_email = MagicMock()
+        mock_email.send.side_effect = Exception("SMTP error")
+        mock_email_cls.return_value = mock_email
+
+        ctx = {"event_name": "Test Event", "school_name": "Test School"}
+        result = _send_scorecard_email(["a@test.com"], ctx, 1, b"pdf-bytes")
+
+        assert result is False
 
 
 class TestSingleEmailScorecardGET:
@@ -226,7 +248,7 @@ class TestSingleEmailScorecardGET:
 class TestSingleEmailScorecardPOST:
     """Test the single team email POST action."""
 
-    @patch("core.email.send_templated_email", return_value=True)
+    @patch("scoring.views.export._send_scorecard_email", return_value=True)
     def test_sends_email_with_pdf(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
@@ -234,12 +256,11 @@ class TestSingleEmailScorecardPOST:
         assert response.status_code == 302
         assert mock_send.call_count == 1
 
-        call_kwargs = mock_send.call_args[1]
-        assert call_kwargs["to"] == ["alpha@example.edu", "alpha2@example.edu"]
-        assert call_kwargs["template_name"] == "scorecard"
-        assert len(call_kwargs["attachments"]) == 1
+        call_args = mock_send.call_args[0]
+        assert call_args[0] == ["alpha@example.edu", "alpha2@example.edu"]
+        assert call_args[2] == 1  # team_number
 
-    @patch("core.email.send_templated_email", return_value=False)
+    @patch("scoring.views.export._send_scorecard_email", return_value=False)
     def test_reports_failure(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)

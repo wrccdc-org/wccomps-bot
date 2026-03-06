@@ -139,6 +139,38 @@ def export_scorecards(request: HttpRequest) -> HttpResponse:
     return response
 
 
+def _send_scorecard_email(
+    recipients: list[str], context: dict[str, object], team_number: int, pdf_bytes: bytes
+) -> bool:
+    """Send a scorecard email using Django's email backend."""
+    import logging
+
+    from django.conf import settings
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        subject = render_to_string("emails/scorecard_subject.txt", context).strip()
+        text_content = render_to_string("emails/scorecard.txt", context)
+        html_content = render_to_string("emails/scorecard.html", context)
+
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=recipients,
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.attach(f"team-{team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")
+        email.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception("Failed to send scorecard email to Team %d", team_number)
+        return False
+
+
 def _build_email_context(team: Team, score: FinalScore, total_teams: int) -> dict[str, object]:
     """Build email template context for a team's scorecard."""
     from team.models import SchoolInfo
@@ -266,8 +298,6 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
             )
 
     if request.method == "POST":
-        from core.email import send_templated_email
-
         sent = 0
         failed: list[str] = []
         skipped = 0
@@ -286,13 +316,7 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
             email_ctx = _build_email_context(team, final_score, total_teams)
             pdf_bytes = _generate_team_pdf(team, final_score, request)
 
-            success = send_templated_email(
-                to=emails,
-                template_name="scorecard",
-                context=email_ctx,
-                attachments=[(f"team-{team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
-            )
-
+            success = _send_scorecard_email(emails, email_ctx, team.team_number, pdf_bytes)
             if success:
                 sent += 1
             else:
@@ -350,17 +374,10 @@ def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         return redirect("scoring:scorecard", team_number=team_number)
 
     if request.method == "POST":
-        from core.email import send_templated_email
-
         email_ctx = _build_email_context(team, score, total_teams)
         pdf_bytes = _generate_team_pdf(team, score, request)
 
-        success = send_templated_email(
-            to=emails,
-            template_name="scorecard",
-            context=email_ctx,
-            attachments=[(f"team-{team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")],
-        )
+        success = _send_scorecard_email(emails, email_ctx, team_number, pdf_bytes)
 
         if success:
             messages.success(request, f"Scorecard emailed to {', '.join(emails)}.")
