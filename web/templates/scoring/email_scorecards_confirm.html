@@ -7,43 +7,41 @@
     <div id="content-main">
         <c-page_header title="Email All Scorecards" />
         <c-module>
-            <c-alert variant="warning">
-                This will email scorecard PDFs to {{ teams_with_email }} team(s).
-                {% if teams_without_email %}
-                    {{ teams_without_email }} team(s) will be skipped (no contact email).
-                {% endif %}
-            </c-alert>
-            <c-table id="email_preview" aria_label="Teams to email">
-                <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Team</c-table_header>
-                        <c-table_header sortable="false">School</c-table_header>
-                        <c-table_header sortable="false">Email(s)</c-table_header>
-                        <c-table_header sortable="false" class="text-right">Score</c-table_header>
-                    </tr>
-                </c-slot>
-                {% for row in team_rows %}
-                    <tr {% if not row.has_email %}class="row-below-avg"{% endif %}>
-                        <td>Team {{ row.team.team_number }}</td>
-                        <td>{{ row.school_name|default:"—" }}</td>
-                        <td>
-                            {% if row.has_email %}
-                                {{ row.emails|join:", " }}
-                            {% else %}
-                                <em>No email</em>
-                            {% endif %}
-                        </td>
-                        <td class="text-right">{{ row.score.total_score|floatformat:0 }}</td>
-                    </tr>
-                {% endfor %}
-            </c-table>
-            <form method="post">
-                {% csrf_token %}
-                <c-button_row class="mt-20 justify-end">
-                    <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
-                    <c-button type="submit" variant="primary">Send {{ teams_with_email }} Email(s)</c-button>
-                </c-button_row>
-            </form>
+        <c-alert variant="warning">
+        This will email scorecard PDFs to {{ teams_with_email }} team(s).
+        {% if teams_without_email %}{{ teams_without_email }} team(s) will be skipped (no contact email).{% endif %}
+        </c-alert>
+        <c-table id="email_preview" aria_label="Teams to email">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Team</c-table_header>
+            <c-table_header sortable="false">School</c-table_header>
+            <c-table_header sortable="false">Email(s)</c-table_header>
+            <c-table_header sortable="false" class="text-right">Score</c-table_header>
+        </tr>
+        </c-slot>
+        {% for row in team_rows %}
+            <tr {% if not row.has_email %}class="row-below-avg"{% endif %}>
+                <td>Team {{ row.team.team_number }}</td>
+                <td>{{ row.school_name|default:"—" }}</td>
+                <td>
+                    {% if row.has_email %}
+                        {{ row.emails|join:", " }}
+                    {% else %}
+                        <em>No email</em>
+                    {% endif %}
+                </td>
+                <td class="text-right">{{ row.score.total_score|floatformat:0 }}</td>
+            </tr>
+        {% endfor %}
+        </c-table>
+        <form method="post">
+            {% csrf_token %}
+            <c-button_row class="mt-20 justify-end">
+            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
+            <c-button type="submit" variant="primary">Send {{ teams_with_email }} Email(s)</c-button>
+            </c-button_row>
+        </form>
         </c-module>
     </div>
 {% endblock scoring_content %}
