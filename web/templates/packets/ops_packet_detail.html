@@ -35,7 +35,7 @@
                         </c-button>
                     {% endif %}
                     {% if packet.status not in "cancelled" %}
-                        <c-link href="#" variant="danger" @click.prevent="cancelPacket" ::class="loading && 'disabled'">
+                        <c-link href="#" variant="danger" @click.prevent="cancelPacket" ::class="disabledClass">
                         Cancel
                         </c-link>
                     {% endif %}
@@ -184,6 +184,7 @@
             progressTotal: 0,
             progressFailed: 0,
 
+            get disabledClass() { return this.loading ? 'disabled' : ''; },
             get hasProgress() { return this.progressTotal > 0; },
             get progressText() { return this.progressCurrent + '/' + this.progressTotal; },
             get progressBarClass() { return this.progressFailed > 0 ? 'progress-bar__fill--warn' : ''; },
