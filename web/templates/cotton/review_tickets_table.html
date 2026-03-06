@@ -1,6 +1,6 @@
 {# Review tickets table - swappable content for htmx #}
 {# Usage: <c-review_tickets_table :page_obj="page_obj" ... /> #}
-<div id="review-tickets-content">
+<div {{ attrs }} id="review-tickets-content">
     <div class="results">
         <table id="result_list" role="grid" aria-label="Resolved tickets list">
             {# djlint:off H021 #}

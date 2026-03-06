@@ -380,3 +380,37 @@ class TestAlpineCSPCompatibility:
                 "Alpine expressions incompatible with CSP build "
                 "(move logic to computed getters in Alpine.data):\n" + "\n".join(lines)
             )
+
+
+class TestCottonAttrsPassthrough:
+    """Ensure Cotton components include {{ attrs }} for attribute passthrough.
+
+    Without {{ attrs }}, any undeclared attributes (like Alpine directives
+    x-show, :class, @click) are silently dropped from the rendered HTML.
+    """
+
+    COTTON_DIR = TEMPLATES_DIR / "cotton"
+
+    # Fragment components with no single root element where {{ attrs }} can't go
+    FRAGMENT_COMPONENTS = {
+        "detail_row.html",  # renders <dt> + <dd> siblings
+        "pagination.html",  # conditional <p> wrapper
+    }
+
+    def test_cotton_components_include_attrs(self) -> None:
+        """All Cotton components with a root element must include {{ attrs }}."""
+        missing: list[str] = []
+
+        for path in sorted(self.COTTON_DIR.glob("*.html")):
+            if path.name in self.FRAGMENT_COMPONENTS:
+                continue
+
+            content = path.read_text()
+            if "{{ attrs }}" not in content:
+                missing.append(path.name)
+
+        if missing:
+            pytest.fail(
+                "Cotton components missing {{ attrs }} (Alpine attributes will be silently dropped):\n"
+                + "\n".join(f"  - cotton/{name}" for name in missing)
+            )
