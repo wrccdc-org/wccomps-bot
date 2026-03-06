@@ -150,9 +150,7 @@ class TestBulkEmailScorecardsPost:
     """Test the bulk email POST action."""
 
     @patch("core.email.send_templated_email", return_value=True)
-    def test_sends_emails_to_all_teams_with_school_info(
-        self, mock_send, gold_user, final_scores, school_infos
-    ):
+    def test_sends_emails_to_all_teams_with_school_info(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
         response = client.post(reverse("scoring:email_scorecards"))
