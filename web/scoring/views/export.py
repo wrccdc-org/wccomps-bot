@@ -1,17 +1,11 @@
 """Export endpoint views."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from django.http import HttpRequest, HttpResponse
 
 from core.auth_utils import require_permission
+from team.models import Team
 
-if TYPE_CHECKING:
-    from team.models import Team
-
-    from ..models import FinalScore
+from ..models import FinalScore
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
