@@ -76,4 +76,7 @@ urlpatterns = [
     path("export/inject-grades/", views.export_inject_grades, name="export_inject_grades"),
     path("export/final-scores/", views.export_final_scores, name="export_final_scores"),
     path("export/scorecards/", views.export_scorecards, name="export_scorecards"),
+    # Email scorecards
+    path("email-scorecards/", views.email_scorecards, name="email_scorecards"),
+    path("team/<int:team_number>/scorecard/email/", views.email_scorecard, name="email_scorecard"),
 ]

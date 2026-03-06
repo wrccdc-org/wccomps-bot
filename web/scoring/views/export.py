@@ -1,8 +1,17 @@
 """Export endpoint views."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
 from django.http import HttpRequest, HttpResponse
 
 from core.auth_utils import require_permission
+
+if TYPE_CHECKING:
+    from team.models import Team
+
+    from ..models import FinalScore
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
@@ -134,3 +143,241 @@ def export_scorecards(request: HttpRequest) -> HttpResponse:
     response = HttpResponse(buf.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="scorecards-{timestamp}.zip"'
     return response
+
+
+def _build_email_context(
+    team: Team, score: FinalScore, total_teams: int
+) -> dict[str, object]:
+    """Build email template context for a team's scorecard."""
+    from team.models import SchoolInfo
+
+    from ..models import QuotientMetadataCache
+
+    metadata = QuotientMetadataCache.objects.first()
+    event_name = metadata.event_name if metadata else "Competition"
+
+    try:
+        school_info = team.school_info
+        school_name = school_info.school_name
+    except SchoolInfo.DoesNotExist:
+        school_name = team.team_name
+
+    return {
+        "event_name": event_name,
+        "event_date": score.calculated_at,
+        "school_name": school_name,
+        "team_number": team.team_number,
+        "service_points": score.service_points,
+        "inject_points": score.inject_points,
+        "orange_points": score.orange_points,
+        "red_deductions": score.red_deductions,
+        "incident_recovery_points": score.incident_recovery_points,
+        "sla_penalties": score.sla_penalties,
+        "total_score": score.total_score,
+        "rank": score.rank,
+        "total_teams": total_teams,
+        "scorecard_attached": True,
+    }
+
+
+def _generate_team_pdf(team: Team, score: FinalScore, request: HttpRequest) -> bytes:
+    """Generate a scorecard PDF for a single team."""
+    import weasyprint
+    from django.template.loader import render_to_string
+
+    from ..calculator import calculate_team_score_detailed
+    from ..models import RedTeamScore
+    from .leaderboard import _compute_scorecard_stats
+
+    red_scores = (
+        RedTeamScore.objects.filter(affected_teams=team, is_approved=True)
+        .select_related("attack_type")
+        .order_by("attack_type__name", "pk")
+    )
+    stats = _compute_scorecard_stats(team, score)
+    detailed = calculate_team_score_detailed(team)
+
+    context = {
+        "team": team,
+        "score": score,
+        "red_scores": red_scores,
+        "stats": stats,
+        "red_total": sum(r.points_per_team for r in red_scores),
+        "inject_total": sum(i["points"] for i in stats["inject_stats"]),
+        "service_total": sum(s["points"] for s in stats["service_stats"]),
+        "scaling": {
+            "service_raw": detailed["service_raw"],
+            "inject_raw": detailed["inject_raw"],
+            "orange_raw": detailed["orange_raw"],
+            "svc_modifier": detailed["svc_modifier"],
+            "inj_modifier": detailed["inj_modifier"],
+            "ora_modifier": detailed["ora_modifier"],
+            "service_weight": detailed["service_weight"],
+            "inject_weight": detailed["inject_weight"],
+            "orange_weight": detailed["orange_weight"],
+        },
+    }
+    html_string = render_to_string("scoring/scorecard_print.html", context, request=request)
+    pdf_bytes: bytes = weasyprint.HTML(string=html_string).write_pdf()
+    return pdf_bytes
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
+def email_scorecards(request: HttpRequest) -> HttpResponse:
+    """Email scorecards to all teams. GET shows confirmation, POST sends."""
+    import logging
+
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+
+    from team.models import SchoolInfo
+
+    from ..models import FinalScore
+
+    logger = logging.getLogger(__name__)
+
+    scores = (
+        FinalScore.objects.filter(is_excluded=False, rank__isnull=False)
+        .select_related("team")
+        .order_by("rank")
+    )
+
+    if not scores.exists():
+        messages.error(request, "No scores available. Recalculate scores first.")
+        return redirect("scoring:leaderboard")
+
+    total_teams = scores.count()
+
+    # Build team list with email info for confirmation
+    team_rows = []
+    for score in scores:
+        team = score.team
+        try:
+            school_info = team.school_info
+            emails = [school_info.contact_email]
+            if school_info.secondary_email:
+                emails.append(school_info.secondary_email)
+            team_rows.append({
+                "team": team,
+                "score": score,
+                "school_name": school_info.school_name,
+                "emails": emails,
+                "has_email": True,
+            })
+        except SchoolInfo.DoesNotExist:
+            team_rows.append({
+                "team": team,
+                "score": score,
+                "school_name": "",
+                "emails": [],
+                "has_email": False,
+            })
+
+    if request.method == "POST":
+        from core.email import send_templated_email
+
+        sent = 0
+        failed: list[str] = []
+        skipped = 0
+
+        for row in team_rows:
+            if not row["has_email"]:
+                skipped += 1
+                continue
+
+            row_team = cast(Team, row["team"])
+            score_obj = cast(FinalScore, row["score"])
+
+            email_ctx = _build_email_context(row_team, score_obj, total_teams)
+            pdf_bytes = _generate_team_pdf(row_team, score_obj, request)
+
+            row_emails = cast(list[str], row["emails"])
+            success = send_templated_email(
+                to=row_emails,
+                template_name="scorecard",
+                context=email_ctx,
+                attachments=[
+                    (f"team-{row_team.team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")
+                ],
+            )
+
+            if success:
+                sent += 1
+            else:
+                failed.append(f"Team {row_team.team_number}")
+                logger.error("Failed to email scorecard to Team %d", row_team.team_number)
+
+        msg = f"Emailed scorecards to {sent} team(s)."
+        if skipped:
+            msg += f" Skipped {skipped} team(s) without email."
+        if failed:
+            msg += f" Failed: {', '.join(failed)}."
+            messages.warning(request, msg)
+        else:
+            messages.success(request, msg)
+
+        return redirect("scoring:leaderboard")
+
+    teams_with_email = sum(1 for r in team_rows if r["has_email"])
+    teams_without_email = sum(1 for r in team_rows if not r["has_email"])
+
+    return render(request, "scoring/email_scorecards_confirm.html", {
+        "team_rows": team_rows,
+        "teams_with_email": teams_with_email,
+        "teams_without_email": teams_without_email,
+        "total_teams": total_teams,
+    })
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
+def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
+    """Email scorecard to a single team. GET shows confirmation, POST sends."""
+    from django.contrib import messages
+    from django.shortcuts import get_object_or_404, redirect, render
+
+    from team.models import SchoolInfo
+
+    from ..models import FinalScore
+
+    score = get_object_or_404(FinalScore, team__team_number=team_number)
+    team = score.team
+    total_teams = FinalScore.objects.filter(is_excluded=False, rank__isnull=False).count()
+
+    try:
+        school_info = team.school_info
+        emails = [school_info.contact_email]
+        if school_info.secondary_email:
+            emails.append(school_info.secondary_email)
+        school_name = school_info.school_name
+    except SchoolInfo.DoesNotExist:
+        messages.error(request, f"Team {team_number} has no school info / contact email.")
+        return redirect("scoring:scorecard", team_number=team_number)
+
+    if request.method == "POST":
+        from core.email import send_templated_email
+
+        email_ctx = _build_email_context(team, score, total_teams)
+        pdf_bytes = _generate_team_pdf(team, score, request)
+
+        success = send_templated_email(
+            to=emails,
+            template_name="scorecard",
+            context=email_ctx,
+            attachments=[
+                (f"team-{team_number:02d}-scorecard.pdf", pdf_bytes, "application/pdf")
+            ],
+        )
+
+        if success:
+            messages.success(request, f"Scorecard emailed to {', '.join(emails)}.")
+        else:
+            messages.error(request, f"Failed to email scorecard to Team {team_number}.")
+
+        return redirect("scoring:scorecard", team_number=team_number)
+
+    return render(request, "scoring/email_scorecard_confirm.html", {
+        "team": team,
+        "score": score,
+        "school_name": school_name,
+        "emails": emails,
+    })

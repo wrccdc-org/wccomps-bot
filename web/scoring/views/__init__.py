@@ -3,6 +3,8 @@
 from .api import api_attack_types, api_scores, api_team_detail
 from .config import recalculate_scores, scoring_config, sync_metadata, sync_scores
 from .export import (
+    email_scorecard,
+    email_scorecards,
     export_all,
     export_final_scores,
     export_incidents,
@@ -131,6 +133,8 @@ __all__ = [
     "export_final_scores",
     "export_all",
     "export_scorecards",
+    "email_scorecard",
+    "email_scorecards",
     # api
     "api_scores",
     "api_team_detail",
