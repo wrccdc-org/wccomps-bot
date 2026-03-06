@@ -7,35 +7,31 @@
     <div id="content-main" x-data="emailScorecards">
         <c-page_header title="Email All Scorecards" />
         <c-module>
-        <c-alert variant="warning" x-show="!loading && !message">
-        This will email scorecard PDFs to {{ teams_with_email }} team(s).
-        {% if teams_without_email %}{{ teams_without_email }} team(s) will be skipped (no contact email).{% endif %}
-        </c-alert>
+        <div x-show="showWarning">
+            <c-alert variant="warning">
+            This will email scorecard PDFs to {{ teams_with_email }} team(s).
+            {% if teams_without_email %}{{ teams_without_email }} team(s) will be skipped (no contact email).{% endif %}
+            </c-alert>
+        </div>
         <!-- Progress bar -->
-        <template x-if="progressTotal > 0 && loading">
-            <div class="mt-10 mb-10">
-                <div class="d-flex justify-between mb-5">
-                    <span class="text-sm" x-text="progressStep"></span>
-                    <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-bar__fill"
-                         :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
-                         :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
-                </div>
-                <template x-if="progressFailed > 0">
-                    <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
-                </template>
+        <div x-show="loading" x-cloak class="mt-10 mb-10">
+            <div class="d-flex justify-between mb-5">
+                <span class="text-sm" x-text="progressStep"></span>
+                <span class="text-sm" x-text="progressText"></span>
             </div>
-        </template>
+            <div class="progress-bar">
+                <div class="progress-bar__fill"
+                     :class="progressFillClass"
+                     :style="progressFillStyle"></div>
+            </div>
+            <div x-show="progressFailed" class="text-sm text-warning mt-5" x-text="progressFailedText"></div>
+        </div>
         <!-- Result message -->
-        <template x-if="message">
-            <div x-transition class="mb-10">
-                <c-alert ::variant="messageType">
+        <div x-show="done" x-cloak x-transition class="mb-10">
+            <div class="alert" :class="resultClass">
                 <span x-text="message"></span>
-                </c-alert>
             </div>
-        </template>
+        </div>
         <c-table id="email_preview" aria_label="Teams to email">
         <c-slot name="headers">
         <tr>
@@ -61,16 +57,15 @@
         {% endfor %}
         </c-table>
         <c-button_row class="mt-20 justify-end">
-        <a href="{% url 'scoring:leaderboard' %}"
-           class="btn btn-secondary"
-           x-show="!message">Cancel</a>
-        <a href="{% url 'scoring:leaderboard' %}"
-           class="btn btn-secondary"
-           x-show="message"
-           x-cloak>Back to Leaderboard</a>
-        <c-button variant="primary" @click="sendEmails()" ::disabled="loading" x-show="!message">
-        Send {{ teams_with_email }} Email(s)
-        </c-button>
+        <div x-show="showForm" class="d-flex gap-10 items-center">
+            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
+            <c-button variant="primary" @click="sendEmails()" ::disabled="loading">
+            Send {{ teams_with_email }} Email(s)
+            </c-button>
+        </div>
+        <div x-show="done" x-cloak>
+            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Back to Leaderboard</a>
+        </div>
         </c-button_row>
         </c-module>
     </div>
@@ -78,20 +73,32 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('emailScorecards', () => ({
             loading: false,
+            showWarning: true,
+            showForm: true,
+            done: false,
             message: '',
-            messageType: 'success',
+            resultClass: 'alert--success',
             progressStep: '',
             progressCurrent: 0,
             progressTotal: 0,
             progressFailed: 0,
+            progressText: '0/0',
+            progressFillClass: '',
+            progressFillStyle: 'width: 0%',
+            progressFailedText: '',
 
             async sendEmails() {
                 this.loading = true;
+                this.showWarning = false;
                 this.message = '';
                 this.progressStep = 'Starting...';
                 this.progressCurrent = 0;
                 this.progressTotal = 1;
                 this.progressFailed = 0;
+                this.progressText = '0/1';
+                this.progressFillClass = '';
+                this.progressFillStyle = 'width: 0%';
+                this.progressFailedText = '';
 
                 try {
                     const response = await fetch('{% url "scoring:stream_email_scorecards" %}', {
@@ -114,20 +121,30 @@
                             const msg = JSON.parse(line);
                             if (msg.done) {
                                 this.message = msg.message;
-                                this.messageType = msg.success ? 'success' : 'error';
+                                this.resultClass = msg.success ? 'alert--success' : 'alert--error';
                                 this.loading = false;
+                                this.showForm = false;
+                                this.done = true;
                             } else {
                                 this.progressStep = msg.step;
                                 this.progressCurrent = msg.current;
                                 this.progressTotal = msg.total;
-                                if (!msg.ok) this.progressFailed++;
+                                this.progressText = msg.current + '/' + msg.total;
+                                this.progressFillStyle = 'width: ' + Math.round(msg.current / msg.total * 100) + '%';
+                                if (!msg.ok) {
+                                    this.progressFailed++;
+                                    this.progressFillClass = 'progress-bar__fill--warn';
+                                    this.progressFailedText = this.progressFailed + ' failed';
+                                }
                             }
                         }
                     }
                 } catch (e) {
                     this.message = 'Request failed: ' + e.message;
-                    this.messageType = 'error';
+                    this.resultClass = 'alert--error';
                     this.loading = false;
+                    this.showForm = false;
+                    this.done = true;
                 }
             }
         }));
