@@ -4,13 +4,39 @@
     Email All Scorecards
 {% endblock scoring_title %}
 {% block scoring_content %}
-    <div id="content-main">
+    <div id="content-main"
+         x-data="{ loading: false, message: '', messageType: 'success', progressStep: '', progressCurrent: 0, progressTotal: 0, progressFailed: 0,  async sendEmails() { this.loading = true; this.message = ''; this.progressStep = 'Starting...'; this.progressCurrent = 0; this.progressTotal = 1; this.progressFailed = 0;  try { const response = await fetch('{% url "scoring:stream_email_scorecards" %}', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } });  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';  while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop(); for (const line of lines) { if (!line.trim()) continue; const msg = JSON.parse(line); if (msg.done) { this.message = msg.message; this.messageType = msg.success ? 'success' : 'error'; this.loading = false; } else { this.progressStep = msg.step; this.progressCurrent = msg.current; this.progressTotal = msg.total; if (!msg.ok) this.progressFailed++; } } } } catch (e) { this.message = 'Request failed: ' + e.message; this.messageType = 'error'; this.loading = false; } } }">
         <c-page_header title="Email All Scorecards" />
         <c-module>
-        <c-alert variant="warning">
+        <c-alert variant="warning" x-show="!loading && !message">
         This will email scorecard PDFs to {{ teams_with_email }} team(s).
         {% if teams_without_email %}{{ teams_without_email }} team(s) will be skipped (no contact email).{% endif %}
         </c-alert>
+        <!-- Progress bar -->
+        <template x-if="progressTotal > 0 && loading">
+            <div class="mt-10 mb-10">
+                <div class="d-flex justify-between mb-5">
+                    <span class="text-sm" x-text="progressStep"></span>
+                    <span class="text-sm" x-text="progressCurrent + '/' + progressTotal"></span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar__fill"
+                         :class="progressFailed > 0 ? 'progress-bar__fill--warn' : ''"
+                         :style="'width:' + Math.round(progressCurrent / progressTotal * 100) + '%'"></div>
+                </div>
+                <template x-if="progressFailed > 0">
+                    <div class="text-sm text-warning mt-5" x-text="progressFailed + ' failed'"></div>
+                </template>
+            </div>
+        </template>
+        <!-- Result message -->
+        <template x-if="message">
+            <div x-transition class="mb-10">
+                <c-alert ::variant="messageType">
+                <span x-text="message"></span>
+                </c-alert>
+            </div>
+        </template>
         <c-table id="email_preview" aria_label="Teams to email">
         <c-slot name="headers">
         <tr>
@@ -35,13 +61,18 @@
             </tr>
         {% endfor %}
         </c-table>
-        <form method="post">
-            {% csrf_token %}
-            <c-button_row class="mt-20 justify-end">
-            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
-            <c-button type="submit" variant="primary">Send {{ teams_with_email }} Email(s)</c-button>
-            </c-button_row>
-        </form>
+        <c-button_row class="mt-20 justify-end">
+        <a href="{% url 'scoring:leaderboard' %}"
+           class="btn btn-secondary"
+           x-show="!message">Cancel</a>
+        <a href="{% url 'scoring:leaderboard' %}"
+           class="btn btn-secondary"
+           x-show="message"
+           x-cloak>Back to Leaderboard</a>
+        <c-button variant="primary" @click="sendEmails()" ::disabled="loading" x-show="!message">
+        Send {{ teams_with_email }} Email(s)
+        </c-button>
+        </c-button_row>
         </c-module>
     </div>
 {% endblock scoring_content %}

@@ -1,5 +1,7 @@
 """Export endpoint views."""
 
+from collections.abc import Iterator
+
 from django.http import HttpRequest, HttpResponse
 
 from core.auth_utils import require_permission
@@ -246,30 +248,27 @@ def _generate_team_pdf(team: Team, score: FinalScore, request: HttpRequest) -> b
     return pdf_bytes
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
-def email_scorecards(request: HttpRequest) -> HttpResponse:
-    """Email scorecards to all teams. GET shows confirmation, POST sends."""
+def _progress(step: str, current: int, total: int, ok: bool = True) -> str:
+    """Encode a single progress line as newline-delimited JSON."""
+    import json
+
+    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
+
+
+def _stream_email_scorecards(request: HttpRequest) -> Iterator[str]:
+    """Generator that sends scorecard emails and yields NDJSON progress."""
+    import json
     import logging
 
-    from django.contrib import messages
-    from django.shortcuts import redirect, render
-
     from team.models import SchoolInfo
-
-    from ..models import FinalScore
 
     logger = logging.getLogger(__name__)
 
     scores = FinalScore.objects.filter(is_excluded=False, rank__isnull=False).select_related("team").order_by("rank")
-
-    if not scores.exists():
-        messages.error(request, "No scores available. Recalculate scores first.")
-        return redirect("scoring:leaderboard")
-
     total_teams = scores.count()
 
-    # Build team list with email info for confirmation
-    team_rows = []
+    # Build list of teams with emails
+    sendable = []
     for score in scores:
         team = score.team
         try:
@@ -277,12 +276,63 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
             emails = [school_info.contact_email]
             if school_info.secondary_email:
                 emails.append(school_info.secondary_email)
+            sendable.append((team, score, emails))
+        except SchoolInfo.DoesNotExist:
+            continue
+
+    total = len(sendable)
+    if total == 0:
+        yield json.dumps({"done": True, "success": True, "message": "No teams with email addresses"}) + "\n"
+        return
+
+    sent = 0
+    failed = 0
+    for i, (team, score, emails) in enumerate(sendable, 1):
+        email_ctx = _build_email_context(team, score, total_teams)
+        pdf_bytes = _generate_team_pdf(team, score, request)
+        success = _send_scorecard_email(emails, email_ctx, team.team_number, pdf_bytes)
+
+        if success:
+            sent += 1
+            yield _progress(f"Sent to Team {team.team_number}", i, total)
+        else:
+            failed += 1
+            logger.error("Failed to email scorecard to Team %d", team.team_number)
+            yield _progress(f"Failed Team {team.team_number}", i, total, ok=False)
+
+    message = f"Sent {sent}, failed {failed}" if failed else f"Emailed scorecards to {sent} teams"
+    yield json.dumps({"done": True, "success": failed == 0, "message": message}) + "\n"
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
+def email_scorecards(request: HttpRequest) -> HttpResponse:
+    """Email scorecards confirmation page (GET only)."""
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+
+    from team.models import SchoolInfo
+
+    scores = FinalScore.objects.filter(is_excluded=False, rank__isnull=False).select_related("team").order_by("rank")
+
+    if not scores.exists():
+        messages.error(request, "No scores available. Recalculate scores first.")
+        return redirect("scoring:leaderboard")
+
+    # Build team list with email info for confirmation
+    team_rows = []
+    for score in scores:
+        team = score.team
+        try:
+            school_info = team.school_info
+            emails_list = [school_info.contact_email]
+            if school_info.secondary_email:
+                emails_list.append(school_info.secondary_email)
             team_rows.append(
                 {
                     "team": team,
                     "score": score,
                     "school_name": school_info.school_name,
-                    "emails": emails,
+                    "emails": emails_list,
                     "has_email": True,
                 }
             )
@@ -297,43 +347,6 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
                 }
             )
 
-    if request.method == "POST":
-        sent = 0
-        failed: list[str] = []
-        skipped = 0
-
-        for final_score in scores:
-            team = final_score.team
-            try:
-                school_info = team.school_info
-                emails = [school_info.contact_email]
-                if school_info.secondary_email:
-                    emails.append(school_info.secondary_email)
-            except SchoolInfo.DoesNotExist:
-                skipped += 1
-                continue
-
-            email_ctx = _build_email_context(team, final_score, total_teams)
-            pdf_bytes = _generate_team_pdf(team, final_score, request)
-
-            success = _send_scorecard_email(emails, email_ctx, team.team_number, pdf_bytes)
-            if success:
-                sent += 1
-            else:
-                failed.append(f"Team {team.team_number}")
-                logger.error("Failed to email scorecard to Team %d", team.team_number)
-
-        msg = f"Emailed scorecards to {sent} team(s)."
-        if skipped:
-            msg += f" Skipped {skipped} team(s) without email."
-        if failed:
-            msg += f" Failed: {', '.join(failed)}."
-            messages.warning(request, msg)
-        else:
-            messages.success(request, msg)
-
-        return redirect("scoring:leaderboard")
-
     teams_with_email = sum(1 for r in team_rows if r["has_email"])
     teams_without_email = sum(1 for r in team_rows if not r["has_email"])
 
@@ -344,8 +357,19 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
             "team_rows": team_rows,
             "teams_with_email": teams_with_email,
             "teams_without_email": teams_without_email,
-            "total_teams": total_teams,
+            "total_teams": scores.count(),
         },
+    )
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
+def stream_email_scorecards(request: HttpRequest) -> HttpResponse:
+    """Stream scorecard email sending progress as NDJSON."""
+    from django.http import StreamingHttpResponse
+
+    return StreamingHttpResponse(  # type: ignore[return-value]
+        _stream_email_scorecards(request),
+        content_type="application/x-ndjson",
     )
 
 

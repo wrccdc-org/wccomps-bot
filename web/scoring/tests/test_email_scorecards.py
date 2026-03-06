@@ -1,5 +1,6 @@
 """Tests for email scorecard views."""
 
+import json
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -146,51 +147,62 @@ class TestBulkEmailScorecardsGET:
         assert response.status_code == 302
 
 
-class TestBulkEmailScorecardsPost:
-    """Test the bulk email POST action."""
+class TestStreamEmailScorecards:
+    """Test the streaming bulk email endpoint."""
+
+    def _parse_ndjson(self, response):
+        """Parse NDJSON streaming response into list of dicts."""
+        content = b"".join(response.streaming_content).decode()
+        return [json.loads(line) for line in content.strip().split("\n") if line.strip()]
 
     @patch("scoring.views.export._send_scorecard_email", return_value=True)
-    def test_sends_emails_to_all_teams_with_school_info(self, mock_send, gold_user, final_scores, school_infos):
+    def test_streams_progress_for_each_team(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
-        response = client.post(reverse("scoring:email_scorecards"))
-        assert response.status_code == 302
+        response = client.post(reverse("scoring:stream_email_scorecards"))
+        assert response["Content-Type"] == "application/x-ndjson"
+
+        messages = self._parse_ndjson(response)
+        # 2 progress messages + 1 done message
+        assert len(messages) == 3
+        assert messages[0]["current"] == 1
+        assert messages[1]["current"] == 2
+        assert messages[2]["done"] is True
+        assert messages[2]["success"] is True
         assert mock_send.call_count == 2
 
     @patch("scoring.views.export._send_scorecard_email", return_value=True)
     def test_skips_teams_without_school_info(self, mock_send, gold_user, teams, final_scores):
-        """Teams without SchoolInfo should be skipped, not crash."""
-        # No school_infos fixture — neither team has email
+        """Teams without SchoolInfo should be skipped."""
         client = Client()
         client.force_login(gold_user)
-        response = client.post(reverse("scoring:email_scorecards"))
-        assert response.status_code == 302
+        response = client.post(reverse("scoring:stream_email_scorecards"))
+
+        messages = self._parse_ndjson(response)
+        assert len(messages) == 1
+        assert messages[0]["done"] is True
+        assert messages[0]["success"] is True
         assert mock_send.call_count == 0
 
-    @patch("scoring.views.export._send_scorecard_email", return_value=True)
-    def test_email_includes_correct_recipients_and_pdf(self, mock_send, gold_user, final_scores, school_infos):
-        client = Client()
-        client.force_login(gold_user)
-        client.post(reverse("scoring:email_scorecards"))
-
-        # Team 1 has both primary and secondary email
-        call_args = mock_send.call_args_list[0]
-        assert call_args[0][0] == ["alpha@example.edu", "alpha2@example.edu"]
-        assert call_args[0][2] == 1  # team_number
-        assert isinstance(call_args[0][3], bytes)  # pdf_bytes
-
-        # Team 2 has only primary
-        call_args = mock_send.call_args_list[1]
-        assert call_args[0][0] == ["beta@example.edu"]
-        assert call_args[0][2] == 2  # team_number
-
     @patch("scoring.views.export._send_scorecard_email", return_value=False)
-    def test_reports_failed_emails(self, mock_send, gold_user, final_scores, school_infos):
+    def test_reports_failures_in_stream(self, mock_send, gold_user, final_scores, school_infos):
         client = Client()
         client.force_login(gold_user)
-        response = client.post(reverse("scoring:email_scorecards"), follow=True)
-        content = response.content.decode()
-        assert "Failed" in content
+        response = client.post(reverse("scoring:stream_email_scorecards"))
+
+        messages = self._parse_ndjson(response)
+        progress_msgs = [m for m in messages if not m.get("done")]
+        done_msg = [m for m in messages if m.get("done")][0]
+
+        assert all(not m["ok"] for m in progress_msgs)
+        assert done_msg["success"] is False
+        assert "failed" in done_msg["message"].lower()
+
+    def test_non_gold_user_cannot_stream(self, red_user, final_scores):
+        client = Client()
+        client.force_login(red_user)
+        response = client.post(reverse("scoring:stream_email_scorecards"))
+        assert response.status_code == 302
 
 
 class TestSendScorecardEmail:

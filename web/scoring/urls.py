@@ -78,5 +78,6 @@ urlpatterns = [
     path("export/scorecards/", views.export_scorecards, name="export_scorecards"),
     # Email scorecards
     path("email-scorecards/", views.email_scorecards, name="email_scorecards"),
+    path("email-scorecards/send/", views.stream_email_scorecards, name="stream_email_scorecards"),
     path("team/<int:team_number>/scorecard/email/", views.email_scorecard, name="email_scorecard"),
 ]
