@@ -112,6 +112,10 @@ nav[role="navigation"] {
     padding: 15px;
     border-bottom: 1px solid var(--hairline-color, #ddd);
     margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .toolbar form > div > div {
