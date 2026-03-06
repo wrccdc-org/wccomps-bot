@@ -1,6 +1,7 @@
 {# Unified ticket list table - swappable content for htmx #}
 {% load cotton %}
-<div {{ attrs }} id="ticket-list-content"
+<div {{ attrs }}
+     id="ticket-list-content"
      {% if is_ops %}x-data="ticketBulkSelect"{% endif %}
      hx-get="{% url 'ticket_list' %}?status={{ status_filter }}&category={{ category_filter }}&search={{ search_query }}&sort={{ sort_by }}&page_size={{ page_size }} {% if is_ops %}&team={{ team_filter }}&assignee={{ assignee_filter }}{% endif %} "
      hx-trigger="every 30s"

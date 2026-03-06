@@ -1,6 +1,7 @@
 {# Red team findings table - swappable content for htmx #}
 {# Usage: <c-red_findings_table :findings="findings" :page_obj="page_obj" ... /> #}
-<div {{ attrs }} id="red-findings-content"
+<div {{ attrs }}
+     id="red-findings-content"
      x-data="redFindingsBulkSelect"
      @bulk-approve.document="submitBulk">
     <form id="bulk-approve-form"

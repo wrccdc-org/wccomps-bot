@@ -1,5 +1,6 @@
 {# Inject grades review table - swappable content for htmx #}
-<div {{ attrs }} id="inject-grades-content"
+<div {{ attrs }}
+     id="inject-grades-content"
      x-data="injectGradesBulkSelect"
      @bulk-approve-grades.document="submitBulk">
     <form id="bulk-approve-form"
