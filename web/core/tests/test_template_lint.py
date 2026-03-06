@@ -312,3 +312,71 @@ class TestScrollableLayout:
         assert re.search(r'class="results"', table_template), (
             'c-table component must wrap <table> in <div class="results"> for scroll support'
         )
+
+
+class TestAlpineCSPCompatibility:
+    """Ensure Alpine.js expressions work with the CSP build (no eval).
+
+    The Alpine CSP build only supports simple property access (x-show="loading")
+    and method references without parentheses (@click="toggle"). Expressions like
+    !prop, a > b, fn(), a && b, {key: val} all require eval() and will silently
+    fail at runtime.
+    """
+
+    # Alpine directives that contain expressions.
+    # Captures (directive_name, value).
+    ALPINE_DIRECTIVE_RE = re.compile(
+        r"(?<![:\w])"
+        r"("
+        r"x-(?:show|if|text|html|model|for|init|effect|bind|on)(?::[\w.\-]+)?"
+        r"|@[\w.\-]+"
+        r"|::[\w][\w\-]*"
+        r"|:[\w][\w\-]*"
+        r')\s*=\s*"([^"]*)"',
+    )
+
+    # Simple property path: loading, criterion.label, $store.name.prop
+    SIMPLE_EXPR_RE = re.compile(r"^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$")
+
+    # x-for: (item, index) in collection OR item in collection
+    X_FOR_RE = re.compile(
+        r"^\(?\s*[a-zA-Z_]\w*\s*(?:,\s*[a-zA-Z_]\w*\s*)?\)?\s+in\s+"
+        r"[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$"
+    )
+
+    def test_alpine_expressions_are_csp_compatible(self) -> None:
+        """All Alpine directive values must be simple property paths."""
+        violations: list[tuple[str, int, str, str]] = []
+
+        for template_path in get_all_template_files():
+            content = template_path.read_text()
+            relative = str(template_path.relative_to(TEMPLATES_DIR))
+
+            for match in self.ALPINE_DIRECTIVE_RE.finditer(content):
+                directive = match.group(1)
+                value = match.group(2).strip()
+
+                if not value:
+                    continue
+
+                # Django template tags are server-side rendered, not Alpine expressions
+                if "{{" in value or "{%" in value:
+                    continue
+
+                # x-for has its own syntax: (item, index) in collection
+                if directive == "x-for":
+                    if not self.X_FOR_RE.match(value):
+                        line = content[: match.start()].count("\n") + 1
+                        violations.append((relative, line, directive, value))
+                    continue
+
+                if not self.SIMPLE_EXPR_RE.match(value):
+                    line = content[: match.start()].count("\n") + 1
+                    violations.append((relative, line, directive, value))
+
+        if violations:
+            lines = [f'  - {path}:{line} {d}="{v}"' for path, line, d, v in sorted(violations)]
+            pytest.fail(
+                "Alpine expressions incompatible with CSP build "
+                "(move logic to computed getters in Alpine.data):\n" + "\n".join(lines)
+            )
