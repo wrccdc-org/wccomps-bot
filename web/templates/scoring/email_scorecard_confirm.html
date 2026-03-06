@@ -1,0 +1,23 @@
+{% extends "scoring/base.html" %}
+{% load cotton %}
+{% block scoring_title %}
+    Email Scorecard - Team {{ team.team_number|stringformat:"02d" }}
+{% endblock scoring_title %}
+{% block scoring_content %}
+    <div id="content-main">
+        <c-page_header title="Email Scorecard" />
+        <c-module>
+            <c-alert variant="warning">
+                Email the scorecard PDF for Team {{ team.team_number }} ({{ school_name }}) to:
+                <strong>{{ emails|join:", " }}</strong>
+            </c-alert>
+            <form method="post">
+                {% csrf_token %}
+                <c-button_row class="mt-20 justify-end">
+                    <a href="{% url 'scoring:scorecard' team.team_number %}" class="btn btn-secondary">Cancel</a>
+                    <c-button type="submit" variant="primary">Send Email</c-button>
+                </c-button_row>
+            </form>
+        </c-module>
+    </div>
+{% endblock scoring_content %}
