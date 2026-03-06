@@ -718,7 +718,7 @@ Table with select-all checkbox functionality using Alpine.js.
 ### List Page
 
 ```django
-{% extends "base.html" %}
+{% extends "admin/base_site.html" %}
 
 {% block content %}
 <div id="content-main">
@@ -763,7 +763,7 @@ Table with select-all checkbox functionality using Alpine.js.
 ### Detail Page
 
 ```django
-{% extends "base.html" %}
+{% extends "admin/base_site.html" %}
 
 {% block content %}
 <div id="content-main">
@@ -793,7 +793,7 @@ Table with select-all checkbox functionality using Alpine.js.
 ### Form Page
 
 ```django
-{% extends "base.html" %}
+{% extends "admin/base_site.html" %}
 
 {% block content %}
 <div id="content-main">
@@ -837,7 +837,7 @@ Table with select-all checkbox functionality using Alpine.js.
 ### Dashboard Page
 
 ```django
-{% extends "base.html" %}
+{% extends "admin/base_site.html" %}
 
 {% block content %}
 <div id="content-main">
