@@ -4,8 +4,7 @@
     Email All Scorecards
 {% endblock scoring_title %}
 {% block scoring_content %}
-    <div id="content-main"
-         x-data="{ loading: false, message: '', messageType: 'success', progressStep: '', progressCurrent: 0, progressTotal: 0, progressFailed: 0,  async sendEmails() { this.loading = true; this.message = ''; this.progressStep = 'Starting...'; this.progressCurrent = 0; this.progressTotal = 1; this.progressFailed = 0;  try { const response = await fetch('{% url "scoring:stream_email_scorecards" %}', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } });  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';  while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop(); for (const line of lines) { if (!line.trim()) continue; const msg = JSON.parse(line); if (msg.done) { this.message = msg.message; this.messageType = msg.success ? 'success' : 'error'; this.loading = false; } else { this.progressStep = msg.step; this.progressCurrent = msg.current; this.progressTotal = msg.total; if (!msg.ok) this.progressFailed++; } } } } catch (e) { this.message = 'Request failed: ' + e.message; this.messageType = 'error'; this.loading = false; } } }">
+    <div id="content-main" x-data="emailScorecards">
         <c-page_header title="Email All Scorecards" />
         <c-module>
         <c-alert variant="warning" x-show="!loading && !message">
@@ -75,4 +74,63 @@
         </c-button_row>
         </c-module>
     </div>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('emailScorecards', () => ({
+            loading: false,
+            message: '',
+            messageType: 'success',
+            progressStep: '',
+            progressCurrent: 0,
+            progressTotal: 0,
+            progressFailed: 0,
+
+            async sendEmails() {
+                this.loading = true;
+                this.message = '';
+                this.progressStep = 'Starting...';
+                this.progressCurrent = 0;
+                this.progressTotal = 1;
+                this.progressFailed = 0;
+
+                try {
+                    const response = await fetch('{% url "scoring:stream_email_scorecards" %}', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    });
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            const msg = JSON.parse(line);
+                            if (msg.done) {
+                                this.message = msg.message;
+                                this.messageType = msg.success ? 'success' : 'error';
+                                this.loading = false;
+                            } else {
+                                this.progressStep = msg.step;
+                                this.progressCurrent = msg.current;
+                                this.progressTotal = msg.total;
+                                if (!msg.ok) this.progressFailed++;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    this.message = 'Request failed: ' + e.message;
+                    this.messageType = 'error';
+                    this.loading = false;
+                }
+            }
+        }));
+    });
+    </script>
 {% endblock scoring_content %}
