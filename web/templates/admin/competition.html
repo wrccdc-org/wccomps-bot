@@ -64,8 +64,7 @@
             <!-- Team Configuration -->
             <div>
                 <h3 class="mt-0 mb-10">Team Configuration</h3>
-                <form @submit.prevent="setMaxMembers"
-                      class="d-flex gap-10 items-end mb-15">
+                <form @submit.prevent="setMaxMembers" class="d-flex gap-10 items-end mb-15">
                     <c-form_field label="Max Team Members" id="max_members" class="flex-1">
                     <input type="number"
                            name="max_members"
@@ -84,7 +83,8 @@
                             <c-badge variant="default" class="d-flex items-center gap-10">
                             <span x-text="app"></span>
                             <button type="button"
-                                    @click="removeApp" :data-app="app"
+                                    @click="removeApp"
+                                    :data-app="app"
                                     class="text-danger btn-reset text-md">×</button>
                             </c-badge>
                         </template>
@@ -95,9 +95,7 @@
                     <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
                         <select x-model="newApp" class="vTextField w-200">
                             <option value="">Select app...</option>
-                            {% for app in available_apps %}
-                                <option value="{{ app }}">{{ app }}</option>
-                            {% endfor %}
+                            {% for app in available_apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}
                         </select>
                         <c-button type="submit" variant="default" ::disabled="addDisabled">Add</c-button>
                     </form>
@@ -106,8 +104,7 @@
             <!-- Schedule -->
             <div>
                 <h3 class="mt-0 mb-10">Schedule</h3>
-                <form @submit.prevent="setStartTime"
-                      class="d-flex gap-10 items-end mb-15">
+                <form @submit.prevent="setStartTime" class="d-flex gap-10 items-end mb-15">
                     <c-form_field label="Start Time" id="start_datetime" class="flex-1">
                     <input type="datetime-local"
                            name="start_datetime"
@@ -251,8 +248,7 @@
         <!-- Toast Notification -->
         <template x-if="message">
             <div x-transition class="toast-position">
-                <div class="alert"
-                     :class="alertClass">
+                <div class="alert" :class="alertClass">
                     <span x-text="message"></span>
                 </div>
             </div>

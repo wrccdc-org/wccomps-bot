@@ -76,18 +76,14 @@
                    placeholder="Brief summary of the issue">
             </c-form_field>
             <!-- Hostname with quick-add buttons -->
-            <div class="dynamic-field"
-                 :class="showHostname"
-                 id="field-hostname">
+            <div class="dynamic-field" :class="showHostname" id="field-hostname">
                 <c-form_field label="Hostname" id="hostname">
                 <div class="d-flex flex-wrap gap-10">
                     {% for box_name in box_names %}
                         <button type="button"
                                 class="button box-toggle"
                                 @click="selectHostname"
-                                data-hostname="{{ box_name }}">
-                            {{ box_name }}
-                        </button>
+                                data-hostname="{{ box_name }}">{{ box_name }}</button>
                     {% endfor %}
                 </div>
                 <input type="hidden"
@@ -98,9 +94,7 @@
                 </c-form_field>
             </div>
             <!-- IP Address (auto-filled) -->
-            <div class="dynamic-field"
-                 :class="showIpAddress"
-                 id="field-ip_address">
+            <div class="dynamic-field" :class="showIpAddress" id="field-ip_address">
                 <c-form_field label="IP Address" id="ip_address" help_text="Auto-filled from hostname selection">
                 <input type="text"
                        name="ip_address"
@@ -127,9 +121,7 @@
                 </c-form_field>
             </div>
             <!-- Description -->
-            <div class="dynamic-field"
-                 :class="showDescription"
-                 id="field-description">
+            <div class="dynamic-field" :class="showDescription" id="field-description">
                 <c-form_field label="Description" id="description">
                 <textarea name="description"
                           id="description"

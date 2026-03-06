@@ -43,8 +43,7 @@
             </c-button_row>
         </form>
         <c-action_box heading="Preview" class="mt-20">
-        <div class="whitespace-pre-wrap"
-             x-text="previewText"></div>
+        <div class="whitespace-pre-wrap" x-text="previewText"></div>
         </c-action_box>
         </c-module>
         <c-module class="mt-20">
@@ -57,8 +56,7 @@
         </c-module>
         <template x-if="message_alert">
             <div x-transition class="toast-position">
-                <div class="alert"
-                     :class="alertClass">
+                <div class="alert" :class="alertClass">
                     <span x-text="message_alert"></span>
                 </div>
             </div>
