@@ -2,7 +2,8 @@
 {# Usage: <c-fieldset heading="User Details">Form fields here</c-fieldset> #}
 {# Props: heading, class, aligned (bool) #}
 <c-vars heading class aligned="true" />
-<fieldset {{ attrs }} class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
+<fieldset {{ attrs }}
+          class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
     {% if heading %}<h2>{{ heading }}</h2>{% endif %}
     {{ slot }}
 </fieldset>

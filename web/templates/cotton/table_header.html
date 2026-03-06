@@ -2,7 +2,9 @@
 {# Usage: <c-table_header sort_field="team__team_number" current_sort="-created_at">Team</c-table_header> #}
 {# Props: sort_field, current_sort, query_params (dict), sortable (bool) #}
 <c-vars sort_field current_sort query_params sortable="true" />
-<th scope="col" {{ attrs }} {% if sortable == "true" %}class="sortable"{% endif %}>
+<th scope="col"
+    {{ attrs }}
+    {% if sortable == "true" %}class="sortable"{% endif %}>
     <div class="text">
         {% if sortable == "true" and sort_field %}
             <a href="?{% if current_sort == sort_field %}sort=-{{ sort_field }}{% elif current_sort == "-"|add:sort_field %}sort=default{% else %}sort={{ sort_field }}{% endif %}{{ query_params }}">
