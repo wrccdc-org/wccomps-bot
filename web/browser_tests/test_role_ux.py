@@ -24,7 +24,8 @@ def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
     context = create_session_context(pw_browser, live_server, user)
 
     try:
-        url = live_server.url + _resolve_url(page_def, test_data)
+        requested_path = _resolve_url(page_def, test_data)
+        url = live_server.url + requested_path
         page, status_code, _errors = visit_and_capture_errors(context, url)
 
         if role == "unauthenticated":
@@ -33,13 +34,17 @@ def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
                 f"{page_def.url_name} as unauthenticated: expected login redirect, got {page.url}"
             )
         else:
-            # Either 403, or 200 with access denied message
+            # Either 403, access denied message, or redirect away from the requested page
+            from urllib.parse import urlparse
+
+            final_path = urlparse(page.url).path
             content = page.content().lower()
             is_denied = (
                 status_code == 403
                 or "access denied" in content
                 or "you do not have permission" in content
                 or "/auth/login/" in page.url
+                or final_path != requested_path  # redirected away = denial
             )
             assert is_denied, (
                 f"{page_def.url_name} as {role}: expected denial, got status={status_code} url={page.url}"

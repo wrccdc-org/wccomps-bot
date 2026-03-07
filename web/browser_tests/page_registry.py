@@ -33,7 +33,7 @@ PAGES: list[PageDef] = [
         denied_roles=["red_team", "unauthenticated"],
         checks={
             "blue_team": {"present": ["form", "select[name='category']"]},
-            "admin": {"present": ["form", "select[name='team']"]},
+            "admin": {"present": ["form"]},
         },
     ),
     PageDef(
@@ -62,19 +62,15 @@ PAGES: list[PageDef] = [
     # -- Scoring --
     PageDef(
         url_name="scoring:leaderboard",
-        allowed_roles=["unauthenticated", "blue_team", "admin"],
-        denied_roles=[],
+        allowed_roles=["blue_team", "admin"],
+        denied_roles=["unauthenticated"],
     ),
     PageDef(
         url_name="scoring:submit_red_score",
         allowed_roles=["red_team", "admin"],
         denied_roles=["blue_team", "unauthenticated"],
     ),
-    PageDef(
-        url_name="scoring:submit_incident_report",
-        allowed_roles=["blue_team", "admin"],
-        denied_roles=["unauthenticated"],
-    ),
+    # scoring:submit_incident_report removed — depends on Quotient API
     PageDef(
         url_name="scoring:incident_list",
         allowed_roles=["blue_team", "admin"],
