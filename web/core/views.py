@@ -307,7 +307,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
         link_token.used = True
         link_token.save()
     except LinkToken.DoesNotExist:
-        pass
+        logger.warning(f"LinkToken disappeared during linking flow: token={token[:8]}...")
 
     # Create link attempt record
     LinkAttempt.objects.create(
