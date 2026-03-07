@@ -96,11 +96,12 @@
         </c-button_row>
     </form>
     </c-module>
+    {% if existing_criteria %}{{ existing_criteria|json_script:"criteria-data" }}{% endif %}
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('criteriaForm', () => {
             {% if existing_criteria %}
-            var initial = {{ existing_criteria|safe }};
+            var initial = JSON.parse(document.getElementById('criteria-data').textContent);
             var _nextId = initial.length;
             return {
                 criteria: initial.map(function(c, i) {
