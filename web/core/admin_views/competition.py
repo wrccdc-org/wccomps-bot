@@ -24,7 +24,7 @@ from core.authentik_utils import (
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from team.models import MAX_TEAMS
 
-from ..auth_utils import has_permission
+from ..auth_utils import has_permission, require_permission
 from ..utils import parse_datetime_to_utc
 
 logger = logging.getLogger(__name__)
@@ -508,21 +508,10 @@ _COMPETITION_ACTION_HANDLERS = {
 }
 
 
+@require_permission("admin", "gold_team")
 def admin_competition(request: HttpRequest) -> HttpResponse:
     """Competition management dashboard."""
     from team.models import DiscordLink, Team
-
-    user = cast(User, request.user)
-
-    if not _has_admin_or_gold_access(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to access competition management.",
-            },
-        )
 
     config = CompetitionConfig.get_config()
 

@@ -16,23 +16,14 @@ from core.authentik_utils import (
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
 
+from core.auth_utils import require_permission
+
 from .competition import _has_admin_or_gold_access
 
 
+@require_permission("admin", "gold_team")
 def admin_teams(request: HttpRequest) -> HttpResponse:
     """Teams management dashboard."""
-    user = cast(User, request.user)
-
-    if not _has_admin_or_gold_access(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to access team management.",
-            },
-        )
-
     teams = Team.objects.all().order_by("team_number")
 
     teams_with_info = []
@@ -54,17 +45,9 @@ def admin_teams(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/teams.html", context)
 
 
+@require_permission("admin", "gold_team")
 def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
     """View detailed team info."""
-    user = cast(User, request.user)
-
-    if not _has_admin_or_gold_access(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {"error": "Access denied", "message": "You do not have permission to view team details."},
-        )
-
     try:
         team = Team.objects.get(team_number=team_number)
     except Team.DoesNotExist:

@@ -9,20 +9,14 @@ from django.shortcuts import render
 from core.models import AuditLog, DiscordTask
 from team.models import Team
 
+from core.auth_utils import require_permission
+
 from .competition import _has_admin_or_gold_access
 
 
+@require_permission("admin", "gold_team")
 def admin_broadcast(request: HttpRequest) -> HttpResponse:
     """Broadcast message page."""
-    user = cast(User, request.user)
-
-    if not _has_admin_or_gold_access(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {"error": "Access denied", "message": "You do not have permission to broadcast messages."},
-        )
-
     teams = Team.objects.filter(is_active=True).order_by("team_number")
 
     context = {
@@ -76,17 +70,9 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
     return JsonResponse({"success": True, "message": "Broadcast task queued for Discord bot"})
 
 
+@require_permission("admin", "gold_team")
 def admin_sync_roles(request: HttpRequest) -> HttpResponse:
     """Sync roles page."""
-    user = cast(User, request.user)
-
-    if not _has_admin_or_gold_access(user):
-        return render(
-            request,
-            "tickets_error.html",
-            {"error": "Access denied", "message": "You do not have permission to sync roles."},
-        )
-
     context = {
         "show_ops_nav": True,
         "nav_active": "ops_admin",
