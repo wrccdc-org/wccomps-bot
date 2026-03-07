@@ -3,12 +3,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
-import pytest
 
 from bot.role_sync import RoleSyncManager
 
 
-@pytest.mark.asyncio
 class TestRoleSync:
     """Test role synchronization functionality."""
 

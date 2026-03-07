@@ -15,7 +15,6 @@ from bot.utils import (
 from team.models import DiscordLink, Team
 
 
-@pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 class TestTeamHelpers:
     """Test team helper functions."""
@@ -116,7 +115,6 @@ class TestTeamHelpers:
         assert 333333333 not in discord_ids
 
 
-@pytest.mark.asyncio
 class TestLogging:
     """Test logging utility functions."""
 
