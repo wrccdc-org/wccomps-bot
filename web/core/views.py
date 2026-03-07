@@ -94,6 +94,33 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
     return redirect(f"/auth/login/?next=/auth/link-callback?token={link_token.token}")
 
 
+def _create_or_update_link(
+    discord_id: int,
+    discord_username: str,
+    user: User,
+    team: Team | None,
+) -> DiscordLink:
+    """Create or update a DiscordLink, deactivating any previous link for this discord_id."""
+    DiscordLink.deactivate_previous_links(discord_id)
+    try:
+        link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
+        link.discord_username = discord_username
+        link.user = user
+        link.team = team
+        link.linked_at = timezone.now()
+        link.unlinked_at = None
+        link.save()
+    except DiscordLink.DoesNotExist:
+        link = DiscordLink.objects.create(
+            discord_id=discord_id,
+            discord_username=discord_username,
+            user=user,
+            team=team,
+            is_active=True,
+        )
+    return link
+
+
 def link_callback(request: HttpRequest) -> HttpResponse:
     """Handle OAuth callback after Authentik authentication."""
     # Clear any django-allauth success messages (we show our own)
@@ -268,55 +295,11 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                     },
                 )
 
-            # Deactivate any previous active links for this Discord user
-            DiscordLink.deactivate_previous_links(discord_id)
-
             # Create or update Discord link
-            # Get active link if exists, otherwise create new
-            try:
-                link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
-                # Update existing active link
-                link.discord_username = discord_username
-                link.user = user
-                link.team = team
-                link.is_active = True
-                link.linked_at = timezone.now()
-                link.unlinked_at = None
-                link.save()
-            except DiscordLink.DoesNotExist:
-                # Create new link
-                link = DiscordLink.objects.create(
-                    discord_id=discord_id,
-                    discord_username=discord_username,
-                    user=user,
-                    team=team,
-                    is_active=True,
-                )
+            _create_or_update_link(discord_id, discord_username, user, team)
     else:
         # Non-team linking (admins/support): no locking needed
-        # Deactivate any previous active links for this Discord user
-        DiscordLink.deactivate_previous_links(discord_id)
-
-        # Get active link if exists, otherwise create new
-        try:
-            link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
-            # Update existing active link
-            link.discord_username = discord_username
-            link.user = user
-            link.team = None
-            link.is_active = True
-            link.linked_at = timezone.now()
-            link.unlinked_at = None
-            link.save()
-        except DiscordLink.DoesNotExist:
-            # Create new link
-            link = DiscordLink.objects.create(
-                discord_id=discord_id,
-                discord_username=discord_username,
-                user=user,
-                team=None,
-                is_active=True,
-            )
+        _create_or_update_link(discord_id, discord_username, user, team=None)
 
     # Mark token as used
     try:
