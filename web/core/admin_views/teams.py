@@ -1,0 +1,287 @@
+"""Admin views for team management."""
+
+from typing import cast
+
+from django.contrib.auth.models import User
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.utils import timezone
+
+from core.authentik_manager import AuthentikManager
+from core.authentik_utils import (
+    generate_blueteam_password,
+    parse_team_range,
+    reset_blueteam_password,
+)
+from core.models import AuditLog, DiscordTask
+from team.models import DiscordLink, Team
+
+from .competition import _check_admin
+
+
+def admin_teams(request: HttpRequest) -> HttpResponse:
+    """Teams management dashboard."""
+    user = cast(User, request.user)
+
+    if not _check_admin(user):
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Access denied",
+                "message": "You do not have permission to access team management.",
+            },
+        )
+
+    teams = Team.objects.all().order_by("team_number")
+
+    teams_with_info = []
+    for team in teams:
+        member_count = DiscordLink.objects.filter(team=team, is_active=True).count()
+        teams_with_info.append(
+            {
+                "team": team,
+                "member_count": member_count,
+            }
+        )
+
+    context = {
+        "teams": teams_with_info,
+        "show_ops_nav": True,
+        "nav_active": "ops_admin",
+    }
+
+    return render(request, "admin/teams.html", context)
+
+
+def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
+    """View detailed team info."""
+    user = cast(User, request.user)
+
+    if not _check_admin(user):
+        return render(
+            request,
+            "tickets_error.html",
+            {"error": "Access denied", "message": "You do not have permission to view team details."},
+        )
+
+    try:
+        team = Team.objects.get(team_number=team_number)
+    except Team.DoesNotExist:
+        return render(
+            request, "tickets_error.html", {"error": "Not found", "message": f"Team {team_number} not found."}
+        )
+
+    members = DiscordLink.objects.filter(team=team, is_active=True).order_by("linked_at")
+
+    context = {
+        "team": team,
+        "members": members,
+        "show_ops_nav": True,
+        "nav_active": "ops_admin",
+    }
+
+    return render(request, "admin/team_detail.html", context)
+
+
+def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
+    """Handle team management actions."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username = user.username
+
+    if not _check_admin(user):
+        return JsonResponse({"error": "Access denied"}, status=403)
+
+    try:
+        team = Team.objects.get(team_number=team_number)
+    except Team.DoesNotExist:
+        return JsonResponse({"error": f"Team {team_number} not found"}, status=404)
+
+    action = request.POST.get("action")
+
+    if action == "activate":
+        team.is_active = True
+        team.save()
+        AuditLog.objects.create(
+            action="team_activated",
+            admin_user=authentik_username,
+            target_entity="team",
+            target_id=team_number,
+            details={"team_name": team.team_name},
+        )
+        return JsonResponse({"success": True, "message": f"Team {team_number} activated"})
+
+    elif action == "deactivate":
+        team.is_active = False
+        team.save()
+        AuditLog.objects.create(
+            action="team_deactivated",
+            admin_user=authentik_username,
+            target_entity="team",
+            target_id=team_number,
+            details={"team_name": team.team_name},
+        )
+        return JsonResponse({"success": True, "message": f"Team {team_number} deactivated"})
+
+    elif action == "unlink_user":
+        discord_id = request.POST.get("discord_id")
+        if not discord_id:
+            return JsonResponse({"error": "Discord ID required"}, status=400)
+
+        try:
+            link = DiscordLink.objects.get(discord_id=int(discord_id), team=team, is_active=True)
+            link.is_active = False
+            link.unlinked_at = timezone.now()
+            link.save()
+
+            AuditLog.objects.create(
+                action="user_unlinked",
+                admin_user=authentik_username,
+                target_entity="discord_link",
+                target_id=int(discord_id),
+                details={
+                    "discord_username": link.discord_username,
+                    "team_name": team.team_name,
+                    "authentik_username": link.user.username,
+                },
+            )
+
+            return JsonResponse({"success": True, "message": f"User {link.discord_username} unlinked"})
+        except DiscordLink.DoesNotExist:
+            return JsonResponse({"error": "User not found or not linked to this team"}, status=404)
+
+    elif action == "reset":
+        # Unlink all users
+        links = DiscordLink.objects.filter(team=team, is_active=True)
+        unlinked = 0
+        for link in links:
+            link.is_active = False
+            link.unlinked_at = timezone.now()
+            link.save()
+            unlinked += 1
+
+        # Reset password
+        password = generate_blueteam_password()
+        success, error = reset_blueteam_password(team_number, password)
+
+        # Revoke sessions
+        auth_manager = AuthentikManager()
+        username = f"team{team_number:02d}"
+        session_success, session_error, sessions_revoked = auth_manager.revoke_user_sessions(username)
+
+        AuditLog.objects.create(
+            action="team_reset",
+            admin_user=authentik_username,
+            target_entity="team",
+            target_id=team_number,
+            details={
+                "team_name": team.team_name,
+                "unlinked_members": unlinked,
+                "password_reset": success,
+                "sessions_revoked": sessions_revoked,
+            },
+        )
+
+        if success:
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Team reset: {unlinked} unlinked, {sessions_revoked} sessions revoked",
+                    "password": password,
+                }
+            )
+        else:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"Team partially reset: {unlinked} unlinked, but password reset failed: {error}",
+                }
+            )
+
+    elif action == "recreate_channels":
+        # Create Discord task for bot to handle
+        DiscordTask.objects.create(
+            task_type="setup_team_infrastructure",
+            payload={"team_number": team_number},
+            status="pending",
+        )
+
+        AuditLog.objects.create(
+            action="team_channels_recreate_requested",
+            admin_user=authentik_username,
+            target_entity="team",
+            target_id=team_number,
+            details={"team_name": team.team_name},
+        )
+
+        return JsonResponse({"success": True, "message": "Channel recreation task queued for Discord bot"})
+
+    return JsonResponse({"error": "Unknown action"}, status=400)
+
+
+def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
+    """Handle bulk team actions."""
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    user = cast(User, request.user)
+    authentik_username = user.username
+
+    if not _check_admin(user):
+        return JsonResponse({"error": "Access denied"}, status=403)
+
+    action = request.POST.get("action")
+    team_numbers_str = request.POST.get("team_numbers", "").strip()
+
+    if not team_numbers_str:
+        return JsonResponse({"error": "Team numbers required"}, status=400)
+
+    try:
+        team_numbers = parse_team_range(team_numbers_str)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    if action == "activate":
+        updated = Team.objects.filter(team_number__in=team_numbers).update(is_active=True)
+        AuditLog.objects.create(
+            action="teams_activated",
+            admin_user=authentik_username,
+            target_entity="teams",
+            target_id=0,
+            details={"team_numbers": team_numbers, "updated_count": updated},
+        )
+        return JsonResponse({"success": True, "message": f"Activated {updated} teams"})
+
+    elif action == "deactivate":
+        updated = Team.objects.filter(team_number__in=team_numbers).update(is_active=False)
+        AuditLog.objects.create(
+            action="teams_deactivated",
+            admin_user=authentik_username,
+            target_entity="teams",
+            target_id=0,
+            details={"team_numbers": team_numbers, "updated_count": updated},
+        )
+        return JsonResponse({"success": True, "message": f"Deactivated {updated} teams"})
+
+    elif action == "recreate":
+        for team_number in team_numbers:
+            DiscordTask.objects.create(
+                task_type="setup_team_infrastructure",
+                payload={"team_number": team_number},
+                status="pending",
+            )
+
+        AuditLog.objects.create(
+            action="teams_recreate_requested",
+            admin_user=authentik_username,
+            target_entity="teams",
+            target_id=0,
+            details={"team_numbers": team_numbers},
+        )
+
+        return JsonResponse({"success": True, "message": f"Queued {len(team_numbers)} channel recreation tasks"})
+
+    return JsonResponse({"error": "Unknown action"}, status=400)
