@@ -241,26 +241,14 @@ PAGES: list[PageDef] = [
 
 def get_allowed_test_cases() -> list[tuple[PageDef, str]]:
     """Generate (page_def, role) pairs for pages each role CAN access."""
-    cases = []
-    for page in PAGES:
-        for role in page.allowed_roles:
-            cases.append((page, role))
-    return cases
+    return [(page, role) for page in PAGES for role in page.allowed_roles]
 
 
 def get_denied_test_cases() -> list[tuple[PageDef, str]]:
     """Generate (page_def, role) pairs for pages each role should be DENIED."""
-    cases = []
-    for page in PAGES:
-        for role in page.denied_roles:
-            cases.append((page, role))
-    return cases
+    return [(page, role) for page in PAGES for role in page.denied_roles]
 
 
 def get_element_check_cases() -> list[tuple[PageDef, str]]:
     """Generate (page_def, role) pairs that have element checks defined."""
-    cases = []
-    for page in PAGES:
-        for role in page.checks:
-            cases.append((page, role))
-    return cases
+    return [(page, role) for page in PAGES for role in page.checks]

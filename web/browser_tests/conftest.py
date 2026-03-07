@@ -1,6 +1,10 @@
 """Browser test fixtures: Playwright + session injection, no OAuth required."""
 
+from __future__ import annotations
+
+import logging
 import os
+from typing import TYPE_CHECKING
 
 # Allow sync DB operations in async context (required for pytest-asyncio + live_server)
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
@@ -11,6 +15,12 @@ from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
 from core.models import UserGroups
 from team.models import DiscordLink, Team
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
+    from pytest_django.live_server_helper import LiveServer
+
+logger = logging.getLogger(__name__)
 
 # Role name → Authentik group(s)
 ROLE_GROUPS: dict[str, list[str]] = {
@@ -39,11 +49,12 @@ def pw_browser():
                 browser.close()
                 return
             except Exception:
+                logger.debug("Failed to launch %s, trying next", launch_fn)
                 continue
         raise RuntimeError("No browser could be launched. Run: playwright install")
 
 
-def _create_role_user(role: str, db) -> "User | None":
+def _create_role_user(role: str, db) -> User | None:
     """Create a test user with the given role's Authentik groups + DiscordLink."""
     from django.contrib.auth.models import User
 
@@ -80,8 +91,8 @@ def _create_role_user(role: str, db) -> "User | None":
 
 def create_session_context(
     pw_browser: Browser,
-    live_server: "LiveServer",
-    user: "User | None",
+    live_server: LiveServer,
+    user: User | None,
 ) -> BrowserContext:
     """Create a Playwright BrowserContext with the user's session cookie injected."""
     context = pw_browser.new_context(viewport={"width": 1920, "height": 1080})
