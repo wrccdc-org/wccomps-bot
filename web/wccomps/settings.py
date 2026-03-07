@@ -170,6 +170,9 @@ if "test" in sys.argv or "pytest" in sys.modules:
     PASSWORD_HASHERS = [
         "django.contrib.auth.hashers.MD5PasswordHasher",
     ]
+    # Close DB connections after each request to prevent exhaustion
+    # under parallel xdist workers with threaded live servers
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
