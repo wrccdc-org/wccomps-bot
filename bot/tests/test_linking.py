@@ -99,7 +99,8 @@ class TestDiscordLinkUniqueness:
             is_active=True,
         )
 
-        # Create second active link
+        # Create second active link (deactivate previous first)
+        DiscordLink.deactivate_previous_links(discord_id)
         link2 = DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username="user_v2",
@@ -107,7 +108,8 @@ class TestDiscordLinkUniqueness:
             is_active=True,
         )
 
-        # Create third active link
+        # Create third active link (deactivate previous first)
+        DiscordLink.deactivate_previous_links(discord_id)
         link3 = DiscordLink.objects.create(
             discord_id=discord_id,
             discord_username="user_v3",

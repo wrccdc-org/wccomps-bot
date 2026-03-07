@@ -236,3 +236,26 @@ def setup_django() -> None:
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "wccomps.settings")
     django.setup()
+
+
+@pytest.fixture(autouse=True)
+def _patch_group_role_mapping(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch GROUP_ROLE_MAPPING with non-zero role IDs for all bot tests.
+
+    Settings default to 0 when env vars are not set, which causes role
+    lookups to fail in tests that create mock roles with specific IDs.
+    """
+    from django.conf import settings
+
+    test_mapping = {
+        "WCComps_BlackTeam": 779192640540639263,
+        "WCComps_WhiteTeam": 647838503505362957,
+        "WCComps_OrangeTeam": 647878925040615446,
+        "WCComps_RedTeam": 647878925040615447,
+        "WCComps_GoldTeam": 647878925040615448,
+    }
+    monkeypatch.setattr(settings, "GROUP_ROLE_MAPPING", test_mapping)
+    monkeypatch.setattr(settings, "WHITETEAM_ROLE_ID", 647838503505362957)
+    monkeypatch.setattr(settings, "BLACKTEAM_ROLE_ID", 779192640540639263)
+    monkeypatch.setattr(settings, "ORANGETEAM_ROLE_ID", 647878925040615446)
+    monkeypatch.setattr(settings, "DISCORD_TICKET_QUEUE_CHANNEL_ID", 9999)
