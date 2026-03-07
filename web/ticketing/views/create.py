@@ -1,0 +1,228 @@
+"""Ticket creation view."""
+
+import contextlib
+import logging
+from typing import cast
+
+from django.contrib.auth.models import User
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
+
+from core.auth_utils import get_authentik_groups, has_permission
+from core.models import DiscordTask
+from core.tickets_config import TicketCategoryConfig, get_all_categories, get_category_config
+from core.utils import get_team_from_groups
+from team.models import Team
+from ticketing.models import TicketCategory
+
+logger = logging.getLogger(__name__)
+
+
+def create_ticket(request: HttpRequest) -> HttpResponse:
+    """Create a new support ticket (web form alternative to Discord command)."""
+    # Get user's team
+    user = cast(User, request.user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
+    team, team_number, is_team = get_team_from_groups(groups)
+
+    # Allow admins to create tickets for any team
+    is_admin = has_permission(user, "gold_team") or has_permission(user, "admin")
+    teams = None
+
+    if is_admin:
+        teams = Team.objects.filter(is_active=True).order_by("team_number")
+        # If admin submitted form with team selection, use that team
+        if request.method == "POST":
+            team_id = request.POST.get("team_id")
+            if team_id:
+                with contextlib.suppress(Team.DoesNotExist, ValueError):
+                    team = Team.objects.get(id=team_id, is_active=True)
+                    team_number = team.team_number
+
+    if not is_admin and not team:
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Access denied",
+                "message": "You must be a team member to create tickets.",
+            },
+        )
+
+    # Fetch infrastructure from Quotient API (graceful degradation if unavailable)
+    from quotient.client import QuotientAPIError, get_quotient_client
+
+    infrastructure = None
+    service_choices: list[dict[str, str]] = []
+    box_names: list[str] = []
+    box_ip_map: dict[str, str] = {}
+
+    try:
+        quotient_client = get_quotient_client()
+        infrastructure = quotient_client.get_infrastructure()
+        service_choices = quotient_client.get_service_choices()
+        box_names = quotient_client.get_box_names()
+        if infrastructure:
+            for box in infrastructure.boxes:
+                box_ip_map[box.name] = box.ip
+    except QuotientAPIError:
+        logger.warning("Quotient API unavailable, ticket form will have limited functionality")
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        hostname = request.POST.get("hostname", "").strip()
+        ip_address = request.POST.get("ip_address", "").strip()
+        service_name = request.POST.get("service_name", "").strip()
+
+        # Parse category as integer PK
+        category_id_str = request.POST.get("category", "")
+        try:
+            category_id = int(category_id_str)
+        except (ValueError, TypeError):
+            category_id = 0
+
+        # Admins must select a team
+        if is_admin and not team:
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": get_all_categories(),
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": "Please select a team.",
+                    "form_data": request.POST,
+                },
+            )
+
+        # Validate category
+        if not TicketCategory.objects.filter(pk=category_id).exists():
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": get_all_categories(),
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": "Invalid ticket category selected.",
+                },
+            )
+
+        category_obj = TicketCategory.objects.get(pk=category_id)
+        cat_info: TicketCategoryConfig = get_category_config(category_id) or {}
+
+        # Validate required fields
+        errors = []
+        if not title:
+            errors.append("Title is required.")
+
+        required_fields = cat_info.get("required_fields", [])
+        if "hostname" in required_fields and not hostname:
+            errors.append("Hostname is required for this category.")
+
+        if "ip_address" in required_fields and not ip_address:
+            errors.append("IP Address is required for this category.")
+
+        if "service_name" in required_fields and not service_name:
+            errors.append("Service Name is required for this category.")
+
+        if "description" in required_fields and not description:
+            errors.append("Description is required for this category.")
+
+        if errors:
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": get_all_categories(),
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": " ".join(errors),
+                    "form_data": request.POST,
+                },
+            )
+
+        # For box-reset, use hostname as description
+        if cat_info.get("display_name", "").lower() == "box reset" and hostname:
+            description = hostname
+
+        if not team:
+            return HttpResponse("Team required", status=400)
+
+        # Create ticket using shared atomic function
+        from ticketing.utils import create_ticket_atomic
+
+        try:
+            ticket = create_ticket_atomic(
+                team=team,
+                category=category_obj,
+                title=title,
+                description=description,
+                hostname=hostname,
+                ip_address=ip_address,
+                service_name=service_name,
+                actor_username=authentik_username,
+            )
+
+            # Create Discord task to notify bot (so it can create thread)
+            DiscordTask.objects.create(
+                task_type="ticket_created_web",
+                payload={
+                    "ticket_id": ticket.id,
+                    "ticket_number": ticket.ticket_number,
+                    "team_number": team_number,
+                    "category": category_obj.display_name,
+                    "title": title,
+                    "created_by": authentik_username,
+                },
+                status="pending",
+            )
+
+            logger.info(f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}")
+
+            return redirect("ticket_detail", ticket_number=ticket.ticket_number)
+
+        except Exception as e:
+            logger.error(f"Failed to create ticket: {e}", exc_info=True)
+
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": get_all_categories(),
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": (
+                        f"Failed to create ticket: {e!s}. Please try again or contact support if the problem persists."
+                    ),
+                    "form_data": request.POST,
+                },
+            )
+
+    # GET request - show form
+    return render(
+        request,
+        "create_ticket.html",
+        {
+            "team": team,
+            "teams": teams,
+            "categories": get_all_categories(),
+            "service_choices": service_choices,
+            "box_names": box_names,
+            "box_ip_map": box_ip_map,
+        },
+    )

@@ -1,0 +1,179 @@
+"""Ticket detail views."""
+
+import logging
+from typing import cast
+
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect, render
+
+from core.auth_utils import get_authentik_groups, get_authentik_id, has_permission
+from core.models import DiscordTask
+from core.tickets_config import get_all_categories, get_category_config
+from core.utils import get_team_from_groups
+from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+
+logger = logging.getLogger(__name__)
+
+
+def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Unified ticket detail view for both team members and ops staff."""
+    user = cast(User, request.user)
+    authentik_username = user.username
+
+    # Determine user role
+    is_ops = (
+        has_permission(user, "ticketing_support")
+        or has_permission(user, "ticketing_admin")
+        or has_permission(user, "admin")
+    )
+    groups = get_authentik_groups(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
+    is_ticketing_admin = has_permission(user, "ticketing_admin")
+    is_ticketing_support = has_permission(user, "ticketing_support")
+
+    # Look up ticket by ticket_number
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return render(
+            request,
+            "tickets_error.html",
+            {
+                "error": "Ticket not found",
+                "message": f"Ticket {ticket_number} does not exist.",
+            },
+        )
+
+    # Access check
+    if is_ops:
+        pass  # ops can view any ticket
+    elif is_team and team and ticket.team == team:
+        pass  # team member can view own team's tickets
+    else:
+        return HttpResponseForbidden("You do not have permission to view this ticket.")
+
+    # Fetch common data
+    cat_info = get_category_config(ticket.category_id) or {}
+    comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
+    attachments = TicketAttachment.objects.filter(ticket=ticket).order_by("uploaded_at")
+
+    context: dict[str, object] = {
+        "is_ops": is_ops,
+        "is_ticketing_admin": is_ticketing_admin,
+        "is_ticketing_support": is_ticketing_support,
+        "authentik_username": authentik_username,
+        "team": team,
+        "ticket": ticket,
+        "category_name": cat_info.get("display_name", "Unknown"),
+        "comments": comments,
+        "attachments": attachments,
+        "status_display": ticket.status.upper().replace("_", " "),
+    }
+
+    # Ops-specific data
+    if is_ops:
+        history = TicketHistory.objects.filter(ticket=ticket).order_by("-timestamp")[:20]
+        context["variable_points"] = cat_info.get("variable_points", False)
+        context["categories"] = get_all_categories()
+        context["history"] = history
+
+        # Preserve filter state from referrer for back navigation
+        context["status_filter"] = request.GET.get("status", "")
+        context["category_filter"] = request.GET.get("category", "")
+        context["team_filter"] = request.GET.get("team", "")
+        context["assignee_filter"] = request.GET.get("assignee", "")
+        context["search_filter"] = request.GET.get("search", "")
+        context["sort_filter"] = request.GET.get("sort", "")
+        context["page_filter"] = request.GET.get("page", "")
+        context["page_size"] = request.GET.get("page_size", "")
+
+    return render(request, "ticket_detail.html", context)
+
+
+def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Post a comment to a ticket (team members on own tickets, ops on any)."""
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    user = cast(User, request.user)
+    authentik_username = user.username
+    groups = get_authentik_groups(user)
+    get_authentik_id(user)
+    team, _team_number, is_team = get_team_from_groups(groups)
+    is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
+
+    if not is_team and not is_ops:
+        return HttpResponse("Access denied", status=403)
+
+    # Look up ticket by ticket_number
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    # Access check: ops can access any ticket, team can only access their own
+    if not is_ops and (not is_team or not team or ticket.team != team):
+        return HttpResponse("Access denied", status=403)
+
+    # Get comment text
+    comment_text = request.POST.get("comment", "").strip()
+    if not comment_text:
+        messages.error(request, "Comment cannot be empty")
+        return redirect("ticket_detail", ticket_number=ticket.ticket_number)
+
+    # Check rate limit
+    from ticketing.models import CommentRateLimit
+
+    is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
+    if not is_allowed:
+        return JsonResponse({"error": reason}, status=429)
+
+    CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
+
+    comment = TicketComment.objects.create(
+        ticket=ticket,
+        author=user,
+        comment_text=comment_text,
+    )
+
+    DiscordTask.objects.create(
+        task_type="post_comment",
+        ticket=ticket,
+        payload={
+            "ticket_id": ticket.id,
+            "comment_id": comment.id,
+        },
+        status="pending",
+    )
+
+    logger.info(f"Comment posted on ticket {ticket.ticket_number} by {authentik_username} (web)")
+
+    return redirect("ticket_detail", ticket_number=ticket.ticket_number)
+
+
+def ticket_detail_dynamic(request: HttpRequest, ticket_number: str) -> HttpResponse:
+    """Return dynamic ticket content (comments/history) for HTMX polling."""
+    user = cast(User, request.user)
+
+    if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
+        return HttpResponse("Access denied", status=403)
+
+    try:
+        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+    except Ticket.DoesNotExist:
+        return HttpResponse("Ticket not found", status=404)
+
+    comments = TicketComment.objects.filter(ticket=ticket).order_by("posted_at")
+    history = TicketHistory.objects.filter(ticket=ticket).order_by("-timestamp")[:20]
+
+    return render(
+        request,
+        "ops_ticket_detail_dynamic.html",
+        {
+            "ticket": ticket,
+            "comments": comments,
+            "history": history,
+        },
+    )
