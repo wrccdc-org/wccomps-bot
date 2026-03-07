@@ -43,7 +43,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     if not is_admin and not team:
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": "You must be a team member to create tickets.",

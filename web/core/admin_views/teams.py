@@ -52,7 +52,7 @@ def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
         team = Team.objects.get(team_number=team_number)
     except Team.DoesNotExist:
         return render(
-            request, "tickets_error.html", {"error": "Not found", "message": f"Team {team_number} not found."}
+            request, "error.html", {"error": "Not found", "message": f"Team {team_number} not found."}
         )
 
     members = DiscordLink.objects.filter(team=team, is_active=True).order_by("linked_at")

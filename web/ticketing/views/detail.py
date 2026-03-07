@@ -39,7 +39,7 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     except Ticket.DoesNotExist:
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Ticket not found",
                 "message": f"Ticket {ticket_number} does not exist.",

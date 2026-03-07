@@ -381,7 +381,7 @@ def school_info(request: HttpRequest) -> HttpResponse:
     if not has_permission(user, "gold_team"):
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": (
@@ -423,7 +423,7 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     if not has_permission(user, "gold_team"):
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": "You do not have permission to edit school information.",
@@ -436,7 +436,7 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     except Team.DoesNotExist:
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Team not found",
                 "message": f"Team {team_number} does not exist.",
@@ -523,7 +523,7 @@ def school_info_import(request: HttpRequest) -> HttpResponse:
     if not has_permission(user, "gold_team"):
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": "You do not have permission to import school information.",
@@ -641,7 +641,7 @@ def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     if not has_permission(user, "gold_team"):
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": "You do not have permission to access team mappings. This requires WCComps_GoldTeam role.",

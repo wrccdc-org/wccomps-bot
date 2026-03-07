@@ -34,7 +34,7 @@ def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if not is_team or not team:
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Invalid account",
                 "message": "Your account is not associated with a team.",
@@ -47,7 +47,7 @@ def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
     except Ticket.DoesNotExist:
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Ticket not found",
                 "message": f"Ticket {ticket_number} does not exist or does not belong to your team.",
@@ -58,7 +58,7 @@ def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if ticket.status != "open":
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Cannot cancel",
                 "message": f"Ticket {ticket_number} is already {ticket.status}. Only open tickets can be cancelled.",

@@ -200,7 +200,7 @@ class TestTicketCancel:
         client.force_login(blue_team_user)
         response = client.post(reverse("ticket_cancel", args=[ticket.ticket_number]))
         # Should show error (ticket not found for their team)
-        assert b"unable to access" in response.content.lower() or b"invalid" in response.content.lower()
+        assert b"ticket not found" in response.content.lower() or b"access denied" in response.content.lower()
 
 
 class TestOpsTicketClaim:

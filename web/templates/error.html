@@ -1,14 +1,14 @@
 {% extends "admin/base_site.html" %}
 {% load cotton %}
 {% block title %}
-    Error - WCComps Tickets
+    Error - WCComps
 {% endblock title %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="{{ error }}" />
         <c-module>
         <c-alert variant="error">
-        <p class="m-0">Unable to access tickets</p>
+        <p class="m-0">{{ error }}</p>
         </c-alert>
         <c-fieldset>
         <p>{{ message }}</p>

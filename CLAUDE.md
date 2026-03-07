@@ -33,12 +33,11 @@ cd web && DB_HOST=localhost DB_PORT=5433 DB_USER=test_user DB_PASSWORD=test_pass
 ### UI Components
 - All templates extend `admin/base_site.html` directly
 - Use django-cotton components from `templates/cotton/`
-- `tickets_error.html` is the generic error template (not ticket-specific despite name)
 
 ### Streaming Progress Pattern
 - Use `StreamingHttpResponse` + NDJSON + Alpine.js for long operations
 - Use `core.utils.ndjson_progress()` helper for progress lines
 
 ### Team Model
-- `MAX_TEAMS = 50` defined in `team/models.py` — always use this constant
+- `MAX_TEAMS = 50` defined in `team/models.py`
 - Team accounts are shared (multiple Discord users per Authentik account)

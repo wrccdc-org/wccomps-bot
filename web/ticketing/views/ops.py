@@ -28,7 +28,7 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     if not has_permission(user, "ticketing_admin"):
         return render(
             request,
-            "tickets_error.html",
+            "error.html",
             {
                 "error": "Access denied",
                 "message": "You do not have permission to review tickets. This requires ticketing admin role.",
