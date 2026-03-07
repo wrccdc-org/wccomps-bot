@@ -222,8 +222,7 @@ def _stream_start_competition(config: CompetitionConfig, authentik_username: str
                 "done": True,
                 "success": True,
                 "message": (
-                    f"Competition started. Apps: {app_ok}/{len(apps)}, "
-                    f"Accounts: {acct_ok}/{MAX_TEAMS}{quotient_msg}"
+                    f"Competition started. Apps: {app_ok}/{len(apps)}, Accounts: {acct_ok}/{MAX_TEAMS}{quotient_msg}"
                 ),
             }
         )
