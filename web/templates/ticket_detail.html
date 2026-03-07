@@ -3,10 +3,8 @@
 {% block title %}
     Ticket {{ ticket.ticket_number }} - WCComps
 {% endblock title %}
-{% block home_url %}
-    {% url 'ticket_list' %}
-{% endblock home_url %}
-{% block extra_css %}
+{% block extrastyle %}
+    {{ block.super }}
     <style>
         .comment-list {
             display: flex;
@@ -44,7 +42,7 @@
             line-height: 1.5;
         }
     </style>
-{% endblock extra_css %}
+{% endblock extrastyle %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="{{ ticket.ticket_number }} — {{ ticket.title }}" subtitle="Team {{ ticket.team.team_number }}" />

@@ -7,10 +7,7 @@
         Team {{ team.team_number }} — Tickets
     {% endif %}
 {% endblock title %}
-{% block home_url %}
-    {% url 'ticket_list' %}
-{% endblock home_url %}
-{% block extra_css %}
+{% block extrastyle %}
     {{ block.super }}
     {% if is_ops %}
         <script>
@@ -38,7 +35,7 @@
         });
         </script>
     {% endif %}
-{% endblock extra_css %}
+{% endblock extrastyle %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="
