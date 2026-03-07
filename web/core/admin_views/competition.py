@@ -153,9 +153,7 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         return JsonResponse({"error": "Invalid datetime format"}, status=400)
 
 
-def _progress(step: str, current: int, total: int, ok: bool = True) -> str:
-    """Encode a single progress line as newline-delimited JSON."""
-    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
+from core.utils import ndjson_progress as _progress
 
 
 def _stream_start_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:

@@ -25,6 +25,16 @@ def parse_datetime_to_utc(datetime_str: str, tz_name: str = "America/Los_Angeles
     return local_time.astimezone(ZoneInfo("UTC"))
 
 
+def ndjson_progress(step: str, current: int, total: int, ok: bool = True) -> str:
+    """Encode a single progress line as newline-delimited JSON.
+
+    Used by streaming views to report operation progress to the frontend.
+    """
+    import json
+
+    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
+
+
 def get_team_from_groups(
     groups: list[str],
 ) -> tuple[Team | None, int | None, bool]:

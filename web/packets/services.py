@@ -18,9 +18,7 @@ from .models import Packet, PacketDistribution
 logger = logging.getLogger(__name__)
 
 
-def _progress(step: str, current: int, total: int, ok: bool = True) -> str:
-    """Encode a single progress line as newline-delimited JSON."""
-    return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
+from core.utils import ndjson_progress as _progress
 
 
 class PacketDistributionService:
