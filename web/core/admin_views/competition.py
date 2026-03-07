@@ -26,6 +26,7 @@ from team.models import MAX_TEAMS
 
 from ..auth_utils import has_permission, require_permission
 from ..utils import parse_datetime_to_utc
+from core.utils import ndjson_progress as _progress
 
 logger = logging.getLogger(__name__)
 
@@ -153,13 +154,11 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         return JsonResponse({"error": "Invalid datetime format"}, status=400)
 
 
-from core.utils import ndjson_progress as _progress
-
 
 def _stream_start_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
     """Stream progress for starting the competition."""
     apps = config.controlled_applications
-    total = len(apps) + 50 + 1  # apps + accounts + quotient sync
+    total = len(apps) + MAX_TEAMS + 1  # apps + accounts + quotient sync
     auth_manager = AuthentikManager()
 
     # Phase 1: Enable applications
@@ -223,7 +222,7 @@ def _stream_start_competition(config: CompetitionConfig, authentik_username: str
             {
                 "done": True,
                 "success": True,
-                "message": f"Competition started. Apps: {app_ok}/{len(apps)}, Accounts: {acct_ok}/50{quotient_msg}",
+                "message": f"Competition started. Apps: {app_ok}/{len(apps)}, Accounts: {acct_ok}/{MAX_TEAMS}{quotient_msg}",
             }
         )
         + "\n"
@@ -248,7 +247,7 @@ def _action_start_competition(
 def _stream_stop_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
     """Stream progress for stopping the competition."""
     apps = config.controlled_applications
-    total = len(apps) + 50  # apps + accounts
+    total = len(apps) + MAX_TEAMS  # apps + accounts
     auth_manager = AuthentikManager()
 
     # Phase 1: Disable applications
@@ -300,7 +299,7 @@ def _stream_stop_competition(config: CompetitionConfig, authentik_username: str)
             {
                 "done": True,
                 "success": True,
-                "message": f"Competition stopped. Apps: {app_ok}/{len(apps)}, Accounts disabled: {acct_ok}/50",
+                "message": f"Competition stopped. Apps: {app_ok}/{len(apps)}, Accounts disabled: {acct_ok}/{MAX_TEAMS}",
             }
         )
         + "\n"
