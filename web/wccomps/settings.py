@@ -246,20 +246,20 @@ SESSION_COOKIE_HTTPONLY = True  # Explicit (Django default, but important for se
 # WCComps specific settings
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5000")
 DISCORD_LOG_CHANNEL_ID = int(os.environ.get("DISCORD_LOG_CHANNEL_ID", "0"))
-DISCORD_TICKET_QUEUE_CHANNEL_ID = int(os.environ.get("DISCORD_TICKET_QUEUE_CHANNEL_ID", "1429147071562252360"))
-DISCORD_ANNOUNCEMENT_CHANNEL_ID = int(os.environ.get("DISCORD_ANNOUNCEMENT_CHANNEL_ID", "1208127199622860881"))
+DISCORD_TICKET_QUEUE_CHANNEL_ID = int(os.environ.get("DISCORD_TICKET_QUEUE_CHANNEL_ID", "0"))
+DISCORD_ANNOUNCEMENT_CHANNEL_ID = int(os.environ.get("DISCORD_ANNOUNCEMENT_CHANNEL_ID", "0"))
 # Channel where combined link+ticket panel is posted (#welcome-rules)
-DISCORD_WELCOME_CHANNEL_ID = int(os.environ.get("DISCORD_WELCOME_CHANNEL_ID", "525724053730885642"))
+DISCORD_WELCOME_CHANNEL_ID = int(os.environ.get("DISCORD_WELCOME_CHANNEL_ID", "0"))
 # Channel where link-only panel is posted (#link - hidden after linking)
-DISCORD_LINK_CHANNEL_ID = int(os.environ.get("DISCORD_LINK_CHANNEL_ID", "1436492939130835065"))
-BLUETEAM_ROLE_ID = int(os.environ.get("BLUETEAM_ROLE_ID", "525444104763736075"))
+DISCORD_LINK_CHANNEL_ID = int(os.environ.get("DISCORD_LINK_CHANNEL_ID", "0"))
+BLUETEAM_ROLE_ID = int(os.environ.get("BLUETEAM_ROLE_ID", "0"))
 
 # Authentik group to Discord role mappings
-BLACKTEAM_ROLE_ID = int(os.environ.get("BLACKTEAM_ROLE_ID", "779192640540639263"))
-WHITETEAM_ROLE_ID = int(os.environ.get("WHITETEAM_ROLE_ID", "647838503505362957"))
-ORANGETEAM_ROLE_ID = int(os.environ.get("ORANGETEAM_ROLE_ID", "647878925040615446"))
-REDTEAM_ROLE_ID = int(os.environ.get("REDTEAM_ROLE_ID", "546490269693116437"))
-GOLDTEAM_ROLE_ID = int(os.environ.get("GOLDTEAM_ROLE_ID", "1435254879235997897"))
+BLACKTEAM_ROLE_ID = int(os.environ.get("BLACKTEAM_ROLE_ID", "0"))
+WHITETEAM_ROLE_ID = int(os.environ.get("WHITETEAM_ROLE_ID", "0"))
+ORANGETEAM_ROLE_ID = int(os.environ.get("ORANGETEAM_ROLE_ID", "0"))
+REDTEAM_ROLE_ID = int(os.environ.get("REDTEAM_ROLE_ID", "0"))
+GOLDTEAM_ROLE_ID = int(os.environ.get("GOLDTEAM_ROLE_ID", "0"))
 
 # Authentik group name to Discord role ID mapping
 GROUP_ROLE_MAPPING = {
@@ -271,8 +271,8 @@ GROUP_ROLE_MAPPING = {
 }
 
 # Guild configuration for role synchronization
-VOLUNTEER_GUILD_ID = int(os.environ.get("VOLUNTEER_GUILD_ID", "404855247857778697"))
-COMPETITION_GUILD_ID = int(os.environ.get("DISCORD_GUILD_ID", "525435725123158026"))  # Main competition guild
+VOLUNTEER_GUILD_ID = int(os.environ.get("VOLUNTEER_GUILD_ID", "0"))
+COMPETITION_GUILD_ID = int(os.environ.get("DISCORD_GUILD_ID", "0"))  # Main competition guild
 
 # Role sync mappings: Volunteer Guild Role ID -> Competition Guild Role ID
 # Sync is one-way: changes in volunteer guild propagate to competition guild
