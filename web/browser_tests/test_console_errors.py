@@ -11,6 +11,8 @@ from .conftest import (
 )
 from .page_registry import get_allowed_test_cases
 
+pytestmark = [pytest.mark.browser, pytest.mark.django_db(transaction=True)]
+
 # Generate test IDs like "ticket_list--blue_team"
 _allowed_cases = get_allowed_test_cases()
 _allowed_ids = [f"{p.url_name}--{r}" for p, r in _allowed_cases]

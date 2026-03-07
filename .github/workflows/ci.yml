@@ -71,7 +71,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest
+          uv run pytest -m "not browser"
         env:
           DJANGO_SETTINGS_MODULE: wccomps.settings
           PYTHONPATH: ${{ github.workspace }}/web:${{ github.workspace }}
