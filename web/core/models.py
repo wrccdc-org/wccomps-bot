@@ -69,10 +69,13 @@ class DiscordTask(models.Model):
         ("post_comment", "Post Comment to Thread"),
         ("broadcast_message", "Broadcast Message"),
         ("assign_role", "Assign Team Role"),
+        ("assign_group_roles", "Assign Group-Based Roles"),
         ("remove_role", "Remove Team Role"),
         ("setup_team_infrastructure", "Setup Team Infrastructure"),
         ("log_to_channel", "Log to Ops Channel"),
         ("post_ticket_update", "Post Ticket Update to Thread"),
+        ("ticket_created_web", "Ticket Created via Web"),
+        ("sync_roles", "Sync Roles Between Guilds"),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES)
