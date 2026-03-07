@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 
-from core.auth_utils import get_authentik_groups, get_authentik_id, has_permission
+from core.auth_utils import get_authentik_groups, has_permission
 from core.models import DiscordTask
 from core.tickets_config import get_all_categories, get_category_config
 from core.utils import get_team_from_groups
@@ -100,7 +100,6 @@ def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
     groups = get_authentik_groups(user)
-    get_authentik_id(user)
     team, _team_number, is_team = get_team_from_groups(groups)
     is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 

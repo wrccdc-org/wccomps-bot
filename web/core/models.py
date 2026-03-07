@@ -54,7 +54,8 @@ class DiscordTask(models.Model):
     """Task queue for Discord API operations (rate limit resilience).
 
     Payload schemas by task_type:
-        create_thread:           {"ticket_id": int, "ticket_number": str, "team_number": int, "category": str, "title": str}
+        create_thread:           {"ticket_id": int, "ticket_number": str,
+                                  "team_number": int, "category": str, "title": str}
         update_embed:            {"ticket_id": int}
         update_dashboard:        {}
         archive_thread:          {"ticket_id": int}
@@ -67,7 +68,9 @@ class DiscordTask(models.Model):
         setup_team_infrastructure: {"team_number": int}
         log_to_channel:          {"message": str}
         post_ticket_update:      {"ticket_id": int, "action": str, "actor": str, "details": str}
-        ticket_created_web:      {"ticket_id": int, "ticket_number": str, "team_number": int, "category": str, "title": str, "created_by": str}
+        ticket_created_web:      {"ticket_id": int, "ticket_number": str,
+                                  "team_number": int, "category": str,
+                                  "title": str, "created_by": str}
         sync_roles:              {"requested_by": str, "dry_run": bool}
     """
 
