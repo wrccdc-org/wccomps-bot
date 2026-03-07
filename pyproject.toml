@@ -142,7 +142,7 @@ asyncio_default_fixture_loop_scope = "function"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-testpaths = ["bot/tests", "web/core/tests", "web/scoring/tests", "web/team/tests", "web/packets/tests", "web/registration/tests", "web/challenges/tests", "web/ticketing/tests"]
+testpaths = ["bot/tests", "web/core/tests", "web/scoring/tests", "web/team/tests", "web/packets/tests", "web/registration/tests", "web/challenges/tests", "web/ticketing/tests", "web/browser_tests"]
 addopts = ["-v", "--tb=short", "-n", "auto"]
 markers = [
     "critical: Critical tests that must pass on every deployment",
