@@ -38,8 +38,8 @@ TIMEZONE_CHOICES = [
 ]
 
 
-def _check_admin(user: User) -> bool:
-    """Check if user has admin permission."""
+def _has_admin_or_gold_access(user: User) -> bool:
+    """Check if user has admin or gold_team permission."""
     return has_permission(user, "admin") or has_permission(user, "gold_team")
 
 
@@ -514,7 +514,7 @@ def admin_competition(request: HttpRequest) -> HttpResponse:
 
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return render(
             request,
             "tickets_error.html",
@@ -559,7 +559,7 @@ def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
         return HttpResponse("Method not allowed", status=405)
 
     user = cast(User, request.user)
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     action = request.POST.get("action")

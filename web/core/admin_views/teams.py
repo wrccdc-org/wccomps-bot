@@ -16,14 +16,14 @@ from core.authentik_utils import (
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
 
-from .competition import _check_admin
+from .competition import _has_admin_or_gold_access
 
 
 def admin_teams(request: HttpRequest) -> HttpResponse:
     """Teams management dashboard."""
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return render(
             request,
             "tickets_error.html",
@@ -58,7 +58,7 @@ def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
     """View detailed team info."""
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return render(
             request,
             "tickets_error.html",
@@ -92,7 +92,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     try:
@@ -230,7 +230,7 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     action = request.POST.get("action")

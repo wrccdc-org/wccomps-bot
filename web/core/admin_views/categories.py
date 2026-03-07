@@ -7,13 +7,13 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from ..auth_utils import has_permission
-from .competition import _check_admin
+from .competition import _has_admin_or_gold_access
 
 
 def admin_categories(request: HttpRequest) -> HttpResponse:
     """List all ticket categories."""
     user = cast(User, request.user)
-    if not _check_admin(user) and not has_permission(user, "ticketing_admin"):
+    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied", status=403)
 
     from ticketing.models import TicketCategory
@@ -25,7 +25,7 @@ def admin_categories(request: HttpRequest) -> HttpResponse:
 def admin_category_create(request: HttpRequest) -> HttpResponse:
     """Create a new ticket category."""
     user = cast(User, request.user)
-    if not _check_admin(user) and not has_permission(user, "ticketing_admin"):
+    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied", status=403)
 
     from ticketing.models import TicketCategory
@@ -62,7 +62,7 @@ def admin_category_create(request: HttpRequest) -> HttpResponse:
 def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
     """Edit an existing ticket category."""
     user = cast(User, request.user)
-    if not _check_admin(user) and not has_permission(user, "ticketing_admin"):
+    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied", status=403)
 
     from ticketing.models import TicketCategory
@@ -104,7 +104,7 @@ def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
 def admin_category_delete(request: HttpRequest, category_id: int) -> HttpResponse:
     """Delete a ticket category."""
     user = cast(User, request.user)
-    if not _check_admin(user) and not has_permission(user, "ticketing_admin"):
+    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
         return HttpResponse("Access denied", status=403)
 
     from ticketing.models import TicketCategory

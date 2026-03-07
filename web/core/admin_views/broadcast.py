@@ -9,14 +9,14 @@ from django.shortcuts import render
 from core.models import AuditLog, DiscordTask
 from team.models import Team
 
-from .competition import _check_admin
+from .competition import _has_admin_or_gold_access
 
 
 def admin_broadcast(request: HttpRequest) -> HttpResponse:
     """Broadcast message page."""
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return render(
             request,
             "tickets_error.html",
@@ -42,7 +42,7 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     target = request.POST.get("target", "").strip()
@@ -80,7 +80,7 @@ def admin_sync_roles(request: HttpRequest) -> HttpResponse:
     """Sync roles page."""
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return render(
             request,
             "tickets_error.html",
@@ -103,7 +103,7 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     # For now, force dry_run=True until we're confident the sync is working correctly
@@ -137,7 +137,7 @@ def admin_task_status(request: HttpRequest, task_id: int) -> HttpResponse:
     """Check status of an async task."""
     user = cast(User, request.user)
 
-    if not _check_admin(user):
+    if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
     try:
