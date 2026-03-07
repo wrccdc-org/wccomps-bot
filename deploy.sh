@@ -94,13 +94,25 @@ if command -v docker &>/dev/null; then
     fi
     step "migrate"
 
-    if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q); then
+    if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m "not browser"); then
         cleanup_test_db; fail "tests" "$OUT"
     fi
-    cleanup_test_db
 
     SUMMARY=$(echo "$OUT" | grep . | tail -1)
     step "tests      $SUMMARY"
+
+    # Browser tests (Playwright) — skip if no browser is installed
+    if uv run python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = (p.chromium.launch(headless=True) if True else p.firefox.launch(headless=True)); b.close(); p.stop()" 2>/dev/null; then
+        if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m browser); then
+            cleanup_test_db; fail "browser tests" "$OUT"
+        fi
+        BSUMMARY=$(echo "$OUT" | grep . | tail -1)
+        step "browser    $BSUMMARY"
+    else
+        echo "  · browser    skipped (no playwright browser)"
+    fi
+
+    cleanup_test_db
 else
     echo "  · tests      skipped (no docker)"
 fi
