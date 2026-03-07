@@ -22,6 +22,7 @@ from core.authentik_utils import (
     toggle_authentik_user,
 )
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
+from team.models import MAX_TEAMS
 
 from ..auth_utils import has_permission
 from ..utils import parse_datetime_to_utc
@@ -178,7 +179,7 @@ def _stream_start_competition(config: CompetitionConfig, authentik_username: str
     # Phase 2: Enable team accounts
     acct_ok = 0
     acct_fail = 0
-    for i in range(1, 51):
+    for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
         success, _ = toggle_authentik_user(username, is_active=True)
         idx = len(apps) + i
@@ -267,7 +268,7 @@ def _stream_stop_competition(config: CompetitionConfig, authentik_username: str)
     # Phase 2: Disable team accounts
     acct_ok = 0
     acct_fail = 0
-    for i in range(1, 51):
+    for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
         success, _ = toggle_authentik_user(username, is_active=False)
         idx = len(apps) + i
@@ -432,7 +433,7 @@ def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, aut
     team_numbers_str = request.POST.get("team_numbers", "").strip()
 
     try:
-        team_numbers = parse_team_range(team_numbers_str) if team_numbers_str else list(range(1, 51))
+        team_numbers = parse_team_range(team_numbers_str) if team_numbers_str else list(range(1, MAX_TEAMS + 1))
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
 
