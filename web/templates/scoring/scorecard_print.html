@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <meta charset="utf-8">
         <title>Team {{ team.team_number|stringformat:"02d" }} Scorecard</title>
@@ -114,7 +114,7 @@
             <h1>Team {{ team.team_number|stringformat:"02d" }} Scorecard</h1>
         </div>
         <div class="rank-hero">
-            {% if score.rank %}#{{ score.rank }} of {{ stats.team_count }} teams &mdash;{% endif %}
+            {% if score.rank %}#{{ score.rank }} of {{ stats.team_count }} teams —{% endif %}
             {{ score.total_score|floatformat:0 }} points
         </div>
         {% if stats.insights %}
@@ -143,9 +143,9 @@
                             <td class="text-right">{{ svc_rank.avg|floatformat:0 }}</td>
                             <td class="text-right">{{ svc_rank.max|floatformat:0 }}</td>
                         {% else %}
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
                         {% endif %}
                     </tr>
                 {% endwith %}
@@ -158,9 +158,9 @@
                             <td class="text-right">{{ inj_rank.avg|floatformat:0 }}</td>
                             <td class="text-right">{{ inj_rank.max|floatformat:0 }}</td>
                         {% else %}
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
                         {% endif %}
                     </tr>
                 {% endwith %}
@@ -173,9 +173,9 @@
                             <td class="text-right">{{ ora_rank.avg|floatformat:0 }}</td>
                             <td class="text-right">{{ ora_rank.max|floatformat:0 }}</td>
                         {% else %}
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
                         {% endif %}
                     </tr>
                 {% endwith %}
@@ -190,9 +190,9 @@
                             <td class="text-right">{{ red_rank.avg|floatformat:0 }}</td>
                             <td class="text-right">{{ red_rank.max|floatformat:0 }}</td>
                         {% else %}
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
-                            <td class="text-right">&mdash;</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
                         {% endif %}
                     </tr>
                 {% endwith %}
@@ -208,9 +208,9 @@
                                 <td class="text-right">{{ sla_rank.avg|floatformat:0 }}</td>
                                 <td class="text-right">{{ sla_rank.max|floatformat:0 }}</td>
                             {% else %}
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
                             {% endif %}
                         </tr>
                     {% endwith %}
@@ -227,9 +227,9 @@
                                 <td class="text-right">{{ rec_rank.avg|floatformat:0 }}</td>
                                 <td class="text-right">{{ rec_rank.max|floatformat:0 }}</td>
                             {% else %}
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
                             {% endif %}
                         </tr>
                     {% endwith %}
@@ -244,9 +244,9 @@
                                 <td class="text-right">{{ adj_rank.avg|floatformat:0 }}</td>
                                 <td class="text-right">{{ adj_rank.max|floatformat:0 }}</td>
                             {% else %}
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
-                                <td class="text-right">&mdash;</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
+                                <td class="text-right">—</td>
                             {% endif %}
                         </tr>
                     {% endwith %}
@@ -265,9 +265,9 @@
             {% if scaling %}
                 <br>
                 Scoring weights: Service {{ scaling.service_weight|floatformat:0 }}%, Inject {{ scaling.inject_weight|floatformat:0 }}%, Orange {{ scaling.orange_weight|floatformat:0 }}%.
-                Service: {{ scaling.service_raw|floatformat:0 }} raw &times; {{ scaling.svc_modifier|floatformat:2 }}
-                | Inject: {{ scaling.inject_raw|floatformat:0 }} raw &times; {{ scaling.inj_modifier|floatformat:2 }}
-                | Orange: {{ scaling.orange_raw|floatformat:0 }} raw &times; {{ scaling.ora_modifier|floatformat:2 }}
+                Service: {{ scaling.service_raw|floatformat:0 }} raw × {{ scaling.svc_modifier|floatformat:2 }}
+                | Inject: {{ scaling.inject_raw|floatformat:0 }} raw × {{ scaling.inj_modifier|floatformat:2 }}
+                | Orange: {{ scaling.orange_raw|floatformat:0 }} raw × {{ scaling.ora_modifier|floatformat:2 }}
             {% endif %}
         </p>
         {% if stats.service_stats %}

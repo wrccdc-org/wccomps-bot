@@ -21,8 +21,8 @@
                 :aria-expanded="navOpen"
                 aria-controls="nav-menu"
                 aria-label="Toggle navigation">
-            <span x-show="navClosed">&#9776;</span>
-            <span x-show="navOpen" x-cloak>&#10005;</span>
+            <span x-show="navClosed">☰</span>
+            <span x-show="navOpen" x-cloak>✕</span>
         </button>
         <div id="nav-menu" class="nav-menu" :class="navMenuClass">
             <div class="nav-links">
@@ -77,8 +77,8 @@
                             :title="label"
                             :aria-label="label"
                             x-cloak>
-                        <span x-show="disabled">&#x1F507;</span>
-                        <span x-show="enabled">&#x1F514;</span>
+                        <span x-show="disabled">🔇</span>
+                        <span x-show="enabled">🔔</span>
                     </button>
                 {% endif %}
                 <span class="nav-user">{{ authentik_username|default:user.username }}</span>
