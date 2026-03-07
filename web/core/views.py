@@ -268,6 +268,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                     },
                 )
 
+            # Deactivate any previous active links for this Discord user
+            DiscordLink.deactivate_previous_links(discord_id)
+
             # Create or update Discord link
             # Get active link if exists, otherwise create new
             try:
@@ -281,7 +284,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 link.unlinked_at = None
                 link.save()
             except DiscordLink.DoesNotExist:
-                # Create new link (save() will deactivate any old ones)
+                # Create new link
                 link = DiscordLink.objects.create(
                     discord_id=discord_id,
                     discord_username=discord_username,
@@ -291,6 +294,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
                 )
     else:
         # Non-team linking (admins/support): no locking needed
+        # Deactivate any previous active links for this Discord user
+        DiscordLink.deactivate_previous_links(discord_id)
+
         # Get active link if exists, otherwise create new
         try:
             link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
@@ -303,7 +309,7 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             link.unlinked_at = None
             link.save()
         except DiscordLink.DoesNotExist:
-            # Create new link (save() will deactivate any old ones)
+            # Create new link
             link = DiscordLink.objects.create(
                 discord_id=discord_id,
                 discord_username=discord_username,

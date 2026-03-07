@@ -171,6 +171,18 @@ class DiscordLink(models.Model):
             self.helper_removal_reason = reason
             self.save()
 
+    @classmethod
+    def deactivate_previous_links(cls, discord_id: int, exclude_pk: int | None = None) -> int:
+        """Deactivate any existing active links for this Discord user.
+
+        Must be called explicitly before creating/activating a new link.
+        Returns the number of links deactivated.
+        """
+        qs = cls.objects.filter(discord_id=discord_id, is_active=True)
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        return qs.update(is_active=False, unlinked_at=timezone.now())
+
     def save(
         self,
         *,
@@ -179,16 +191,6 @@ class DiscordLink(models.Model):
         using: str | None = None,
         update_fields: Iterable[str] | None = None,
     ) -> None:
-        """Override save to deactivate previous active link when creating new one."""
-        if self.is_active:
-            # Deactivate any existing active link for this discord_id
-            # (one Discord user can only have one active link at a time)
-            DiscordLink.objects.filter(discord_id=self.discord_id, is_active=True).exclude(pk=self.pk).update(
-                is_active=False, unlinked_at=timezone.now()
-            )
-
-            # Do NOT deactivate links based on authentik_user_id because blue teams
-            # share a single Authentik account (multiple Discord users -> same authentik_user_id)
         super().save(
             force_insert=force_insert,
             force_update=force_update,

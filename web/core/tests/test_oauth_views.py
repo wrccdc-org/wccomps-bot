@@ -244,7 +244,7 @@ class TestDiscordLinkConstraints:
     """Test DiscordLink uniqueness and constraints."""
 
     def test_only_one_active_link_per_discord_user(self, blue_team_user):
-        """Creating new link deactivates previous active link."""
+        """Calling deactivate_previous_links before creating new link deactivates previous active link."""
         team = Team.objects.create(team_number=1, team_name="Blue Team 01", max_members=10)
         discord_id = 123456789
         user1 = User.objects.create_user(username="auth1")
@@ -258,6 +258,9 @@ class TestDiscordLinkConstraints:
             team=team,
             is_active=True,
         )
+
+        # Explicitly deactivate previous links before creating second link
+        DiscordLink.deactivate_previous_links(discord_id)
 
         # Create second link for same Discord user
         link2 = DiscordLink.objects.create(
