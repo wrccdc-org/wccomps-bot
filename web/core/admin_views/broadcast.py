@@ -6,10 +6,9 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 
+from core.auth_utils import require_permission
 from core.models import AuditLog, DiscordTask
 from team.models import Team
-
-from core.auth_utils import require_permission
 
 from .competition import _has_admin_or_gold_access
 

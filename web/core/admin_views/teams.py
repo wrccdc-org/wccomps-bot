@@ -7,6 +7,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from core.auth_utils import require_permission
 from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
@@ -15,8 +16,6 @@ from core.authentik_utils import (
 )
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
-
-from core.auth_utils import require_permission
 
 from .competition import _has_admin_or_gold_access
 
@@ -51,9 +50,7 @@ def admin_team_detail(request: HttpRequest, team_number: int) -> HttpResponse:
     try:
         team = Team.objects.get(team_number=team_number)
     except Team.DoesNotExist:
-        return render(
-            request, "error.html", {"error": "Not found", "message": f"Team {team_number} not found."}
-        )
+        return render(request, "error.html", {"error": "Not found", "message": f"Team {team_number} not found."})
 
     members = DiscordLink.objects.filter(team=team, is_active=True).order_by("linked_at")
 

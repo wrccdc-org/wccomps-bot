@@ -22,11 +22,11 @@ from core.authentik_utils import (
     toggle_authentik_user,
 )
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
+from core.utils import ndjson_progress as _progress
 from team.models import MAX_TEAMS
 
 from ..auth_utils import has_permission, require_permission
 from ..utils import parse_datetime_to_utc
-from core.utils import ndjson_progress as _progress
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,6 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         return JsonResponse({"success": True, "message": f"End time set to {end_time.isoformat()}"})
     except ValueError:
         return JsonResponse({"error": "Invalid datetime format"}, status=400)
-
 
 
 def _stream_start_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
