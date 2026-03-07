@@ -50,9 +50,7 @@ def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
                 or "/auth/login/" in page.url
                 or final_path != requested_path  # redirected away = denial
             )
-            assert is_denied, (
-                f"{page_def.url_name} as {role}: expected denial, got status={status_code} url={page.url}"
-            )
+            assert is_denied, f"{page_def.url_name} as {role}: expected denial, got status={status_code} url={page.url}"
     finally:
         context.close()
 
@@ -74,23 +72,17 @@ def test_role_specific_elements(page_def, role, live_server, pw_browser):
         url = live_server.url + resolve_url(page_def, test_data)
         page, status_code, _errors = visit_and_capture_errors(context, url)
 
-        assert status_code == 200, (
-            f"{page_def.url_name} as {role}: expected 200, got {status_code}"
-        )
+        assert status_code == 200, f"{page_def.url_name} as {role}: expected 200, got {status_code}"
 
         checks = page_def.checks[role]
 
         for selector in checks.get("present", []):
             count = page.locator(selector).count()
-            assert count > 0, (
-                f"{page_def.url_name} as {role}: expected '{selector}' to be present, found 0"
-            )
+            assert count > 0, f"{page_def.url_name} as {role}: expected '{selector}' to be present, found 0"
 
         for selector in checks.get("absent", []):
             count = page.locator(selector).count()
-            assert count == 0, (
-                f"{page_def.url_name} as {role}: expected '{selector}' to be absent, found {count}"
-            )
+            assert count == 0, f"{page_def.url_name} as {role}: expected '{selector}' to be absent, found {count}"
 
     finally:
         context.close()
