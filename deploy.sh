@@ -102,7 +102,16 @@ if command -v docker &>/dev/null; then
     step "tests      $SUMMARY"
 
     # Browser tests (Playwright) — skip if no browser is installed
-    if uv run python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = (p.chromium.launch(headless=True) if True else p.firefox.launch(headless=True)); b.close(); p.stop()" 2>/dev/null; then
+    if uv run python -c "
+from playwright.sync_api import sync_playwright
+p = sync_playwright().start()
+try:
+    b = p.chromium.launch(headless=True)
+except Exception:
+    b = p.firefox.launch(headless=True)
+b.close()
+p.stop()
+" 2>/dev/null; then
         if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m browser); then
             cleanup_test_db; fail "browser tests" "$OUT"
         fi

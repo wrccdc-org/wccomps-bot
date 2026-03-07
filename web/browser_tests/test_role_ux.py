@@ -1,11 +1,15 @@
 """Test role-based access control and role-specific UI elements."""
 
 import pytest
-from django.urls import reverse
 
-from .conftest import _create_role_user, create_session_context, visit_and_capture_errors
+from .conftest import (
+    _create_role_user,
+    create_session_context,
+    make_test_data,
+    resolve_url,
+    visit_and_capture_errors,
+)
 from .page_registry import get_denied_test_cases, get_element_check_cases
-from .test_console_errors import _make_test_data, _resolve_url
 
 pytestmark = [pytest.mark.browser, pytest.mark.django_db(transaction=True)]
 
@@ -19,12 +23,12 @@ _denied_ids = [f"{p.url_name}--{r}" for p, r in _denied_cases]
 @pytest.mark.parametrize("page_def,role", _denied_cases, ids=_denied_ids)
 def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
     """Denied roles should get a redirect, 403, or access-denied message."""
-    test_data = _make_test_data()
+    test_data = make_test_data()
     user = _create_role_user(role, None)
     context = create_session_context(pw_browser, live_server, user)
 
     try:
-        requested_path = _resolve_url(page_def, test_data)
+        requested_path = resolve_url(page_def, test_data)
         url = live_server.url + requested_path
         page, status_code, _errors = visit_and_capture_errors(context, url)
 
@@ -49,7 +53,6 @@ def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
             assert is_denied, (
                 f"{page_def.url_name} as {role}: expected denial, got status={status_code} url={page.url}"
             )
-        page.close()
     finally:
         context.close()
 
@@ -63,12 +66,12 @@ _element_ids = [f"{p.url_name}--{r}" for p, r in _element_cases]
 @pytest.mark.parametrize("page_def,role", _element_cases, ids=_element_ids)
 def test_role_specific_elements(page_def, role, live_server, pw_browser):
     """Verify role-specific UI elements are present or absent."""
-    test_data = _make_test_data()
+    test_data = make_test_data()
     user = _create_role_user(role, None)
     context = create_session_context(pw_browser, live_server, user)
 
     try:
-        url = live_server.url + _resolve_url(page_def, test_data)
+        url = live_server.url + resolve_url(page_def, test_data)
         page, status_code, _errors = visit_and_capture_errors(context, url)
 
         assert status_code == 200, (
@@ -89,6 +92,5 @@ def test_role_specific_elements(page_def, role, live_server, pw_browser):
                 f"{page_def.url_name} as {role}: expected '{selector}' to be absent, found {count}"
             )
 
-        page.close()
     finally:
         context.close()

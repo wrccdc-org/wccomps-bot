@@ -1,5 +1,10 @@
 """Browser test fixtures: Playwright + session injection, no OAuth required."""
 
+import os
+
+# Allow sync DB operations in async context (required for pytest-asyncio + live_server)
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+
 import pytest
 from django.test import Client
 from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
@@ -24,11 +29,18 @@ ALL_ROLES = [*ROLE_GROUPS.keys(), "unauthenticated"]
 
 @pytest.fixture(scope="session")
 def pw_browser():
-    """Launch a single Chromium instance for the whole test session."""
+    """Launch a single browser instance for the whole test session."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        yield browser
-        browser.close()
+        # Try Chromium first, fall back to Firefox if it fails to launch
+        for launch_fn in [p.chromium, p.firefox]:
+            try:
+                browser = launch_fn.launch(headless=True)
+                yield browser
+                browser.close()
+                return
+            except Exception:
+                continue
+        raise RuntimeError("No browser could be launched. Run: playwright install")
 
 
 def _create_role_user(role: str, db) -> "User | None":
@@ -57,7 +69,7 @@ def _create_role_user(role: str, db) -> "User | None":
 
     DiscordLink.objects.create(
         user=user,
-        discord_id=9000000 + hash(role) % 1000000,
+        discord_id=9000000 + list(ROLE_GROUPS.keys()).index(role),
         discord_username=username,
         team=team,
         is_active=True,
@@ -103,15 +115,54 @@ def visit_and_capture_errors(
     page = context.new_page()
     errors: list[str] = []
 
-    page.on(
-        "console",
-        lambda msg: errors.append(f"[console.error] {msg.text}")
-        if msg.type == "error"
-        else None,
-    )
+    def _on_console(msg):
+        if msg.type == "error":
+            errors.append(f"[console.error] {msg.text}")
+
+    page.on("console", _on_console)
     page.on("pageerror", lambda err: errors.append(f"[pageerror] {err}"))
 
     response = page.goto(url, wait_until="networkidle")
     status_code = response.status if response else 0
 
     return page, status_code, errors
+
+
+def make_test_data():
+    """Create shared test data needed by pages with needs_data."""
+    from team.models import Team
+    from ticketing.models import Ticket
+
+    team, _ = Team.objects.get_or_create(
+        team_number=1,
+        defaults={
+            "team_name": "Test Team 01",
+            "authentik_group": "WCComps_BlueTeam01",
+            "is_active": True,
+        },
+    )
+
+    ticket = Ticket.objects.create(
+        ticket_number="TEAM01-001",
+        title="Browser Test Ticket",
+        description="Created for browser tests",
+        team=team,
+        status="open",
+    )
+
+    return {
+        "ticket": ticket,
+        "team": team,
+    }
+
+
+def resolve_url(page_def, test_data: dict) -> str:
+    """Build the URL path for a PageDef, filling dynamic kwargs from test_data."""
+    from django.urls import reverse
+
+    kwargs = dict(page_def.url_kwargs)
+    if page_def.needs_data == "ticket":
+        kwargs["ticket_number"] = test_data["ticket"].ticket_number
+    elif page_def.needs_data == "team":
+        kwargs["team_number"] = test_data["team"].team_number
+    return reverse(page_def.url_name, kwargs=kwargs)
