@@ -51,7 +51,25 @@ class AuditLog(models.Model):
 
 
 class DiscordTask(models.Model):
-    """Task queue for Discord API operations (rate limit resilience)."""
+    """Task queue for Discord API operations (rate limit resilience).
+
+    Payload schemas by task_type:
+        create_thread:           {"ticket_id": int, "ticket_number": str, "team_number": int, "category": str, "title": str}
+        update_embed:            {"ticket_id": int}
+        update_dashboard:        {}
+        archive_thread:          {"ticket_id": int}
+        send_message:            {"channel_id": int, "message": str}
+        post_comment:            {"ticket_id": int, "comment": str, "author": str}
+        broadcast_message:       {"target": str, "message": str, "sender": str}
+        assign_role:             {"discord_id": int, "team_number": int}
+        assign_group_roles:      {"discord_id": int, "authentik_groups": list[str]}
+        remove_role:             {"discord_id": int, "team_number": int}
+        setup_team_infrastructure: {"team_number": int}
+        log_to_channel:          {"message": str}
+        post_ticket_update:      {"ticket_id": int, "action": str, "actor": str, "details": str}
+        ticket_created_web:      {"ticket_id": int, "ticket_number": str, "team_number": int, "category": str, "title": str, "created_by": str}
+        sync_roles:              {"requested_by": str, "dry_run": bool}
+    """
 
     STATUS_CHOICES = [
         ("pending", "Pending"),
