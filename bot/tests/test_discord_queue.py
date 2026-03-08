@@ -288,15 +288,17 @@ class TestAssignRoleRetry:
         """Test handling of missing payload fields - retries then fails."""
         # Use bulk_create to bypass save() validation — this simulates a
         # malformed task that somehow made it into the DB.
-        tasks = await sync_to_async(DiscordTask.objects.bulk_create)([
-            DiscordTask(
-                task_type="assign_role",
-                payload={},  # Missing discord_id and team_number
-                status="pending",
-                retry_count=0,
-                max_retries=5,
-            )
-        ])
+        tasks = await sync_to_async(DiscordTask.objects.bulk_create)(
+            [
+                DiscordTask(
+                    task_type="assign_role",
+                    payload={},  # Missing discord_id and team_number
+                    status="pending",
+                    retry_count=0,
+                    max_retries=5,
+                )
+            ]
+        )
         task = tasks[0]
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
