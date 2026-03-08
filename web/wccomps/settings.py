@@ -223,11 +223,12 @@ LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 
 # Authentik OAuth settings
+AUTHENTIK_URL = os.environ.get("AUTHENTIK_URL", "https://auth.wccomps.org")
 AUTHENTIK_CLIENT_ID = os.environ.get("AUTHENTIK_CLIENT_ID")
 AUTHENTIK_SECRET = os.environ.get("AUTHENTIK_SECRET")
 AUTHENTIK_OIDC_URL = os.environ.get(
     "AUTHENTIK_OIDC_URL",
-    "https://auth.wccomps.org/application/o/discord-bot/",
+    f"{AUTHENTIK_URL}/application/o/discord-bot/",
 )
 
 # Session configuration (12-hour expiry for competitions)
@@ -277,7 +278,6 @@ ROLE_SYNC_MAPPING = {
     440384249061965824: ORANGETEAM_ROLE_ID,  # Orange team
 }
 
-AUTHENTIK_URL = os.environ.get("AUTHENTIK_URL", "https://auth.wccomps.org")
 AUTHENTIK_TOKEN = os.environ.get("AUTHENTIK_TOKEN", "")
 
 # Quotient API settings
@@ -296,7 +296,12 @@ EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "False") == "True"
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@wccomps.org")
+DEFAULT_REPLY_TO_EMAIL = os.environ.get("DEFAULT_REPLY_TO_EMAIL", "info@wccomps.org")
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+# HTTP client defaults
+HTTPX_DEFAULT_TIMEOUT = int(os.environ.get("HTTPX_DEFAULT_TIMEOUT", "10"))
+DISCORD_WEBHOOK_TIMEOUT = int(os.environ.get("DISCORD_WEBHOOK_TIMEOUT", "5"))
 
 # Logging configuration - capture errors to stdout and Discord
 LOGGING = {

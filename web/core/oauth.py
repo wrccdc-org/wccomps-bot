@@ -174,7 +174,7 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
     # Exchange code for tokens
     redirect_uri = request.build_absolute_uri("/auth/callback/")
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=settings.HTTPX_DEFAULT_TIMEOUT) as client:
             token_response = client.post(
                 config["token_endpoint"],
                 data={
@@ -206,7 +206,7 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
         )
 
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=settings.HTTPX_DEFAULT_TIMEOUT) as client:
             userinfo_response = client.get(
                 config["userinfo_endpoint"],
                 headers={"Authorization": f"Bearer {access_token}"},

@@ -6,6 +6,7 @@ import traceback
 from datetime import UTC, datetime
 
 import httpx
+from django.conf import settings
 
 
 class DiscordWebhookHandler(logging.Handler):
@@ -85,7 +86,7 @@ class DiscordWebhookHandler(logging.Handler):
             payload = {"embeds": [embed]}
 
             # Send to Discord (sync, but logging handlers should be fast)
-            httpx.post(self.webhook_url, json=payload, timeout=5)
+            httpx.post(self.webhook_url, json=payload, timeout=settings.DISCORD_WEBHOOK_TIMEOUT)
 
         except Exception:
             # Don't let logging errors break the app

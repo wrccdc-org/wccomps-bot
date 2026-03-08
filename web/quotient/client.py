@@ -139,7 +139,7 @@ class QuotientClient:
                         "username": username,
                         "password": password,
                     },
-                    timeout=10,
+                    timeout=settings.HTTPX_DEFAULT_TIMEOUT,
                 )
                 response.raise_for_status()
                 logger.info(f"Authenticated with Quotient as {username}")
