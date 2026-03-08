@@ -341,10 +341,17 @@ class TestAuthentikManager:
 
     def test_update_user_discord_id_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating user's Discord ID."""
-        mock_response = Mock()
-        mock_response.raise_for_status = Mock()
+        mock_get_response = Mock()
+        mock_get_response.raise_for_status = Mock()
+        mock_get_response.json.return_value = {"attributes": {"existing_key": "value"}}
 
-        with patch("requests.patch", return_value=mock_response) as mock_patch:
+        mock_patch_response = Mock()
+        mock_patch_response.raise_for_status = Mock()
+
+        with (
+            patch("requests.get", return_value=mock_get_response),
+            patch("requests.patch", return_value=mock_patch_response) as mock_patch,
+        ):
             result = manager.update_user_discord_id("user-123", 123456789)
 
             assert result is True
@@ -352,11 +359,13 @@ class TestAuthentikManager:
             call_args = mock_patch.call_args
             assert "user-123" in call_args[0][0]
             assert call_args[1]["json"]["attributes"]["discord_id"] == "123456789"
+            # Verify existing attributes are preserved
+            assert call_args[1]["json"]["attributes"]["existing_key"] == "value"
 
     def test_update_user_discord_id_failure(self, manager: AuthentikManager) -> None:
         """Test handling failure when updating Discord ID."""
         with patch(
-            "requests.patch",
+            "requests.get",
             side_effect=requests.exceptions.ConnectionError("Network error"),
         ):
             result = manager.update_user_discord_id("user-123", 123456789)

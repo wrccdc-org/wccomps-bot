@@ -59,12 +59,12 @@ class TestAdminCommands:
         assert "not found" in call_args.args[0].lower()
 
     @patch("bot.cogs.admin_competition.settings")
-    @patch("bot.cogs.admin_competition.reset_blueteam_password")
+    @patch("bot.cogs.admin_competition.AuthentikManager")
     @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords(
         self,
         mock_generate_password: Any,
-        mock_reset_password: Any,
+        mock_manager_cls: Any,
         mock_settings: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
@@ -77,8 +77,9 @@ class TestAdminCommands:
         # Mock password generation
         mock_generate_password.return_value = "Test-Password-123!"
 
-        # Mock successful password reset
-        mock_reset_password.return_value = (True, "")
+        # Mock successful password reset via AuthentikManager instance
+        mock_manager_instance = mock_manager_cls.return_value
+        mock_manager_instance.reset_blueteam_password.return_value = (True, "")
 
         cog = AdminCompetitionCog(mock_bot)
         await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
@@ -87,7 +88,7 @@ class TestAdminCommands:
         assert mock_generate_password.call_count == 3
 
         # Verify password reset was called for each team
-        assert mock_reset_password.call_count == 3
+        assert mock_manager_instance.reset_blueteam_password.call_count == 3
 
         mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
 
@@ -97,12 +98,12 @@ class TestAdminCommands:
         assert "file" in call_args.kwargs, "Should send file with passwords"
 
     @patch("bot.cogs.admin_competition.settings")
-    @patch("bot.cogs.admin_competition.reset_blueteam_password")
+    @patch("bot.cogs.admin_competition.AuthentikManager")
     @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords_api_failure(
         self,
         mock_generate_password: Any,
-        mock_reset_password: Any,
+        mock_manager_cls: Any,
         mock_settings: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
@@ -115,8 +116,9 @@ class TestAdminCommands:
         # Mock password generation
         mock_generate_password.return_value = "Test-Password-123!"
 
-        # Simulate API failure for password reset
-        mock_reset_password.return_value = (False, "HTTP 500: Internal Server Error")
+        # Simulate API failure for password reset via AuthentikManager instance
+        mock_manager_instance = mock_manager_cls.return_value
+        mock_manager_instance.reset_blueteam_password.return_value = (False, "HTTP 500: Internal Server Error")
 
         cog = AdminCompetitionCog(mock_bot)
 
