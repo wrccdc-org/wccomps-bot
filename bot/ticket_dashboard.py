@@ -153,9 +153,7 @@ class TicketActionView(discord.ui.View):
         custom_id="ticket_claim_persistent",
         row=1,
     )
-    async def claim_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
-    ) -> None:
+    async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
 
