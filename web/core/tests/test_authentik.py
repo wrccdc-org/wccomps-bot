@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 import httpx
+import pytest
 
 from core.authentik_manager import AuthentikManager
 

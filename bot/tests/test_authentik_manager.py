@@ -2,8 +2,8 @@
 
 from unittest.mock import Mock, patch
 
-import pytest
 import httpx
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
