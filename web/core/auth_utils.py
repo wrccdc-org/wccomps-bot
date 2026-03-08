@@ -40,19 +40,11 @@ def get_authentik_id(user: User) -> str | None:
 
 
 def get_permissions_context(user: User) -> dict[str, bool]:
-    """
-    Get permissions dict for template context.
+    """Get permissions dict for template context.
 
-    Returns dict with all permission flags for use in templates.
+    Auto-generates is_* flags from PERMISSION_MAP keys.
     """
-    return {
-        "is_admin": has_permission(user, "admin"),
-        "is_ticketing_admin": has_permission(user, "ticketing_admin"),
-        "is_ticketing_support": has_permission(user, "ticketing_support"),
-        "is_gold_team": has_permission(user, "gold_team"),
-        "is_white_team": has_permission(user, "white_team"),
-        "is_orange_team": has_permission(user, "orange_team"),
-    }
+    return {f"is_{perm}": has_permission(user, perm) for perm in PERMISSION_MAP}
 
 
 def has_permission(user: User | AnonymousUser, permission_name: str) -> bool:

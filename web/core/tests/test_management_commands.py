@@ -119,7 +119,7 @@ class TestWipeCompetitionCommand:
             discord_username="testuser",
             expires_at="2099-01-01T00:00:00Z",
         )
-        DiscordTask.objects.create(task_type="test", payload={}, status="pending")
+        DiscordTask.objects.create(task_type="update_dashboard", payload={}, status="pending")
         return team
 
     def test_requires_confirm_flag(self, populated_database):

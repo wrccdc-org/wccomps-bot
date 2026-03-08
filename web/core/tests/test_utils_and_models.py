@@ -137,12 +137,12 @@ class TestDiscordTaskModel:
 
     def test_str_representation(self):
         """__str__ should return task_type and status."""
-        task = DiscordTask.objects.create(task_type="create_thread", payload={}, status="pending")
-        assert str(task) == "create_thread (pending)"
+        task = DiscordTask.objects.create(task_type="update_dashboard", payload={}, status="pending")
+        assert str(task) == "update_dashboard (pending)"
 
     def test_default_values(self):
         """Should have correct default values."""
-        task = DiscordTask.objects.create(task_type="send_message", payload={})
+        task = DiscordTask.objects.create(task_type="update_dashboard", payload={})
         assert task.status == "pending"
         assert task.retry_count == 0
         assert task.max_retries == 5

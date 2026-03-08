@@ -125,6 +125,37 @@ class DiscordTask(models.Model):
     def __str__(self) -> str:
         return f"{self.task_type} ({self.status})"
 
+    def clean(self) -> None:
+        """Validate payload has required keys for the task type."""
+        from django.core.exceptions import ValidationError
+
+        required_keys: dict[str, set[str]] = {
+            "create_thread": {"ticket_id", "ticket_number", "team_number", "category", "title"},
+            "update_embed": {"ticket_id"},
+            "update_dashboard": set(),
+            "archive_thread": {"ticket_id"},
+            "send_message": {"channel_id", "message"},
+            "post_comment": {"ticket_id", "comment_id"},
+            "broadcast_message": {"target", "message", "sender"},
+            "assign_role": {"discord_id", "team_number"},
+            "assign_group_roles": {"discord_id", "authentik_groups"},
+            "remove_role": {"discord_id", "team_number"},
+            "setup_team_infrastructure": {"team_number"},
+            "log_to_channel": {"message"},
+            "post_ticket_update": {"action", "actor"},
+            "ticket_created_web": {"ticket_id", "ticket_number", "team_number", "category", "title", "created_by"},
+            "sync_roles": {"requested_by", "dry_run"},
+            "add_user_to_thread": {"discord_id", "thread_id"},
+        }
+        if self.task_type in required_keys:
+            missing = required_keys[self.task_type] - set(self.payload.keys())
+            if missing:
+                raise ValidationError(f"Payload for {self.task_type} missing keys: {missing}")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     # -- Factory class methods --
 
     @classmethod
@@ -337,11 +368,13 @@ class CompetitionConfig(models.Model):
         return timezone.now() >= self.competition_end_time and self.applications_enabled
 
     def ensure_controlled_applications(self) -> None:
-        """Populate controlled_applications from Authentik if empty (only apps with BlueTeam bindings)."""
-        if not self.controlled_applications:
-            from core.authentik_manager import AuthentikManager
+        """Fetch and cache controlled application slugs.
 
-            self.controlled_applications = AuthentikManager().list_blueteam_applications()
+        Delegates to core.services.competition to keep API calls out of the model layer.
+        """
+        from core.services.competition import ensure_controlled_applications
+
+        ensure_controlled_applications(self)
 
     @classmethod
     def get_config(cls) -> CompetitionConfig:

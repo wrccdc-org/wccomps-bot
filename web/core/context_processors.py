@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.http import HttpRequest
 
 from .auth_utils import get_permissions_context, has_permission
+from .permission_constants import PERMISSION_MAP
 
 # Maps Django URL names to (nav_section, subnav_section) for navigation highlighting.
 # IMPORTANT: When adding new URL patterns, add an entry here or the nav item
@@ -156,23 +157,12 @@ def _get_nav_active(request: HttpRequest) -> dict[str, str]:
 def permissions(request: HttpRequest) -> dict[str, bool | str]:
     """Add permission flags to all template contexts."""
     if not request.user.is_authenticated:
-        return {
-            "is_ticketing_admin": False,
-            "is_ticketing_support": False,
-            "is_gold_team": False,
-            "is_blue_team": False,
-            "is_red_team": False,
-            "is_white_team": False,
-            "is_orange_team": False,
-            "is_admin": False,
-            "authentik_username": "",
-            "nav_active": "",
-            "subnav_active": "",
-        }
+        ctx: dict[str, bool | str] = {f"is_{perm}": False for perm in PERMISSION_MAP}
+        ctx.update({"is_blue_team": False, "is_red_team": False, "authentik_username": "", "nav_active": "", "subnav_active": ""})
+        return ctx
 
     user: User = request.user
     perms = get_permissions_context(user)
-
     nav_context = _get_nav_active(request)
     return {
         **perms,

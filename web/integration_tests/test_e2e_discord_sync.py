@@ -65,7 +65,9 @@ class TestTicketCreatesDiscordThread:
             task_type="create_thread",
             ticket=ticket,
             payload={
+                "ticket_id": ticket.id,
                 "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
                 "team_name": team.team_name,
                 "category": ticket.category,
                 "title": ticket.title,
@@ -205,6 +207,13 @@ class TestDiscordTaskQueue:
         task = DiscordTask.objects.create(
             task_type="create_thread",
             ticket=ticket,
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+                "category": ticket.category,
+                "title": ticket.title,
+            },
             status="failed",
             retry_count=2,
             error_message="Simulated failure",
@@ -239,6 +248,13 @@ class TestDiscordTaskQueue:
         task = DiscordTask.objects.create(
             task_type="create_thread",
             ticket=ticket,
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+                "category": ticket.category,
+                "title": ticket.title,
+            },
             status="pending",
         )
 
@@ -268,6 +284,13 @@ class TestDiscordTaskQueue:
         task = DiscordTask.objects.create(
             task_type="create_thread",
             ticket=ticket,
+            payload={
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+                "category": ticket.category,
+                "title": ticket.title,
+            },
             status="failed",
             retry_count=5,
             max_retries=5,
