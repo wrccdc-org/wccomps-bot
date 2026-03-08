@@ -16,6 +16,8 @@ from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
 
+DASHBOARD_DEBOUNCE_SECONDS = 10
+
 
 class UnifiedDashboard:
     """Manages a single dashboard message showing all tickets."""
@@ -56,7 +58,7 @@ class UnifiedDashboard:
             except Exception as e:
                 logger.exception(f"Error in dashboard loop: {e}")
 
-            await asyncio.sleep(10)  # 10s debounce window
+            await asyncio.sleep(DASHBOARD_DEBOUNCE_SECONDS)
 
     async def _initialize_dashboard(self) -> None:
         """Initialize or reconnect to existing dashboard message."""

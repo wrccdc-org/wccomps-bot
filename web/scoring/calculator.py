@@ -22,6 +22,18 @@ from .models import (
 ScoreBreakdown = dict[str, Decimal]
 DetailedScoreBreakdown = dict[str, Decimal]
 
+SCORE_COMPONENT_FIELDS = (
+    "service_points",
+    "inject_points",
+    "orange_points",
+    "red_deductions",
+    "sla_penalties",
+    "point_adjustments",
+    "incident_recovery_points",
+)
+
+RECOVERY_POINT_RATIO = Decimal("0.80")
+
 
 def _get_modifiers(template: ScoringTemplate) -> tuple[Decimal, Decimal, Decimal]:
     """Derive scaling modifiers from category weights and raw maximums.
@@ -158,18 +170,15 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
 
 def _has_scoring_activity(scores: ScoreBreakdown) -> bool:
     """Check if a team has any scoring activity (any non-zero component)."""
-    return any(
-        scores[key] != 0
-        for key in [
-            "service_points",
-            "inject_points",
-            "orange_points",
-            "red_deductions",
-            "incident_recovery_points",
-            "sla_penalties",
-            "point_adjustments",
-        ]
-    )
+    return any(scores[key] != 0 for key in SCORE_COMPONENT_FIELDS)
+
+
+def _score_defaults(scores: ScoreBreakdown, *, rank: int | None) -> dict:
+    """Build FinalScore defaults dict from a score breakdown."""
+    defaults = {field: scores[field] for field in SCORE_COMPONENT_FIELDS}
+    defaults["total_score"] = scores["total_score"]
+    defaults["rank"] = rank
+    return defaults
 
 
 @transaction.atomic
@@ -205,34 +214,14 @@ def recalculate_all_scores() -> None:
             rank += 1
         FinalScore.objects.update_or_create(
             team=team,
-            defaults={
-                "service_points": scores["service_points"],
-                "inject_points": scores["inject_points"],
-                "orange_points": scores["orange_points"],
-                "red_deductions": scores["red_deductions"],
-                "incident_recovery_points": scores["incident_recovery_points"],
-                "sla_penalties": scores["sla_penalties"],
-                "point_adjustments": scores["point_adjustments"],
-                "total_score": scores["total_score"],
-                "rank": rank if not is_excluded else None,
-            },
+            defaults=_score_defaults(scores, rank=rank if not is_excluded else None),
         )
 
     # Update inactive teams with rank=None
     for team, scores in inactive_teams:
         FinalScore.objects.update_or_create(
             team=team,
-            defaults={
-                "service_points": scores["service_points"],
-                "inject_points": scores["inject_points"],
-                "orange_points": scores["orange_points"],
-                "red_deductions": scores["red_deductions"],
-                "incident_recovery_points": scores["incident_recovery_points"],
-                "sla_penalties": scores["sla_penalties"],
-                "point_adjustments": scores["point_adjustments"],
-                "total_score": scores["total_score"],
-                "rank": None,
-            },
+            defaults=_score_defaults(scores, rank=None),
         )
 
 
@@ -243,17 +232,10 @@ def get_leaderboard() -> list[FinalScore]:
     Returns:
         List of FinalScore objects ordered by rank, excluding teams with no scoring activity
     """
+    exclude_kwargs = {field: 0 for field in SCORE_COMPONENT_FIELDS}
     return list(
         FinalScore.objects.filter(is_excluded=False)
-        .exclude(
-            service_points=0,
-            inject_points=0,
-            orange_points=0,
-            red_deductions=0,
-            incident_recovery_points=0,
-            sla_penalties=0,
-            point_adjustments=0,
-        )
+        .exclude(**exclude_kwargs)
         .select_related("team")
         .order_by("rank")
     )
@@ -318,5 +300,5 @@ def calculate_suggested_recovery_points(incident: IncidentReport, red_score: Red
         Suggested points to award (positive value)
     """
     deduction_amount = abs(red_score.points_per_team)
-    suggested_return = deduction_amount * Decimal("0.80")
+    suggested_return = deduction_amount * RECOVERY_POINT_RATIO
     return suggested_return

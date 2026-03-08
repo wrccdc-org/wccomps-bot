@@ -12,6 +12,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+GUILD_CHUNK_TIMEOUT = 30.0
+
 
 class RoleSyncStats(TypedDict, total=False):
     """Statistics for role synchronization."""
@@ -97,7 +99,7 @@ class RoleSyncManager:
         if not competition_guild.chunked:
             chunk_start = time.time()
             try:
-                await asyncio.wait_for(competition_guild.chunk(), timeout=30.0)
+                await asyncio.wait_for(competition_guild.chunk(), timeout=GUILD_CHUNK_TIMEOUT)
                 chunk_duration = time.time() - chunk_start
                 logger.info(f"Guild chunk completed in {chunk_duration:.2f}s")
             except TimeoutError:
@@ -335,7 +337,7 @@ class AuthentikRoleSyncManager:
         if not competition_guild.chunked:
             chunk_start = time.time()
             try:
-                await asyncio.wait_for(competition_guild.chunk(), timeout=30.0)
+                await asyncio.wait_for(competition_guild.chunk(), timeout=GUILD_CHUNK_TIMEOUT)
                 chunk_duration = time.time() - chunk_start
                 logger.info(f"Guild chunk completed in {chunk_duration:.2f}s")
             except TimeoutError:

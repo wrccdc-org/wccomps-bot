@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 class DiscordQueueProcessor:
     """Process Discord tasks from database queue using async tasks."""
 
+    QUEUE_POLL_INTERVAL_SECONDS = 2
+    QUEUE_BATCH_SIZE = 10
+    MAX_BACKOFF_SECONDS = 300
+
     def __init__(self, bot: discord.Client) -> None:
         self.bot = bot
         self.discord_manager: DiscordManager | None = None
@@ -66,7 +70,7 @@ class DiscordQueueProcessor:
             except Exception as e:
                 logger.exception(f"Error in queue processor: {e}")
 
-            await asyncio.sleep(2)  # Poll every 2 seconds
+            await asyncio.sleep(self.QUEUE_POLL_INTERVAL_SECONDS)
 
     async def _process_pending_tasks(self) -> None:
         """Process pending tasks from the queue."""
@@ -78,7 +82,7 @@ class DiscordQueueProcessor:
             return list(
                 DiscordTask.objects.filter(status="pending")
                 .filter(Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now))
-                .order_by("created_at")[:10]
+                .order_by("created_at")[:DiscordQueueProcessor.QUEUE_BATCH_SIZE]
             )
 
         tasks = await get_pending_tasks()
@@ -168,7 +172,7 @@ class DiscordQueueProcessor:
                     task.save()
                     return "failed", task.max_retries
                 # Exponential backoff
-                backoff_seconds = min(2**task.retry_count, 300)  # Max 5 minutes
+                backoff_seconds = min(2**task.retry_count, DiscordQueueProcessor.MAX_BACKOFF_SECONDS)
                 task.next_retry_at = timezone.now() + timedelta(seconds=backoff_seconds)
                 task.status = "pending"
                 task.save()
