@@ -45,6 +45,7 @@ async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.E
     except Exception as e:
         logger.exception(f"Failed to log to ops channel: {e}")
 
+
 # -- Team Utilities --
 
 
@@ -73,6 +74,7 @@ async def get_team_or_respond(
         await interaction.response.send_message(f"Team {team_number} not found", ephemeral=True)
         return None
     return team
+
 
 # -- Role Management --
 
@@ -124,6 +126,7 @@ def get_team_member_discord_ids(team: Team) -> list[int]:
         List of Discord IDs as integers
     """
     return list(team.members.filter(is_active=True).values_list("discord_id", flat=True))
+
 
 # -- UI Components --
 

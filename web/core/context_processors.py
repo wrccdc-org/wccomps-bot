@@ -158,7 +158,15 @@ def permissions(request: HttpRequest) -> dict[str, bool | str]:
     """Add permission flags to all template contexts."""
     if not request.user.is_authenticated:
         ctx: dict[str, bool | str] = {f"is_{perm}": False for perm in PERMISSION_MAP}
-        ctx.update({"is_blue_team": False, "is_red_team": False, "authentik_username": "", "nav_active": "", "subnav_active": ""})
+        ctx.update(
+            {
+                "is_blue_team": False,
+                "is_red_team": False,
+                "authentik_username": "",
+                "nav_active": "",
+                "subnav_active": "",
+            }
+        )
         return ctx
 
     user: User = request.user

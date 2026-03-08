@@ -332,7 +332,7 @@ def _perform_authentik_login(page, username: str, password: str, live_server_url
                 page.fill('input[name="code"]', totp.now())
                 page.click('button[type="submit"]')
                 page.wait_for_timeout(2000)
-        except (ImportError, TimeoutError):
+        except ImportError, TimeoutError:
             pass
 
     # Check if we already redirected back

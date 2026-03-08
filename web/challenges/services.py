@@ -5,13 +5,13 @@ import random
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
+from scoring.models import OrangeTeamScore
 
 from challenges.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
     OrangeCheck,
 )
-from scoring.models import OrangeTeamScore
 from team.models import Team
 
 

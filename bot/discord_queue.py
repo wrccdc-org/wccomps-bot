@@ -82,7 +82,7 @@ class DiscordQueueProcessor:
             return list(
                 DiscordTask.objects.filter(status="pending")
                 .filter(Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now))
-                .order_by("created_at")[:DiscordQueueProcessor.QUEUE_BATCH_SIZE]
+                .order_by("created_at")[: DiscordQueueProcessor.QUEUE_BATCH_SIZE]
             )
 
         tasks = await get_pending_tasks()

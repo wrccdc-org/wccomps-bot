@@ -232,12 +232,9 @@ def get_leaderboard() -> list[FinalScore]:
     Returns:
         List of FinalScore objects ordered by rank, excluding teams with no scoring activity
     """
-    exclude_kwargs = {field: 0 for field in SCORE_COMPONENT_FIELDS}
+    exclude_kwargs = dict.fromkeys(SCORE_COMPONENT_FIELDS, 0)
     return list(
-        FinalScore.objects.filter(is_excluded=False)
-        .exclude(**exclude_kwargs)
-        .select_related("team")
-        .order_by("rank")
+        FinalScore.objects.filter(is_excluded=False).exclude(**exclude_kwargs).select_related("team").order_by("rank")
     )
 
 

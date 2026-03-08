@@ -80,7 +80,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
     for adj_id in adjustment_ids:
         try:
             valid_ids.append(int(adj_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     # Bulk update adjustments
@@ -110,7 +110,7 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
     for adj_id in adjustment_ids:
         try:
             valid_ids.append(int(adj_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     # Bulk update adjustments

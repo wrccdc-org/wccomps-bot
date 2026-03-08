@@ -201,9 +201,7 @@ class UnifiedDashboard:
         )
         return {k: tickets_by_category[k] for k in sorted_keys}
 
-    def _build_category_field(
-        self, category_name: str, tickets: list[Ticket], guild_id: int
-    ) -> tuple[str, str]:
+    def _build_category_field(self, category_name: str, tickets: list[Ticket], guild_id: int) -> tuple[str, str]:
         """Build a single embed field (name, value) for one ticket category.
 
         Returns:
