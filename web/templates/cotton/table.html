@@ -4,7 +4,6 @@
 <c-vars id="result_list" class aria_label="Data table" fixed_layout="false" />
 <div {{ attrs }} class="results">
     <table id="{{ id }}"
-           role="grid"
            aria-label="{{ aria_label }}"
            class="{{ class }}{% if fixed_layout == 'true' %} table-fixed{% endif %}">
         {% if colgroup %}{{ colgroup }}{% endif %}

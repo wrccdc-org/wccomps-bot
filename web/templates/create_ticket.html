@@ -132,7 +132,7 @@
             </c-fieldset>
             <c-button_row class="justify-end">
             <c-link href="{% url 'ticket_list' %}">Cancel</c-link>
-            <c-button type="submit" variant="primary">Create Ticket</c-button>
+            <c-button type="submit" variant="primary" ::disabled="submitting">Create Ticket</c-button>
             </c-button_row>
             </c-module>
         </form>
@@ -148,6 +148,7 @@
             const allServiceChoices = JSON.parse(document.getElementById('service-choices-data').textContent);
 
             return {
+                submitting: false,
                 selectedCategory: '{{ form_data.category|default:"" }}',
                 selectedHostname: '{{ form_data.hostname|default:"" }}',
                 selectedService: '{{ form_data.service_name|default:"" }}',
@@ -258,6 +259,9 @@
                 },
 
                 validateForm(event) {
+                    if (this.submitting) { event.preventDefault(); return false; }
+                    this.submitting = true;
+                    setTimeout(() => { this.submitting = false; }, 10000);
                     return true;
                 }
             };

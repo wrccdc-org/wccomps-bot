@@ -71,13 +71,13 @@
                     {% endfor %}
                     </c-table>
                 {% endif %}
-                <form method="post">
-                    {% csrf_token %}
-                    <c-button_row class="mt-20 justify-end">
-                    <c-link href="{% url 'school_info_import' %}">Cancel</c-link>
-                    <c-button type="submit" name="confirm" value="true" variant="primary">Confirm and Import</c-button>
-                    </c-button_row>
-                </form>
+                <c-form>
+                {% csrf_token %}
+                <c-button_row class="mt-20 justify-end">
+                <c-link href="{% url 'school_info_import' %}">Cancel</c-link>
+                <c-button type="submit" name="confirm" value="true" variant="primary" ::disabled="submitting">Confirm and Import</c-button>
+                </c-button_row>
+                </c-form>
             {% else %}
                 <c-button_row class="justify-end">
                 <c-link href="{% url 'school_info_import' %}" variant="primary">Try Again</c-link>
@@ -111,22 +111,20 @@
 University of Example,coach@example.edu,assistant@example.edu,Main campus team,Example Blue
 Community College,contact@college.edu,,Remote team,
 Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
-                <form method="post" enctype="multipart/form-data" class="mt-20">
-                    {% csrf_token %}
-                    <c-fieldset aligned="true">
-                    <c-form_field label="CSV File" required="true" id="id_csv_file" help_text="{{ form.csv_file.help_text }}" error="
-                    {% for error in form.csv_file.errors %}
-                        {{ error }}
-                    {% endfor %}
-                    ">
-                    {{ form.csv_file }}
-                    </c-form_field>
-                    </c-fieldset>
-                    <c-button_row class="justify-end">
-                    <c-link href="{% url 'school_info' %}">Cancel</c-link>
-                    <c-button type="submit" name="upload" value="true" variant="primary">Upload and Preview</c-button>
-                    </c-button_row>
-                </form>
+                <c-form enctype="multipart/form-data" class="mt-20">
+                {% csrf_token %}
+                <c-fieldset aligned="true">
+                <c-form_field label="CSV File" required="true" id="id_csv_file" help_text="{{ form.csv_file.help_text }}" error="
+                {% for error in form.csv_file.errors %}{{ error }}{% endfor %}
+                ">
+                {{ form.csv_file }}
+                </c-form_field>
+                </c-fieldset>
+                <c-button_row class="justify-end">
+                <c-link href="{% url 'school_info' %}">Cancel</c-link>
+                <c-button type="submit" name="upload" value="true" variant="primary" ::disabled="submitting">Upload and Preview</c-button>
+                </c-button_row>
+                </c-form>
             </div>
         {% endif %}
         </c-module>

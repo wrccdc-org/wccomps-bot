@@ -74,6 +74,7 @@
                                            value />
                                     <c-button type="submit" variant="primary">Verify</c-button>
                                 </form>
+                                <c-alert variant="error" class="d-none" id="error_{{ item.ticket.ticket_number }}" role="alert">Invalid points value</c-alert>
                             {% else %}
                                 <span class="text-muted">Verified</span>
                             {% endif %}

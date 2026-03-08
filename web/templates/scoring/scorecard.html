@@ -42,7 +42,7 @@
         {% endif %}
         </c-module>
         <c-module>
-        <h3>Category Breakdown</h3>
+        <h2>Category Breakdown</h2>
         <c-table id="category_breakdown" aria_label="Category breakdown">
         <c-slot name="headers">
         <tr>
@@ -197,7 +197,7 @@
         </c-module>
         {% if stats.service_stats %}
             <c-module>
-            <h3>Service Uptime Detail</h3>
+            <h2>Service Uptime Detail</h2>
             <c-table id="service_details" aria_label="Service uptime scores">
             <c-slot name="headers">
             <tr>
@@ -231,7 +231,7 @@
             </c-module>
         {% endif %}
         <c-module>
-        <h3>Red Team Detail</h3>
+        <h2>Red Team Detail</h2>
         {% if red_scores %}
             <c-table id="red_scores" aria_label="Red team deductions">
             <c-slot name="headers">
@@ -279,7 +279,7 @@
         </c-module>
         {% if stats.inject_stats %}
             <c-module>
-            <h3>Inject Detail</h3>
+            <h2>Inject Detail</h2>
             <c-table id="inject_details" aria_label="Inject scores">
             <c-slot name="headers">
             <tr>

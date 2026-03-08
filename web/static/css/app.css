@@ -42,6 +42,7 @@
         --danger-bg: rgba(227, 95, 95, 0.15);
         --neutral-bg: rgba(208, 208, 208, 0.15);
         --neutral-fg: #bdbdbd;
+        --body-quiet-color: #999;
     }
 }
 html[data-theme="dark"] {
@@ -56,6 +57,7 @@ html[data-theme="dark"] {
     --danger-bg: rgba(227, 95, 95, 0.15);
     --neutral-bg: rgba(208, 208, 208, 0.15);
     --neutral-fg: #bdbdbd;
+    --body-quiet-color: #999;
 }
 
 /* Navigation - dark mode compatible */
@@ -255,7 +257,9 @@ nav[role="navigation"] {
     font-size: 24px;
     cursor: pointer;
     color: var(--body-quiet-color, #666);
-    padding: 0;
+    padding: 4px 8px;
+    min-width: 24px;
+    min-height: 24px;
     line-height: 1;
 }
 .modal-close:hover {
@@ -867,4 +871,13 @@ td textarea[x-ref="editor"] {
     line-height: 1.4;
     resize: vertical;
     font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .team-btn:hover {
+        transform: none;
+    }
+    .progress-bar__fill {
+        transition: none;
+    }
 }

@@ -91,39 +91,39 @@
                 <strong>No Automatic Matches Found</strong> — No red team findings match this incident's source IP, box, or service for this team.
             </p>
         {% endif %}
-        <form method="post">
-            {% csrf_token %}
-            <c-fieldset aligned="true">
-            <c-form_field label="{{ form.matched_to_red_score.label }}" id="{{ form.matched_to_red_score.id_for_label }}" help_text="{{ form.matched_to_red_score.help_text }}" error="
-            {% for e in form.matched_to_red_score.errors %}{{ e }}{% endfor %}
-            ">
-            {{ form.matched_to_red_score }}
-            </c-form_field>
-            <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="
-            {% for e in form.points_returned.errors %}{{ e }}{% endfor %}
-            ">
-            {{ form.points_returned }}
-            </c-form_field>
-            <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="
-            {% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}
-            ">
-            {{ form.reviewer_notes }}
-            </c-form_field>
-            </c-fieldset>
-            <div class="text-muted text-sm">
-                <strong>Review Guidelines:</strong>
-                <ul class="mb-0">
-                    <li>Verify evidence shows IP addresses and timestamps</li>
-                    <li>Match to corresponding red team finding if applicable</li>
-                    <li>Award points based on detection quality and mitigation</li>
-                    <li>Leave unmatched if no corresponding red finding exists</li>
-                </ul>
-            </div>
-            <c-button_row class="mt-20 justify-end">
-            <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
-            <c-button type="submit" variant="primary">Complete Review</c-button>
-            </c-button_row>
-        </form>
+        <c-form>
+        {% csrf_token %}
+        <c-fieldset aligned="true">
+        <c-form_field label="{{ form.matched_to_red_score.label }}" id="{{ form.matched_to_red_score.id_for_label }}" help_text="{{ form.matched_to_red_score.help_text }}" error="
+        {% for e in form.matched_to_red_score.errors %}{{ e }}{% endfor %}
+        ">
+        {{ form.matched_to_red_score }}
+        </c-form_field>
+        <c-form_field label="{{ form.points_returned.label }}" id="{{ form.points_returned.id_for_label }}" help_text="{{ form.points_returned.help_text }}" error="
+        {% for e in form.points_returned.errors %}{{ e }}{% endfor %}
+        ">
+        {{ form.points_returned }}
+        </c-form_field>
+        <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="
+        {% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}
+        ">
+        {{ form.reviewer_notes }}
+        </c-form_field>
+        </c-fieldset>
+        <div class="text-muted text-sm">
+            <strong>Review Guidelines:</strong>
+            <ul class="mb-0">
+                <li>Verify evidence shows IP addresses and timestamps</li>
+                <li>Match to corresponding red team finding if applicable</li>
+                <li>Award points based on detection quality and mitigation</li>
+                <li>Leave unmatched if no corresponding red finding exists</li>
+            </ul>
+        </div>
+        <c-button_row class="mt-20 justify-end">
+        <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
+        <c-button type="submit" variant="primary" ::disabled="submitting">Complete Review</c-button>
+        </c-button_row>
+        </c-form>
         </c-module>
     </div>
 {% endblock scoring_content %}

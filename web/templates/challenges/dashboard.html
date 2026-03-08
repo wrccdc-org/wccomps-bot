@@ -130,7 +130,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span x-text="scoreDisplay">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span>
+                        <span x-text="scoreDisplay" aria-live="polite">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span>
                     </td>
                     <td>
                         <ul class="plain-list">

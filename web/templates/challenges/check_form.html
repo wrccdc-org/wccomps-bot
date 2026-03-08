@@ -21,7 +21,8 @@
     <c-module>
     <form method="post"
           {% if mode == "edit" %}action="{% url 'challenges:check_edit' orange_check.pk %}"{% endif %}
-          x-data="criteriaForm">
+          x-data="criteriaForm"
+          @submit="onSubmit">
         {% csrf_token %}
         <c-fieldset heading="Check Details">
         <c-form_field label="Title" required="true" id="id_title">
@@ -86,7 +87,7 @@
             {% url 'challenges:check_list' %}
         {% endif %}
         ">Cancel</c-link>
-        <c-button type="submit" variant="primary">
+        <c-button type="submit" variant="primary" ::disabled="submitting">
         {% if mode == "create" %}
             Create Check
         {% else %}
@@ -104,6 +105,7 @@
             var initial = JSON.parse(document.getElementById('criteria-data').textContent);
             var _nextId = initial.length;
             return {
+                submitting: false,
                 criteria: initial.map(function(c, i) {
                     return {
                         label: c.label,
@@ -116,6 +118,11 @@
                 }),
                 _nextId: _nextId,
                 get canRemove() { return this.criteria.length > 1; },
+                onSubmit(e) {
+                    if (this.submitting) { e.preventDefault(); return; }
+                    this.submitting = true;
+                    setTimeout(() => { this.submitting = false; }, 10000);
+                },
                 addCriterion() {
                     this.criteria.push({
                         label: '', points: '',
@@ -133,6 +140,7 @@
             };
             {% else %}
             return {
+                submitting: false,
                 criteria: [{
                     label: '', points: '',
                     labelId: 'criterion_label_0',
@@ -142,6 +150,11 @@
                 }],
                 _nextId: 1,
                 get canRemove() { return this.criteria.length > 1; },
+                onSubmit(e) {
+                    if (this.submitting) { e.preventDefault(); return; }
+                    this.submitting = true;
+                    setTimeout(() => { this.submitting = false; }, 10000);
+                },
                 addCriterion() {
                     this.criteria.push({
                         label: '', points: '',

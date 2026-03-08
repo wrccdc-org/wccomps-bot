@@ -3,7 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-import requests
+import httpx
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -51,11 +51,13 @@ class TestAuthentikManager:
 
     @pytest.fixture
     def manager(self) -> AuthentikManager:
-        """Create AuthentikManager instance."""
+        """Create AuthentikManager instance with mocked client."""
         with patch("core.authentik_manager.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.test.local"
             mock_settings.AUTHENTIK_TOKEN = "test-token-123"
-            return AuthentikManager()
+            mgr = AuthentikManager()
+            mgr.client = Mock()
+            return mgr
 
     def test_handle_response_error_401(self, manager: AuthentikManager) -> None:
         """Test error handling for 401 Unauthorized."""
@@ -129,26 +131,24 @@ class TestAuthentikManager:
                 }
             ]
         }
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response) as mock_get:
-            mock_response.raise_for_status = Mock()
-            app = manager.get_application_by_slug("netbird")
+        app = manager.get_application_by_slug("netbird")
 
-            assert app is not None
-            assert app["pk"] == "app-123"
-            assert app["slug"] == "netbird"
-            mock_get.assert_called_once()
+        assert app is not None
+        assert app["pk"] == "app-123"
+        assert app["slug"] == "netbird"
+        manager.client.get.assert_called_once()
 
     def test_get_application_by_slug_not_found(self, manager: AuthentikManager) -> None:
         """Test application not found returns None."""
         mock_response = Mock()
         mock_response.json.return_value = {"results": []}
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            app = manager.get_application_by_slug("nonexistent")
+        app = manager.get_application_by_slug("nonexistent")
 
-            assert app is None
+        assert app is None
 
     def test_get_application_by_slug_http_error(self, manager: AuthentikManager) -> None:
         """Test HTTP error handling during application retrieval."""
@@ -157,23 +157,23 @@ class TestAuthentikManager:
         mock_response.url = "https://auth.test.local/api/v3/core/applications/"
         mock_response.text = "Internal server error"
         mock_response.json.side_effect = Exception("Not JSON")
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "error", request=Mock(), response=mock_response
+        )
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response) as mock_get:
-            mock_response.raise_for_status = Mock(side_effect=requests.exceptions.HTTPError(response=mock_response))
-            app = manager.get_application_by_slug("test-app")
+        app = manager.get_application_by_slug("test-app")
 
-            assert app is None
-            mock_get.assert_called_once()
+        assert app is None
+        manager.client.get.assert_called_once()
 
     def test_get_application_by_slug_network_error(self, manager: AuthentikManager) -> None:
         """Test network error handling during application retrieval."""
-        with patch(
-            "requests.get",
-            side_effect=requests.exceptions.ConnectionError("Connection refused"),
-        ):
-            app = manager.get_application_by_slug("test-app")
+        manager.client.get.side_effect = httpx.ConnectError("Connection refused")
 
-            assert app is None
+        app = manager.get_application_by_slug("test-app")
+
+        assert app is None
 
     def test_get_blueteam_binding_success(self, manager: AuthentikManager) -> None:
         """Test successful BlueTeam binding retrieval."""
@@ -188,15 +188,14 @@ class TestAuthentikManager:
                 }
             ]
         }
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            binding, error = manager.get_blueteam_binding("app-123")
+        binding, error = manager.get_blueteam_binding("app-123")
 
-            assert binding is not None
-            assert error is None
-            assert binding["pk"] == "binding-123"
-            assert "blueteam" in binding["group_obj"]["name"].lower()
+        assert binding is not None
+        assert error is None
+        assert binding["pk"] == "binding-123"
+        assert "blueteam" in binding["group_obj"]["name"].lower()
 
     def test_get_blueteam_binding_not_found(self, manager: AuthentikManager) -> None:
         """Test BlueTeam binding not found."""
@@ -210,27 +209,25 @@ class TestAuthentikManager:
                 }
             ]
         }
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            binding, error = manager.get_blueteam_binding("app-123")
+        binding, error = manager.get_blueteam_binding("app-123")
 
-            assert binding is None
-            assert error is not None
-            assert "No BlueTeam group binding found" in error
+        assert binding is None
+        assert error is not None
+        assert "No BlueTeam group binding found" in error
 
     def test_get_blueteam_binding_empty_results(self, manager: AuthentikManager) -> None:
         """Test BlueTeam binding with no results."""
         mock_response = Mock()
         mock_response.json.return_value = {"results": []}
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            mock_response.raise_for_status = Mock()
-            binding, error = manager.get_blueteam_binding("app-123")
+        binding, error = manager.get_blueteam_binding("app-123")
 
-            assert binding is None
-            assert error is not None
-            assert "No BlueTeam group binding found" in error
+        assert binding is None
+        assert error is not None
+        assert "No BlueTeam group binding found" in error
 
     def test_update_binding_enabled_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating binding enabled state."""
@@ -241,27 +238,23 @@ class TestAuthentikManager:
         }
 
         mock_response = Mock()
-        mock_response.raise_for_status = Mock()
+        manager.client.put.return_value = mock_response
 
-        with patch("requests.put", return_value=mock_response) as mock_put:
-            result = manager.update_binding_enabled(binding, True)
+        result = manager.update_binding_enabled(binding, True)
 
-            assert result is True
-            mock_put.assert_called_once()
-            call_args = mock_put.call_args
-            assert call_args[1]["json"]["enabled"] is True
+        assert result is True
+        manager.client.put.assert_called_once()
+        call_args = manager.client.put.call_args
+        assert call_args[1]["json"]["enabled"] is True
 
     def test_update_binding_enabled_failure(self, manager: AuthentikManager) -> None:
         """Test binding update failure handling."""
         binding = {"pk": "binding-123", "enabled": False}
+        manager.client.put.side_effect = httpx.ConnectError("Network error")
 
-        with patch(
-            "requests.put",
-            side_effect=requests.exceptions.ConnectionError("Network error"),
-        ):
-            result = manager.update_binding_enabled(binding, True)
+        result = manager.update_binding_enabled(binding, True)
 
-            assert result is False
+        assert result is False
 
     def test_enable_application_success(self, manager: AuthentikManager) -> None:
         """Test successfully enabling an application."""
@@ -342,41 +335,35 @@ class TestAuthentikManager:
     def test_update_user_discord_id_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating user's Discord ID."""
         mock_get_response = Mock()
-        mock_get_response.raise_for_status = Mock()
         mock_get_response.json.return_value = {"attributes": {"existing_key": "value"}}
 
         mock_patch_response = Mock()
-        mock_patch_response.raise_for_status = Mock()
 
-        with (
-            patch("requests.get", return_value=mock_get_response),
-            patch("requests.patch", return_value=mock_patch_response) as mock_patch,
-        ):
-            result = manager.update_user_discord_id("user-123", 123456789)
+        manager.client.get.return_value = mock_get_response
+        manager.client.patch.return_value = mock_patch_response
 
-            assert result is True
-            mock_patch.assert_called_once()
-            call_args = mock_patch.call_args
-            assert "user-123" in call_args[0][0]
-            assert call_args[1]["json"]["attributes"]["discord_id"] == "123456789"
-            # Verify existing attributes are preserved
-            assert call_args[1]["json"]["attributes"]["existing_key"] == "value"
+        result = manager.update_user_discord_id("user-123", 123456789)
+
+        assert result is True
+        manager.client.patch.assert_called_once()
+        call_args = manager.client.patch.call_args
+        assert "user-123" in call_args[0][0]
+        assert call_args[1]["json"]["attributes"]["discord_id"] == "123456789"
+        # Verify existing attributes are preserved
+        assert call_args[1]["json"]["attributes"]["existing_key"] == "value"
 
     def test_update_user_discord_id_failure(self, manager: AuthentikManager) -> None:
         """Test handling failure when updating Discord ID."""
-        with patch(
-            "requests.get",
-            side_effect=requests.exceptions.ConnectionError("Network error"),
-        ):
-            result = manager.update_user_discord_id("user-123", 123456789)
+        manager.client.get.side_effect = httpx.ConnectError("Network error")
 
-            assert result is False
+        result = manager.update_user_discord_id("user-123", 123456789)
+
+        assert result is False
 
     def test_revoke_user_sessions_success(self, manager: AuthentikManager) -> None:
         """Test successfully revoking user sessions."""
         mock_user_response = Mock()
         mock_user_response.json.return_value = {"results": [{"pk": 42}]}
-        mock_user_response.raise_for_status = Mock()
 
         mock_sessions_response = Mock()
         mock_sessions_response.json.return_value = {
@@ -385,69 +372,61 @@ class TestAuthentikManager:
                 {"uuid": "session-2"},
             ]
         }
-        mock_sessions_response.raise_for_status = Mock()
 
         mock_delete_response = Mock()
-        mock_delete_response.raise_for_status = Mock()
 
-        with (
-            patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]),
-            patch("requests.delete", return_value=mock_delete_response) as mock_delete,
-        ):
-            success, error, count = manager.revoke_user_sessions("team01")
+        manager.client.get.side_effect = [mock_user_response, mock_sessions_response]
+        manager.client.delete.return_value = mock_delete_response
 
-            assert success is True
-            assert error is None
-            assert count == 2
-            assert mock_delete.call_count == 2
+        success, error, count = manager.revoke_user_sessions("team01")
+
+        assert success is True
+        assert error is None
+        assert count == 2
+        assert manager.client.delete.call_count == 2
 
     def test_revoke_user_sessions_user_not_found(self, manager: AuthentikManager) -> None:
         """Test revoking sessions for non-existent user."""
         mock_response = Mock()
         mock_response.json.return_value = {"results": []}
-        mock_response.raise_for_status = Mock()
+        manager.client.get.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            success, error, count = manager.revoke_user_sessions("nonexistent")
+        success, error, count = manager.revoke_user_sessions("nonexistent")
 
-            assert success is False
-            assert "not found" in error
-            assert count == 0
+        assert success is False
+        assert "not found" in error
+        assert count == 0
 
     def test_revoke_user_sessions_no_sessions(self, manager: AuthentikManager) -> None:
         """Test revoking sessions when user has none."""
         mock_user_response = Mock()
         mock_user_response.json.return_value = {"results": [{"pk": 42}]}
-        mock_user_response.raise_for_status = Mock()
 
         mock_sessions_response = Mock()
         mock_sessions_response.json.return_value = {"results": []}
-        mock_sessions_response.raise_for_status = Mock()
 
-        with patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]):
-            success, error, count = manager.revoke_user_sessions("team01")
+        manager.client.get.side_effect = [mock_user_response, mock_sessions_response]
 
-            assert success is True
-            assert error is None
-            assert count == 0
+        success, error, count = manager.revoke_user_sessions("team01")
+
+        assert success is True
+        assert error is None
+        assert count == 0
 
     def test_revoke_user_sessions_network_error(self, manager: AuthentikManager) -> None:
         """Test handling network error during session revocation."""
-        with patch(
-            "requests.get",
-            side_effect=requests.exceptions.ConnectionError("Network error"),
-        ):
-            success, error, count = manager.revoke_user_sessions("team01")
+        manager.client.get.side_effect = httpx.ConnectError("Network error")
 
-            assert success is False
-            assert "Network error" in error
-            assert count == 0
+        success, error, count = manager.revoke_user_sessions("team01")
+
+        assert success is False
+        assert "Network error" in error
+        assert count == 0
 
     def test_revoke_user_sessions_partial_failure(self, manager: AuthentikManager) -> None:
         """Test partial failure when revoking some sessions."""
         mock_user_response = Mock()
         mock_user_response.json.return_value = {"results": [{"pk": 42}]}
-        mock_user_response.raise_for_status = Mock()
 
         mock_sessions_response = Mock()
         mock_sessions_response.json.return_value = {
@@ -457,23 +436,13 @@ class TestAuthentikManager:
                 {"uuid": "session-3"},
             ]
         }
-        mock_sessions_response.raise_for_status = Mock()
 
         mock_delete_success = Mock()
-        mock_delete_success.raise_for_status = Mock()
+        manager.client.get.side_effect = [mock_user_response, mock_sessions_response]
+        manager.client.delete.side_effect = [mock_delete_success, Exception("Delete failed"), mock_delete_success]
 
-        mock_delete_fail = Mock()
-        mock_delete_fail.raise_for_status = Mock(side_effect=requests.exceptions.HTTPError("Delete failed"))
+        success, error, count = manager.revoke_user_sessions("team01")
 
-        with (
-            patch("requests.get", side_effect=[mock_user_response, mock_sessions_response]),
-            patch(
-                "requests.delete",
-                side_effect=[mock_delete_success, Exception("Delete failed"), mock_delete_success],
-            ),
-        ):
-            success, error, count = manager.revoke_user_sessions("team01")
-
-            assert success is True
-            assert error is None
-            assert count == 2  # 2 succeeded, 1 failed
+        assert success is True
+        assert error is None
+        assert count == 2  # 2 succeeded, 1 failed

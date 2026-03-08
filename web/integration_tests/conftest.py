@@ -525,24 +525,19 @@ def admin_page(
 @pytest.fixture
 def http_client():
     """Create HTTP client for API testing."""
-    import requests
+    import httpx
 
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": "WCComps Integration Tests",
-        }
-    )
+    client = httpx.Client(headers={"User-Agent": "WCComps Integration Tests"})
 
-    yield session
-    session.close()
+    yield client
+    client.close()
 
 
 @pytest.fixture
 def authenticated_http_client(http_client, authentik_credentials):
     """
     Create authenticated HTTP client by performing OAuth login.
-    Returns a requests.Session with valid session cookies.
+    Returns an httpx.Client with valid session cookies.
     """
     # OAuth flow is complex to implement via HTTP client
     # Browser-based tests (authenticated_page fixture) handle this properly

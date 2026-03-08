@@ -5,8 +5,9 @@ from typing import cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
-from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
 from core.auth_utils import get_authentik_groups, has_permission
 from core.models import DiscordTask
@@ -52,7 +53,12 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     elif is_team and team and ticket.team == team:
         pass  # team member can view own team's tickets
     else:
-        return HttpResponseForbidden("You do not have permission to view this ticket.")
+        return render(
+            request,
+            "error.html",
+            {"error": "Access Denied", "message": "You do not have permission to view this ticket."},
+            status=403,
+        )
 
     # Fetch common data
     cat_info = get_category_config(ticket.category_id) or {}
@@ -92,11 +98,9 @@ def ticket_detail(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return render(request, "ticket_detail.html", context)
 
 
+@require_POST
 def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Post a comment to a ticket (team members on own tickets, ops on any)."""
-    if request.method != "POST":
-        return HttpResponse(status=405)
-
     user = cast(User, request.user)
     authentik_username = user.username
     groups = get_authentik_groups(user)
@@ -104,17 +108,32 @@ def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
     is_ops = has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")
 
     if not is_team and not is_ops:
-        return HttpResponse("Access denied", status=403)
+        return render(
+            request,
+            "error.html",
+            {"error": "Access Denied", "message": "You do not have permission to perform this action."},
+            status=403,
+        )
 
     # Look up ticket by ticket_number
     try:
         ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
-        return HttpResponse("Ticket not found", status=404)
+        return render(
+            request,
+            "error.html",
+            {"error": "Not Found", "message": "The requested ticket was not found."},
+            status=404,
+        )
 
     # Access check: ops can access any ticket, team can only access their own
     if not is_ops and (not is_team or not team or ticket.team != team):
-        return HttpResponse("Access denied", status=403)
+        return render(
+            request,
+            "error.html",
+            {"error": "Access Denied", "message": "You do not have permission to perform this action."},
+            status=403,
+        )
 
     # Get comment text
     comment_text = request.POST.get("comment", "").strip()
@@ -127,7 +146,8 @@ def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     is_allowed, reason = CommentRateLimit.check_rate_limit(ticket.id, user.id)
     if not is_allowed:
-        return JsonResponse({"error": reason}, status=429)
+        messages.error(request, reason)
+        return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
     CommentRateLimit.objects.create(ticket=ticket, discord_id=user.id)
 

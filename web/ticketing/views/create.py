@@ -157,7 +157,12 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             description = hostname
 
         if not team:
-            return HttpResponse("Team required", status=400)
+            return render(
+                request,
+                "error.html",
+                {"error": "Bad Request", "message": "Team is required to create a ticket."},
+                status=400,
+            )
 
         # Create ticket using shared atomic function
         from ticketing.utils import create_ticket_atomic

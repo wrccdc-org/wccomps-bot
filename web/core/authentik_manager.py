@@ -4,7 +4,7 @@ import logging
 from typing import TypedDict
 from urllib.parse import quote
 
-import requests
+import httpx
 from django.conf import settings
 
 
@@ -60,10 +60,13 @@ class AuthentikManager:
     def __init__(self) -> None:
         self.base_url = settings.AUTHENTIK_URL
         self.token = settings.AUTHENTIK_TOKEN
-        self.headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
+        self.client = httpx.Client(
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            },
+            timeout=10,
+        )
 
     def _log_request(self, method: str, url: str, **kwargs: object) -> None:
         """Log HTTP request details (without sensitive headers)."""
@@ -74,7 +77,7 @@ class AuthentikManager:
             f"Params: {kwargs.get('params')} | Data: {kwargs.get('json')}"
         )
 
-    def _handle_response_error(self, response: requests.Response, context: str) -> AuthentikAPIError:
+    def _handle_response_error(self, response: httpx.Response, context: str) -> AuthentikAPIError:
         """Create detailed error from HTTP response."""
         try:
             error_data = response.json()
@@ -100,7 +103,7 @@ class AuthentikManager:
             message=message,
             status_code=response.status_code,
             response_text=error_detail,
-            url=response.url,
+            url=str(response.url),
         )
 
     def list_applications(self) -> list[str]:
@@ -109,12 +112,7 @@ class AuthentikManager:
         slugs: list[str] = []
         try:
             self._log_request("GET", url)
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params={"page_size": 100},
-                timeout=10,
-            )
+            response = self.client.get(url, params={"page_size": 100})
             response.raise_for_status()
             results = response.json().get("results", [])
             slugs = sorted([app.get("slug", "") for app in results if app.get("slug")])
@@ -129,12 +127,7 @@ class AuthentikManager:
         url = f"{self.base_url}/api/v3/core/applications/"
         try:
             self._log_request("GET", url, params={"slug": slug})
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params={"slug": slug},
-                timeout=10,
-            )
+            response = self.client.get(url, params={"slug": slug})
             response.raise_for_status()
             results: list[AuthentikApplication] = response.json().get("results", [])
 
@@ -146,11 +139,11 @@ class AuthentikManager:
 
             logger.warning(f"No exact match for slug '{slug}' (got {len(results)} partial matches)")
             return None
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             error = self._handle_response_error(e.response, f"Get application '{slug}'")
             logger.exception(str(error))
             return None
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Network error getting application '{slug}': {e}")
             return None
         except Exception as e:
@@ -188,12 +181,7 @@ class AuthentikManager:
             logger.debug(f"Querying bindings for application {app_pk}")
             self._log_request("GET", url, params={"target": app_pk})
 
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params={"target": app_pk},
-                timeout=10,
-            )
+            response = self.client.get(url, params={"target": app_pk})
             response.raise_for_status()
             bindings = response.json().get("results", [])
 
@@ -220,11 +208,11 @@ class AuthentikManager:
             logger.error(error_msg)
             return None, error_msg
 
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             error = self._handle_response_error(e.response, f"Query bindings for app {app_pk}")
             logger.exception(f"Failed to query bindings: {error}")
             return None, str(error)
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             error_msg = f"Network error querying bindings: {e}"
             logger.exception(error_msg)
             return None, error_msg
@@ -246,11 +234,9 @@ class AuthentikManager:
             # Modify the enabled field and PUT the entire object back
             binding["enabled"] = enabled
 
-            response = requests.put(
+            response = self.client.put(
                 f"{self.base_url}/api/v3/policies/bindings/{binding_pk}/",
-                headers=self.headers,
                 json=binding,
-                timeout=10,
             )
             response.raise_for_status()
             state = "enabled" if enabled else "disabled"
@@ -385,10 +371,8 @@ class AuthentikManager:
         """
         try:
             # First, get the current user to preserve existing attributes
-            response = requests.get(
+            response = self.client.get(
                 f"{self.base_url}/api/v3/core/users/{authentik_user_id}/",
-                headers=self.headers,
-                timeout=10,
             )
             response.raise_for_status()
             user = response.json()
@@ -399,16 +383,14 @@ class AuthentikManager:
             attributes["discord_id"] = str(discord_id)
 
             # Update user with merged attributes
-            response = requests.patch(
+            response = self.client.patch(
                 f"{self.base_url}/api/v3/core/users/{authentik_user_id}/",
-                headers=self.headers,
                 json={"attributes": attributes},
-                timeout=10,
             )
             response.raise_for_status()
             logger.info(f"Updated discord_id for Authentik user {authentik_user_id}")
             return True
-        except requests.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:
                 logger.exception(
                     f"Authentik API token lacks permission to update user {authentik_user_id}. Error: {e.response.text}"
@@ -431,11 +413,9 @@ class AuthentikManager:
         """
         try:
             # First, get the user
-            response = requests.get(
+            response = self.client.get(
                 f"{self.base_url}/api/v3/core/users/",
-                headers=self.headers,
                 params={"username": username},
-                timeout=10,
             )
             response.raise_for_status()
             users = response.json().get("results", [])
@@ -447,11 +427,9 @@ class AuthentikManager:
             logger.info(f"Found user {username} with pk={user_pk}")
 
             # Get all sessions for this user
-            response = requests.get(
+            response = self.client.get(
                 f"{self.base_url}/api/v3/core/authenticated_sessions/",
-                headers=self.headers,
                 params={"user": user_pk},
-                timeout=10,
             )
             response.raise_for_status()
             sessions = response.json().get("results", [])
@@ -466,10 +444,8 @@ class AuthentikManager:
                     continue
 
                 try:
-                    response = requests.delete(
+                    response = self.client.delete(
                         f"{self.base_url}/api/v3/core/authenticated_sessions/{session_uuid}/",
-                        headers=self.headers,
-                        timeout=10,
                     )
                     response.raise_for_status()
                     revoked_count += 1
@@ -479,11 +455,11 @@ class AuthentikManager:
 
             return True, None, revoked_count
 
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             error = self._handle_response_error(e.response, f"Revoke sessions for user {username}")
             logger.exception(str(error))
             return False, str(error), 0
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             error_msg = f"Network error revoking sessions: {e}"
             logger.exception(error_msg)
             return False, error_msg, 0
@@ -505,10 +481,8 @@ class AuthentikManager:
         from core.authentik_utils import validate_team_account
 
         try:
-            response = requests.get(
+            response = self.client.get(
                 f"{self.base_url}/api/v3/core/users/?username={quote(username, safe='')}",
-                headers=self.headers,
-                timeout=10,
             )
             response.raise_for_status()
             users: list[AuthentikUser] = response.json().get("results", [])
@@ -523,11 +497,9 @@ class AuthentikManager:
             if not is_valid:
                 return (False, error)
 
-            response = requests.patch(
+            response = self.client.patch(
                 f"{self.base_url}/api/v3/core/users/{user['pk']}/",
-                headers=self.headers,
                 json={"is_active": is_active},
-                timeout=10,
             )
             response.raise_for_status()
             return (True, "")
@@ -555,10 +527,8 @@ class AuthentikManager:
 
         try:
             # Get user by username
-            response = requests.get(
+            response = self.client.get(
                 f"{self.base_url}/api/v3/core/users/?username={quote(username, safe='')}",
-                headers=self.headers,
-                timeout=10,
             )
             response.raise_for_status()
             users: list[AuthentikUser] = response.json().get("results", [])
@@ -575,20 +545,16 @@ class AuthentikManager:
                 return (False, error)
 
             # Set password
-            response = requests.post(
+            response = self.client.post(
                 f"{self.base_url}/api/v3/core/users/{user_pk}/set_password/",
-                headers=self.headers,
                 json={"password": password},
-                timeout=10,
             )
             response.raise_for_status()
 
             # Enable user account (set is_active=True)
-            response = requests.patch(
+            response = self.client.patch(
                 f"{self.base_url}/api/v3/core/users/{user_pk}/",
-                headers=self.headers,
                 json={"is_active": True},
-                timeout=10,
             )
             response.raise_for_status()
 

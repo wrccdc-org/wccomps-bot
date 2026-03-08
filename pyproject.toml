@@ -20,7 +20,6 @@ dependencies = [
     "authentik-client>=2024.12.1",
     # Shared dependencies
     "psycopg2-binary>=2.9.9",
-    "requests>=2.32.3",
     "aiohttp>=3.9",
     "xkcdpass>=1.19.9",
     "django-smart-ratelimit>=0.8.11",
@@ -54,7 +53,6 @@ dev = [
     "playwright>=1.40.0",
     "hypothesis[django]>=6.100",
     "mypy>=1.13",
-    "types-requests>=2.32",
     "pytest-cov>=7.0.0",
     "vulture>=2.14",
     "radon>=6.0.1",

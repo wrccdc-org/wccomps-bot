@@ -63,6 +63,10 @@
         function showVerificationDialog(event, ticketNumber, currentPoints, expectedPoints) {
             event.preventDefault();
 
+            // Hide any previous inline error for this ticket
+            const errorEl = document.getElementById(`error_${ticketNumber}`);
+            if (errorEl) errorEl.classList.add('d-none');
+
             let adjustedPoints = currentPoints;
             let notes = '';
 
@@ -81,7 +85,7 @@
                     }
                     adjustedPoints = parseInt(newPoints);
                     if (isNaN(adjustedPoints)) {
-                        alert('Invalid points value');
+                        if (errorEl) errorEl.classList.remove('d-none');
                         return false;
                     }
                 }

@@ -56,27 +56,29 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
             screenshots = request.FILES.getlist("screenshots")
             max_screenshots = 20
 
+            screenshot_error = False
             if len(screenshots) > max_screenshots:
+                transaction.set_rollback(True)
                 messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
-                incident.delete()
-                return redirect("scoring:submit_incident_report")
+                screenshot_error = True
+            else:
+                try:
+                    for screenshot in screenshots:
+                        file_data = screenshot.read()
+                        IncidentScreenshot.objects.create(
+                            incident=incident,
+                            file_data=file_data,
+                            filename=screenshot.name or "screenshot.png",
+                            mime_type=screenshot.content_type or "image/png",
+                        )
+                except Exception as e:
+                    transaction.set_rollback(True)
+                    messages.error(request, f"File upload failed: {str(e)}")
+                    screenshot_error = True
 
-            try:
-                for screenshot in screenshots:
-                    file_data = screenshot.read()
-                    IncidentScreenshot.objects.create(
-                        incident=incident,
-                        file_data=file_data,
-                        filename=screenshot.name or "screenshot.png",
-                        mime_type=screenshot.content_type or "image/png",
-                    )
-            except Exception as e:
-                messages.error(request, f"File upload failed: {str(e)}")
-                incident.delete()
-                return redirect("scoring:submit_incident_report")
-
-            messages.success(request, f"Incident report #{incident.id} submitted successfully")
-            return redirect("scoring:view_incident_report", incident_id=incident.id)
+            if not screenshot_error:
+                messages.success(request, f"Incident report #{incident.id} submitted successfully")
+                return redirect("scoring:view_incident_report", incident_id=incident.id)
     else:
         form = IncidentReportForm(team, is_admin)
 
@@ -111,7 +113,12 @@ def incident_list(request: HttpRequest) -> HttpResponse:
     else:
         user_team = _get_user_team(user)
         if not user_team:
-            return HttpResponseForbidden("You do not have permission to access this page")
+            return render(
+                request,
+                "error.html",
+                {"error": "Access Denied", "message": "You do not have permission to access this page."},
+                status=403,
+            )
 
         incidents = (
             IncidentReport.objects.filter(team=user_team).select_related("team", "submitted_by").order_by("-created_at")

@@ -1,0 +1,15 @@
+{# Form component - standard POST form with built-in double-submit protection #}
+{# Usage: <c-form action="/url">...fields...<c-button type="submit">Save</c-button></c-form> #}
+{# Props: action, enctype, class, id #}
+{# Note: Forms with custom x-data components should use raw <form> and merge submitGuard logic #}
+<c-vars action enctype class id />
+<form method="post"
+      {% if action %}action="{{ action }}"{% endif %}
+      {% if enctype %}enctype="{{ enctype }}"{% endif %}
+      {% if id %}id="{{ id }}"{% endif %}
+      {{ attrs }}
+      class="{{ class }}"
+      x-data="submitGuard"
+      @submit="onSubmit">
+    {{ slot }}
+</form>

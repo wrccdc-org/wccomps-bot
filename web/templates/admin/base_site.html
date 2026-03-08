@@ -280,7 +280,7 @@
             background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 4px;
-            padding: 4px 8px;
+            padding: 6px 10px;
             margin-right: 15px;
             cursor: pointer;
             font-size: 14px;
@@ -311,7 +311,7 @@
             background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 4px;
-            padding: 4px 8px;
+            padding: 6px 10px;
             margin-right: 8px;
             cursor: pointer;
             font-size: 14px;
@@ -405,6 +405,10 @@
             .toast-enter-start {
                 transform: none;
             }
+
+            .htmx-request {
+                transition: none;
+            }
         }
 
         @media (max-width: 480px) {
@@ -440,6 +444,14 @@
                 return s ? 'New ticket: ' + s.toastNumber + ', ' + s.toastTitle + '. Click to view.' : '';
             },
             go() { window.location.href = this.$store.ticketNotifs.toastUrl; }
+        }));
+        Alpine.data('submitGuard', () => ({
+            submitting: false,
+            onSubmit(e) {
+                if (this.submitting) { e.preventDefault(); return; }
+                this.submitting = true;
+                setTimeout(() => { this.submitting = false; }, 10000);
+            }
         }));
         Alpine.data('audioToggle', () => ({
             enabled: false,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import cast
 
-import requests
+import httpx
 from django.conf import settings
 from django.core.cache import cache
 
@@ -117,12 +117,12 @@ class QuotientClient:
         base = base_url or str(getattr(settings, "QUOTIENT_API_URL", ""))
         self.base_url = base.rstrip("/")
         self.cache_ttl = cache_ttl
-        self.session: requests.Session | None = None
+        self.client: httpx.Client | None = None
 
-    def _get_session(self, force_reauth: bool = False) -> requests.Session:
-        """Get or create authenticated session."""
-        if self.session is None or force_reauth:
-            self.session = requests.Session()
+    def _get_client(self, force_reauth: bool = False) -> httpx.Client:
+        """Get or create authenticated client."""
+        if self.client is None or force_reauth:
+            self.client = httpx.Client()
 
             # Use hardcoded admin credentials from settings
             username = getattr(settings, "QUOTIENT_USERNAME", "")
@@ -133,7 +133,7 @@ class QuotientClient:
                 raise QuotientAPIError("Quotient credentials not configured")
 
             try:
-                response = self.session.post(
+                response = self.client.post(
                     f"{self.base_url}/api/login",
                     json={
                         "username": username,
@@ -143,28 +143,28 @@ class QuotientClient:
                 )
                 response.raise_for_status()
                 logger.info(f"Authenticated with Quotient as {username}")
-                return self.session
-            except requests.RequestException as e:
+                return self.client
+            except httpx.HTTPError as e:
                 logger.exception(f"Failed to authenticate with Quotient: {e}")
                 raise QuotientAPIError(f"Authentication failed: {e}") from e
 
-        return self.session
+        return self.client
 
-    def _request(self, method: str, endpoint: str, **kwargs: object) -> requests.Response:
+    def _request(self, method: str, endpoint: str, **kwargs: object) -> httpx.Response:
         """Make an authenticated request, re-authenticating on 401."""
-        session = self._get_session()
+        client = self._get_client()
         url = f"{self.base_url}{endpoint}"
         if "timeout" not in kwargs:
             kwargs["timeout"] = 10
 
-        request_func = getattr(session, method)
-        response = cast(requests.Response, request_func(url, **kwargs))
+        request_func = getattr(client, method)
+        response = cast(httpx.Response, request_func(url, **kwargs))
 
         if response.status_code == 401:
             logger.info("Got 401, re-authenticating with Quotient")
-            session = self._get_session(force_reauth=True)
-            request_func = getattr(session, method)
-            response = cast(requests.Response, request_func(url, **kwargs))
+            client = self._get_client(force_reauth=True)
+            request_func = getattr(client, method)
+            response = cast(httpx.Response, request_func(url, **kwargs))
 
         return response
 
@@ -228,7 +228,7 @@ class QuotientClient:
 
             return infrastructure
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Failed to fetch infrastructure from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -278,7 +278,7 @@ class QuotientClient:
             logger.info(f"Fetched scores for {len(scores)} teams")
             return scores
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Failed to fetch scores from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -332,7 +332,7 @@ class QuotientClient:
             logger.info(f"Fetched {len(injects)} injects")
             return injects
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Failed to fetch injects from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -384,7 +384,7 @@ class QuotientClient:
             logger.info(f"Fetched service export for {len(exports)} teams")
             return exports
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Failed to fetch service export: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -427,7 +427,7 @@ class QuotientClient:
             logger.info(f"Fetched uptimes for {len(result)} teams")
             return result
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             logger.exception(f"Failed to fetch uptimes: {e}")
             return None
         except (KeyError, ValueError) as e:

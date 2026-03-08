@@ -341,32 +341,39 @@ def submit_red_score(request: HttpRequest) -> HttpResponse:
                 screenshots = request.FILES.getlist("screenshots")
                 max_screenshots = 20
 
+                screenshot_error = False
                 if len(screenshots) > max_screenshots:
+                    transaction.set_rollback(True)
                     messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
-                    finding.delete()
-                    return redirect("scoring:submit_red_score")
+                    screenshot_error = True
+                else:
+                    try:
+                        for screenshot in screenshots:
+                            file_data = screenshot.read()
+                            RedTeamScreenshot.objects.create(
+                                finding=finding,
+                                file_data=file_data,
+                                filename=screenshot.name or "screenshot.png",
+                                mime_type=screenshot.content_type or "image/png",
+                            )
+                    except Exception as e:
+                        transaction.set_rollback(True)
+                        messages.error(request, f"File upload failed: {str(e)}")
+                        screenshot_error = True
 
-                try:
-                    for screenshot in screenshots:
-                        file_data = screenshot.read()
-                        RedTeamScreenshot.objects.create(
-                            finding=finding,
-                            file_data=file_data,
-                            filename=screenshot.name or "screenshot.png",
-                            mime_type=screenshot.content_type or "image/png",
-                        )
-                except Exception as e:
-                    messages.error(request, f"File upload failed: {str(e)}")
-                    finding.delete()
-                    return redirect("scoring:submit_red_score")
+                if not screenshot_error:
+                    # Show appropriate message based on result
+                    if result.status == "created":
+                        messages.success(request, f"Finding #{finding.id} created successfully.")
+                    elif result.status in ("merged", "partial_merge"):
+                        messages.info(request, result.message)
+                    return redirect("scoring:red_team_scores")
 
-            # Show appropriate message based on result
-            if result.status == "created":
-                messages.success(request, f"Finding #{finding.id} created successfully.")
-            elif result.status in ("merged", "partial_merge"):
-                messages.info(request, result.message)
-
-            return redirect("scoring:red_team_scores")
+            else:
+                # Non-created results (merged, partial_merge) — no screenshots to handle
+                if result.status in ("merged", "partial_merge"):
+                    messages.info(request, result.message)
+                return redirect("scoring:red_team_scores")
     else:
         form = RedTeamScoreForm(team_count=team_count, user=user)
 
