@@ -101,7 +101,7 @@ class Season(models.Model):
 class EventQuerySet(models.QuerySet["Event"]):
     """Custom queryset for Event model."""
 
-    def annotate_enrollment_count(self) -> "EventQuerySet":
+    def annotate_enrollment_count(self) -> EventQuerySet:
         """Annotate events with their enrollment count."""
         return self.annotate(enrollment_count=models.Count("enrollments"))
 
@@ -112,7 +112,7 @@ class EventManager(models.Manager["Event"]):
     def get_queryset(self) -> EventQuerySet:
         return EventQuerySet(self.model, using=self._db)
 
-    def annotate_enrollment_count(self) -> "EventQuerySet":
+    def annotate_enrollment_count(self) -> EventQuerySet:
         return self.get_queryset().annotate_enrollment_count()
 
 

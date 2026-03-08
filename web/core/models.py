@@ -224,7 +224,7 @@ class CompetitionConfig(models.Model):
             self.controlled_applications = AuthentikManager().list_blueteam_applications()
 
     @classmethod
-    def get_config(cls) -> "CompetitionConfig":
+    def get_config(cls) -> CompetitionConfig:
         """Get or create singleton config instance."""
         config, _ = cls.objects.get_or_create(pk=1)
         return config

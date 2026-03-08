@@ -23,7 +23,7 @@ from .quotient_sync import get_box_choices, get_service_choices
 class TeamNumberChoiceField(forms.ModelMultipleChoiceField["Team"]):
     """Show 'Team N' instead of team names to maintain impartiality."""
 
-    def label_from_instance(self, obj: "Team") -> str:
+    def label_from_instance(self, obj: Team) -> str:
         return f"Team {obj.team_number}"
 
 

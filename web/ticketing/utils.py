@@ -1,7 +1,7 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
 import functools
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
@@ -14,7 +14,7 @@ from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 
-def _make_async[**P, T](fn: Callable[P, T]) -> Callable[P, T]:
+def _make_async[**P, T](fn: Callable[P, T]) -> Callable[P, Awaitable[T]]:
     """Create an async version of a sync function using sync_to_async."""
 
     @functools.wraps(fn)
@@ -23,7 +23,7 @@ def _make_async[**P, T](fn: Callable[P, T]) -> Callable[P, T]:
 
     wrapper.__name__ = f"a{fn.__name__}"
     wrapper.__qualname__ = f"a{fn.__qualname__}"
-    return wrapper  # type: ignore[return-value]
+    return wrapper
 
 
 def get_user_for_ticket(
