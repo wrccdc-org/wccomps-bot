@@ -253,11 +253,10 @@ class TestLinkingWithRoles:
 
         # Simulate creating queue task for role assignment
         task = await DiscordTask.objects.acreate(
-            task_type="assign_team_role",
+            task_type="assign_role",
             payload={
                 "discord_id": link.discord_id,
                 "team_number": team.team_number,
-                "role_id": team.discord_role_id,
             },
             status="pending",
         )
@@ -288,11 +287,10 @@ class TestLinkingWithRoles:
 
         # Simulate creating queue tasks for both team and group roles
         team_role_task = await DiscordTask.objects.acreate(
-            task_type="assign_team_role",
+            task_type="assign_role",
             payload={
                 "discord_id": link.discord_id,
                 "team_number": team.team_number,
-                "role_id": team.discord_role_id,
             },
             status="pending",
         )

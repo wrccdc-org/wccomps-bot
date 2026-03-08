@@ -126,6 +126,10 @@ class TestTicketCreationWorkflow:
             payload={
                 "ticket_id": ticket.id,
                 "ticket_number": ticket.ticket_number,
+                "team_number": team.team_number,
+                "category": "Box Reset",
+                "title": "Box Reset",
+                "created_by": "test_user",
             },
             status="pending",
         )
