@@ -7,7 +7,6 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.auth_utils import get_authentik_groups, get_authentik_id, has_permission
@@ -43,7 +42,7 @@ def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Get ticket (must belong to user's team)
     try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number, team=team)
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number, team=team)
     except Ticket.DoesNotExist:
         return render(
             request,
@@ -54,30 +53,18 @@ def ticket_cancel(request: HttpRequest, ticket_number: str) -> HttpResponse:
             },
         )
 
-    # Only allow cancellation if unclaimed
-    if ticket.status != "open":
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Cannot cancel",
-                "message": f"Ticket {ticket_number} is already {ticket.status}. Only open tickets can be cancelled.",
-            },
-        )
+    # Use shared atomic cancel function
+    from ticketing.utils import cancel_ticket_atomic
 
-    # Cancel ticket
-    ticket.status = "cancelled"
-    ticket.resolved_at = timezone.now()
-    ticket.resolution_notes = f"Cancelled by {authentik_username} via web interface"
-    ticket.points_charged = 0
-    ticket.save()
-
-    # Create history entry
-    TicketHistory.objects.create(
-        ticket=ticket,
-        action="cancelled",
-        details={"reason": "Cancelled by team member via web (unclaimed)", "cancelled_by": authentik_username},
+    ticket, error = cancel_ticket_atomic(
+        ticket_id=ticket_obj.id,
+        actor_username=authentik_username,
+        user=user,
     )
+
+    if error or ticket is None:
+        messages.error(request, error or "Failed to cancel ticket")
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     logger.info(f"Ticket {ticket_number} cancelled by {authentik_username} via web")
 
@@ -345,37 +332,25 @@ def ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Get ticket
     try:
-        ticket = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
+        ticket_obj = Ticket.objects.select_related("team").get(ticket_number=ticket_number)
     except Ticket.DoesNotExist:
         return HttpResponse("Ticket not found", status=404)
 
-    # Only allow reopening resolved tickets
-    if ticket.status != "resolved":
-        messages.error(request, f"Cannot reopen - ticket is {ticket.status}")
-        return redirect("ticket_detail", ticket_number=ticket_number)
-
     reopen_reason = request.POST.get("reopen_reason", "").strip()
 
-    # Reopen ticket - clear assignee so it goes back to queue
-    old_status = ticket.status
-    old_assignee = ticket.assigned_to
-    ticket.status = "open"
-    ticket.assigned_to = None
-    ticket.resolved_at = None
-    ticket.save()
+    # Use shared atomic reopen function
+    from ticketing.utils import reopen_ticket_atomic
 
-    # Create history entry
-    details = {"old_status": old_status, "reopened_by": authentik_username}
-    if old_assignee:
-        details["previous_assignee"] = old_assignee.username
-    if reopen_reason:
-        details["reason"] = reopen_reason
-
-    TicketHistory.objects.create(
-        ticket=ticket,
-        action="reopened",
-        details=details,
+    ticket, error = reopen_ticket_atomic(
+        ticket_id=ticket_obj.id,
+        actor_username=authentik_username,
+        reopen_reason=reopen_reason,
+        user=user,
     )
+
+    if error or ticket is None:
+        messages.error(request, error or "Failed to reopen ticket")
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Post status update to Discord thread
     if ticket.discord_thread_id:

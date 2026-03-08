@@ -193,8 +193,8 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
 
             return redirect("ticket_detail", ticket_number=ticket.ticket_number)
 
-        except Exception as e:
-            logger.error(f"Failed to create ticket: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Failed to create ticket")
 
             return render(
                 request,
@@ -206,9 +206,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
-                    "error": (
-                        f"Failed to create ticket: {e!s}. Please try again or contact support if the problem persists."
-                    ),
+                    "error": "Failed to create ticket. Please try again or contact support if the problem persists.",
                     "form_data": request.POST,
                 },
             )

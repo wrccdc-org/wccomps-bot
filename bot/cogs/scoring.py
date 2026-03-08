@@ -8,6 +8,7 @@ from discord.ext import commands
 from django.utils import timezone
 
 from bot.permissions import check_blue_team
+from bot.utils import DISCORD_EMBED_FIELD_CHAR_LIMIT
 from team.models import DiscordLink
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class ScoringCog(commands.Cog):
             embed.add_field(name="Affected Service", value=affected_service, inline=True)
             embed.add_field(name="Source IP", value=f"`{source_ip}`", inline=True)
             embed.add_field(name="Attack Vector", value=attack_vector, inline=False)
-            embed.add_field(name="Description", value=description[:1024], inline=False)
+            embed.add_field(name="Description", value=description[:DISCORD_EMBED_FIELD_CHAR_LIMIT], inline=False)
 
             # Add next steps
             embed.add_field(

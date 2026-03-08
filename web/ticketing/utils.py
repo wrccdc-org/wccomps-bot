@@ -1,5 +1,8 @@
 """Ticketing utilities for atomic ticket creation and lifecycle management."""
 
+import functools
+from collections.abc import Callable
+
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -9,6 +12,18 @@ from django.utils import timezone
 from core.tickets_config import get_category_config
 from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketCategory, TicketHistory
+
+
+def _make_async[**P, T](fn: Callable[P, T]) -> Callable[P, T]:
+    """Create an async version of a sync function using sync_to_async."""
+
+    @functools.wraps(fn)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        return await sync_to_async(fn)(*args, **kwargs)
+
+    wrapper.__name__ = f"a{fn.__name__}"
+    wrapper.__qualname__ = f"a{fn.__qualname__}"
+    return wrapper  # type: ignore[return-value]
 
 
 def get_user_for_ticket(
@@ -87,7 +102,7 @@ def create_ticket_atomic(
             hostname=hostname,
             ip_address=ip_address or None,
             service_name=service_name,
-            status="open",
+            status=Ticket.STATUS_OPEN,
             points_charged=category.points,
         )
 
@@ -101,27 +116,7 @@ def create_ticket_atomic(
     return ticket
 
 
-async def acreate_ticket_atomic(
-    team: Team,
-    category: TicketCategory,
-    title: str,
-    description: str = "",
-    hostname: str = "",
-    ip_address: str | None = None,
-    service_name: str = "",
-    actor_username: str = "system",
-) -> Ticket:
-    """Async wrapper for create_ticket_atomic (Discord bot usage)."""
-    return await sync_to_async(create_ticket_atomic)(
-        team=team,
-        category=category,
-        title=title,
-        description=description,
-        hostname=hostname,
-        ip_address=ip_address,
-        service_name=service_name,
-        actor_username=actor_username,
-    )
+acreate_ticket_atomic = _make_async(create_ticket_atomic)
 
 
 def claim_ticket_atomic(
@@ -150,7 +145,7 @@ def claim_ticket_atomic(
         if not ticket:
             return None, "Ticket not found."
 
-        if ticket.status != "open":
+        if not ticket.can_transition_to(Ticket.STATUS_CLAIMED):
             return None, f"This ticket is already {ticket.status}."
 
         assignee = get_user_for_ticket(discord_id=discord_id, user=user)
@@ -159,7 +154,7 @@ def claim_ticket_atomic(
             return None, "Could not find a valid user to assign."
 
         # Update ticket
-        ticket.status = "claimed"
+        ticket.status = Ticket.STATUS_CLAIMED
         ticket.assigned_to = assignee
         ticket.assigned_at = timezone.now()
         ticket.save()
@@ -179,21 +174,7 @@ def claim_ticket_atomic(
         return ticket, None
 
 
-async def aclaim_ticket_atomic(
-    ticket_id: int,
-    actor_username: str,
-    discord_id: int | None = None,
-    discord_username: str | None = None,
-    user: User | None = None,
-) -> tuple[Ticket | None, str | None]:
-    """Async wrapper for claim_ticket_atomic."""
-    return await sync_to_async(claim_ticket_atomic)(
-        ticket_id=ticket_id,
-        actor_username=actor_username,
-        discord_id=discord_id,
-        discord_username=discord_username,
-        user=user,
-    )
+aclaim_ticket_atomic = _make_async(claim_ticket_atomic)
 
 
 def resolve_ticket_atomic(
@@ -226,8 +207,8 @@ def resolve_ticket_atomic(
         if not ticket:
             return None, "Ticket not found."
 
-        if ticket.status == "resolved":
-            return None, "This ticket is already resolved."
+        if not ticket.can_transition_to(Ticket.STATUS_RESOLVED):
+            return None, f"Cannot resolve ticket with status: {ticket.status}."
 
         # Determine points
         cat_info = get_category_config(ticket.category_id) or {}
@@ -257,7 +238,7 @@ def resolve_ticket_atomic(
         resolver = get_user_for_ticket(discord_id=discord_id, user=user)
 
         # Update ticket
-        ticket.status = "resolved"
+        ticket.status = Ticket.STATUS_RESOLVED
         ticket.resolved_at = timezone.now()
         ticket.resolved_by = resolver
         ticket.resolution_notes = resolution_notes
@@ -292,25 +273,7 @@ def resolve_ticket_atomic(
         return ticket, None
 
 
-async def aresolve_ticket_atomic(
-    ticket_id: int,
-    actor_username: str,
-    resolution_notes: str = "",
-    points_override: int | None = None,
-    discord_id: int | None = None,
-    discord_username: str | None = None,
-    user: User | None = None,
-) -> tuple[Ticket | None, str | None]:
-    """Async wrapper for resolve_ticket_atomic."""
-    return await sync_to_async(resolve_ticket_atomic)(
-        ticket_id=ticket_id,
-        actor_username=actor_username,
-        resolution_notes=resolution_notes,
-        points_override=points_override,
-        discord_id=discord_id,
-        discord_username=discord_username,
-        user=user,
-    )
+aresolve_ticket_atomic = _make_async(resolve_ticket_atomic)
 
 
 def unclaim_ticket_atomic(
@@ -335,11 +298,11 @@ def unclaim_ticket_atomic(
         if not ticket:
             return None, "Ticket not found."
 
-        if ticket.status != "claimed":
+        if ticket.status != Ticket.STATUS_CLAIMED:
             return None, f"Cannot unclaim ticket with status: {ticket.status}."
 
         # Reset ticket to open
-        ticket.status = "open"
+        ticket.status = Ticket.STATUS_OPEN
         ticket.assigned_to = None
         ticket.assigned_at = None
         ticket.save()
@@ -355,17 +318,7 @@ def unclaim_ticket_atomic(
         return ticket, None
 
 
-async def aunclaim_ticket_atomic(
-    ticket_id: int,
-    actor_username: str,
-    user: User | None = None,
-) -> tuple[Ticket | None, str | None]:
-    """Async wrapper for unclaim_ticket_atomic."""
-    return await sync_to_async(unclaim_ticket_atomic)(
-        ticket_id=ticket_id,
-        actor_username=actor_username,
-        user=user,
-    )
+aunclaim_ticket_atomic = _make_async(unclaim_ticket_atomic)
 
 
 def reassign_ticket_atomic(
@@ -394,7 +347,7 @@ def reassign_ticket_atomic(
         if not ticket:
             return None, "Ticket not found."
 
-        if ticket.status != "claimed":
+        if ticket.status != Ticket.STATUS_CLAIMED:
             return None, f"Can only reassign claimed tickets. This ticket is {ticket.status}."
 
         previous_assignee = ticket.assigned_to.username if ticket.assigned_to else None
@@ -424,18 +377,95 @@ def reassign_ticket_atomic(
         return ticket, None
 
 
-async def areassign_ticket_atomic(
+areassign_ticket_atomic = _make_async(reassign_ticket_atomic)
+
+
+def cancel_ticket_atomic(
     ticket_id: int,
     actor_username: str,
-    discord_id: int | None = None,
-    discord_username: str | None = None,
     user: User | None = None,
 ) -> tuple[Ticket | None, str | None]:
-    """Async wrapper for reassign_ticket_atomic."""
-    return await sync_to_async(reassign_ticket_atomic)(
-        ticket_id=ticket_id,
-        actor_username=actor_username,
-        discord_id=discord_id,
-        discord_username=discord_username,
-        user=user,
-    )
+    """
+    Cancel a ticket atomically.
+
+    Args:
+        ticket_id: ID of ticket to cancel
+        actor_username: Username for history
+        user: User performing the cancel (optional, for history actor)
+
+    Returns:
+        Tuple of (ticket, error_message). If error, ticket is None.
+    """
+    with transaction.atomic():
+        ticket = Ticket.objects.select_for_update().filter(id=ticket_id).first()
+
+        if not ticket:
+            return None, "Ticket not found."
+
+        if not ticket.can_transition_to(Ticket.STATUS_CANCELLED):
+            return None, f"Only open tickets can be cancelled. This ticket is {ticket.status}."
+
+        ticket.status = Ticket.STATUS_CANCELLED
+        ticket.resolved_at = timezone.now()
+        ticket.resolution_notes = f"Cancelled by {actor_username}"
+        ticket.points_charged = 0
+        ticket.save()
+
+        TicketHistory.objects.create(
+            ticket=ticket,
+            action="cancelled",
+            actor=user,
+            details={"cancelled_by": actor_username},
+        )
+
+        return ticket, None
+
+
+def reopen_ticket_atomic(
+    ticket_id: int,
+    actor_username: str,
+    reopen_reason: str = "",
+    user: User | None = None,
+) -> tuple[Ticket | None, str | None]:
+    """
+    Reopen a resolved ticket atomically.
+
+    Args:
+        ticket_id: ID of ticket to reopen
+        actor_username: Username for history
+        reopen_reason: Reason for reopening
+        user: User performing the reopen (optional, for history actor)
+
+    Returns:
+        Tuple of (ticket, error_message). If error, ticket is None.
+    """
+    with transaction.atomic():
+        ticket = Ticket.objects.select_for_update().filter(id=ticket_id).first()
+
+        if not ticket:
+            return None, "Ticket not found."
+
+        if ticket.status != Ticket.STATUS_RESOLVED:
+            return None, f"Cannot reopen - ticket is {ticket.status}."
+
+        old_assignee = ticket.assigned_to
+
+        ticket.status = Ticket.STATUS_OPEN
+        ticket.assigned_to = None
+        ticket.resolved_at = None
+        ticket.save()
+
+        details: dict[str, object] = {"reopened_by": actor_username}
+        if old_assignee:
+            details["previous_assignee"] = old_assignee.username
+        if reopen_reason:
+            details["reason"] = reopen_reason
+
+        TicketHistory.objects.create(
+            ticket=ticket,
+            action="reopened",
+            actor=user,
+            details=details,
+        )
+
+        return ticket, None

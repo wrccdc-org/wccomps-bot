@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from bot.discord_manager import DiscordManager
+from bot.utils import DISCORD_EMBED_FIELD_CHAR_LIMIT, TEAM_CHAT_CHANNEL_KEYWORD
 from core.models import DiscordTask
 from team.models import Team
 from ticketing.models import Ticket, TicketComment
@@ -357,98 +358,24 @@ class DiscordQueueProcessor:
 
         # Try to create thread in team's category
         if ticket.team.discord_category_id:
-            # Find and validate category/channel before entering try block
-            category = self.bot.get_channel(ticket.team.discord_category_id)
-            if not category:
-                logger.warning(f"Category {ticket.team.discord_category_id} not found for team {ticket.team.team_name}")
-            elif isinstance(category, discord.CategoryChannel):
-                # Find the team's text channel within the category
-                chat_channel = None
-                for channel in category.channels:
-                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
-                        chat_channel = channel
-                        break
+            if not self.discord_manager:
+                logger.warning("Discord manager not initialized; cannot create ticket thread")
+            else:
+                from bot.thread_creator import create_ticket_thread
 
-                if not chat_channel:
-                    logger.warning(f"No text channel found in category {category.name}")
-                    raise RuntimeError("No text channel found in team category")
-
-                # Now do Discord API calls with error handling
-                try:
-                    # Create thread in the team's text channel
-                    thread_start = time.time()
-                    thread = await chat_channel.create_thread(
-                        name=f"{ticket.ticket_number} - Team {ticket.team.team_number:02d} - {ticket.title[:60]}",
-                        auto_archive_duration=10080,  # 7 days
-                    )
+                thread_start = time.time()
+                thread = await create_ticket_thread(
+                    bot=self.bot,
+                    guild=self.discord_manager.guild,
+                    ticket=ticket,
+                    team=ticket.team,
+                    pin_message=True,
+                )
+                if thread:
                     logger.info(
-                        f"Ticket {ticket.ticket_number}: Thread creation took {time.time() - thread_start:.3f}s"
-                    )
-
-                    # Store thread ID
-                    @sync_to_async
-                    def save_thread_id() -> None:
-                        ticket.discord_thread_id = thread.id
-                        ticket.discord_channel_id = category.id
-                        ticket.save()
-
-                    save_start = time.time()
-                    await save_thread_id()
-                    logger.info(f"Ticket {ticket.ticket_number}: Save thread ID took {time.time() - save_start:.3f}s")
-
-                    # Add all linked team members to thread
-                    from bot.utils import get_team_member_discord_ids
-
-                    members_start = time.time()
-                    team_member_ids = await get_team_member_discord_ids(ticket.team)
-                    logger.info(
-                        f"Ticket {ticket.ticket_number}: Get member IDs took {time.time() - members_start:.3f}s"
-                    )
-
-                    add_start = time.time()
-                    for member_id in team_member_ids:
-                        try:
-                            member = self.bot.get_user(member_id)
-                            if member:
-                                await thread.add_user(member)
-                        except Exception as e:
-                            logger.warning(f"Failed to add member {member_id} to thread: {e}")
-                    logger.info(
-                        f"Ticket {ticket.ticket_number}: Add {len(team_member_ids)} members "
-                        f"took {time.time() - add_start:.3f}s"
-                    )
-
-                    # Send initial message in thread with action buttons
-                    from bot.ticket_dashboard import (
-                        TicketActionView,
-                        format_ticket_embed,
-                    )
-
-                    embed = format_ticket_embed(ticket)
-                    view = TicketActionView(ticket.id)
-
-                    send_start = time.time()
-                    message = await thread.send(
-                        f"**Ticket #{ticket.ticket_number}** - Use buttons below to manage this ticket.",
-                        embed=embed,
-                        view=view,
-                    )
-                    logger.info(f"Ticket {ticket.ticket_number}: Send message took {time.time() - send_start:.3f}s")
-
-                    # Pin the ticket message to the thread
-                    pin_start = time.time()
-                    try:
-                        await message.pin()
-                        logger.info(f"Ticket {ticket.ticket_number}: Pin message took {time.time() - pin_start:.3f}s")
-                    except Exception as pin_error:
-                        logger.warning(f"Failed to pin ticket message in thread {thread.id}: {pin_error}")
-
-                    logger.info(
-                        f"Created thread {thread.id} for ticket #{ticket.ticket_number} from web "
+                        f"Ticket {ticket.ticket_number}: Thread creation took {time.time() - thread_start:.3f}s "
                         f"(total: {time.time() - start_time:.3f}s)"
                     )
-                except Exception as e:
-                    logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
         else:
             logger.warning(
                 f"Team {ticket.team.team_name} has no category, ticket will appear in dashboard without thread"
@@ -545,7 +472,7 @@ class DiscordQueueProcessor:
             embed.add_field(name="Resolved By", value=actor, inline=True)
             embed.add_field(name="Points Charged", value=str(points), inline=True)
             if notes:
-                embed.add_field(name="Resolution Notes", value=notes[:1024], inline=False)
+                embed.add_field(name="Resolution Notes", value=notes[:DISCORD_EMBED_FIELD_CHAR_LIMIT], inline=False)
             await thread.send(embed=embed)
         elif action == "claimed":
             await thread.send(f"Ticket claimed by **{actor}**")
@@ -814,7 +741,10 @@ class DiscordQueueProcessor:
                 category = guild.get_channel(team.discord_category_id)
                 if category and isinstance(category, discord.CategoryChannel):
                     for channel in category.channels:
-                        if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                        if (
+                            isinstance(channel, discord.TextChannel)
+                            and TEAM_CHAT_CHANNEL_KEYWORD in channel.name.lower()
+                        ):
                             chat_channel = channel
                             break
 

@@ -5,19 +5,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from core.authentik import AuthentikManager
+from core.authentik import AuthentikUserLinker
 
 
 class TestAuthentikManager:
-    """Tests for AuthentikManager class."""
+    """Tests for AuthentikUserLinker class."""
 
     @pytest.fixture
     def manager(self):
-        """Create AuthentikManager with mocked settings."""
+        """Create AuthentikUserLinker with mocked settings."""
         with patch("core.authentik.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.example.com"
             mock_settings.AUTHENTIK_TOKEN = "test-token"
-            return AuthentikManager()
+            return AuthentikUserLinker()
 
     def test_init_sets_api_url_and_token(self, manager):
         """Manager should initialize with API URL and token from settings."""
@@ -35,11 +35,11 @@ class TestUpdateUserDiscordId:
 
     @pytest.fixture
     def manager(self):
-        """Create AuthentikManager with mocked settings."""
+        """Create AuthentikUserLinker with mocked settings."""
         with patch("core.authentik.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.example.com"
             mock_settings.AUTHENTIK_TOKEN = "test-token"
-            return AuthentikManager()
+            return AuthentikUserLinker()
 
     @patch("requests.get")
     @patch("requests.patch")
@@ -123,11 +123,11 @@ class TestAuthentikManagerClient:
 
     @pytest.fixture
     def manager(self):
-        """Create AuthentikManager with mocked settings."""
+        """Create AuthentikUserLinker with mocked settings."""
         with patch("core.authentik.settings") as mock_settings:
             mock_settings.AUTHENTIK_URL = "https://auth.example.com"
             mock_settings.AUTHENTIK_TOKEN = "test-token"
-            return AuthentikManager()
+            return AuthentikUserLinker()
 
     @patch("requests.get")
     def test_client_get_builds_correct_url(self, mock_get, manager):

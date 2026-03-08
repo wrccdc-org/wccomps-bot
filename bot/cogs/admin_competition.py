@@ -12,7 +12,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from bot.permissions import check_admin, check_gold_team
-from bot.utils import ConfirmView, log_to_ops_channel
+from bot.utils import TEAM_CHAT_CHANNEL_KEYWORD, ConfirmView, log_to_ops_channel
 from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
@@ -836,7 +836,10 @@ class AdminCompetitionCog(commands.Cog):
                     category = guild.get_channel(team.discord_category_id)
                     if category and isinstance(category, discord.CategoryChannel):
                         for channel in category.channels:
-                            if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
+                            if (
+                                isinstance(channel, discord.TextChannel)
+                                and TEAM_CHAT_CHANNEL_KEYWORD in channel.name.lower()
+                            ):
                                 chat_channel = channel
                                 break
 

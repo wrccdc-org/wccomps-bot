@@ -6,6 +6,7 @@ import discord
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
+from bot.utils import DISCORD_EMBED_FIELD_CHAR_LIMIT
 from core.tickets_config import get_category_config
 from ticketing.models import Ticket
 
@@ -80,7 +81,7 @@ def format_ticket_embed(ticket: Ticket) -> discord.Embed:
         if ticket.resolution_notes:
             embed.add_field(
                 name="Resolution Notes",
-                value=ticket.resolution_notes[:1024],
+                value=ticket.resolution_notes[:DISCORD_EMBED_FIELD_CHAR_LIMIT],
                 inline=False,
             )
 

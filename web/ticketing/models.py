@@ -31,6 +31,12 @@ class TicketCategory(models.Model):
 class Ticket(models.Model):
     """Support ticket from team."""
 
+    # Status constants
+    STATUS_OPEN = "open"
+    STATUS_CLAIMED = "claimed"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CANCELLED = "cancelled"
+
     # User FK fields (references the user who acted)
     assigned_to = models.ForeignKey(
         "auth.User",
@@ -50,18 +56,18 @@ class Ticket(models.Model):
     )
 
     STATUS_CHOICES = [
-        ("open", "Open"),
-        ("claimed", "Claimed"),
-        ("resolved", "Resolved"),
-        ("cancelled", "Cancelled"),
+        (STATUS_OPEN, "Open"),
+        (STATUS_CLAIMED, "Claimed"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CANCELLED, "Cancelled"),
     ]
 
     # Valid state transitions: {current_status: [allowed_next_statuses]}
     VALID_TRANSITIONS: dict[str, list[str]] = {
-        "open": ["claimed", "resolved", "cancelled"],
-        "claimed": ["open", "resolved"],  # unclaim goes back to open
-        "resolved": ["open"],  # reopen goes back to open
-        "cancelled": [],  # terminal state
+        STATUS_OPEN: [STATUS_CLAIMED, STATUS_RESOLVED, STATUS_CANCELLED],
+        STATUS_CLAIMED: [STATUS_OPEN, STATUS_RESOLVED],  # unclaim goes back to open
+        STATUS_RESOLVED: [STATUS_OPEN],  # reopen goes back to open
+        STATUS_CANCELLED: [],  # terminal state
     }
 
     # Identity
@@ -86,7 +92,7 @@ class Ticket(models.Model):
     custom_fields = models.JSONField(default=dict, blank=True)
 
     # Status
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="open")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
     tags = models.JSONField(default=list, blank=True)  # e.g., ['operations-issue', 'escalated']
 
     # Assignment

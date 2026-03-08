@@ -1,14 +1,19 @@
 """Utility functions for the bot."""
 
 import logging
+from typing import Final, Literal
 
 import discord
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
-from team.models import Team
+from team.models import MAX_TEAMS, Team
 
 logger = logging.getLogger(__name__)
+
+TEAM_CHAT_CHANNEL_KEYWORD = "chat"
+THREAD_AUTO_ARCHIVE_MINUTES: Final[Literal[10080]] = 10080  # 7 days
+DISCORD_EMBED_FIELD_CHAR_LIMIT = 1024
 
 
 async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.Embed | None = None) -> None:
@@ -46,15 +51,15 @@ async def get_team_or_respond(
     Args:
         interaction: Discord interaction to respond to
         team_number: Team number to look up
-        validate_range: If True, validate team_number is between 1-50
+        validate_range: If True, validate team_number is between 1-MAX_TEAMS
 
     Returns:
         Team object if found, None if not found (error sent to user)
     """
     from team.models import Team
 
-    if validate_range and (team_number < 1 or team_number > 50):
-        await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
+    if validate_range and (team_number < 1 or team_number > MAX_TEAMS):
+        await interaction.response.send_message(f"Team number must be between 1 and {MAX_TEAMS}", ephemeral=True)
         return None
 
     team = await Team.objects.filter(team_number=team_number).afirst()

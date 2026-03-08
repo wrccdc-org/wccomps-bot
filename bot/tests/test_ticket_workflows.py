@@ -68,15 +68,27 @@ class TestTicketCreationWorkflow:
         thread = MagicMock(spec=discord.Thread)
         thread.id = 9001
         thread.add_user = AsyncMock()
-        thread.send = AsyncMock()
+        thread.send = AsyncMock(return_value=MagicMock())
         text_channel.create_thread.return_value = thread
 
         category.channels = [text_channel]
-        bot.get_channel.return_value = category
+
+        # Set up a mock guild and discord_manager so the shared utility can find the channel
+        guild = MagicMock(spec=discord.Guild)
+        guild.get_channel.return_value = category
+        guild.get_member.return_value = None  # No members to add
+
+        discord_manager = MagicMock()
+        discord_manager.guild = guild
 
         # Process task (simulating queue processor)
-        with patch("bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock):
+        with (
+            patch("bot.ticket_dashboard.post_ticket_to_dashboard", new_callable=AsyncMock),
+            patch("bot.ticket_dashboard.format_ticket_embed", return_value=MagicMock()),
+            patch("bot.ticket_dashboard.TicketActionView"),
+        ):
             processor = DiscordQueueProcessor(bot)
+            processor.discord_manager = discord_manager
             await processor._handle_ticket_created_web(task)
 
         # Verify thread created with correct metadata

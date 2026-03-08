@@ -15,7 +15,13 @@ from django.utils import timezone
 from core.models import DiscordTask
 from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
 
-from .auth_utils import get_authentik_groups, get_authentik_id, get_permissions_context, has_permission
+from .auth_utils import (
+    get_authentik_groups,
+    get_authentik_id,
+    get_permissions_context,
+    get_role_based_landing_url,
+    has_permission,
+)
 from .utils import get_team_from_groups
 
 
@@ -32,25 +38,15 @@ def home(request: HttpRequest) -> HttpResponse:
     """Home page - redirect to appropriate dashboard based on user role."""
     user = cast(User, request.user)
     groups = get_authentik_groups(user)
-    _team, _, is_team = get_team_from_groups(groups)
 
-    # Check roles in priority order — admin/ops first, then team-specific portals
-    if (
-        has_permission(user, "admin")
-        or has_permission(user, "ticketing_admin")
-        or has_permission(user, "ticketing_support")
-    ):
-        return redirect("ticket_list")
-    if has_permission(user, "gold_team"):
-        return redirect("scoring:leaderboard")
-    if has_permission(user, "red_team"):
-        return redirect("scoring:submit_red_score")
-    if has_permission(user, "orange_team"):
-        return redirect("challenges:dashboard")
+    url = get_role_based_landing_url(groups)
+    if url != "/":
+        return redirect(url)
+
+    # Blue team accounts go to ticket list; unknown roles to leaderboard
+    _team, _, is_team = get_team_from_groups(groups)
     if is_team:
         return redirect("ticket_list")
-
-    # Fallback - redirect to leaderboard (public view)
     return redirect("scoring:leaderboard")
 
 
@@ -256,9 +252,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     # This is optional - if it fails due to permissions, we still have DiscordLink
     if not is_team_account:
         try:
-            from .authentik import AuthentikManager
+            from .authentik import AuthentikUserLinker
 
-            auth_manager = AuthentikManager()
+            auth_manager = AuthentikUserLinker()
             auth_manager.update_user_discord_id(authentik_user_id, discord_id)
             logger.info(f"Stored discord_id {discord_id} in Authentik for user {authentik_username}")
         except Exception as e:

@@ -1,12 +1,15 @@
 """Registration services for credential generation and distribution."""
 
+import contextlib
 import logging
 from dataclasses import dataclass
 
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
-from core.email import get_email_service
 
 from .models import Event, EventTeamAssignment, RegistrationContact
 
@@ -99,19 +102,19 @@ def send_credentials_for_assignment(
         attachments.append((packet_filename, packet_data, "application/pdf"))
 
     # Send credentials email
-    email_service = get_email_service()
-    email_sent = email_service.send_templated(
+    template_context = {
+        "event_name": event.name,
+        "event_date": event.date,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        "team_number": team_number,
+        "password": password,
+        "packet_attached": bool(packet_data),
+    }
+    email_sent = _send_templated_email(
         to=recipients,
         template_name="credentials",
-        context={
-            "event_name": event.name,
-            "event_date": event.date,
-            "start_time": event.start_time,
-            "end_time": event.end_time,
-            "team_number": team_number,
-            "password": password,
-            "packet_attached": bool(packet_data),
-        },
+        context=template_context,
         attachments=attachments,
     )
 
@@ -208,19 +211,19 @@ def resend_credentials_for_assignment(assignment: EventTeamAssignment) -> Creden
             error="No email recipients found",
         )
 
-    email_service = get_email_service()
-    email_sent = email_service.send_templated(
+    template_context = {
+        "event_name": event.name,
+        "event_date": event.date,
+        "start_time": event.start_time,
+        "end_time": event.end_time,
+        "team_number": team_number,
+        "password": assignment.password_generated,
+        "packet_attached": False,
+    }
+    email_sent = _send_templated_email(
         to=recipients,
         template_name="credentials",
-        context={
-            "event_name": event.name,
-            "event_date": event.date,
-            "start_time": event.start_time,
-            "end_time": event.end_time,
-            "team_number": team_number,
-            "password": assignment.password_generated,
-            "packet_attached": False,
-        },
+        context=template_context,
     )
 
     if not email_sent:
@@ -238,3 +241,51 @@ def resend_credentials_for_assignment(assignment: EventTeamAssignment) -> Creden
         school_name=school_name,
         password=assignment.password_generated,
     )
+
+
+def _send_templated_email(
+    *,
+    to: list[str],
+    template_name: str,
+    context: dict[str, object],
+    attachments: list[tuple[str, bytes, str]] | None = None,
+) -> bool:
+    """Send an email using Django templates and SMTP backend.
+
+    Looks for templates at:
+    - emails/{template_name}.txt (required, plain text body)
+    - emails/{template_name}.html (optional, HTML body)
+    - emails/{template_name}_subject.txt (subject line)
+    """
+    try:
+        body_text = render_to_string(f"emails/{template_name}.txt", context)
+
+        # Subject from template
+        try:
+            subject = render_to_string(f"emails/{template_name}_subject.txt", context).strip()
+        except Exception:
+            subject = template_name.replace("_", " ").title()
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=body_text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=to,
+        )
+
+        # Attach HTML version if available
+        with contextlib.suppress(Exception):
+            body_html = render_to_string(f"emails/{template_name}.html", context)
+            if body_html:
+                msg.attach_alternative(body_html, "text/html")
+
+        # Add file attachments
+        if attachments:
+            for filename, data, mime_type in attachments:
+                msg.attach(filename, data, mime_type)
+
+        msg.send()
+        return True
+    except Exception:
+        logger.exception("Failed to send templated email '%s'", template_name)
+        return False

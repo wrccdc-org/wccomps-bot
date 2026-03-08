@@ -82,6 +82,32 @@ def get_user_team_number(user: User) -> int | None:
     return None
 
 
+def get_role_based_landing_url(groups: list[str]) -> str:
+    """Determine the landing page URL based on a user's Authentik groups.
+
+    Checks roles in priority order: admin/ops first, then team-specific portals.
+    Returns a URL path string. Falls back to "/" if no role matches.
+    """
+    from django.urls import reverse
+
+    if (
+        check_groups_for_permission(groups, "admin")
+        or check_groups_for_permission(groups, "ticketing_admin")
+        or check_groups_for_permission(groups, "ticketing_support")
+    ):
+        return reverse("ticket_list")
+    if check_groups_for_permission(groups, "gold_team"):
+        return reverse("scoring:leaderboard")
+    if check_groups_for_permission(groups, "red_team"):
+        return reverse("scoring:submit_red_score")
+    if check_groups_for_permission(groups, "orange_team"):
+        return reverse("challenges:dashboard")
+    if check_groups_for_permission(groups, "blue_team"):
+        return reverse("ticket_list")
+
+    return "/"
+
+
 def require_permission(
     *permission_names: str,
     error_message: str = "You don't have permission to access this page.",

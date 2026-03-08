@@ -22,7 +22,7 @@ from core.authentik_utils import (
     reset_blueteam_password,
 )
 from core.models import AuditLog
-from team.models import DiscordLink, Team
+from team.models import MAX_TEAMS, DiscordLink, Team
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class AdminTeamsCog(commands.Cog):
         embed.add_field(name="Authentik Group", value=team.authentik_group, inline=False)
 
         if members:
-            # Build member list, respecting Discord's 1024 char field limit
+            # Build member list, respecting Discord's embed field char limit
             member_lines = [f"• {m.discord_username} (ID: {m.discord_id}) - via `{m.user.username}`" for m in members]
 
             member_list = ""
@@ -246,8 +246,8 @@ class AdminTeamsCog(commands.Cog):
     async def admin_remove_team(self, interaction: discord.Interaction, team_number: int) -> None:
         """Remove a team's Discord infrastructure and unlink all members."""
         # Note: can't use get_team_or_respond here because we defer() before validation
-        if team_number < 1 or team_number > 50:
-            await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
+        if team_number < 1 or team_number > MAX_TEAMS:
+            await interaction.response.send_message(f"Team number must be between 1 and {MAX_TEAMS}", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -389,8 +389,8 @@ class AdminTeamsCog(commands.Cog):
         recreate_channels: bool = True,
     ) -> None:
         """Team reset: unlinks users, resets password, revokes sessions, and optionally recreates infrastructure."""
-        if team_number < 1 or team_number > 50:
-            await interaction.response.send_message("Team number must be between 1 and 50", ephemeral=True)
+        if team_number < 1 or team_number > MAX_TEAMS:
+            await interaction.response.send_message(f"Team number must be between 1 and {MAX_TEAMS}", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)

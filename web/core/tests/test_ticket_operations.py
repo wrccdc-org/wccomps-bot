@@ -178,7 +178,7 @@ class TestTicketCancel:
         assert response.status_code == 302  # Redirect after cancel
 
         open_ticket.refresh_from_db()
-        assert open_ticket.status == "cancelled"
+        assert open_ticket.status == Ticket.STATUS_CANCELLED
 
     def test_cannot_cancel_claimed_ticket(self, blue_team_user, team_with_tickets):
         """Cannot cancel a ticket that's already been claimed."""
@@ -187,8 +187,7 @@ class TestTicketCancel:
         client = Client()
         client.force_login(blue_team_user)
         response = client.post(reverse("ticket_cancel", args=[claimed_ticket.ticket_number]))
-        assert response.status_code == 200
-        assert b"cannot cancel" in response.content.lower() or b"already" in response.content.lower()
+        assert response.status_code == 302  # Redirect with error message
 
         claimed_ticket.refresh_from_db()
         assert claimed_ticket.status == "claimed"  # Unchanged

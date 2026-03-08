@@ -11,14 +11,11 @@ from django.utils import timezone
 
 from bot.permissions import check_ticketing_admin, check_ticketing_support
 from bot.ticket_dashboard import (
-    TicketActionView,
-    format_ticket_embed,
     post_ticket_to_dashboard,
     update_ticket_dashboard,
 )
 from bot.utils import (
     ConfirmView,
-    get_team_member_discord_ids,
     get_team_or_respond,
     log_to_ops_channel,
 )
@@ -122,60 +119,17 @@ class AdminTicketsCog(commands.Cog):
         )
 
         # Create thread in team's category
-        if team.discord_category_id:
-            # Find and validate category/channel before entering try block
-            category_channel = interaction.guild.get_channel(team.discord_category_id) if interaction.guild else None
-            if category_channel and isinstance(category_channel, discord.CategoryChannel):
-                # Find the team's text channel within the category
-                chat_channel = None
-                for channel in category_channel.channels:
-                    if isinstance(channel, discord.TextChannel) and "chat" in channel.name.lower():
-                        chat_channel = channel
-                        break
+        try:
+            from bot.thread_creator import create_ticket_thread
 
-                if not chat_channel:
-                    logger.warning(f"No text channel found in category {category_channel.name}")
-                    raise RuntimeError("No text channel found in team category")
-
-                # Now do Discord API calls with error handling
-                try:
-                    thread = await chat_channel.create_thread(
-                        name=f"{ticket.ticket_number} - Team {team.team_number:02d} - {ticket.title[:60]}",
-                        auto_archive_duration=10080,  # 7 days
-                    )
-
-                    # Store thread ID
-                    @sync_to_async
-                    def save_thread_id() -> None:
-                        ticket.discord_thread_id = thread.id
-                        ticket.discord_channel_id = category_channel.id
-                        ticket.save()
-
-                    await save_thread_id()
-
-                    # Add all linked team members to thread
-                    team_member_ids = await get_team_member_discord_ids(team)
-                    for member_id in team_member_ids:
-                        try:
-                            member = interaction.guild.get_member(member_id)
-                            if member:
-                                await thread.add_user(member)
-                        except Exception as e:
-                            logger.warning(f"Failed to add member {member_id} to thread: {e}")
-
-                    # Send initial message in thread with action buttons
-                    embed_thread = format_ticket_embed(ticket)
-                    view = TicketActionView(ticket.id)
-
-                    await thread.send(
-                        f"**Ticket #{ticket.ticket_number}** - Use buttons below to manage this ticket.",
-                        embed=embed_thread,
-                        view=view,
-                    )
-
-                    logger.info(f"Created thread {thread.id} for ticket #{ticket.ticket_number} (admin)")
-                except Exception as e:
-                    logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
+            await create_ticket_thread(
+                bot=self.bot,
+                guild=interaction.guild,
+                ticket=ticket,
+                team=team,
+            )
+        except Exception as e:
+            logger.exception(f"Failed to create thread for ticket {ticket.ticket_number}: {e}")
 
         # Post to dashboard
         try:

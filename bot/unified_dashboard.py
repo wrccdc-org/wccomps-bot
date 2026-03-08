@@ -9,6 +9,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.utils import timezone
 
+from bot.utils import DISCORD_EMBED_FIELD_CHAR_LIMIT
 from core.models import BotState, DashboardUpdate
 from core.tickets_config import get_category_config
 from ticketing.models import Ticket
@@ -320,9 +321,9 @@ class UnifiedDashboard:
 
                     field_value = "\n".join(lines) if lines else "No tickets"
 
-                    # Discord has 1024 char limit per field
-                    if len(field_value) > 1024:
-                        field_value = field_value[:1020] + "..."
+                    # Discord has a character limit per field
+                    if len(field_value) > DISCORD_EMBED_FIELD_CHAR_LIMIT:
+                        field_value = field_value[: DISCORD_EMBED_FIELD_CHAR_LIMIT - 4] + "..."
 
                     embed.add_field(
                         name=f"{cat_info['display_name']} ({len(cat_tickets)})",

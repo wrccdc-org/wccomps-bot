@@ -30,7 +30,7 @@ class _AuthentikClient:
         return result
 
 
-class AuthentikManager:
+class AuthentikUserLinker:
     """Manage Authentik API interactions."""
 
     def __init__(self) -> None:
