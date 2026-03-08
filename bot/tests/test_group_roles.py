@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pytest
+from asgiref.sync import sync_to_async
 
 from bot.discord_manager import DiscordManager
 from bot.discord_queue import DiscordQueueProcessor
@@ -178,11 +179,18 @@ class TestGroupRoleQueueProcessing:
 
     async def test_queue_processor_missing_discord_id(self) -> None:
         """Test handling missing discord_id in payload."""
-        task = await DiscordTask.objects.acreate(
-            task_type="assign_group_roles",
-            payload={"authentik_groups": ["WCComps_BlackTeam"]},
-            status="pending",
+        # Use bulk_create to bypass save() validation — this simulates a
+        # malformed task that somehow made it into the DB.
+        tasks = await sync_to_async(DiscordTask.objects.bulk_create)(
+            [
+                DiscordTask(
+                    task_type="assign_group_roles",
+                    payload={"authentik_groups": ["WCComps_BlackTeam"]},
+                    status="pending",
+                )
+            ]
         )
+        task = tasks[0]
 
         bot = AsyncMock(spec=discord.Client)
         guild = MagicMock(spec=discord.Guild)

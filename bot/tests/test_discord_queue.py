@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 import pytest_asyncio
+from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from bot.discord_queue import DiscordQueueProcessor
@@ -285,13 +286,18 @@ class TestAssignRoleRetry:
 
     async def test_assign_role_missing_payload_fields(self, mock_bot_with_guild: Any, test_team: Team) -> None:
         """Test handling of missing payload fields - retries then fails."""
-        task = await DiscordTask.objects.acreate(
-            task_type="assign_role",
-            payload={},  # Missing discord_id and team_number
-            status="pending",
-            retry_count=0,
-            max_retries=5,
-        )
+        # Use bulk_create to bypass save() validation — this simulates a
+        # malformed task that somehow made it into the DB.
+        tasks = await sync_to_async(DiscordTask.objects.bulk_create)([
+            DiscordTask(
+                task_type="assign_role",
+                payload={},  # Missing discord_id and team_number
+                status="pending",
+                retry_count=0,
+                max_retries=5,
+            )
+        ])
+        task = tasks[0]
 
         processor = DiscordQueueProcessor(mock_bot_with_guild)
         processor.discord_manager = AsyncMock()
