@@ -14,6 +14,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from .auth_utils import get_role_based_landing_url
 from .models import UserGroups
 
 logger = logging.getLogger(__name__)
@@ -276,16 +277,9 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
     # Get next URL from the matched OAuth state entry
     next_url = matched_entry.get("next", "/")
     if next_url == "/":
-        next_url = _get_role_based_landing(groups)
+        next_url = get_role_based_landing_url(groups)
 
     return redirect(next_url)
-
-
-def _get_role_based_landing(groups: list[str]) -> str:
-    """Determine landing page based on user's Authentik groups."""
-    from core.auth_utils import get_role_based_landing_url
-
-    return get_role_based_landing_url(groups)
 
 
 def oauth_logout(request: HttpRequest) -> HttpResponse:
