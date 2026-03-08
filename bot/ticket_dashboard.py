@@ -154,7 +154,7 @@ class TicketActionView(discord.ui.View):
         row=1,
     )
     async def claim_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
+        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
     ) -> None:
         """Claim a ticket."""
         from bot.permissions import can_support_tickets_async
@@ -217,7 +217,7 @@ class TicketActionView(discord.ui.View):
         row=1,
     )
     async def resolve_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
+        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
     ) -> None:
         """Show resolve modal with category dropdown and notes."""
         from bot.permissions import can_support_tickets_async
@@ -260,7 +260,7 @@ class TicketActionView(discord.ui.View):
         row=2,
     )
     async def cancel_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button["TicketActionView"]
+        self, interaction: discord.Interaction, button: discord.ui.Button[TicketActionView]
     ) -> None:
         """Cancel an unclaimed ticket."""
 

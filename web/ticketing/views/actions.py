@@ -400,7 +400,7 @@ def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResp
     # Get new category
     try:
         new_category_id = int(request.POST.get("new_category", "0"))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         new_category_id = 0
 
     if not TicketCategory.objects.filter(pk=new_category_id).exists():

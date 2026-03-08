@@ -80,7 +80,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         category_id_str = request.POST.get("category", "")
         try:
             category_id = int(category_id_str)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             category_id = 0
 
         # Admins must select a team
