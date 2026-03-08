@@ -343,7 +343,7 @@ def assignment_save(request: HttpRequest, assignment_id: int) -> HttpResponse:
         data = json.loads(request.body)
         criterion_id = data["criterion_id"]
         met = data["met"]
-    except json.JSONDecodeError, KeyError:
+    except (json.JSONDecodeError, KeyError):
         return JsonResponse({"error": "Invalid data"}, status=400)
 
     result = get_object_or_404(OrangeAssignmentResult, assignment=assignment, criterion_id=criterion_id)
@@ -400,7 +400,7 @@ def followup_create(request: HttpRequest) -> HttpResponse:
 
     try:
         minutes = int(minutes_str)
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         messages.error(request, "Invalid minutes value.")
         return redirect("challenges:dashboard")
 

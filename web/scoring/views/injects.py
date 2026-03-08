@@ -65,7 +65,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
                         },
                     )
                     grades_saved += 1
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     pass
 
         if grades_saved:
@@ -252,7 +252,7 @@ def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
     for grade_id in grade_ids_raw:
         try:
             grade_ids.append(int(grade_id))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             continue
 
     if not grade_ids:
@@ -388,7 +388,7 @@ def bulk_approve_inject_feedback(request: HttpRequest) -> HttpResponse:
     for sid in score_ids_raw:
         try:
             score_ids.append(int(sid))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             continue
 
     if not score_ids:

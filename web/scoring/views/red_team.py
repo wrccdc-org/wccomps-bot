@@ -247,7 +247,7 @@ def bulk_approve_red_scores(request: HttpRequest) -> HttpResponse:
     for fid in finding_ids:
         try:
             valid_ids.append(int(fid))
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             continue
 
     if not valid_ids:
