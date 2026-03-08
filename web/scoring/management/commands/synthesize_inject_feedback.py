@@ -11,8 +11,6 @@ Usage:
        python manage.py synthesize_inject_feedback --apply feedback.json
 """
 
-from __future__ import annotations
-
 import json
 import sys
 from pathlib import Path

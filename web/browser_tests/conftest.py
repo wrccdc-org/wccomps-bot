@@ -1,7 +1,5 @@
 """Browser test fixtures: Playwright + session injection, no OAuth required."""
 
-from __future__ import annotations
-
 import logging
 import os
 from typing import TYPE_CHECKING
