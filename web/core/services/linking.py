@@ -99,9 +99,14 @@ def enforce_account_link_policy(
     team: Team | None,
     is_team_account: bool,
 ) -> LinkResult | None:
-    """Enforce one-to-one link policy for non-team accounts.
+    """Check if account linking is allowed by policy.
 
-    Returns LinkResult error or None if OK.
+    Returns:
+        None if linking is allowed (no policy violation).
+        LinkResult with error details if linking is blocked.
+
+    Note: This follows the "error-or-None" pattern -- callers should check
+    ``if result is not None: return render(...)`` to handle violations.
     """
     if is_team_account:
         return None

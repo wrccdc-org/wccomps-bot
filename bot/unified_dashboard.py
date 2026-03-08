@@ -181,6 +181,71 @@ class UnifiedDashboard:
         days = delta.days
         return f"{days}d ago"
 
+    def _categorize_tickets(self, tickets: list[Ticket]) -> dict[int | None, list[Ticket]]:
+        """Group tickets by category_id, sorted by count descending.
+
+        Returns an ordered dict mapping category_id to its list of tickets,
+        with the highest-count categories first.
+        """
+        tickets_by_category: dict[int | None, list[Ticket]] = {}
+        for ticket in tickets:
+            if ticket.category_id not in tickets_by_category:
+                tickets_by_category[ticket.category_id] = []
+            tickets_by_category[ticket.category_id].append(ticket)
+
+        # Return ordered by ticket count (descending)
+        sorted_keys = sorted(
+            tickets_by_category.keys(),
+            key=lambda cat: len(tickets_by_category[cat]),
+            reverse=True,
+        )
+        return {k: tickets_by_category[k] for k in sorted_keys}
+
+    def _build_category_field(
+        self, category_name: str, tickets: list[Ticket], guild_id: int
+    ) -> tuple[str, str]:
+        """Build a single embed field (name, value) for one ticket category.
+
+        Returns:
+            A (field_name, field_value) tuple ready for ``embed.add_field()``.
+        """
+        lines = []
+        for ticket in tickets:
+            # Status indicator
+            if ticket.status == "open":
+                status_emoji = "🔴"
+            elif ticket.status == "claimed":
+                status_emoji = "🟡"
+            else:
+                status_emoji = "🔵"
+
+            stale = self._get_stale_indicator(ticket)
+
+            # Build ticket line with thread link
+            if ticket.discord_thread_id:
+                thread_link = f"https://discord.com/channels/{guild_id}/{ticket.discord_thread_id}"
+                ticket_display = f"[{ticket.ticket_number}]({thread_link})"
+            else:
+                ticket_display = f"**{ticket.ticket_number}**"
+
+            time_str = self._get_time_ago(ticket.created_at)
+            desc_preview = ticket.description[:40] + "..." if len(ticket.description) > 40 else ticket.description
+
+            assignee = ""
+            if ticket.assigned_to:
+                assignee = f" - {ticket.assigned_to.username}"
+
+            lines.append(
+                f"{status_emoji} {ticket_display} {ticket.team.team_name}{assignee}{stale}\n"
+                f"   ↳ *{desc_preview}* ({time_str})"
+            )
+
+        field_value = "\n".join(lines) if lines else "No tickets"
+        if len(field_value) > DISCORD_EMBED_FIELD_CHAR_LIMIT:
+            field_value = field_value[: DISCORD_EMBED_FIELD_CHAR_LIMIT - 4] + "..."
+
+        return f"{category_name} ({len(tickets)})", field_value
+
     async def _update_dashboard(self) -> None:
         """Update the dashboard message with current ticket status."""
         if not self.dashboard_message_id or not self.dashboard_channel_id:
@@ -194,67 +259,43 @@ class UnifiedDashboard:
 
             message = await channel.fetch_message(self.dashboard_message_id)
 
-            # Build dashboard content
             @sync_to_async
             def get_tickets() -> list[Ticket]:
-                # Apply status filter
                 if self.filter_status == "all":
                     query = Ticket.objects.filter(status__in=["open", "claimed"])
                 else:
                     query = Ticket.objects.filter(status=self.filter_status)
-
-                tickets = query.select_related("team", "assigned_to").order_by("created_at")
-                return list(tickets)
+                return list(query.select_related("team", "assigned_to").order_by("created_at"))
 
             @sync_to_async
             def get_stats() -> tuple[int, int]:
                 today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-
                 resolved_today = Ticket.objects.filter(resolved_at__gte=today_start).count()
 
-                # Average resolution time (only resolved tickets)
                 resolved_with_times = Ticket.objects.filter(
                     status="resolved",
                     resolved_at__isnull=False,
                     created_at__isnull=False,
                 )
-
                 total_seconds: float = 0
                 count = 0
-                for ticket in resolved_with_times[:100]:  # Sample last 100
+                for ticket in resolved_with_times[:100]:
                     if ticket.resolved_at and ticket.created_at:
                         delta = ticket.resolved_at - ticket.created_at
                         total_seconds += delta.total_seconds()
                         count += 1
-
                 avg_minutes = int(total_seconds / count / 60) if count > 0 else 0
-
                 return resolved_today, avg_minutes
 
             tickets = await get_tickets()
 
             # Sort tickets
             if self.sort_by == "stale":
-                # Sort by assigned_at (oldest first), nulls last
                 tickets.sort(key=lambda t: t.assigned_at or timezone.now())
             elif self.sort_by == "team":
                 tickets.sort(key=lambda t: t.team.team_name)
-            else:  # created
+            else:
                 tickets.sort(key=lambda t: t.created_at)
-
-            # Group by category and count
-            tickets_by_category: dict[int | None, list[Ticket]] = {}
-            for ticket in tickets:
-                if ticket.category_id not in tickets_by_category:
-                    tickets_by_category[ticket.category_id] = []
-                tickets_by_category[ticket.category_id].append(ticket)
-
-            # Sort categories by ticket count (descending)
-            sorted_categories = sorted(
-                tickets_by_category.keys(),
-                key=lambda cat: len(tickets_by_category[cat]),
-                reverse=True,
-            )
 
             # Build embed
             embed = discord.Embed(
@@ -268,7 +309,6 @@ class UnifiedDashboard:
             )
 
             if not tickets:
-                # Empty state with stats
                 resolved_today, avg_time = await get_stats()
                 embed.description = "✅ **No active tickets!**"
                 embed.add_field(
@@ -277,65 +317,19 @@ class UnifiedDashboard:
                     inline=False,
                 )
             else:
-                # Add field for each category (sorted by count)
-                for category_id in sorted_categories:
-                    cat_tickets = tickets_by_category[category_id]
+                categorized = self._categorize_tickets(tickets)
+                guild_id = channel.guild.id
+                for category_id, cat_tickets in categorized.items():
                     cat_info = await sync_to_async(get_category_config)(category_id) or {
                         "display_name": f"Category {category_id}"
                     }
-
-                    lines = []
-                    for ticket in cat_tickets:  # Show ALL tickets
-                        # Status indicator
-                        if ticket.status == "open":
-                            status_emoji = "🔴"
-                        elif ticket.status == "claimed":
-                            status_emoji = "🟡"
-                        else:
-                            status_emoji = "🔵"
-
-                        # Stale indicator (progressive)
-                        stale = self._get_stale_indicator(ticket)
-
-                        # Build ticket line with thread link
-                        guild_id = channel.guild.id
-                        if ticket.discord_thread_id:
-                            thread_link = f"https://discord.com/channels/{guild_id}/{ticket.discord_thread_id}"
-                            ticket_display = f"[{ticket.ticket_number}]({thread_link})"
-                        else:
-                            ticket_display = f"**{ticket.ticket_number}**"
-
-                        # Time info and description preview
-                        time_str = self._get_time_ago(ticket.created_at)
-                        desc_preview = (
-                            ticket.description[:40] + "..." if len(ticket.description) > 40 else ticket.description
-                        )
-
-                        # Assignee (ticket.assigned_to is now a User)
-                        assignee = ""
-                        if ticket.assigned_to:
-                            assignee = f" - {ticket.assigned_to.username}"
-
-                        lines.append(
-                            f"{status_emoji} {ticket_display} {ticket.team.team_name}{assignee}{stale}\n"
-                            f"   ↳ *{desc_preview}* ({time_str})"
-                        )
-
-                    field_value = "\n".join(lines) if lines else "No tickets"
-
-                    # Discord has a character limit per field
-                    if len(field_value) > DISCORD_EMBED_FIELD_CHAR_LIMIT:
-                        field_value = field_value[: DISCORD_EMBED_FIELD_CHAR_LIMIT - 4] + "..."
-
-                    embed.add_field(
-                        name=f"{cat_info['display_name']} ({len(cat_tickets)})",
-                        value=field_value,
-                        inline=False,
+                    field_name, field_value = self._build_category_field(
+                        cat_info["display_name"], cat_tickets, guild_id
                     )
+                    embed.add_field(name=field_name, value=field_value, inline=False)
 
             embed.set_footer(text="🔴 Open | 🟡 Claimed (Working) | ⚠️ >30min | 🚨 >1hr | ⛔ >2hr")
 
-            # Update message with view
             view = DashboardControlView(self)
             await message.edit(embed=embed, view=view)
             logger.info("Updated unified dashboard")

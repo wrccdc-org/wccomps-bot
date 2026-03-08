@@ -316,15 +316,94 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     )
 
 
+def _parse_school_info_csv(csv_file: UploadedFile) -> tuple[dict[str, object] | None, list[dict[str, object]]]:
+    """Parse and validate a school-info CSV, returning preview data and session rows.
+
+    Returns:
+        A tuple of (preview_data, session_rows).  preview_data is a dict suitable for the
+        template (with errors, warnings, and optionally teams_to_create).  session_rows is
+        the serialisable list to stash in the session (empty when there are errors).
+    """
+    from team.forms import parse_csv_file, validate_csv_data
+
+    parse_result = parse_csv_file(csv_file)
+
+    if parse_result["errors"]:
+        return {
+            "errors": parse_result["errors"],
+            "warnings": parse_result["warnings"],
+            "rows": [],
+        }, []
+
+    validation_result = validate_csv_data(parse_result["rows"])
+
+    preview_data: dict[str, object] = {
+        "errors": validation_result["errors"],
+        "warnings": parse_result["warnings"] + validation_result["warnings"],
+        "teams_to_create": validation_result["teams_to_create"],
+        "can_import": not validation_result["errors"],
+    }
+
+    session_rows: list[dict[str, object]] = []
+    if preview_data["can_import"]:
+        session_rows = [
+            {
+                "team_number": row["team_number"],
+                "school_name": row["school_name"],
+                "contact_email": row["contact_email"],
+                "secondary_email": row.get("secondary_email", ""),
+                "notes": row.get("notes", ""),
+                "team_name": row.get("team_name", ""),
+            }
+            for row in validation_result["teams_to_create"]
+        ]
+
+    return preview_data, session_rows
+
+
+def _apply_school_info_import(
+    import_data: dict[str, object], authentik_username: str
+) -> tuple[dict[str, object] | None, dict[str, int] | None]:
+    """Verify teams still exist and apply the CSV import.
+
+    Returns:
+        A tuple of (preview_data, import_results).  On validation errors preview_data is set
+        and import_results is None.  On success preview_data is None and import_results
+        contains created/assigned counts.
+    """
+    from team.forms import apply_csv_import
+
+    teams_to_create: list[dict[str, object]] = import_data["teams_to_create"]  # type: ignore[assignment]
+
+    team_numbers = [row["team_number"] for row in teams_to_create]
+    teams_by_number = {t.team_number: t for t in Team.objects.filter(team_number__in=team_numbers, is_active=True)}
+
+    errors = []
+    for row in teams_to_create:
+        team_number = row["team_number"]
+        if team_number not in teams_by_number:
+            errors.append(f"Team {team_number} is no longer available")
+        else:
+            row["_team"] = teams_by_number[team_number]
+
+    if errors:
+        return {
+            "errors": errors,
+            "warnings": ["Please re-upload the CSV file."],
+            "can_import": False,
+        }, None
+
+    result = apply_csv_import(teams_to_create, authentik_username)
+    return None, {"created": result["created"], "assigned": result["assigned"]}
+
+
 def school_info_import(request: HttpRequest) -> HttpResponse:
     """Import school information from CSV file (GoldTeam only)."""
-    from team.forms import CSVUploadForm, apply_csv_import, parse_csv_file, validate_csv_data
+    from team.forms import CSVUploadForm
 
-    # Get user's permissions
     user = cast(User, request.user)
     authentik_username = user.username
 
-    # Check if user is GoldTeam
     if not has_permission(user, "gold_team"):
         return render(
             request,
@@ -335,92 +414,25 @@ def school_info_import(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    # Build permissions dict for template
     permissions = get_permissions_context(user)
-
     form = CSVUploadForm()
     preview_data: dict[str, object] | None = None
-    import_results = None
+    import_results: dict[str, int] | None = None
 
     if request.method == "POST":
         if "upload" in request.POST:
-            # Step 1: Upload and preview
             form = CSVUploadForm(request.POST, request.FILES)
             if form.is_valid():
                 csv_file = cast(UploadedFile, request.FILES["csv_file"])
-
-                # Parse CSV
-                parse_result = parse_csv_file(csv_file)
-
-                if parse_result["errors"]:
-                    # Show errors
-                    preview_data = {
-                        "errors": parse_result["errors"],
-                        "warnings": parse_result["warnings"],
-                        "rows": [],
-                    }
-                else:
-                    # Validate against database
-                    validation_result = validate_csv_data(parse_result["rows"])
-
-                    preview_data = {
-                        "errors": validation_result["errors"],
-                        "warnings": parse_result["warnings"] + validation_result["warnings"],
-                        "teams_to_create": validation_result["teams_to_create"],
-                        "can_import": not validation_result["errors"],
-                    }
-
-                    # Store data in session for confirmation (including assigned team numbers)
-                    if preview_data["can_import"]:
-                        request.session["csv_import_data"] = {
-                            "teams_to_create": [
-                                {
-                                    "team_number": row["team_number"],
-                                    "school_name": row["school_name"],
-                                    "contact_email": row["contact_email"],
-                                    "secondary_email": row.get("secondary_email", ""),
-                                    "notes": row.get("notes", ""),
-                                    "team_name": row.get("team_name", ""),
-                                }
-                                for row in validation_result["teams_to_create"]
-                            ],
-                        }
+                preview_data, session_rows = _parse_school_info_csv(csv_file)
+                if session_rows:
+                    request.session["csv_import_data"] = {"teams_to_create": session_rows}
 
         elif "confirm" in request.POST:
-            # Step 2: Confirm and import
             import_data = request.session.get("csv_import_data")
             if import_data:
-                from team.models import Team
-
-                teams_to_create = import_data["teams_to_create"]
-
-                # Verify teams are still available and add _team references
-                team_numbers = [row["team_number"] for row in teams_to_create]
-                teams_by_number = {
-                    t.team_number: t for t in Team.objects.filter(team_number__in=team_numbers, is_active=True)
-                }
-
-                errors = []
-                for row in teams_to_create:
-                    team_number = row["team_number"]
-                    if team_number not in teams_by_number:
-                        errors.append(f"Team {team_number} is no longer available")
-                    else:
-                        row["_team"] = teams_by_number[team_number]
-
-                if errors:
-                    preview_data = {
-                        "errors": errors,
-                        "warnings": ["Please re-upload the CSV file."],
-                        "can_import": False,
-                    }
-                else:
-                    # Apply import
-                    result = apply_csv_import(teams_to_create, authentik_username)
-
-                    import_results = {"created": result["created"], "assigned": result["assigned"]}
-
-                    # Clear session data
+                preview_data, import_results = _apply_school_info_import(import_data, authentik_username)
+                if import_results is not None:
                     del request.session["csv_import_data"]
 
     return render(

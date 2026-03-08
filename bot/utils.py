@@ -11,9 +11,13 @@ from team.models import MAX_TEAMS, Team
 
 logger = logging.getLogger(__name__)
 
+# -- Constants --
+
 TEAM_CHAT_CHANNEL_KEYWORD = "chat"
 THREAD_AUTO_ARCHIVE_MINUTES: Final[Literal[10080]] = 10080  # 7 days
 DISCORD_EMBED_FIELD_CHAR_LIMIT = 1024
+
+# -- Logging --
 
 
 async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.Embed | None = None) -> None:
@@ -41,6 +45,8 @@ async def log_to_ops_channel(bot: discord.Client, message: str, embed: discord.E
     except Exception as e:
         logger.exception(f"Failed to log to ops channel: {e}")
 
+# -- Team Utilities --
+
 
 async def get_team_or_respond(
     interaction: discord.Interaction, team_number: int, validate_range: bool = True
@@ -67,6 +73,8 @@ async def get_team_or_respond(
         await interaction.response.send_message(f"Team {team_number} not found", ephemeral=True)
         return None
     return team
+
+# -- Role Management --
 
 
 async def safe_remove_role(member: discord.Member, role: discord.Role, reason: str | None = None) -> bool:
@@ -116,6 +124,8 @@ def get_team_member_discord_ids(team: Team) -> list[int]:
         List of Discord IDs as integers
     """
     return list(team.members.filter(is_active=True).values_list("discord_id", flat=True))
+
+# -- UI Components --
 
 
 class ConfirmView(discord.ui.View):
