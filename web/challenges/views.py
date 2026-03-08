@@ -1,6 +1,5 @@
 import csv
 import json
-import random
 from datetime import timedelta
 from typing import cast
 
@@ -20,6 +19,7 @@ from challenges.models import (
     OrangeCheckIn,
     OrangeFollowUp,
 )
+from challenges.services import assign_teams_round_robin, create_orange_score_from_assignment
 from core.auth_utils import has_permission, require_permission
 from team.models import Team
 
@@ -297,31 +297,7 @@ def check_assign(request: HttpRequest, check_id: int) -> HttpResponse:
         messages.error(request, "No active teams found.")
         return redirect("challenges:check_detail", check_id=check_id)
 
-    # Shuffle teams and round-robin assign to users
-    random.shuffle(active_teams)
-    criteria = list(orange_check.criteria.all())
-
-    with transaction.atomic():
-        for i, team in enumerate(active_teams):
-            assigned_user = users[i % len(users)]
-            # Skip if assignment already exists for this check+team
-            if OrangeAssignment.objects.filter(orange_check=orange_check, team=team).exists():
-                continue
-            assignment = OrangeAssignment.objects.create(
-                orange_check=orange_check,
-                user=assigned_user,
-                team=team,
-            )
-            # Create result rows for each criterion
-            for criterion in criteria:
-                OrangeAssignmentResult.objects.create(
-                    assignment=assignment,
-                    criterion=criterion,
-                    met=False,
-                )
-
-        orange_check.status = "active"
-        orange_check.save()
+    assign_teams_round_robin(orange_check, users, active_teams)
 
     messages.success(request, f"Assigned {len(active_teams)} teams across {len(users)} users.")
     return redirect("challenges:check_detail", check_id=check_id)
@@ -434,8 +410,6 @@ def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse
     if request.method != "POST":
         return redirect("challenges:dashboard")
 
-    from scoring.models import OrangeTeamScore
-
     user = cast(User, request.user)
     assignment = get_object_or_404(
         OrangeAssignment.objects.select_related("orange_check", "team", "user"),
@@ -451,16 +425,7 @@ def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse
     assignment.reviewed_at = timezone.now()
     assignment.save()
 
-    # Create OrangeTeamScore to feed the leaderboard
-    OrangeTeamScore.objects.create(
-        team=assignment.team,
-        submitted_by=assignment.user,
-        description=f"Check: {assignment.orange_check.title}",
-        points_awarded=assignment.score or 0,
-        is_approved=True,
-        approved_by=user,
-        approved_at=timezone.now(),
-    )
+    create_orange_score_from_assignment(assignment, user)
 
     messages.success(
         request,
