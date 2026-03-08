@@ -57,15 +57,15 @@ class AuthentikAPIError(Exception):
 class AuthentikManager:
     """Manager for Authentik API operations."""
 
-    def __init__(self) -> None:
-        self.base_url = settings.AUTHENTIK_URL
-        self.token = settings.AUTHENTIK_TOKEN
+    def __init__(self, *, base_url: str | None = None, api_token: str | None = None) -> None:
+        self.base_url = base_url or getattr(settings, "AUTHENTIK_URL", "")
+        self.token = api_token or getattr(settings, "AUTHENTIK_TOKEN", "")
         self.client = httpx.Client(
             headers={
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
             },
-            timeout=10,
+            timeout=settings.HTTPX_DEFAULT_TIMEOUT,
         )
 
     def _log_request(self, method: str, url: str, **kwargs: object) -> None:

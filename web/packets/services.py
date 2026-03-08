@@ -193,7 +193,7 @@ class PacketDistributionService:
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=recipients,
-            reply_to=["info@wccomps.org"],
+            reply_to=[settings.DEFAULT_REPLY_TO_EMAIL],
         )
         email.attach_alternative(html_content, "text/html")
         email.attach(packet.filename, bytes(packet.file_data), packet.mime_type)
@@ -234,7 +234,7 @@ class PacketDistributionService:
             body=text_content,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
-            reply_to=["info@wccomps.org"],
+            reply_to=[settings.DEFAULT_REPLY_TO_EMAIL],
         )
         msg.attach_alternative(html_content, "text/html")
         msg.attach(packet.filename, bytes(packet.file_data), packet.mime_type)
