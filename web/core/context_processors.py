@@ -5,6 +5,9 @@ from django.http import HttpRequest
 
 from .auth_utils import get_permissions_context, has_permission
 
+# Maps Django URL names to (nav_section, subnav_section) for navigation highlighting.
+# IMPORTANT: When adding new URL patterns, add an entry here or the nav item
+# won't highlight. Run test_nav_mapping_url_names_exist to catch stale entries.
 NAV_MAPPING: dict[str, tuple[str, str]] = {
     # Tickets - unified ticket management
     "ticket_list": ("tickets", ""),
