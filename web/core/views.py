@@ -371,12 +371,14 @@ def _apply_school_info_import(
         and import_results is None.  On success preview_data is None and import_results
         contains created/assigned counts.
     """
-    from team.forms import apply_csv_import
+    from team.forms import CSVRowData, apply_csv_import
 
-    teams_to_create: list[dict[str, object]] = import_data["teams_to_create"]  # type: ignore[assignment]
+    teams_to_create: list[CSVRowData] = import_data["teams_to_create"]  # type: ignore[assignment]
 
     team_numbers = [row["team_number"] for row in teams_to_create]
-    teams_by_number = {t.team_number: t for t in Team.objects.filter(team_number__in=team_numbers, is_active=True)}
+    teams_by_number: dict[int, Team] = {
+        t.team_number: t for t in Team.objects.filter(team_number__in=team_numbers, is_active=True)
+    }
 
     errors = []
     for row in teams_to_create:

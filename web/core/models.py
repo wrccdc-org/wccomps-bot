@@ -153,10 +153,10 @@ class DiscordTask(models.Model):
             if missing:
                 raise ValidationError(f"Payload for {self.task_type} missing keys: {missing}")
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: object, **kwargs: object) -> None:
         if not self.pk:
             self.clean()
-        super().save(*args, **kwargs)
+        super().save(*args, **kwargs)  # type: ignore[arg-type]
 
     # -- Factory class methods --
 

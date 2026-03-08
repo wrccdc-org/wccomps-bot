@@ -173,9 +173,9 @@ def _has_scoring_activity(scores: ScoreBreakdown) -> bool:
     return any(scores[key] != 0 for key in SCORE_COMPONENT_FIELDS)
 
 
-def _score_defaults(scores: ScoreBreakdown, *, rank: int | None) -> dict:
+def _score_defaults(scores: ScoreBreakdown, *, rank: int | None) -> dict[str, Decimal | int | None]:
     """Build FinalScore defaults dict from a score breakdown."""
-    defaults = {field: scores[field] for field in SCORE_COMPONENT_FIELDS}
+    defaults: dict[str, Decimal | int | None] = {field: scores[field] for field in SCORE_COMPONENT_FIELDS}
     defaults["total_score"] = scores["total_score"]
     defaults["rank"] = rank
     return defaults
