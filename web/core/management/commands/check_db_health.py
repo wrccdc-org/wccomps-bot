@@ -6,6 +6,8 @@ from typing import Protocol, cast
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import connection
+
+
 class _ManagerLike(Protocol):
     def exists(self) -> bool: ...
 

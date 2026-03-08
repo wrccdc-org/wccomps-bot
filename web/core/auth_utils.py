@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Concatenate, ParamSpec
 
 from django.contrib.auth.models import AnonymousUser, User
-from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.http import HttpRequest, HttpResponseBase
 
 from .models import UserGroups
 from .permission_constants import PERMISSION_MAP as PERMISSION_MAP
