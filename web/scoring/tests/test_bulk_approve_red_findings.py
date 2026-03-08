@@ -10,6 +10,7 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
+from django.http import HttpResponseRedirect
 from django.test import Client
 from django.urls import reverse
 
@@ -55,8 +56,8 @@ class TestBulkApproveRedFindingsView:
         # Admin should have access (not redirected with 302 to leaderboard)
         # Empty list should return redirect to red findings view
         assert response.status_code in [200, 302]
-        if response.status_code == 302:
-            assert "red-scores" in response.url or "red-team" in response.url  # type: ignore[attr-defined]
+        if isinstance(response, HttpResponseRedirect):
+            assert "red-scores" in response.url or "red-team" in response.url
 
     def test_gold_team_can_access_bulk_approve(self, create_user_with_groups: Callable[..., User]) -> None:
         """Gold Team should be able to access bulk approve."""
@@ -103,11 +104,12 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect to red team portal on success
         assert response.status_code == 302
-        assert "red-scores" in response.url  # type: ignore[attr-defined]
+        assert isinstance(response, HttpResponseRedirect)
+        assert "red-scores" in response.url
 
         finding.refresh_from_db()
         assert finding.is_approved is True
-        assert finding.approved_at is not None  # type: ignore[unreachable]
+        assert finding.approved_at is not None
         assert finding.approved_by == gold_user
 
     def test_approves_multiple_findings(self, create_user_with_groups: Callable[..., User]) -> None:
@@ -196,7 +198,8 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect back to portal
         assert response.status_code == 302
-        assert "red-scores" in response.url  # type: ignore[attr-defined]
+        assert isinstance(response, HttpResponseRedirect)
+        assert "red-scores" in response.url
 
     def test_handles_nonexistent_finding_ids(self, create_user_with_groups: Callable[..., User]) -> None:
         """Should handle nonexistent finding IDs gracefully."""
@@ -209,7 +212,8 @@ class TestBulkApproveRedFindingsView:
 
         # Should redirect back without error
         assert response.status_code == 302
-        assert "red-scores" in response.url  # type: ignore[attr-defined]
+        assert isinstance(response, HttpResponseRedirect)
+        assert "red-scores" in response.url
 
     def test_uses_transaction_for_bulk_approval(self, create_user_with_groups: Callable[..., User]) -> None:
         """Bulk approval should use atomic transaction."""

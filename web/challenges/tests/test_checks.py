@@ -261,5 +261,7 @@ class TestCheckEdit:
         assert check.title == "Updated Title"
         assert check.description == "Updated Desc"
         assert check.criteria.count() == 1
-        assert check.criteria.first().label == "New C1"  # type: ignore[union-attr]
-        assert check.criteria.first().points == 10  # type: ignore[union-attr]
+        criterion = check.criteria.first()
+        assert criterion is not None
+        assert criterion.label == "New C1"
+        assert criterion.points == 10

@@ -208,7 +208,7 @@ class RedTeamScoreForm(forms.ModelForm[RedTeamScore]):
 
         # Populate box choices from Quotient metadata
         self.box_choices = get_box_choices()
-        self.fields["affected_boxes"].choices = self.box_choices  # type: ignore[attr-defined]
+        cast(forms.MultipleChoiceField, self.fields["affected_boxes"]).choices = self.box_choices
 
         # Set initial value for affected_boxes if editing
         if self.instance and self.instance.pk and self.instance.affected_boxes:
@@ -347,7 +347,7 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
 
         # Populate box choices from Quotient metadata
         self.box_choices = get_box_choices()
-        self.fields["affected_boxes"].choices = self.box_choices  # type: ignore[attr-defined]
+        cast(forms.MultipleChoiceField, self.fields["affected_boxes"]).choices = self.box_choices
 
         # Service dropdown - all services initially, JS filters by selected boxes
         service_choices = [("", "Select a service...")] + get_service_choices()

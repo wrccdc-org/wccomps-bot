@@ -152,20 +152,20 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
                 for grade in grades:
                     points = float(grade.points_awarded)
                     z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
-                    grade.is_outlier = z_score > 1.5  # type: ignore[attr-defined]
-                    grade.std_devs_from_mean = z_score  # type: ignore[attr-defined]
+                    grade.is_outlier = z_score > 1.5
+                    grade.std_devs_from_mean = z_score
             except statistics.StatisticsError:
                 for grade in grades:
-                    grade.is_outlier = False  # type: ignore[attr-defined]
-                    grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
+                    grade.is_outlier = False
+                    grade.std_devs_from_mean = 0
         else:
             for grade in grades:
-                grade.is_outlier = False  # type: ignore[attr-defined]
-                grade.std_devs_from_mean = 0  # type: ignore[attr-defined]
+                grade.is_outlier = False
+                grade.std_devs_from_mean = 0
 
     # Filter outliers if requested
     if show_outliers_only:
-        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]  # type: ignore[attr-defined]
+        all_grades_for_outlier_calc = [g for g in all_grades_for_outlier_calc if g.is_outlier]
 
     # Validate and apply sort
     valid_sort_fields = [

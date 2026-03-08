@@ -682,6 +682,10 @@ class InjectScore(models.Model):
     graded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # View-layer annotations (not DB fields) — set by outlier calculation in views
+    is_outlier: bool = False
+    std_devs_from_mean: float = 0.0
+
     class Meta:
         db_table = "inject_grade"
         verbose_name = "Inject Score"

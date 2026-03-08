@@ -6,14 +6,14 @@ from collections.abc import Callable
 from typing import Concatenate, ParamSpec
 
 from django.contrib.auth.models import AnonymousUser, User
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBase
 
 from .models import UserGroups
 from .permission_constants import PERMISSION_MAP as PERMISSION_MAP
 from .permission_constants import check_groups_for_permission as check_groups_for_permission
 
 P = ParamSpec("P")
-type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponse]
+type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponseBase]
 
 
 def get_authentik_groups(user: User | AnonymousUser) -> list[str]:
@@ -134,7 +134,7 @@ def require_permission(
 
     def decorator(view_func: ViewFunc[P]) -> ViewFunc[P]:
         @wraps(view_func)
-        def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponse:
+        def wrapped(request: HttpRequest, *args: P.args, **kwargs: P.kwargs) -> HttpResponseBase:
             if not request.user.is_authenticated or not any(
                 has_permission(request.user, perm) for perm in permission_names
             ):

@@ -7,7 +7,6 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
-from django.db.models import Manager
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -25,9 +24,12 @@ from .auth_utils import (
 from .utils import get_team_from_groups
 
 
+class _ManagerLike(Protocol):
+    def exists(self) -> bool: ...
+
+
 class ModelWithObjects(Protocol):
-    # Generic Protocol for iterating any model, Manager[T] requires T: Model
-    objects: Manager  # type: ignore[type-arg]
+    objects: _ManagerLike
     __name__: str
 
 

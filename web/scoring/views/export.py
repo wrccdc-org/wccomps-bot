@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
 from core.auth_utils import require_permission
 from team.models import Team
@@ -363,11 +363,9 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can email scorecards")
-def stream_email_scorecards(request: HttpRequest) -> HttpResponse:
+def stream_email_scorecards(request: HttpRequest) -> StreamingHttpResponse:
     """Stream scorecard email sending progress as NDJSON."""
-    from django.http import StreamingHttpResponse
-
-    return StreamingHttpResponse(  # type: ignore[return-value]
+    return StreamingHttpResponse(
         _stream_email_scorecards(request),
         content_type="application/x-ndjson",
     )

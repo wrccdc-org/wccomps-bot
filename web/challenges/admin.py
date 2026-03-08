@@ -10,25 +10,25 @@ from challenges.models import (
 )
 
 
-class OrangeCheckCriterionInline(admin.TabularInline):  # type: ignore[type-arg]
+class OrangeCheckCriterionInline(admin.TabularInline[OrangeCheckCriterion, OrangeCheck]):
     model = OrangeCheckCriterion
     extra = 1
 
 
-class OrangeAssignmentResultInline(admin.TabularInline):  # type: ignore[type-arg]
+class OrangeAssignmentResultInline(admin.TabularInline[OrangeAssignmentResult, OrangeAssignment]):
     model = OrangeAssignmentResult
     extra = 0
 
 
 @admin.register(OrangeCheckIn)
-class OrangeCheckInAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class OrangeCheckInAdmin(admin.ModelAdmin[OrangeCheckIn]):
     list_display = ("user", "checked_in_at", "checked_out_at", "is_active")
     list_filter = ("is_active",)
     search_fields = ("user__username",)
 
 
 @admin.register(OrangeCheck)
-class OrangeCheckAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class OrangeCheckAdmin(admin.ModelAdmin[OrangeCheck]):
     list_display = ("title", "status", "created_by", "created_at")
     list_filter = ("status",)
     search_fields = ("title",)
@@ -36,7 +36,7 @@ class OrangeCheckAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
 
 @admin.register(OrangeAssignment)
-class OrangeAssignmentAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class OrangeAssignmentAdmin(admin.ModelAdmin[OrangeAssignment]):
     list_display = ("orange_check", "user", "team", "status", "score", "submitted_at")
     list_filter = ("status",)
     search_fields = ("user__username", "team__team_name")
@@ -44,6 +44,6 @@ class OrangeAssignmentAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
 
 
 @admin.register(OrangeFollowUp)
-class OrangeFollowUpAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+class OrangeFollowUpAdmin(admin.ModelAdmin[OrangeFollowUp]):
     list_display = ("user", "assignment", "remind_at", "dismissed")
     list_filter = ("dismissed",)

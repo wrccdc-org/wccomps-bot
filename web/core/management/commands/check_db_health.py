@@ -6,12 +6,12 @@ from typing import Protocol, cast
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.db.models import Manager
+class _ManagerLike(Protocol):
+    def exists(self) -> bool: ...
 
 
 class ModelWithObjects(Protocol):
-    # Generic Protocol for iterating any model, Manager[T] requires T: Model
-    objects: Manager  # type: ignore[type-arg]
+    objects: _ManagerLike
     __name__: str
 
 
