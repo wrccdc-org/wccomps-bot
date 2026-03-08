@@ -147,7 +147,7 @@ class TestLinkCallback:
         session.save()
 
         # Mock the Authentik API call to avoid real API errors
-        with patch("core.authentik.AuthentikUserLinker"):
+        with patch("core.authentik_manager.AuthentikManager"):
             response = client.get(f"/auth/link-callback?token={token.token}")
 
         assert response.status_code == 200
@@ -198,7 +198,7 @@ class TestLinkCallback:
         session.save()
 
         # Mock the Authentik API call to avoid real API errors
-        with patch("core.authentik.AuthentikUserLinker"):
+        with patch("core.authentik_manager.AuthentikManager"):
             response = client.get(f"/auth/link-callback?token={token.token}")
 
         assert response.status_code == 200

@@ -13,10 +13,10 @@ from django.utils import timezone
 
 from bot.permissions import check_admin, check_gold_team
 from bot.utils import TEAM_CHAT_CHANNEL_KEYWORD, ConfirmView, log_to_ops_channel
+from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
-    reset_blueteam_password,
 )
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import parse_datetime_to_utc
@@ -99,9 +99,10 @@ class AdminCompetitionCog(commands.Cog):
             password_list.append((i, username, password))
 
         # Reset passwords in Authentik
+        auth_manager = AuthentikManager()
         failed_resets = []
         for team_num, username, password in password_list:
-            success, error = await sync_to_async(reset_blueteam_password)(team_num, password)
+            success, error = await sync_to_async(auth_manager.reset_blueteam_password)(team_num, password)
             if not success:
                 failed_resets.append((username, error))
 

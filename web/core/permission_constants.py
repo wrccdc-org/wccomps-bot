@@ -1,5 +1,16 @@
 """Permission constants and group-checking logic shared by web and bot."""
 
+import re
+
+BLUETEAM_GROUP_PATTERN = re.compile(r"^WCComps_BlueTeam(\d+)$")
+
+
+def extract_team_number(group: str) -> int | None:
+    """Extract team number from a WCComps_BlueTeam group name. Returns None if not a team group."""
+    match = BLUETEAM_GROUP_PATTERN.match(group)
+    return int(match.group(1)) if match else None
+
+
 PERMISSION_MAP: dict[str, list[str]] = {
     "admin": ["WCComps_Discord_Admin"],
     "ticketing_admin": ["WCComps_Ticketing_Admin", "WCComps_Discord_Admin"],
@@ -21,7 +32,7 @@ def check_groups_for_permission(groups: list[str], permission_name: str) -> bool
     """
     if permission_name == "blue_team":
         return any(
-            g.startswith("WCComps_BlueTeam") or g in ("WCComps_GoldTeam", "WCComps_Discord_Admin") for g in groups
+            BLUETEAM_GROUP_PATTERN.match(g) or g in ("WCComps_GoldTeam", "WCComps_Discord_Admin") for g in groups
         )
 
     if permission_name in PERMISSION_MAP:

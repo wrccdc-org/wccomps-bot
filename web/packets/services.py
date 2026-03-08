@@ -10,7 +10,8 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from registration.models import Event, EventTeamAssignment, TeamRegistration
 
-from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
+from core.authentik_manager import AuthentikManager
+from core.authentik_utils import generate_blueteam_password
 from team.models import SchoolInfo, Team
 
 from .models import Packet, PacketDistribution
@@ -128,7 +129,8 @@ class PacketDistributionService:
 
         if not assignment.password_generated:
             password = generate_blueteam_password()
-            success, error = reset_blueteam_password(team.team_number, password)
+            auth_manager = AuthentikManager()
+            success, error = auth_manager.reset_blueteam_password(team.team_number, password)
             if not success:
                 raise ValueError(f"Failed to set Authentik password for team {team.team_number}: {error}")
             assignment.password_generated = password

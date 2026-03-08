@@ -137,15 +137,7 @@ def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
         comment_text=comment_text,
     )
 
-    DiscordTask.objects.create(
-        task_type="post_comment",
-        ticket=ticket,
-        payload={
-            "ticket_id": ticket.id,
-            "comment_id": comment.id,
-        },
-        status="pending",
-    )
+    DiscordTask.create_post_comment(ticket=ticket, ticket_id=ticket.id, comment_id=comment.id)
 
     logger.info(f"Comment posted on ticket {ticket.ticket_number} by {authentik_username} (web)")
 

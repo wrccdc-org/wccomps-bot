@@ -19,7 +19,6 @@ from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
-    reset_blueteam_password,
 )
 from core.models import AuditLog
 from team.models import MAX_TEAMS, DiscordLink, Team
@@ -455,8 +454,9 @@ class AdminTeamsCog(commands.Cog):
         # Step 2: Generate and reset Authentik password
         from asgiref.sync import sync_to_async
 
+        auth_manager = AuthentikManager()
         generated_password = generate_blueteam_password()
-        success, error = await sync_to_async(reset_blueteam_password)(team_number, generated_password)
+        success, error = await sync_to_async(auth_manager.reset_blueteam_password)(team_number, generated_password)
         new_password = None
         if success:
             results.append("✓ Reset Authentik password")
@@ -465,7 +465,6 @@ class AdminTeamsCog(commands.Cog):
             results.append(f"❌ Failed to reset password: {error}")
 
         # Step 3: Revoke all sessions
-        auth_manager = AuthentikManager()
         username = f"team{team_number:02d}"
         session_success, session_error, sessions_revoked = await sync_to_async(auth_manager.revoke_user_sessions)(
             username

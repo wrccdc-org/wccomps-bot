@@ -24,7 +24,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
     authentik_username = user.username
     groups = get_authentik_groups(user)
-    team, team_number, is_team = get_team_from_groups(groups)
+    team, _, is_team = get_team_from_groups(groups)
 
     # Allow admins to create tickets for any team
     is_admin = has_permission(user, "gold_team") or has_permission(user, "admin")
@@ -38,7 +38,6 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             if team_id:
                 with contextlib.suppress(Team.DoesNotExist, ValueError):
                     team = Team.objects.get(id=team_id, is_active=True)
-                    team_number = team.team_number
 
     if not is_admin and not team:
         return render(
@@ -176,17 +175,13 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
             )
 
             # Create Discord task to notify bot (so it can create thread)
-            DiscordTask.objects.create(
-                task_type="ticket_created_web",
-                payload={
-                    "ticket_id": ticket.id,
-                    "ticket_number": ticket.ticket_number,
-                    "team_number": team_number,
-                    "category": category_obj.display_name,
-                    "title": title,
-                    "created_by": authentik_username,
-                },
-                status="pending",
+            DiscordTask.create_ticket_created_web(
+                ticket_id=ticket.id,
+                ticket_number=ticket.ticket_number,
+                team_number=team.team_number,
+                category=category_obj.display_name,
+                title=title,
+                created_by=authentik_username,
             )
 
             logger.info(f"Ticket {ticket.ticket_number} created via web by {authentik_username} for {team.team_name}")

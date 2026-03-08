@@ -1,6 +1,5 @@
 """Utility functions for WCComps core functionality."""
 
-import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -51,15 +50,15 @@ def get_team_from_groups(
             - is_team_account: Boolean indicating if user is in a team group
     """
 
+    from core.permission_constants import extract_team_number
+
     for group in groups:
-        team_match = re.match(r"^WCComps_BlueTeam(\d+)$", group)
-        if team_match:
-            team_number = int(team_match.group(1))
-            if 1 <= team_number <= MAX_TEAMS:
-                try:
-                    team = Team.objects.get(team_number=team_number)
-                    return team, team_number, True
-                except Team.DoesNotExist:
-                    pass
+        team_number = extract_team_number(group)
+        if team_number is not None and 1 <= team_number <= MAX_TEAMS:
+            try:
+                team = Team.objects.get(team_number=team_number)
+                return team, team_number, True
+            except Team.DoesNotExist:
+                pass
 
     return None, None, False

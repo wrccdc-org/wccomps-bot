@@ -18,8 +18,6 @@ from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
-    reset_blueteam_password,
-    toggle_authentik_user,
 )
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import ndjson_progress as _progress
@@ -177,7 +175,7 @@ def _stream_start_competition(config: CompetitionConfig, authentik_username: str
     acct_fail = 0
     for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
-        success, _ = toggle_authentik_user(username, is_active=True)
+        success, _ = auth_manager.toggle_user(username, is_active=True)
         idx = len(apps) + i
         if success:
             acct_ok += 1
@@ -268,7 +266,7 @@ def _stream_stop_competition(config: CompetitionConfig, authentik_username: str)
     acct_fail = 0
     for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
-        success, _ = toggle_authentik_user(username, is_active=False)
+        success, _ = auth_manager.toggle_user(username, is_active=False)
         idx = len(apps) + i
         if success:
             acct_ok += 1
@@ -435,13 +433,14 @@ def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, aut
     except ValueError as e:
         return JsonResponse({"error": str(e)}, status=400)
 
+    auth_manager = AuthentikManager()
     password_list = []
     failed_resets = []
 
     for team_num in team_numbers:
         username = f"team{team_num:02d}"
         password = generate_blueteam_password()
-        success, error = reset_blueteam_password(team_num, password)
+        success, error = auth_manager.reset_blueteam_password(team_num, password)
         if success:
             password_list.append((team_num, username, password))
         else:

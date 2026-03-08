@@ -9,7 +9,8 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from core.authentik_utils import generate_blueteam_password, reset_blueteam_password
+from core.authentik_manager import AuthentikManager
+from core.authentik_utils import generate_blueteam_password
 
 from .models import Event, EventTeamAssignment, RegistrationContact
 
@@ -70,7 +71,8 @@ def send_credentials_for_assignment(
     password = generate_blueteam_password()
 
     # Reset password in Authentik
-    success, error = reset_blueteam_password(team_number, password)
+    auth_manager = AuthentikManager()
+    success, error = auth_manager.reset_blueteam_password(team_number, password)
     if not success:
         logger.error("Failed to reset password for team %d: %s", team_number, error)
         return CredentialSendResult(

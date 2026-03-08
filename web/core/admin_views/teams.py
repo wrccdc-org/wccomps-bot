@@ -12,7 +12,6 @@ from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
     parse_team_range,
-    reset_blueteam_password,
 )
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
@@ -144,11 +143,11 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
             unlinked += 1
 
         # Reset password
+        auth_manager = AuthentikManager()
         password = generate_blueteam_password()
-        success, error = reset_blueteam_password(team_number, password)
+        success, error = auth_manager.reset_blueteam_password(team_number, password)
 
         # Revoke sessions
-        auth_manager = AuthentikManager()
         username = f"team{team_number:02d}"
         session_success, session_error, sessions_revoked = auth_manager.revoke_user_sessions(username)
 
@@ -183,11 +182,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
 
     elif action == "recreate_channels":
         # Create Discord task for bot to handle
-        DiscordTask.objects.create(
-            task_type="setup_team_infrastructure",
-            payload={"team_number": team_number},
-            status="pending",
-        )
+        DiscordTask.create_setup_team_infrastructure(team_number=team_number)
 
         AuditLog.objects.create(
             action="team_channels_recreate_requested",
@@ -248,11 +243,7 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
 
     elif action == "recreate":
         for team_number in team_numbers:
-            DiscordTask.objects.create(
-                task_type="setup_team_infrastructure",
-                payload={"team_number": team_number},
-                status="pending",
-            )
+            DiscordTask.create_setup_team_infrastructure(team_number=team_number)
 
         AuditLog.objects.create(
             action="teams_recreate_requested",

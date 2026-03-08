@@ -106,20 +106,10 @@ def ticket_claim(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if ticket.discord_thread_id:
         discord_link = DiscordLink.objects.filter(user=user, is_active=True).first()
         if discord_link:
-            DiscordTask.objects.create(
-                task_type="add_user_to_thread",
-                ticket=ticket,
-                payload={
-                    "discord_id": discord_link.discord_id,
-                    "thread_id": ticket.discord_thread_id,
-                },
-                status="pending",
+            DiscordTask.create_add_user_to_thread(
+                ticket=ticket, discord_id=discord_link.discord_id, thread_id=ticket.discord_thread_id
             )
-        DiscordTask.objects.create(
-            task_type="post_ticket_update",
-            ticket=ticket,
-            payload={"action": "claimed", "actor": authentik_username},
-        )
+        DiscordTask.create_post_ticket_update(ticket=ticket, action="claimed", actor=authentik_username)
 
     logger.info(f"Ticket {ticket_number} claimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -168,11 +158,7 @@ def ticket_unclaim(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Post status update to Discord thread
     if ticket.discord_thread_id:
-        DiscordTask.objects.create(
-            task_type="post_ticket_update",
-            ticket=ticket,
-            payload={"action": "unclaimed", "actor": authentik_username},
-        )
+        DiscordTask.create_post_ticket_update(ticket=ticket, action="unclaimed", actor=authentik_username)
 
     logger.info(f"Ticket {ticket_number} unclaimed by {authentik_username}")
     referer = request.META.get("HTTP_REFERER", "")
@@ -227,14 +213,8 @@ def ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
     if ticket.discord_thread_id:
         discord_link = DiscordLink.objects.filter(user=new_assignee_user, is_active=True).first()
         if discord_link:
-            DiscordTask.objects.create(
-                task_type="add_user_to_thread",
-                ticket=ticket,
-                payload={
-                    "discord_id": discord_link.discord_id,
-                    "thread_id": ticket.discord_thread_id,
-                },
-                status="pending",
+            DiscordTask.create_add_user_to_thread(
+                ticket=ticket, discord_id=discord_link.discord_id, thread_id=ticket.discord_thread_id
             )
 
     logger.info(f"Ticket {ticket_number} reassigned to {new_assignee_username} by {authentik_username}")
@@ -301,15 +281,12 @@ def ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Post resolution to Discord thread
     if ticket.discord_thread_id:
-        DiscordTask.objects.create(
-            task_type="post_ticket_update",
+        DiscordTask.create_post_ticket_update(
             ticket=ticket,
-            payload={
-                "action": "resolved",
-                "actor": authentik_username,
-                "resolution_notes": resolution_notes,
-                "points_charged": ticket.points_charged,
-            },
+            action="resolved",
+            actor=authentik_username,
+            resolution_notes=resolution_notes,
+            points_charged=ticket.points_charged,
         )
 
     logger.info(f"Ticket {ticket_number} resolved by {authentik_username}")
@@ -354,14 +331,10 @@ def ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Post status update to Discord thread
     if ticket.discord_thread_id:
-        payload: dict[str, object] = {"action": "reopened", "actor": authentik_username}
+        extra: dict[str, object] = {}
         if reopen_reason:
-            payload["reason"] = reopen_reason
-        DiscordTask.objects.create(
-            task_type="post_ticket_update",
-            ticket=ticket,
-            payload=payload,
-        )
+            extra["reason"] = reopen_reason
+        DiscordTask.create_post_ticket_update(ticket=ticket, action="reopened", actor=authentik_username, **extra)
 
     logger.info(
         f"Ticket {ticket_number} reopened by {authentik_username}" + (f": {reopen_reason}" if reopen_reason else "")

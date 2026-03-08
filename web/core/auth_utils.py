@@ -11,6 +11,7 @@ from django.http import HttpRequest, HttpResponseBase
 from .models import UserGroups
 from .permission_constants import PERMISSION_MAP as PERMISSION_MAP
 from .permission_constants import check_groups_for_permission as check_groups_for_permission
+from .permission_constants import extract_team_number as extract_team_number
 
 P = ParamSpec("P")
 type ViewFunc[**P] = Callable[Concatenate[HttpRequest, P], HttpResponseBase]
@@ -70,15 +71,10 @@ def get_user_team_number(user: User) -> int | None:
     Returns None if user is not on a team.
     """
     groups = get_authentik_groups(user)
-
-    # Check for BlueTeam pattern
-    import re
-
     for group in groups:
-        match = re.match(r"WCComps_BlueTeam(\d+)", group)
-        if match:
-            return int(match.group(1))
-
+        team_number = extract_team_number(group)
+        if team_number is not None:
+            return team_number
     return None
 
 

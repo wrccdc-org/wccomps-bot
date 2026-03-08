@@ -1,8 +1,13 @@
 """Database models for WCComps ticket system."""
 
+from typing import TYPE_CHECKING
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from ticketing.models import Ticket
 
 
 class UserGroups(models.Model):
@@ -119,6 +124,121 @@ class DiscordTask(models.Model):
 
     def __str__(self) -> str:
         return f"{self.task_type} ({self.status})"
+
+    # -- Factory class methods --
+
+    @classmethod
+    def create_assign_role(cls, discord_id: int, team_number: int) -> DiscordTask:
+        """Create a task to assign a team role to a Discord user."""
+        return cls.objects.create(
+            task_type="assign_role",
+            payload={"discord_id": discord_id, "team_number": team_number},
+            status="pending",
+        )
+
+    @classmethod
+    def create_assign_group_roles(cls, discord_id: int, authentik_groups: list[str]) -> DiscordTask:
+        """Create a task to assign group-based roles to a Discord user."""
+        return cls.objects.create(
+            task_type="assign_group_roles",
+            payload={"discord_id": discord_id, "authentik_groups": authentik_groups},
+            status="pending",
+        )
+
+    @classmethod
+    def create_log_to_channel(cls, message: str) -> DiscordTask:
+        """Create a task to log a message to the ops channel."""
+        return cls.objects.create(
+            task_type="log_to_channel",
+            payload={"message": message},
+            status="pending",
+        )
+
+    @classmethod
+    def create_setup_team_infrastructure(cls, team_number: int) -> DiscordTask:
+        """Create a task to set up Discord channels for a team."""
+        return cls.objects.create(
+            task_type="setup_team_infrastructure",
+            payload={"team_number": team_number},
+            status="pending",
+        )
+
+    @classmethod
+    def create_broadcast_message(cls, target: str, message: str, sender: str) -> DiscordTask:
+        """Create a task to broadcast a message to teams."""
+        return cls.objects.create(
+            task_type="broadcast_message",
+            payload={"target": target, "message": message, "sender": sender},
+            status="pending",
+        )
+
+    @classmethod
+    def create_sync_roles(cls, requested_by: str, dry_run: bool) -> DiscordTask:
+        """Create a task to sync roles between guilds."""
+        return cls.objects.create(
+            task_type="sync_roles",
+            payload={"requested_by": requested_by, "dry_run": dry_run},
+            status="pending",
+        )
+
+    @classmethod
+    def create_ticket_created_web(
+        cls,
+        ticket_id: int,
+        ticket_number: str,
+        team_number: int,
+        category: str,
+        title: str,
+        created_by: str,
+    ) -> DiscordTask:
+        """Create a task to notify Discord about a web-created ticket."""
+        return cls.objects.create(
+            task_type="ticket_created_web",
+            payload={
+                "ticket_id": ticket_id,
+                "ticket_number": ticket_number,
+                "team_number": team_number,
+                "category": category,
+                "title": title,
+                "created_by": created_by,
+            },
+            status="pending",
+        )
+
+    @classmethod
+    def create_post_comment(cls, ticket: Ticket, ticket_id: int, comment_id: int) -> DiscordTask:
+        """Create a task to post a comment to a ticket's Discord thread."""
+        return cls.objects.create(
+            task_type="post_comment",
+            ticket=ticket,
+            payload={"ticket_id": ticket_id, "comment_id": comment_id},
+            status="pending",
+        )
+
+    @classmethod
+    def create_post_ticket_update(cls, ticket: Ticket, action: str, actor: str, **extra: object) -> DiscordTask:
+        """Create a task to post a ticket status update to Discord.
+
+        Extra keyword arguments are merged into the payload (e.g. resolution_notes,
+        points_charged, reason).
+        """
+        payload: dict[str, object] = {"action": action, "actor": actor, **extra}
+        return cls.objects.create(
+            task_type="post_ticket_update",
+            ticket=ticket,
+            payload=payload,
+            status="pending",
+        )
+
+    @classmethod
+    def create_add_user_to_thread(cls, ticket: Ticket, discord_id: int, thread_id: int) -> DiscordTask:
+        """Create a task to add a Discord user to a ticket thread."""
+        return cls.objects.create(
+            task_type="add_user_to_thread",
+            ticket=ticket,
+            payload={"discord_id": discord_id, "thread_id": thread_id},
+            status="pending",
+        )
 
 
 class BotState(models.Model):

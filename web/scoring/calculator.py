@@ -87,54 +87,16 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
               + sla_violations + point_adjustments
               + red_deductions + incident_recovery
     """
-    template = ScoringTemplate.objects.first() or ScoringTemplate()
-    svc_mod, inj_mod, ora_mod = _get_modifiers(template)
-
-    # 1. Service Points + SLA + Point Adjustments
-    service_score = ServiceScore.objects.filter(team=team).first()
-    if service_score:
-        service_raw = service_score.service_points
-        sla_raw = service_score.sla_violations
-        point_adj = service_score.point_adjustments
-    else:
-        service_raw = Decimal("0")
-        sla_raw = Decimal("0")
-        point_adj = Decimal("0")
-
-    # 2. Inject Points (only approved)
-    inject_total = get_approved_inject_total(team)
-
-    # 3. Orange Team Bonuses (only approved)
-    orange_total = get_approved_orange_total(team)
-
-    # 4. Red Team Deductions (only approved) - returned as negative
-    red_raw = get_approved_red_deductions(team)
-
-    # 5. Incident Recovery Points
-    recovery_raw = IncidentReport.objects.filter(
-        team=team,
-        gold_team_reviewed=True,
-    ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
-
-    # Apply scaling modifiers (derived from weights + raw maxes)
-    scaled_service = service_raw * svc_mod
-    scaled_inject = inject_total * inj_mod
-    scaled_orange = orange_total * ora_mod
-
-    # Round the total once (not each component) to match spreadsheet behavior
-    total_score = (
-        scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
-    ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-
+    detailed = calculate_team_score_detailed(team)
     return {
-        "service_points": scaled_service.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
-        "inject_points": scaled_inject.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
-        "orange_points": scaled_orange.quantize(Decimal("1"), rounding=ROUND_HALF_UP),
-        "red_deductions": red_raw,
-        "sla_penalties": sla_raw,
-        "point_adjustments": point_adj,
-        "incident_recovery_points": recovery_raw,
-        "total_score": total_score,
+        "service_points": detailed["service_points"],
+        "inject_points": detailed["inject_points"],
+        "orange_points": detailed["orange_points"],
+        "red_deductions": detailed["red_deductions"],
+        "sla_penalties": detailed["sla_penalties"],
+        "point_adjustments": detailed["point_adjustments"],
+        "incident_recovery_points": detailed["incident_recovery_points"],
+        "total_score": detailed["total_score"],
     }
 
 

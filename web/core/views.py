@@ -6,13 +6,18 @@ from typing import Protocol, cast
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.utils import timezone
 
-from core.models import DiscordTask
-from team.models import DiscordLink, LinkAttempt, LinkToken, SchoolInfo, Team
+from core.services.linking import (
+    LinkResult,
+    enforce_account_link_policy,
+    execute_link,
+    finalize_link,
+    store_discord_id_in_authentik,
+    validate_link_token,
+)
+from team.models import DiscordLink, LinkToken, SchoolInfo, Team
 
 from .auth_utils import (
     get_authentik_groups,
@@ -92,33 +97,6 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
     return redirect(f"/auth/login/?next=/auth/link-callback?token={link_token.token}")
 
 
-def _create_or_update_link(
-    discord_id: int,
-    discord_username: str,
-    user: User,
-    team: Team | None,
-) -> DiscordLink:
-    """Create or update a DiscordLink, deactivating any previous link for this discord_id."""
-    DiscordLink.deactivate_previous_links(discord_id)
-    try:
-        link = DiscordLink.objects.get(discord_id=discord_id, is_active=True)
-        link.discord_username = discord_username
-        link.user = user
-        link.team = team
-        link.linked_at = timezone.now()
-        link.unlinked_at = None
-        link.save()
-    except DiscordLink.DoesNotExist:
-        link = DiscordLink.objects.create(
-            discord_id=discord_id,
-            discord_username=discord_username,
-            user=user,
-            team=team,
-            is_active=True,
-        )
-    return link
-
-
 def link_callback(request: HttpRequest) -> HttpResponse:
     """Handle OAuth callback after Authentik authentication."""
     # Clear any django-allauth success messages (we show our own)
@@ -126,7 +104,6 @@ def link_callback(request: HttpRequest) -> HttpResponse:
 
     user = cast(User, request.user)
     try:
-        # Get Authentik user info first
         authentik_username = user.username
         groups = get_authentik_groups(user)
         authentik_user_id = get_authentik_id(user)
@@ -144,214 +121,44 @@ def link_callback(request: HttpRequest) -> HttpResponse:
             },
         )
 
-    # Retrieve token from URL parameter (passed through OAuth redirect)
+    def _render_error(result: LinkResult) -> HttpResponse:
+        return render(request, cast(str, result.error_template), result.error_context)
+
+    # Validate token from URL + session
     url_token = request.GET.get("token")
-
-    if not url_token:
-        return render(
-            request,
-            "link_error.html",
-            {
-                "error": "Invalid request",
-                "message": (
-                    "Missing authentication state. Please start the linking process again with /link in Discord."
-                ),
-            },
-        )
-
-    # Session check for additional CSRF protection (defense-in-depth)
-    # Note: django-allauth cycles the session on login, so this check may fail for legitimate
-    # users. The URL token already provides strong security (cryptographically random, single-use,
-    # time-limited, tied to Discord user), so we log but don't block on session mismatch.
     session_token = request.session.get("pending_link_token")
-    if session_token and session_token != url_token:
-        # Session exists but doesn't match - this is suspicious
-        logger.warning(
-            f"Session token mismatch: session '{session_token}' != url '{url_token}' for user {authentik_username}"
-        )
-        return render(
-            request,
-            "link_error.html",
-            {
-                "error": "Security verification failed",
-                "message": (
-                    "The linking request could not be verified. This may be a CSRF attack attempt. "
-                    "Please start the linking process again with /link in Discord."
-                ),
-            },
-        )
-    if not session_token:
-        # Session was cycled during OAuth login - this is expected behavior
-        logger.info(f"Session token not found (likely cycled during OAuth) for user {authentik_username}")
-
-    # Look up the specific token from URL
-    try:
-        link_token = LinkToken.objects.get(token=url_token, used=False)
-    except LinkToken.DoesNotExist:
-        return render(
-            request,
-            "link_error.html",
-            {
-                "error": "Invalid or expired token",
-                "message": (
-                    "This link has expired or been used already. Please use /link in Discord to generate a new one."
-                ),
-            },
-        )
-
-    # Verify token hasn't expired (double-check)
-    if link_token.is_expired():
-        return render(
-            request,
-            "link_error.html",
-            {
-                "error": "Token expired",
-                "message": (
-                    "This link has expired (15 minute limit). Please use /link in Discord to generate a new one."
-                ),
-            },
-        )
+    token_result = validate_link_token(url_token, session_token, authentik_username)
+    if isinstance(token_result, LinkResult):
+        return _render_error(token_result)
+    link_token = token_result
 
     # Extract data from token
-    token = link_token.token
     discord_id = link_token.discord_id
     discord_username = link_token.discord_username
 
     # Get team information
     team, team_number, is_team_account = get_team_from_groups(groups)
 
-    # Check if this Authentik account is already linked to a different Discord account
-    # For team accounts, multiple Discord users can link to the same Authentik account (shared team account)
-    # For non-team accounts (admins/support), enforce one-to-one mapping
-    if not is_team_account:
-        existing_link = DiscordLink.objects.filter(user=user, is_active=True).first()
-
-        if existing_link and existing_link.discord_id != discord_id:
-            # This Authentik account is already linked to a different Discord account
-            LinkAttempt.objects.create(
-                discord_id=discord_id,
-                discord_username=discord_username,
-                authentik_username=authentik_username,
-                team=team,
-                success=False,
-                failure_reason=f"Authentik account already linked to Discord user {existing_link.discord_username}",
-            )
-            return render(
-                request,
-                "link_error.html",
-                {
-                    "error": "Account already linked",
-                    "message": (
-                        f"This Authentik account ({authentik_username}) is already linked to "
-                        f"Discord user {existing_link.discord_username}. "
-                        "Each Authentik account can only be linked to one Discord account at a time. "
-                        "Please contact an administrator if you need to unlink the previous account."
-                    ),
-                },
-            )
-
-    # For non-team accounts (admins/support), try to store discord_id in Authentik
-    # This is optional - if it fails due to permissions, we still have DiscordLink
-    if not is_team_account:
-        try:
-            from .authentik import AuthentikUserLinker
-
-            auth_manager = AuthentikUserLinker()
-            auth_manager.update_user_discord_id(authentik_user_id, discord_id)
-            logger.info(f"Stored discord_id {discord_id} in Authentik for user {authentik_username}")
-        except Exception as e:
-            logger.warning(
-                f"Could not store discord_id in Authentik (permissions issue): {e}. "
-                f"Discord ID will be stored in DiscordLink table only."
-            )
-
-    # For team accounts: prevent race conditions with select_for_update
-    if is_team_account and team:
-        with transaction.atomic():
-            # Lock the team row to prevent concurrent modifications
-            team = Team.objects.select_for_update().get(pk=team.pk)
-
-            # Check if team is full
-            if team.is_full():
-                LinkAttempt.objects.create(
-                    discord_id=discord_id,
-                    discord_username=discord_username,
-                    authentik_username=authentik_username,
-                    team=team,
-                    success=False,
-                    failure_reason=f"Team full ({team.get_member_count()}/{team.max_members})",
-                )
-                return render(
-                    request,
-                    "link_error.html",
-                    {
-                        "error": "Team full",
-                        "message": (
-                            f"{team.team_name} is full ({team.get_member_count()}/{team.max_members} members). "
-                            "Please contact an administrator."
-                        ),
-                    },
-                )
-
-            # Create or update Discord link
-            _create_or_update_link(discord_id, discord_username, user, team)
-    else:
-        # Non-team linking (admins/support): no locking needed
-        _create_or_update_link(discord_id, discord_username, user, team=None)
-
-    # Mark token as used
-    try:
-        link_token = LinkToken.objects.get(token=token)
-        link_token.used = True
-        link_token.save()
-    except LinkToken.DoesNotExist:
-        logger.warning(f"LinkToken disappeared during linking flow: token={token[:8]}...")
-
-    # Create link attempt record
-    LinkAttempt.objects.create(
-        discord_id=discord_id,
-        discord_username=discord_username,
-        authentik_username=authentik_username,
-        team=team,
-        success=True,
-        failure_reason="",
+    # Enforce one-to-one link policy for non-team accounts
+    policy_error = enforce_account_link_policy(
+        user, discord_id, discord_username, authentik_username, team, is_team_account
     )
+    if policy_error:
+        return _render_error(policy_error)
 
-    # Create Discord task to assign group-based roles (for all accounts)
-    DiscordTask.objects.create(
-        task_type="assign_group_roles",
-        payload={
-            "discord_id": discord_id,
-            "authentik_groups": groups,
-        },
-        status="pending",
+    # For non-team accounts, try to store discord_id in Authentik
+    if not is_team_account:
+        store_discord_id_in_authentik(authentik_user_id, discord_id, authentik_username)
+
+    # Create or update DiscordLink (with race-condition protection for teams)
+    link_error = execute_link(discord_id, discord_username, user, team, is_team_account)
+    if link_error:
+        return _render_error(link_error)
+
+    # Mark token used, create audit records, queue Discord tasks
+    finalize_link(
+        link_token, discord_id, discord_username, authentik_username, team, team_number, is_team_account, groups
     )
-
-    # Create Discord task to assign role (only for team accounts)
-    if is_team_account and team:
-        DiscordTask.objects.create(
-            task_type="assign_role",
-            payload={"discord_id": discord_id, "team_number": team_number},
-            status="pending",
-        )
-
-        # Create Discord task to log team member link
-        DiscordTask.objects.create(
-            task_type="log_to_channel",
-            payload={"message": f"User Linked: <@{discord_id}> ({discord_username}) → **{team.team_name}**"},
-            status="pending",
-        )
-        logger.info(f"Successfully linked {discord_username} ({discord_id}) to {team.team_name}")
-    else:
-        # Log non-team link (support/admin)
-        DiscordTask.objects.create(
-            task_type="log_to_channel",
-            payload={
-                "message": f"User Linked: <@{discord_id}> ({discord_username}) → **{authentik_username}** (non-team)"
-            },
-            status="pending",
-        )
-        logger.info(f"Successfully linked {discord_username} ({discord_id}) to {authentik_username}")
 
     # Clear session data used for CSRF protection
     request.session.pop("pending_link_token", None)

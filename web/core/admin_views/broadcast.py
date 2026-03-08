@@ -45,15 +45,7 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
         return JsonResponse({"error": "Target and message required"}, status=400)
 
     # Create Discord task for bot to handle broadcast
-    DiscordTask.objects.create(
-        task_type="broadcast_message",
-        payload={
-            "target": target,
-            "message": message,
-            "sender": authentik_username,
-        },
-        status="pending",
-    )
+    DiscordTask.create_broadcast_message(target=target, message=message, sender=authentik_username)
 
     AuditLog.objects.create(
         action="broadcast_message",
@@ -95,11 +87,7 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     dry_run = True  # request.POST.get("dry_run", "true") == "true"
 
     # Create a task for the bot to perform the sync
-    task = DiscordTask.objects.create(
-        task_type="sync_roles",
-        payload={"requested_by": authentik_username, "dry_run": dry_run},
-        status="pending",
-    )
+    task = DiscordTask.create_sync_roles(requested_by=authentik_username, dry_run=dry_run)
 
     AuditLog.objects.create(
         action="role_sync_started",

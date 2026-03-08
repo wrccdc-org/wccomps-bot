@@ -2,19 +2,10 @@
 
 import logging
 import secrets
-from typing import TypedDict
-from urllib.parse import quote
-
-import requests
-from django.conf import settings
 
 from team.models import MAX_TEAMS
 
-
-class AuthentikUser(TypedDict):
-    pk: int
-    username: str
-
+from .authentik_manager import AuthentikUser
 
 logger = logging.getLogger(__name__)
 
@@ -40,54 +31,6 @@ def validate_team_account(user_data: AuthentikUser, expected_username: str) -> t
     return (True, "")
 
 
-def toggle_authentik_user(username: str, is_active: bool) -> tuple[bool, str]:
-    """
-    Enable or disable a team account in Authentik with safety checks.
-
-    Args:
-        username: Authentik username (e.g., "team01")
-        is_active: True to enable, False to disable
-
-    Returns:
-        (success: bool, error_message: str)
-    """
-    headers = {
-        "Authorization": f"Bearer {settings.AUTHENTIK_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        response = requests.get(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={quote(username, safe='')}",
-            headers=headers,
-            timeout=10,
-        )
-        response.raise_for_status()
-        users: list[AuthentikUser] = response.json().get("results", [])
-
-        if not users:
-            return (False, "User not found")
-
-        user: AuthentikUser = users[0]
-
-        # Safety check: Verify this is actually a team account
-        is_valid, error = validate_team_account(user, username)
-        if not is_valid:
-            return (False, error)
-
-        response = requests.patch(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/{user['pk']}/",
-            headers=headers,
-            json={"is_active": is_active},
-            timeout=10,
-        )
-        response.raise_for_status()
-        return (True, "")
-    except Exception as e:
-        logger.exception(f"Failed to toggle {username}: {e}")
-        return (False, "Account toggle failed - check server logs")
-
-
 def toggle_all_blueteam_accounts_sync(is_active: bool) -> tuple[int, int]:
     """
     Enable or disable all team01-team50 accounts in Authentik (sync version).
@@ -98,11 +41,14 @@ def toggle_all_blueteam_accounts_sync(is_active: bool) -> tuple[int, int]:
     Returns:
         (success_count, failed_count)
     """
+    from .authentik_manager import AuthentikManager
+
+    manager = AuthentikManager()
     success_count = 0
     failed_count = 0
     for i in range(1, MAX_TEAMS + 1):
         username = f"team{i:02d}"
-        success, _ = toggle_authentik_user(username, is_active)
+        success, _ = manager.toggle_user(username, is_active)
         if success:
             success_count += 1
         else:
@@ -163,72 +109,6 @@ def generate_blueteam_password() -> str:
         result = f"{words}-{insert_value}"
 
     return result
-
-
-def reset_blueteam_password(team_number: int, password: str) -> tuple[bool, str]:
-    """Reset a blue team account's password in Authentik and enable the account.
-
-    Args:
-        team_number: Team number (1-50)
-        password: New password to set
-
-    Returns:
-        Tuple of (success: bool, error_message: str or None)
-    """
-    if team_number < 1 or team_number > MAX_TEAMS:
-        return (False, f"Team number must be between 1 and {MAX_TEAMS}")
-
-    username = f"team{team_number:02d}"
-
-    headers = {
-        "Authorization": f"Bearer {settings.AUTHENTIK_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        # Get user by username
-        response = requests.get(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/?username={quote(username, safe='')}",
-            headers=headers,
-            timeout=10,
-        )
-        response.raise_for_status()
-        users: list[AuthentikUser] = response.json().get("results", [])
-
-        if not users:
-            return (False, f"User {username} not found")
-
-        user: AuthentikUser = users[0]
-        user_pk: int = user["pk"]
-
-        # Safety check: Verify this is actually a team account
-        is_valid, error = validate_team_account(user, username)
-        if not is_valid:
-            return (False, error)
-
-        # Set password
-        response = requests.post(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/{user_pk}/set_password/",
-            headers=headers,
-            json={"password": password},
-            timeout=10,
-        )
-        response.raise_for_status()
-
-        # Enable user account (set is_active=True)
-        response = requests.patch(
-            f"{settings.AUTHENTIK_URL}/api/v3/core/users/{user_pk}/",
-            headers=headers,
-            json={"is_active": True},
-            timeout=10,
-        )
-        response.raise_for_status()
-
-        return (True, "")
-
-    except Exception as e:
-        logger.exception(f"Failed to reset password for {username}: {e}")
-        return (False, "Password reset failed - check server logs")
 
 
 def parse_team_range(range_str: str) -> list[int]:
