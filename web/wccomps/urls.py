@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import include, path
 
 from core import admin_views, oauth, views
+from scoring.views.leaderboard import leaderboard, scorecard, scorecard_pdf
 from ticketing import views as ticketing_views
 
 urlpatterns = [
@@ -35,6 +36,10 @@ urlpatterns = [
         views.ops_group_role_mappings,
         name="ops_group_role_mappings",
     ),
+    # Leaderboard (standalone primary nav section)
+    path("leaderboard/", leaderboard, name="leaderboard_page"),
+    path("leaderboard/team/<int:team_number>/", scorecard, name="leaderboard_scorecard"),
+    path("leaderboard/team/<int:team_number>/pdf/", scorecard_pdf, name="leaderboard_scorecard_pdf"),
     path("scoring/", include("scoring.urls")),
     path("orange-team/", include("challenges.urls")),
     path("register/", include("registration.urls")),
