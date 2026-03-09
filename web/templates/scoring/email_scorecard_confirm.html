@@ -1,8 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load cotton %}
-{% block scoring_title %}
+{% block title %}
     Email Scorecard - Team {{ team.team_number|stringformat:"02d" }}
-{% endblock scoring_title %}
+{% endblock title %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="Email Scorecard" />
