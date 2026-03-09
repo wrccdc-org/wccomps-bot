@@ -54,7 +54,7 @@ def home(request: HttpRequest) -> HttpResponse:
     _team, _, is_team = get_team_from_groups(groups)
     if is_team:
         return redirect("ticket_list")
-    return redirect("scoring:leaderboard")
+    return redirect("leaderboard_page")
 
 
 def link_initiate(request: HttpRequest) -> HttpResponse:

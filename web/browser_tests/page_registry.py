@@ -105,7 +105,7 @@ PAGES: list[PageDef] = [
     # Scoring — Leaderboard & Config
     # =========================================================================
     PageDef(
-        url_name="scoring:leaderboard",
+        url_name="leaderboard_page",
         allowed_roles=["gold_team", "white_team", "red_team", "ticketing_admin", "admin"],
         denied_roles=["blue_team", "orange_team", "unauthenticated"],
     ),

@@ -14,7 +14,7 @@
         <c-form>
         {% csrf_token %}
         <c-button_row class="mt-20 justify-end">
-        <c-link href="{% url 'scoring:scorecard' team.team_number %}">Cancel</c-link>
+        <c-link href="{% url 'leaderboard_scorecard' team.team_number %}">Cancel</c-link>
         <c-button type="submit" variant="primary" ::disabled="submitting">Send Email</c-button>
         </c-button_row>
         </c-form>

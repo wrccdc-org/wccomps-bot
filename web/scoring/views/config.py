@@ -82,4 +82,4 @@ def recalculate_scores(request: HttpRequest) -> HttpResponse:
     """Recalculate all scores."""
     recalculate_all_scores()
     messages.success(request, "Scores recalculated successfully")
-    return redirect("scoring:leaderboard")
+    return redirect("leaderboard_page")

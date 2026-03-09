@@ -316,7 +316,7 @@ def email_scorecards(request: HttpRequest) -> HttpResponse:
 
     if not scores.exists():
         messages.error(request, "No scores available. Recalculate scores first.")
-        return redirect("scoring:leaderboard")
+        return redirect("leaderboard_page")
 
     # Build team list with email info for confirmation
     team_rows = []
@@ -393,7 +393,7 @@ def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         school_name = school_info.school_name
     except SchoolInfo.DoesNotExist:
         messages.error(request, f"Team {team_number} has no school info / contact email.")
-        return redirect("scoring:scorecard", team_number=team_number)
+        return redirect("leaderboard_scorecard", team_number=team_number)
 
     if request.method == "POST":
         email_ctx = _build_email_context(team, score, total_teams)
@@ -406,7 +406,7 @@ def email_scorecard(request: HttpRequest, team_number: int) -> HttpResponse:
         else:
             messages.error(request, f"Failed to email scorecard to Team {team_number}.")
 
-        return redirect("scoring:scorecard", team_number=team_number)
+        return redirect("leaderboard_scorecard", team_number=team_number)
 
     return render(
         request,

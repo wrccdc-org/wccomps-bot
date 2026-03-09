@@ -31,7 +31,7 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
         team = _get_user_team(user)
         if not team:
             messages.error(request, "You must be assigned to a team to submit incident reports")
-            return redirect("scoring:leaderboard")
+            return redirect("leaderboard_page")
 
     if request.method == "POST":
         form = IncidentReportForm(team, is_admin, request.POST, request.FILES)
@@ -47,7 +47,7 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
             else:
                 # This should never happen due to earlier validation
                 messages.error(request, "Team assignment error")
-                return redirect("scoring:leaderboard")
+                return redirect("leaderboard_page")
 
             incident.submitted_by = user
             incident.save()
@@ -140,7 +140,7 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
         user_team = _get_user_team(user)
         if not user_team or incident.team != user_team:
             messages.error(request, "You do not have permission to view this incident report")
-            return redirect("scoring:leaderboard")
+            return redirect("leaderboard_page")
 
     # Check if user can delete this incident
     can_delete = incident.submitted_by == user and not incident.gold_team_reviewed
