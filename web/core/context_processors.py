@@ -108,29 +108,32 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "registration_event_delete": ("registration", "seasons"),
     "registration_assign_teams": ("registration", "seasons"),
     "registration_unassign_team": ("registration", "seasons"),
-    # Scoring pages
-    "leaderboard": ("scoring", "leaderboard"),
-    "scorecard": ("scoring", "leaderboard"),
+    # Leaderboard
+    "leaderboard": ("leaderboard", ""),
+    "scorecard": ("leaderboard", ""),
+    "leaderboard_page": ("leaderboard", ""),
+    "leaderboard_scorecard": ("leaderboard", ""),
+    "leaderboard_scorecard_pdf": ("leaderboard", ""),
+    # Scoring review pages
     "red_team_portal": ("scoring", "red_team"),
     "bulk_approve_red_scores": ("scoring", "red_team"),
     "review_orange": ("scoring", "orange_team"),
     "review_incidents": ("scoring", "review_incidents"),
     "match_incident": ("scoring", "review_incidents"),
-    "inject_grading": ("scoring", "inject_grading"),
-    "submit_inject_grade": ("scoring", "inject_grading"),
     "inject_grades_review": ("scoring", "inject_grades_review"),
     "inject_grades_bulk_approve": ("scoring", "inject_grades_review"),
-    "review_inject_feedback": ("scoring", "inject_feedback"),
     "ops_review_tickets": ("scoring", "review_tickets"),
     "ops_verify_ticket": ("scoring", "review_tickets"),
     "ops_batch_verify_tickets": ("scoring", "review_tickets"),
-    "scoring_config": ("scoring", "config"),
-    "sync_quotient_injects": ("scoring", "config"),
-    "recalculate_scores": ("scoring", "config"),
-    "export_index": ("scoring", "export"),
-    "export_red_scores": ("scoring", "export"),
-    "export_incidents": ("scoring", "export"),
-    "export_scores": ("scoring", "export"),
+    # White team - inject grading/feedback
+    "inject_grading": ("white_team", "inject_grading"),
+    "review_inject_feedback": ("white_team", "inject_feedback"),
+    # Ops admin - scoring config/export
+    "scoring_config": ("ops_admin", "config"),
+    "recalculate_scores": ("ops_admin", "config"),
+    "export_index": ("ops_admin", "export"),
+    "export_red_scores": ("ops_admin", "export"),
+    "export_incidents": ("ops_admin", "export"),
 }
 
 
