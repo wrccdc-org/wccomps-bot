@@ -6,6 +6,25 @@
 {% block admin_content %}
     <div x-data="competitionAdmin">
         <c-page_header title="Competition Management" />
+        {% if not config.competition_start_time and not config.controlled_applications and linked_users == 0 %}
+            <c-alert variant="info">
+            <strong>Getting Started</strong>
+            <ol class="mb-0 mt-5">
+                <li>
+                    Set <strong>Max Team Members</strong> and add <strong>Controlled Apps</strong> below
+                </li>
+                <li>
+                    Set the competition <strong>Schedule</strong> (start and end times)
+                </li>
+                <li>
+                    Sync <strong>Quotient Metadata</strong> for service scoring
+                </li>
+                <li>
+                    Click <strong>Start Competition</strong> when ready
+                </li>
+            </ol>
+            </c-alert>
+        {% endif %}
         <!-- Status Banner -->
         <div class="status-bar mb-20">
             <div class="d-flex items-center gap-10 mb-10">
