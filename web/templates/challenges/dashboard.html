@@ -35,6 +35,16 @@
                 this.saving = false;
             }
         }));
+        Alpine.data('leadTabs', () => ({
+            tab: 'checkins',
+            get isCheckins() { return this.tab === 'checkins'; },
+            get isReview() { return this.tab === 'review'; },
+            get isManage() { return this.tab === 'manage'; },
+            get checkinsClass() { return this.tab === 'checkins' ? 'nav-item nav-item--current' : 'nav-item'; },
+            get reviewClass() { return this.tab === 'review' ? 'nav-item nav-item--current' : 'nav-item'; },
+            get manageClass() { return this.tab === 'manage' ? 'nav-item nav-item--current' : 'nav-item'; },
+            setTab(e) { this.tab = e.currentTarget.dataset.tab; }
+        }));
     });
     </script>
     <c-page_header title="Orange Team Dashboard" subtitle="Check-in status and assigned checks" />
@@ -193,97 +203,129 @@
     {% endif %}
     </c-module>
     {% if is_lead %}
-        {# Checked-in Members #}
         <c-module>
-        <h2>Checked-In Members</h2>
-        {% if checked_in_members %}
-            <c-table id="checked_in" aria_label="Checked-in members">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Member</c-table_header>
-                <c-table_header sortable="false">Since</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
-            </tr>
-            </c-slot>
-            {% for checkin in checked_in_members %}
-                <tr>
-                    <td>{{ checkin.user.username }}</td>
-                    <td>{{ checkin.checked_in_at|date:"H:i" }}</td>
-                    <td>
-                        <form method="post"
-                              action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}">
-                            {% csrf_token %}
-                            <c-button type="submit" variant="danger">Check Out</c-button>
-                        </form>
-                    </td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <c-empty_state title="No one checked in" description="No orange team members are currently checked in." />
-        {% endif %}
-        </c-module>
-        {# Scores Overview / Review #}
-        <c-module>
-        <h2>Scores for Review</h2>
-        <c-slot name="toolbar">
-        <c-link href="{% url 'challenges:export_scores' %}" variant="change">Export CSV</c-link>
-        </c-slot>
-        {% if review_assignments %}
-            <c-table id="review" aria_label="Assignments for review">
-            <c-slot name="headers">
-            <tr>
-                <c-table_header sortable="false">Check</c-table_header>
-                <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false">Assignee</c-table_header>
-                <c-table_header sortable="false">Score</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
-            </tr>
-            </c-slot>
-            {% for assignment in review_assignments %}
-                <tr>
-                    <td>{{ assignment.orange_check.title }}</td>
-                    <td>Team {{ assignment.team.team_number }}</td>
-                    <td>{{ assignment.user.username }}</td>
-                    <td>{{ assignment.score|default:"—" }} / {{ assignment.orange_check.max_score }}</td>
-                    <td>
-                        {% if assignment.status == "submitted" %}
-                            <c-badge variant="claimed">Submitted</c-badge>
-                        {% elif assignment.status == "in_progress" %}
-                            <c-badge variant="info">In Progress</c-badge>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if assignment.status == "submitted" %}
-                            <div class="d-flex gap-10">
+        <div x-data="leadTabs">
+            <nav role="tablist" class="d-flex gap-10 mb-15 border-bottom p-10">
+                <button type="button"
+                        role="tab"
+                        data-tab="checkins"
+                        :class="checkinsClass"
+                        :aria-selected="isCheckins"
+                        @click="setTab">
+                    Team Check-ins
+                    {% if checked_in_members %}<span class="badge badge--success ml-5">{{ checked_in_members|length }}</span>{% endif %}
+                </button>
+                <button type="button"
+                        role="tab"
+                        data-tab="review"
+                        :class="reviewClass"
+                        :aria-selected="isReview"
+                        @click="setTab">
+                    Review Queue
+                    {% if review_assignments %}<span class="badge badge--warning ml-5">{{ review_assignments|length }}</span>{% endif %}
+                </button>
+                <button type="button"
+                        role="tab"
+                        data-tab="manage"
+                        :class="manageClass"
+                        :aria-selected="isManage"
+                        @click="setTab">Manage</button>
+            </nav>
+            {# Tab: Team Check-ins #}
+            <div x-show="isCheckins" role="tabpanel">
+                <h2>Checked-In Members</h2>
+                {% if checked_in_members %}
+                    <c-table id="checked_in" aria_label="Checked-in members">
+                    <c-slot name="headers">
+                    <tr>
+                        <c-table_header sortable="false">Member</c-table_header>
+                        <c-table_header sortable="false">Since</c-table_header>
+                        <c-table_header sortable="false">Actions</c-table_header>
+                    </tr>
+                    </c-slot>
+                    {% for checkin in checked_in_members %}
+                        <tr>
+                            <td>{{ checkin.user.username }}</td>
+                            <td>{{ checkin.checked_in_at|date:"H:i" }}</td>
+                            <td>
                                 <form method="post"
-                                      action="{% url 'challenges:assignment_approve' assignment.pk %}">
+                                      action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}">
                                     {% csrf_token %}
-                                    <c-button type="submit" variant="primary">Approve</c-button>
+                                    <c-button type="submit" variant="danger">Check Out</c-button>
                                 </form>
-                                <form method="post"
-                                      action="{% url 'challenges:assignment_reject' assignment.pk %}">
-                                    {% csrf_token %}
-                                    <input type="text"
-                                           name="notes"
-                                           placeholder="Reason (optional)"
-                                           class="input-sm">
-                                    <c-button type="submit" variant="danger">Reject</c-button>
-                                </form>
-                            </div>
-                        {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        {% else %}
-            <c-empty_state title="No assignments for review" description="No submitted assignments awaiting review." />
-        {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </c-table>
+                {% else %}
+                    <c-empty_state title="No one checked in" description="No orange team members are currently checked in." />
+                {% endif %}
+            </div>
+            {# Tab: Review Queue #}
+            <div x-show="isReview" role="tabpanel">
+                <div class="d-flex justify-between items-center mb-10">
+                    <h2 class="m-0">Scores for Review</h2>
+                    <c-link href="{% url 'challenges:export_scores' %}" variant="change">Export CSV</c-link>
+                </div>
+                {% if review_assignments %}
+                    <c-table id="review" aria_label="Assignments for review">
+                    <c-slot name="headers">
+                    <tr>
+                        <c-table_header sortable="false">Check</c-table_header>
+                        <c-table_header sortable="false">Team</c-table_header>
+                        <c-table_header sortable="false">Assignee</c-table_header>
+                        <c-table_header sortable="false">Score</c-table_header>
+                        <c-table_header sortable="false">Status</c-table_header>
+                        <c-table_header sortable="false">Actions</c-table_header>
+                    </tr>
+                    </c-slot>
+                    {% for assignment in review_assignments %}
+                        <tr>
+                            <td>{{ assignment.orange_check.title }}</td>
+                            <td>Team {{ assignment.team.team_number }}</td>
+                            <td>{{ assignment.user.username }}</td>
+                            <td>{{ assignment.score|default:"—" }} / {{ assignment.orange_check.max_score }}</td>
+                            <td>
+                                {% if assignment.status == "submitted" %}
+                                    <c-badge variant="claimed">Submitted</c-badge>
+                                {% elif assignment.status == "in_progress" %}
+                                    <c-badge variant="info">In Progress</c-badge>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if assignment.status == "submitted" %}
+                                    <div class="d-flex gap-10">
+                                        <form method="post"
+                                              action="{% url 'challenges:assignment_approve' assignment.pk %}">
+                                            {% csrf_token %}
+                                            <c-button type="submit" variant="primary">Approve</c-button>
+                                        </form>
+                                        <form method="post"
+                                              action="{% url 'challenges:assignment_reject' assignment.pk %}">
+                                            {% csrf_token %}
+                                            <input type="text"
+                                                   name="notes"
+                                                   placeholder="Reason (optional)"
+                                                   class="input-sm">
+                                            <c-button type="submit" variant="danger">Reject</c-button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </c-table>
+                {% else %}
+                    <c-empty_state title="No assignments for review" description="No submitted assignments awaiting review." />
+                {% endif %}
+            </div>
+            {# Tab: Manage #}
+            <div x-show="isManage" role="tabpanel">
+                <c-button_row>
+                <c-link href="{% url 'challenges:check_list' %}" variant="change">Manage Checks</c-link>
+                </c-button_row>
+            </div>
+        </div>
         </c-module>
-        {# Lead link #}
-        <c-button_row>
-        <c-link href="{% url 'challenges:check_list' %}" variant="change">Manage Checks</c-link>
-        </c-button_row>
     {% endif %}
 {% endblock content %}
