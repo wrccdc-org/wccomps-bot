@@ -881,3 +881,30 @@ td textarea[x-ref="editor"] {
         transition: none;
     }
 }
+
+/* ============================================
+   COLLAPSIBLE FIELDSET
+   ============================================ */
+.fieldset-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.fieldset-toggle:hover {
+    opacity: 0.8;
+}
+.fieldset-toggle-icon {
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+.fieldset-toggle-icon--open {
+    transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+    .fieldset-toggle-icon {
+        transition: none;
+    }
+}

@@ -1,9 +1,31 @@
 {# Fieldset component - grouped form fields with heading #}
 {# Usage: <c-fieldset heading="User Details">Form fields here</c-fieldset> #}
-{# Props: heading, class, aligned (bool) #}
-<c-vars heading class aligned="true" />
-<fieldset {{ attrs }}
-          class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
-    {% if heading %}<h2>{{ heading }}</h2>{% endif %}
-    {{ slot }}
-</fieldset>
+{# Collapsible: <c-fieldset heading="Advanced" collapsible="true" collapsed="true">Hidden by default</c-fieldset> #}
+{# Props: heading, class, aligned (bool), collapsible (bool), collapsed (bool - initial state) #}
+<c-vars heading class aligned="true" collapsible="false" collapsed="false" />
+{% if collapsible == "true" %}
+    <fieldset {{ attrs }}
+              x-data="collapsibleFieldset"
+              data-collapsed="{{ collapsed }}"
+              class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
+        {% if heading %}
+            <h2 class="fieldset-toggle"
+                @click="toggle"
+                role="button"
+                tabindex="0"
+                @keydown.enter="toggle"
+                @keydown.space.prevent="toggle"
+                :aria-expanded="expanded">
+                <span class="fieldset-toggle-icon" :class="iconClass">&#9654;</span>
+                {{ heading }}
+            </h2>
+        {% endif %}
+        <div x-show="expanded" x-collapse>{{ slot }}</div>
+    </fieldset>
+{% else %}
+    <fieldset {{ attrs }}
+              class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
+        {% if heading %}<h2>{{ heading }}</h2>{% endif %}
+        {{ slot }}
+    </fieldset>
+{% endif %}
