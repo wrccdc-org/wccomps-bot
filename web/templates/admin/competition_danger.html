@@ -1,0 +1,99 @@
+{% extends "admin/base.html" %}
+{% load cotton %}
+{% block title %}
+    Competition Danger Zone - WCComps
+{% endblock title %}
+{% block admin_content %}
+    <div x-data="competitionDanger">
+        <c-page_header title="Competition Danger Zone" />
+        <c-button_row class="mb-20">
+        <c-link href="{% url 'admin_competition' %}" variant="history">&larr; Back to Competition</c-link>
+        </c-button_row>
+        <!-- Cleanup -->
+        <c-fieldset heading="Cleanup" class="mb-20">
+        <p class="help-text mb-10">
+            Deactivates Discord links and clears queued announcements. Competition must be stopped first.
+        </p>
+        <c-link href="#" variant="danger" @click.prevent="cleanupCompetition" ::class="disabledClass">
+        Cleanup Competition
+        </c-link>
+        </c-fieldset>
+        <!-- Wipe All Data -->
+        <c-action_box variant="warning" heading="Wipe All Data">
+        <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
+        <c-link href="#" variant="danger" @click.prevent="wipeCompetition" ::class="disabledClass">
+        Wipe All Data
+        </c-link>
+        </c-action_box>
+        <!-- Toast Notification -->
+        <template x-if="message">
+            <div x-transition class="toast-position">
+                <div class="alert" :class="alertClass">
+                    <span x-text="message"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('competitionDanger', () => ({
+            loading: false,
+            message: '',
+            messageType: 'success',
+            get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
+            get disabledClass() { return this.loading ? 'disabled' : ''; },
+
+            async doAction(action) {
+                this.loading = true;
+                this.message = '';
+                try {
+                    const formData = new FormData();
+                    formData.append('action', action);
+                    const response = await fetch('{% url "admin_competition_action" %}', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        this.message = result.message;
+                        this.messageType = 'success';
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        this.message = result.error || 'Action failed';
+                        this.messageType = 'error';
+                    }
+                } catch (e) {
+                    this.message = 'Request failed: ' + e.message;
+                    this.messageType = 'error';
+                }
+                this.loading = false;
+                setTimeout(() => this.message = '', 5000);
+            },
+
+            cleanupCompetition() {
+                if (confirm('Cleanup the competition?\n\nThis will:\n\u2022 Deactivate all team Discord links\n\u2022 Clear queued announcements\n\nCompetition must be stopped first.')) {
+                    this.doAction('cleanup_competition');
+                }
+            },
+
+            wipeCompetition() {
+                const message = 'WIPE ALL COMPETITION DATA?\n\n' +
+                    'This will PERMANENTLY DELETE:\n\n' +
+                    'SCORING: Red Team Findings, Incident Reports, Inject Grades, Service Scores, Final Scores\n' +
+                    'TICKETING: All Tickets, Comments, History\n' +
+                    'DISCORD: Blue Team Discord Links\n\n' +
+                    'PRESERVED: Teams, Staff Links, Audit Logs\n\n' +
+                    'Competition must be stopped first.\n' +
+                    'This CANNOT be undone!\n\n' +
+                    'Type "yolo" to confirm:';
+
+                const response = prompt(message);
+                if (response && response.toLowerCase() === 'yolo') {
+                    this.doAction('wipe_competition');
+                }
+            }
+        }));
+    });
+    </script>
+{% endblock admin_content %}

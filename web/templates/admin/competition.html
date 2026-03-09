@@ -260,23 +260,12 @@
                 </c-action_box>
             </template>
         </div>
-        <!-- Cleanup -->
-        <div class="mb-20">
-            <h3 class="mt-0 mb-10">Cleanup</h3>
-            <p class="help-text mb-10">
-                Deactivates Discord links and clears queued announcements. Competition must be stopped first.
-            </p>
-            <c-link href="#" variant="danger" @click.prevent="cleanupCompetition" ::class="disabledClass">
-            Cleanup Competition
+        <!-- Danger Zone (separate page) -->
+        <div class="mt-20">
+            <c-link href="{% url 'admin_competition_danger' %}" variant="danger">
+            Cleanup &amp; Danger Zone &rarr;
             </c-link>
         </div>
-        <!-- Danger Zone -->
-        <c-action_box variant="warning" heading="Danger Zone">
-        <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
-        <c-link href="#" variant="danger" @click.prevent="wipeCompetition" ::class="disabledClass">
-        Wipe All Data
-        </c-link>
-        </c-action_box>
         </c-fieldset>
         <!-- Toast Notification -->
         <template x-if="message">
@@ -435,29 +424,6 @@ document.addEventListener('alpine:init', () => {
         stopCompetition() {
             if (confirm('Stop the competition?\n\nThis will disable all applications and team accounts.\nYou can restart later.')) {
                 this.doStreamAction('stop_competition');
-            }
-        },
-
-        cleanupCompetition() {
-            if (confirm('Cleanup the competition?\n\nThis will:\n• Deactivate all team Discord links\n• Clear queued announcements\n\nCompetition must be stopped first.')) {
-                this.doAction('cleanup_competition');
-            }
-        },
-
-        wipeCompetition() {
-            const message = `WIPE ALL COMPETITION DATA?\n\n` +
-                `This will PERMANENTLY DELETE:\n\n` +
-                `SCORING: Red Team Findings, Incident Reports, Inject Grades, Service Scores, Final Scores\n` +
-                `TICKETING: All Tickets, Comments, History\n` +
-                `DISCORD: Blue Team Discord Links\n\n` +
-                `PRESERVED: Teams, Staff Links, Audit Logs\n\n` +
-                `Competition must be stopped first.\n` +
-                `This CANNOT be undone!\n\n` +
-                `Type "yolo" to confirm:`;
-
-            const response = prompt(message);
-            if (response && response.toLowerCase() === 'yolo') {
-                this.doAction('wipe_competition');
             }
         },
 

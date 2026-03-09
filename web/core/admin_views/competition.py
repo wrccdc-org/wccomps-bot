@@ -559,3 +559,14 @@ def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
 
     config = CompetitionConfig.get_config()
     return handler(request, config, user.username)
+
+
+@require_permission("admin", "gold_team")
+def admin_competition_danger(request: HttpRequest) -> HttpResponse:
+    """Danger zone page for destructive competition operations."""
+    config = CompetitionConfig.get_config()
+    return render(request, "admin/competition_danger.html", {
+        "config": config,
+        "show_ops_nav": True,
+        "nav_active": "ops_admin",
+    })
