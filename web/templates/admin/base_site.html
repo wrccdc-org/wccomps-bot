@@ -50,16 +50,24 @@
                        {% if nav_active == 'orange' %}class="current"{% endif %}>Orange Team</a>
                 {% endif %}
                 {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
-                    <a href="{% url 'scoring:leaderboard' %}"
-                       {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring</a>
+                    <a href="{% url 'leaderboard_page' %}"
+                       {% if nav_active == 'leaderboard' %}class="current"{% endif %}>Leaderboard</a>
                 {% endif %}
-                {% if is_admin %}
-                    <a href="{% url 'admin:index' %}"
-                       {% if nav_active == 'admin' %}class="current"{% endif %}>Admin</a>
+                {% if is_gold_team or is_admin %}
+                    <a href="{% url 'scoring:red_team_portal' %}"
+                       {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring Review</a>
+                {% endif %}
+                {% if is_white_team or is_gold_team or is_admin %}
+                    <a href="{% url 'scoring:inject_grading' %}"
+                       {% if nav_active == 'white_team' %}class="current"{% endif %}>White Team</a>
                 {% endif %}
                 {% if is_gold_team or is_admin %}
                     <a href="{% url 'admin_competition' %}"
                        {% if nav_active == 'ops_admin' %}class="current"{% endif %}>Competition</a>
+                {% endif %}
+                {% if is_admin %}
+                    <a href="{% url 'admin:index' %}"
+                       {% if nav_active == 'admin' %}class="current"{% endif %}>Django Admin</a>
                 {% endif %}
             </div>
             <span class="nav-spacer"></span>
