@@ -1,30 +1,19 @@
 {% extends "admin/base_site.html" %}
 {% block title %}
     {% block scoring_title %}
-        Scoring
+        Scoring Review
     {% endblock scoring_title %}
 {% endblock title %}
 {% block content %}
     {% load cotton %}
-    {% if is_gold_team or is_white_team or is_ticketing_admin or is_admin %}
+    {% if is_gold_team or is_admin %}
         <c-nav>
-        <c-nav_item name="leaderboard" href="{% url 'scoring:leaderboard' %}">Leaderboard</c-nav_item>
-        {% if is_gold_team or is_admin %}
-            <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}" separator="true">Red Team Scores</c-nav_item>
-            <c-nav_item name="orange_team" href="{% url 'scoring:review_orange' %}">Orange Scores</c-nav_item>
-            <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Incidents</c-nav_item>
-            <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Inject Grades</c-nav_item>
-        {% endif %}
+        <c-nav_item name="red_team" href="{% url 'scoring:red_team_portal' %}">Red Team Scores</c-nav_item>
+        <c-nav_item name="orange_team" href="{% url 'scoring:review_orange' %}">Orange Scores</c-nav_item>
+        <c-nav_item name="review_incidents" href="{% url 'scoring:review_incidents' %}">Incidents</c-nav_item>
+        <c-nav_item name="inject_grades_review" href="{% url 'scoring:inject_grades_review' %}">Inject Grades</c-nav_item>
         {% if is_ticketing_admin or is_admin %}
             <c-nav_item name="review_tickets" href="{% url 'ops_review_tickets' %}">Ticket Points</c-nav_item>
-        {% endif %}
-        {% if is_white_team or is_gold_team or is_admin %}
-            <c-nav_item name="inject_grading" href="{% url 'scoring:inject_grading' %}" separator="true">Inject Grading</c-nav_item>
-            <c-nav_item name="inject_feedback" href="{% url 'scoring:review_inject_feedback' %}">Inject Feedback</c-nav_item>
-        {% endif %}
-        {% if is_admin %}
-            <c-nav_item name="config" href="{% url 'scoring:scoring_config' %}" separator="true">Configuration</c-nav_item>
-            <c-nav_item name="export" href="{% url 'scoring:export_index' %}">Export Data</c-nav_item>
         {% endif %}
         </c-nav>
     {% endif %}
