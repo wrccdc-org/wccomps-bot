@@ -170,14 +170,14 @@
         </c-fieldset>
         <!-- Section 2: Competition Controls -->
         <c-fieldset heading="Competition Controls" class="mb-20" collapsible="true" collapsed="false">
-        <div class="d-flex gap-10 flex-wrap mt-10">
-            <c-button variant="primary" @click="startCompetition" ::disabled="loading">
-            Start Competition
-            </c-button>
-            <c-button variant="warning" @click="stopCompetition" ::disabled="loading">
-            Stop Competition
-            </c-button>
-        </div>
+        <c-button_row class="mt-10">
+        <c-button variant="primary" @click="startCompetition" ::disabled="loading">
+        Start Competition
+        </c-button>
+        <c-button variant="warning" @click="stopCompetition" ::disabled="loading">
+        Stop Competition
+        </c-button>
+        </c-button_row>
         <template x-if="hasProgress">
             <div class="mt-10">
                 <div class="d-flex justify-between mb-5">
@@ -219,9 +219,11 @@
         {% else %}
             <p class="text-muted mb-10">Metadata not synced yet.</p>
         {% endif %}
+        <c-button_row>
         <c-button variant="default" @click="syncQuotient" ::disabled="loading">
         Sync Quotient Metadata
         </c-button>
+        </c-button_row>
         </c-fieldset>
         <!-- Section 3: Post-Competition -->
         <c-fieldset heading="Post-Competition" class="mb-20" collapsible="true" collapsed="

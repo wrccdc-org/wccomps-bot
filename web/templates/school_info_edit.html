@@ -9,9 +9,6 @@
         <form method="post">
             {% csrf_token %}
             <c-module>
-            <c-slot name="toolbar">
-            <c-link href="{% url 'school_info' %}" variant="history">Back to School Information</c-link>
-            </c-slot>
             {% if error %}<c-alert variant="error">{{ error }}</c-alert>{% endif %}
             <c-fieldset aligned="true">
             <c-form_field label="School Name" required="true" id="school_name">

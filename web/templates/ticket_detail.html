@@ -302,7 +302,7 @@
                         <div class="attachment-info">
                             <span class="attachment-name" title="{{ attachment.filename }}">{{ attachment.filename|truncatechars:25 }}</span>
                             <span class="attachment-meta">{{ attachment.uploaded_by }} · {{ attachment.uploaded_at|timesince }} ago</span>
-                            <c-link href="{% url 'ticket_attachment_download' ticket.ticket_number attachment.id %}" variant="change">Download</c-link>
+                            <c-link href="{% url 'ticket_attachment_download' ticket.ticket_number attachment.id %}" variant="default">Download</c-link>
                         </div>
                     </div>
                 {% endfor %}

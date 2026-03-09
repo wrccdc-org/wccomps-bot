@@ -44,7 +44,7 @@
             </div>
             {% if user_pools %}
                 <div class="help-text">
-                    <a href="{% url 'scoring:ip_pool_list' %}">Manage your IP pools</a>
+                    <c-link href="{% url 'scoring:ip_pool_list' %}" variant="default">Manage your IP pools</c-link>
                 </div>
             {% endif %}
         </div>
@@ -175,7 +175,7 @@
     <div class="d-flex justify-between items-center mb-10">
         <label class="font-semibold text-sm d-block mb-0">{{ form.affected_teams.label }}</label>
         <div class="d-flex gap-10">
-            <c-button type="button" variant="primary" onclick="selectAllTeams()">Select All</c-button>
+            <c-button type="button" variant="default" onclick="selectAllTeams()">Select All</c-button>
             <c-button type="button" onclick="deselectAllTeams()">Deselect All</c-button>
         </div>
     </div>

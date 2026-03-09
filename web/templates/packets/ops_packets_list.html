@@ -45,9 +45,9 @@
                             </c-button>
                         {% endif %}
                         {% if active_packet.status not in "cancelled" %}
-                            <c-link href="#" variant="danger" @click.prevent="cancelPacket" ::class="disabledClass">
+                            <c-button variant="danger" @click="cancelPacket" ::disabled="loading">
                             Cancel
-                            </c-link>
+                            </c-button>
                         {% endif %}
                         <c-link href="{% url 'packet_detail' active_packet.id %}" variant="change">Distributions</c-link>
                     </div>

@@ -67,7 +67,9 @@
     {% empty %}
         <tr>
             <td colspan="8">
-                <c-empty_state title="No categories" description="Add a ticket category to get started." />
+                <c-empty_state title="No categories" description="Add a ticket category to get started.">
+                <c-link href="{% url 'admin_category_create' %}" variant="add">Add Category</c-link>
+                </c-empty_state>
             </td>
         </tr>
     {% endfor %}

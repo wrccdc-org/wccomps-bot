@@ -21,8 +21,8 @@
         </td>
         <td>All red team vulnerability findings with affected teams and points</td>
         <td class="text-center">
-            <c-link href="{% url 'scoring:export_red_scores' %}?format=csv">CSV</c-link>
-            <c-link href="{% url 'scoring:export_red_scores' %}?format=json">JSON</c-link>
+            <c-link href="{% url 'scoring:export_red_scores' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_red_scores' %}?format=json" variant="default">JSON</c-link>
         </td>
     </tr>
     <tr>
@@ -31,8 +31,8 @@
         </td>
         <td>Blue team incident submissions with review status and points returned</td>
         <td class="text-center">
-            <c-link href="{% url 'scoring:export_incidents' %}?format=csv">CSV</c-link>
-            <c-link href="{% url 'scoring:export_incidents' %}?format=json">JSON</c-link>
+            <c-link href="{% url 'scoring:export_incidents' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_incidents' %}?format=json" variant="default">JSON</c-link>
         </td>
     </tr>
     <tr>
@@ -41,8 +41,8 @@
         </td>
         <td>Customer service evaluations and point adjustments</td>
         <td class="text-center">
-            <c-link href="{% url 'scoring:export_orange_adjustments' %}?format=csv">CSV</c-link>
-            <c-link href="{% url 'scoring:export_orange_adjustments' %}?format=json">JSON</c-link>
+            <c-link href="{% url 'scoring:export_orange_adjustments' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_orange_adjustments' %}?format=json" variant="default">JSON</c-link>
         </td>
     </tr>
     <tr>
@@ -51,8 +51,8 @@
         </td>
         <td>All inject submissions with grades and approval status</td>
         <td class="text-center">
-            <c-link href="{% url 'scoring:export_inject_grades' %}?format=csv">CSV</c-link>
-            <c-link href="{% url 'scoring:export_inject_grades' %}?format=json">JSON</c-link>
+            <c-link href="{% url 'scoring:export_inject_grades' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_inject_grades' %}?format=json" variant="default">JSON</c-link>
         </td>
     </tr>
     <tr>
@@ -61,8 +61,8 @@
         </td>
         <td>Calculated final scores with all component breakdowns</td>
         <td class="text-center">
-            <c-link href="{% url 'scoring:export_final_scores' %}?format=csv">CSV</c-link>
-            <c-link href="{% url 'scoring:export_final_scores' %}?format=json">JSON</c-link>
+            <c-link href="{% url 'scoring:export_final_scores' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_final_scores' %}?format=json" variant="default">JSON</c-link>
         </td>
     </tr>
     </c-table>

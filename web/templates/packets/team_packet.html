@@ -37,7 +37,7 @@
                         </td>
                         <td>{{ packet.actual_distribution_time|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td>
-                            <c-link href="{% url 'download_packet' packet.id %}">Download</c-link>
+                            <c-link href="{% url 'download_packet' packet.id %}" variant="default">Download</c-link>
                         </td>
                     </tr>
                 {% endfor %}
@@ -88,7 +88,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <c-link href="{% url 'download_packet' dist.packet.id %}">Download</c-link>
+                        <c-link href="{% url 'download_packet' dist.packet.id %}" variant="default">Download</c-link>
                     </td>
                 </tr>
             {% endfor %}

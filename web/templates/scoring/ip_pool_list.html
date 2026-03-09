@@ -50,7 +50,9 @@
             </tbody>
         </table>
     {% else %}
-        <c-empty_state title="No IP pools" description="Create a pool to use rotating source IPs in your findings." />
+        <c-empty_state title="No IP pools" description="Create a pool to use rotating source IPs in your findings.">
+        <c-link href="{% url 'scoring:ip_pool_create' %}" variant="add">Create Pool</c-link>
+        </c-empty_state>
     {% endif %}
     </c-module>
 {% endblock red_content %}

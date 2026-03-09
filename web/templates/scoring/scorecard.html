@@ -14,9 +14,9 @@
     <div class="scorecard">
         <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
         <c-button_row class="mb-10">
-        <c-link href="{% url 'scoring:scorecard_pdf' team.team_number %}" variant="change">Download PDF</c-link>
+        <c-link href="{% url 'scoring:scorecard_pdf' team.team_number %}" variant="default">Download PDF</c-link>
         {% if is_gold_team or is_admin %}
-            <c-link href="{% url 'scoring:email_scorecard' team.team_number %}" variant="change">Email Scorecard</c-link>
+            <c-link href="{% url 'scoring:email_scorecard' team.team_number %}" variant="default">Email Scorecard</c-link>
         {% endif %}
         </c-button_row>
         <c-module>

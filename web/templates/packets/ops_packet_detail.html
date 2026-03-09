@@ -35,9 +35,9 @@
                         </c-button>
                     {% endif %}
                     {% if packet.status not in "cancelled" %}
-                        <c-link href="#" variant="danger" @click.prevent="cancelPacket" ::class="disabledClass">
+                        <c-button variant="danger" @click="cancelPacket" ::disabled="loading">
                         Cancel
-                        </c-link>
+                        </c-button>
                     {% endif %}
                 </div>
             </div>

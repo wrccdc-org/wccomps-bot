@@ -265,7 +265,7 @@
             <div x-show="isReview" role="tabpanel">
                 <div class="d-flex justify-between items-center mb-10">
                     <h2 class="m-0">Scores for Review</h2>
-                    <c-link href="{% url 'challenges:export_scores' %}" variant="change">Export CSV</c-link>
+                    <c-link href="{% url 'challenges:export_scores' %}" variant="default">Export CSV</c-link>
                 </div>
                 {% if review_assignments %}
                     <c-table id="review" aria_label="Assignments for review">
@@ -322,7 +322,7 @@
             {# Tab: Manage #}
             <div x-show="isManage" role="tabpanel">
                 <c-button_row>
-                <c-link href="{% url 'challenges:check_list' %}" variant="change">Manage Checks</c-link>
+                <c-link href="{% url 'challenges:check_list' %}" variant="default">Manage Checks</c-link>
                 </c-button_row>
             </div>
         </div>

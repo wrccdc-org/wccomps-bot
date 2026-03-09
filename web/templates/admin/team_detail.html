@@ -40,7 +40,7 @@
             </c-module>
             <c-module>
             <c-slot name="title">Actions</c-slot>
-            <div class="checkbox-group">
+            <div class="d-flex flex-column gap-10">
                 {% if team.is_active %}
                     <c-button variant="default" class="w-full" @click="teamAction" data-action="deactivate" ::disabled="loading">
                     Deactivate Team
@@ -50,9 +50,9 @@
                     Activate Team
                     </c-button>
                 {% endif %}
-                <c-link href="#" variant="danger" class="w-full" @click.prevent="resetTeam" ::class="disabledClass">
+                <c-button variant="danger" class="w-full" @click="resetTeam" ::disabled="loading">
                 Reset Team (Unlink All + New Password)
-                </c-link>
+                </c-button>
                 <c-button variant="default" class="w-full" @click="teamAction" data-action="recreate_channels" ::disabled="loading">
                 Recreate Discord Channels
                 </c-button>
