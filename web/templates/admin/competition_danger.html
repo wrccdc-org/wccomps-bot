@@ -21,16 +21,16 @@
         <p class="help-text mb-10">
             Deactivates Discord links and clears queued announcements. Competition must be stopped first.
         </p>
-        <c-link href="#" variant="danger" @click.prevent="loading ? null : cleanupCompetition()" ::class="disabledClass">
-        <span x-show="!loading">Cleanup Competition</span>
+        <c-link href="#" variant="danger" @click.prevent="guardedCleanup" ::class="disabledClass">
+        <span x-show="notLoading">Cleanup Competition</span>
         <span x-show="loading" x-cloak>Processing...</span>
         </c-link>
         </c-fieldset>
         <!-- Wipe All Data -->
         <c-action_box variant="warning" heading="Wipe All Data">
         <p class="mb-15">Permanently delete all competition data (scores, tickets, links). This cannot be undone.</p>
-        <c-link href="#" variant="danger" @click.prevent="loading ? null : wipeCompetition()" ::class="disabledClass">
-        <span x-show="!loading">Wipe All Data</span>
+        <c-link href="#" variant="danger" @click.prevent="guardedWipe" ::class="disabledClass">
+        <span x-show="notLoading">Wipe All Data</span>
         <span x-show="loading" x-cloak>Processing...</span>
         </c-link>
         </c-action_box>
@@ -51,6 +51,10 @@
             messageType: 'success',
             get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
             get disabledClass() { return this.loading ? 'disabled' : ''; },
+            get notLoading() { return !this.loading; },
+
+            guardedCleanup() { if (!this.loading) this.cleanupCompetition(); },
+            guardedWipe() { if (!this.loading) this.wipeCompetition(); },
 
             async doAction(action) {
                 this.loading = true;
