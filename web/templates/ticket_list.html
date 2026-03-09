@@ -83,52 +83,35 @@
         </select>
         </c-filter_field>
         {% if is_ops %}
-            <div x-data="advancedFilters"
-                 data-has-active="{% if team_filter or assignee_filter or page_size != 25 %}true{% else %}false{% endif %}"
-                 class="advanced-filters-wrap">
-                <button type="button"
-                        @click="toggle"
-                        class="btn-secondary advanced-filters-toggle">
-                    <span x-show="closed">More Filters</span>
-                    <span x-show="open" x-cloak>Fewer Filters</span>
-                    {% if team_filter or assignee_filter or page_size != 25 %}
-                        <span class="badge badge--info advanced-filters-badge">active</span>
-                    {% endif %}
-                </button>
-                <div x-show="open"
-                     x-collapse
-                     class="d-flex gap-10 flex-wrap items-end mt-10">
-                    <c-filter_field label="Team Number" id="id_team">
-                    <input type="number"
-                           name="team"
-                           id="id_team"
-                           value="{{ team_filter }}"
-                           placeholder="Team #"
-                           aria-label="Filter by team number">
-                    </c-filter_field>
-                    <c-filter_field label="Assigned To" id="id_assignee">
-                    <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
-                        <option value="">All Assignees</option>
-                        <option value="unassigned"
-                                {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
-                        {% for person in assignees %}
-                            <option value="{{ person.id }}"
-                                    {% if assignee_filter == person.id|stringformat:"i" %}selected{% endif %}>
-                                {{ person }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    </c-filter_field>
-                    <c-filter_field label="Results Per Page" id="id_page_size">
-                    <select name="page_size" id="id_page_size" aria-label="Results per page">
-                        <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
-                        <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-                        <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-                        <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-                    </select>
-                    </c-filter_field>
-                </div>
-            </div>
+            <c-filter_field label="Team Number" id="id_team">
+            <input type="number"
+                   name="team"
+                   id="id_team"
+                   value="{{ team_filter }}"
+                   placeholder="Team #"
+                   aria-label="Filter by team number">
+            </c-filter_field>
+            <c-filter_field label="Assigned To" id="id_assignee">
+            <select name="assignee" id="id_assignee" aria-label="Filter by assignee">
+                <option value="">All Assignees</option>
+                <option value="unassigned"
+                        {% if assignee_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                {% for person in assignees %}
+                    <option value="{{ person.id }}"
+                            {% if assignee_filter == person.id|stringformat:"i" %}selected{% endif %}>
+                        {{ person }}
+                    </option>
+                {% endfor %}
+            </select>
+            </c-filter_field>
+            <c-filter_field label="Results Per Page" id="id_page_size">
+            <select name="page_size" id="id_page_size" aria-label="Results per page">
+                <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
+                <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
+                <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
+            </select>
+            </c-filter_field>
         {% endif %}
         </c-filter_toolbar>
         <c-ticket_list_table :page_obj="page_obj" :status_filter="status_filter" :category_filter="category_filter" :search_query="search_query" :sort_by="sort_by" :page_size="page_size" :team_filter="team_filter" :assignee_filter="assignee_filter" :authentik_username="authentik_username" :is_ticketing_admin="is_ticketing_admin" :is_ops="is_ops" :categories="categories" />
