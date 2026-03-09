@@ -1,9 +1,9 @@
 {# Navigation item component - individual nav link with current state highlighting #}
 {# Usage: <c-nav_item name="leaderboard" href="/scoring/">Leaderboard</c-nav_item> #}
-{# Props: name (for matching current), href (link URL) #}
+{# Props: name (for matching current), href (link URL), separator (bool - adds left border) #}
 {# Note: Uses subnav_active from context processor for current page highlighting #}
-<c-vars name href="#" />
+<c-vars name href="#" separator="false" />
 <a href="{{ href }}"
    {{ attrs }}
-   class="nav-item {% if name == subnav_active %}nav-item--current{% endif %}"
+   class="nav-item {% if name == subnav_active %}nav-item--current{% endif %} {% if separator == 'true' %}nav-item--separator{% endif %}"
    {% if name == subnav_active %}aria-current="page"{% endif %}>{{ slot }}</a>

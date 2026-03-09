@@ -84,6 +84,12 @@ nav[role="navigation"] {
     color: var(--body-fg, #333);
 }
 
+.nav-item--separator {
+    margin-left: 10px;
+    padding-left: 20px;
+    border-left: 1px solid var(--hairline-color, #ddd);
+}
+
 @media (max-width: 767px) {
     nav[role="navigation"] {
         overflow-x: auto;
@@ -459,17 +465,6 @@ nav[role="navigation"] {
     width: 200px;
 }
 
-/* Footer bar for tables */
-.table-footer {
-    padding: 10px 15px;
-    background: var(--darkened-bg, #f8f8f8);
-    border-top: 1px solid var(--hairline-color, #ddd);
-    font-size: 12px;
-    color: var(--body-quiet-color, #666);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
 
 /* Info box (highlighted content block) */
 .info-box {
