@@ -18,6 +18,7 @@
             </a>
         {% else %}
             <span>{{ slot }}</span>
-        {% endif %}{% if tooltip %} <span class="th-tooltip-icon" aria-hidden="true">?</span>{% endif %}
+        {% endif %}
+        {% if tooltip %}<span class="th-tooltip-icon" aria-hidden="true">?</span>{% endif %}
     </div>
 </th>

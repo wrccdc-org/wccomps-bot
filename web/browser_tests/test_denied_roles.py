@@ -41,6 +41,4 @@ def test_denied_roles_cannot_access(page_def, role):
             or "/auth/login/" in str(final_path)
             or (response.redirect_chain and final_path != requested_path)
         )
-        assert is_denied, (
-            f"{page_def.url_name} as {role}: expected denial, got status={response.status_code}"
-        )
+        assert is_denied, f"{page_def.url_name} as {role}: expected denial, got status={response.status_code}"
