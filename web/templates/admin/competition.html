@@ -59,7 +59,7 @@
             {% endif %}
         </div>
         <!-- Section 1: Pre-Competition Setup -->
-        <c-fieldset heading="Pre-Competition Setup" class="mb-20">
+        <c-fieldset heading="Pre-Competition Setup" class="mb-20" collapsible="true" collapsed="{% if config.applications_enabled %}true{% else %}false{% endif %}">
         <div class="grid-2 mb-20">
             <!-- Team Configuration -->
             <div>
@@ -144,7 +144,7 @@
         </div>
         </c-fieldset>
         <!-- Section 2: Competition Controls -->
-        <c-fieldset heading="Competition Controls" class="mb-20">
+        <c-fieldset heading="Competition Controls" class="mb-20" collapsible="true" collapsed="false">
         <div class="d-flex gap-10 flex-wrap mt-10">
             <c-button variant="primary" @click="startCompetition" ::disabled="loading">
             Start Competition
@@ -171,7 +171,7 @@
         </template>
         </c-fieldset>
         <!-- Section 2.5: Quotient Integration -->
-        <c-fieldset heading="Quotient Integration" class="mb-20">
+        <c-fieldset heading="Quotient Integration" class="mb-20" collapsible="true" collapsed="true">
         {% if quotient_metadata %}
             <c-detail_grid class="mb-10">
             <dt>Last Synced</dt>
@@ -199,7 +199,7 @@
         </c-button>
         </c-fieldset>
         <!-- Section 3: Post-Competition -->
-        <c-fieldset heading="Post-Competition" class="mb-20">
+        <c-fieldset heading="Post-Competition" class="mb-20" collapsible="true" collapsed="{% if config.applications_enabled %}true{% elif config.competition_start_time %}false{% else %}true{% endif %}">
         <!-- Password Reset -->
         <div class="mb-20">
             <h3 class="mt-0 mb-10">Password Management</h3>
