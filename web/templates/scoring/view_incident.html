@@ -3,6 +3,13 @@
 {% block title %}
     Incident Report #{{ incident.id }}
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:incident_list' %}">Incidents</a>
+        <span class="bc-separator">&rsaquo;</span>
+        #{{ incident.id }}
+    </div>
+{% endblock page_breadcrumbs %}
 {% block content %}
     <div id="content-main">
         <c-page_header title="Incident Report #{{ incident.id }}" />
@@ -128,17 +135,14 @@
             </c-detail_grid>
             </c-fieldset>
         {% else %}
-            <p class="text-muted">This incident is pending gold team review.</p>
+            <c-alert variant="info">This incident is pending gold team review.</c-alert>
         {% endif %}
         <c-button_row class="mt-20 justify-end">
         {% if can_delete %}
-            <form method="post"
-                  action="{% url 'scoring:delete_incident_report' incident.id %}"
-                  class="d-inline"
-                  onsubmit="return confirm('Are you sure you want to delete this incident report? This cannot be undone.');">
-                {% csrf_token %}
-                <c-button type="submit" variant="danger">Delete Report</c-button>
-            </form>
+            <c-form action="{% url 'scoring:delete_incident_report' incident.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this incident report? This cannot be undone.');">
+            {% csrf_token %}
+            <c-button type="submit" variant="danger" ::disabled="submitting">Delete Report</c-button>
+            </c-form>
         {% endif %}
         {% if is_gold_team and not incident.gold_team_reviewed %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review Now</c-link>

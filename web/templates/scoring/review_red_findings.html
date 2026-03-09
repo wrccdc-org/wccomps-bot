@@ -3,19 +3,28 @@
 {% block title %}
     Review Red Team Findings
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Red Team Findings
+    </div>
+{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('redFindingsBulkSelect', () => ({
             selected: [],
             selectableIds: [],
+            submitting: false,
             init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-finding-id]')).map(el => el.dataset.findingId); },
             get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
             get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
             toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
             submitBulk() {
+                if (this.submitting) return;
                 if (this.selected.length === 0) { alert('Please select at least one finding to approve'); return; }
-                if (confirm('Approve ' + this.selected.length + ' finding(s)?')) { this.$refs.bulkForm.submit(); }
+                if (confirm('Approve ' + this.selected.length + ' finding(s)?')) { this.submitting = true; this.$refs.bulkForm.submit(); }
             }
         }));
     });

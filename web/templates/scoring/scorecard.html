@@ -216,7 +216,10 @@
             </c-slot>
             {% for svc in stats.service_stats %}
                 <tr {% if svc.below_avg %}class="row-below-avg"{% endif %}>
-                    <td>{{ svc.name }}</td>
+                    <td>
+                        {{ svc.name }}
+                        {% if svc.below_avg %}<span class="visually-hidden">(below average)</span>{% endif %}
+                    </td>
                     <td class="text-right">{{ svc.points|floatformat:0 }}</td>
                     <td class="text-right">
                         <c-score_value value="{{ svc.delta }}" format="signed" />
@@ -298,7 +301,10 @@
             </c-slot>
             {% for inj in stats.inject_stats %}
                 <tr {% if inj.below_avg %}class="row-below-avg"{% endif %}>
-                    <td>{{ inj.name }}</td>
+                    <td>
+                        {{ inj.name }}
+                        {% if inj.below_avg %}<span class="visually-hidden">(below average)</span>{% endif %}
+                    </td>
                     <td class="text-right">{{ inj.points|floatformat:0 }}</td>
                     <td class="text-right">
                         <c-score_value value="{{ inj.delta }}" format="signed" />

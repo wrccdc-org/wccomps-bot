@@ -3,6 +3,13 @@
 {% block title %}
     Ticket Categories - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin_competition' %}">Competition</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Ticket Categories
+    </div>
+{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <c-page_header title="Ticket Categories" />
     <c-module>

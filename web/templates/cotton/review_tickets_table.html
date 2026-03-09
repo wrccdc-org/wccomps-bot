@@ -45,16 +45,16 @@
                         <td class="field-points">
                             {{ item.ticket.points_charged }}
                             {% if item.ticket.points_charged != item.expected_points %}
-                                <span title="Expected: {{ item.expected_points }}" class="text-warning">⚠️</span>
+                                <span title="Expected: {{ item.expected_points }}" class="text-warning"><span aria-hidden="true">⚠️</span></span>
                             {% endif %}
                         </td>
                         <td class="field-resolved">{{ item.ticket.resolved_at|timesince }} ago</td>
                         <td class="field-verified">
                             {% if item.ticket.points_verified %}
-                                <c-badge variant="resolved">✓ Verified</c-badge>
+                                <c-badge variant="resolved"><span aria-hidden="true">✓</span> Verified</c-badge>
                                 <div class="text-sm text-muted">by {{ item.ticket.points_verified_by.username }}</div>
                             {% else %}
-                                <c-badge variant="claimed">⏳ Pending</c-badge>
+                                <c-badge variant="claimed"><span aria-hidden="true">⏳</span> Pending</c-badge>
                             {% endif %}
                         </td>
                         <td class="field-actions">

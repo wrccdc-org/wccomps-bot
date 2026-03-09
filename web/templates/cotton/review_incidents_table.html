@@ -51,14 +51,14 @@
             </td>
             <td class="field-status">
                 {% if incident.gold_team_reviewed %}
-                    <c-badge variant="resolved">✓ Reviewed</c-badge>
+                    <c-badge variant="resolved"><span aria-hidden="true">✓</span> Reviewed</c-badge>
                     {% if incident.points_returned %}
                         <div class="text-sm">
                             <c-score_value :value="incident.points_returned" format="signed" />
                         </div>
                     {% endif %}
                 {% else %}
-                    <c-badge variant="claimed">⏳ Pending</c-badge>
+                    <c-badge variant="claimed"><span aria-hidden="true">⏳</span> Pending</c-badge>
                 {% endif %}
             </td>
             <td class="field-actions">

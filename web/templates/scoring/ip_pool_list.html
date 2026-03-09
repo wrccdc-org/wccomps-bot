@@ -2,6 +2,13 @@
 {% block title %}
     IP Pools
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:red_team_scores' %}">Red Team</a>
+        <span class="bc-separator">&rsaquo;</span>
+        IP Pools
+    </div>
+{% endblock page_breadcrumbs %}
 {% block red_content %}
     {% load cotton %}
     <c-page_header title="IP Pools" subtitle="Manage your rotating source IP pools" />
@@ -11,44 +18,40 @@
     <c-link href="{% url 'scoring:ip_pool_create' %}" variant="add">Create Pool</c-link>
     </c-slot>
     {% if pools %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Pool Name</th>
-                    <th>IP Count</th>
-                    <th>Findings</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pool in pools %}
-                    <tr>
-                        <td>
-                            <strong>{{ pool.name }}</strong>
-                        </td>
-                        <td>{{ pool.ip_count }}</td>
-                        <td>{{ pool.findings.count }}</td>
-                        <td>{{ pool.created_at|date:"M d, Y" }}</td>
-                        <td>
-                            <div class="d-flex gap-10">
-                                <c-link href="{% url 'scoring:ip_pool_edit' pool.id %}" variant="change">Edit</c-link>
-                                {% if not pool.findings.exists %}
-                                    <form method="post"
-                                          action="{% url 'scoring:ip_pool_delete' pool.id %}"
-                                          onsubmit="return confirm('Delete pool \'{{ pool.name }}\'?');">
-                                        {% csrf_token %}
-                                        <c-button type="submit" variant="danger">Delete</c-button>
-                                    </form>
-                                {% else %}
-                                    <span class="text-muted text-sm">(in use)</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <c-table aria_label="IP pools">
+        <c-slot name="headers">
+        <tr>
+            <c-table_header sortable="false">Pool Name</c-table_header>
+            <c-table_header sortable="false">IP Count</c-table_header>
+            <c-table_header sortable="false">Findings</c-table_header>
+            <c-table_header sortable="false">Created</c-table_header>
+            <c-table_header sortable="false">Actions</c-table_header>
+        </tr>
+        </c-slot>
+        {% for pool in pools %}
+            <tr>
+                <td>
+                    <strong>{{ pool.name }}</strong>
+                </td>
+                <td>{{ pool.ip_count }}</td>
+                <td>{{ pool.findings.count }}</td>
+                <td>{{ pool.created_at|date:"M d, Y" }}</td>
+                <td>
+                    <div class="d-flex gap-10">
+                        <c-link href="{% url 'scoring:ip_pool_edit' pool.id %}" variant="change">Edit</c-link>
+                        {% if not pool.findings.exists %}
+                            <c-form action="{% url 'scoring:ip_pool_delete' pool.id %}" onsubmit="return confirm('Delete pool \'{{ pool.name }}\'?');">
+                            {% csrf_token %}
+                            <c-button type="submit" variant="danger" ::disabled="submitting">Delete</c-button>
+                            </c-form>
+                        {% else %}
+                            <span class="text-muted text-sm">(in use)</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </c-table>
     {% else %}
         <c-empty_state title="No IP pools" description="Create a pool to use rotating source IPs in your findings.">
         <c-link href="{% url 'scoring:ip_pool_create' %}" variant="add">Create Pool</c-link>

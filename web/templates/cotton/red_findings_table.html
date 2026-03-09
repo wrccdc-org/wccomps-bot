@@ -105,9 +105,9 @@
                             {% endif %}
                             <td class="field-status">
                                 {% if finding.is_approved %}
-                                    <c-badge variant="resolved">✓ Reviewed</c-badge>
+                                    <c-badge variant="resolved"><span aria-hidden="true">✓</span> Reviewed</c-badge>
                                 {% else %}
-                                    <c-badge variant="claimed">⏳ Pending</c-badge>
+                                    <c-badge variant="claimed"><span aria-hidden="true">⏳</span> Pending</c-badge>
                                 {% endif %}
                             </td>
                             <td class="field-actions">

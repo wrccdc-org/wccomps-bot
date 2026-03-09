@@ -3,6 +3,13 @@
 {% block title %}
     Review Inject Feedback - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Inject Feedback
+    </div>
+{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <script>
     document.addEventListener('alpine:init', () => {
@@ -16,9 +23,18 @@
         }));
         Alpine.data('editableCell', () => ({
             editing: false,
+            originalValue: '',
             get notEditing() { return !this.editing; },
-            startEditing() { this.editing = true; },
-            stopEditing() { this.editing = false; },
+            startEditing() {
+                this.editing = true;
+                this.$nextTick(() => { this.originalValue = this.$refs.editor.value; });
+            },
+            stopEditing() {
+                if (this.$refs.editor && this.$refs.editor.value !== this.originalValue) {
+                    if (!confirm('You have unsaved changes. Discard?')) return;
+                }
+                this.editing = false;
+            },
             autoResize() { this.$el.style.height = 'auto'; this.$el.style.height = this.$el.scrollHeight + 'px'; },
             init() {
                 this.$watch('editing', v => {
@@ -32,6 +48,9 @@
     });
     </script>
     <c-page_header title="Review Inject Feedback" subtitle="Review and approve AI-synthesized feedback before showing to teams" />
+    {% if messages %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+    {% endif %}
     <c-module filtered="true">
     <c-filter_toolbar form_id="feedback-filter" hx_get="{% url 'scoring:review_inject_feedback' %}" hx_target="#inject-feedback-content" hx_swap="outerHTML" hx_push_url="true">
     {% if has_unapproved %}

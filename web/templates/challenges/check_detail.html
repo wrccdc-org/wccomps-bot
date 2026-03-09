@@ -23,12 +23,10 @@
     <c-module>
     <c-slot name="toolbar">
     <c-link href="{% url 'challenges:check_edit' orange_check.pk %}" variant="change">Edit</c-link>
-    <form method="post"
-          action="{% url 'challenges:check_duplicate' orange_check.pk %}"
-          class="d-inline">
-        {% csrf_token %}
-        <c-button type="submit" variant="default">Duplicate</c-button>
-    </form>
+    <c-form action="{% url 'challenges:check_duplicate' orange_check.pk %}" class="d-inline">
+    {% csrf_token %}
+    <c-button type="submit" variant="default" ::disabled="submitting">Duplicate</c-button>
+    </c-form>
     </c-slot>
     <c-fieldset heading="Details">
     <p>
@@ -71,7 +69,7 @@
         </tr>
         </c-table>
     {% else %}
-        <p class="text-muted">No criteria defined.</p>
+        <c-empty_state title="No criteria defined" description="Edit this check to add criteria." />
     {% endif %}
     </c-fieldset>
     </c-module>
@@ -118,23 +116,22 @@
         <c-module>
         <h2>Assign Users</h2>
         {% if checked_in_users %}
-            <form method="post"
-                  action="{% url 'challenges:check_assign' orange_check.pk %}">
-                {% csrf_token %}
-                <c-fieldset heading="Checked-In Users">
-                {% for user in checked_in_users %}
-                    <div class="form-row">
-                        <label>
-                            <input type="checkbox" name="user_ids" value="{{ user.pk }}">
-                            {{ user.username }}
-                        </label>
-                    </div>
-                {% endfor %}
-                </c-fieldset>
-                <c-button_row>
-                <c-button type="submit" variant="primary">Assign Teams</c-button>
-                </c-button_row>
-            </form>
+            <c-form action="{% url 'challenges:check_assign' orange_check.pk %}">
+            {% csrf_token %}
+            <c-fieldset heading="Checked-In Users">
+            {% for user in checked_in_users %}
+                <div class="form-row">
+                    <label>
+                        <input type="checkbox" name="user_ids" value="{{ user.pk }}">
+                        {{ user.username }}
+                    </label>
+                </div>
+            {% endfor %}
+            </c-fieldset>
+            <c-button_row>
+            <c-button type="submit" variant="primary" ::disabled="submitting">Assign Teams</c-button>
+            </c-button_row>
+            </c-form>
         {% else %}
             <p class="text-muted">No users are currently checked in.</p>
         {% endif %}

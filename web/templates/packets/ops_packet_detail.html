@@ -49,7 +49,11 @@
                     <span class="text-sm" x-text="progressStep"></span>
                     <span class="text-sm" x-text="progressText"></span>
                 </div>
-                <div class="progress-bar">
+                <div class="progress-bar"
+                     role="progressbar"
+                     :aria-valuenow="progressCurrent"
+                     aria-valuemin="0"
+                     :aria-valuemax="progressTotal">
                     <div class="progress-bar__fill"
                          :class="progressBarClass"
                          :style="progressStyle"></div>
@@ -96,12 +100,14 @@
                             <input type="email"
                                    name="primary_email"
                                    value="{{ dist.team.school_info.contact_email|default:'' }}"
+                                   aria-label="Primary email for Team {{ dist.team.team_number }}"
                                    required>
                         </td>
                         <td>
                             <input type="email"
                                    name="secondary_email"
-                                   value="{{ dist.team.school_info.secondary_email|default:'' }}">
+                                   value="{{ dist.team.school_info.secondary_email|default:'' }}"
+                                   aria-label="Secondary email for Team {{ dist.team.team_number }}">
                         </td>
                         <td>{{ dist.email_sent_at|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td>
@@ -254,7 +260,7 @@
                 if (!this.message) {
                     this.progressTotal = 0;
                 }
-                setTimeout(() => { this.message = ''; this.progressTotal = 0; }, 5000);
+                setTimeout(() => { this.message = ''; }, 5000);
             },
 
             async doTestEmail() {

@@ -3,6 +3,9 @@
 {% block title %}
     Orange Team Dashboard
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">Orange Team</div>
+{% endblock page_breadcrumbs %}
 {% block content %}
     <script>
     document.addEventListener('alpine:init', () => {
@@ -10,6 +13,7 @@
             score: 0,
             maxScore: 0,
             saving: false,
+            saveError: '',
             _saveUrl: '',
             get scoreDisplay() { return this.score + ' / ' + this.maxScore; },
             init() {
@@ -21,29 +25,48 @@
                 const criterionId = parseInt(e.target.dataset.criterionId);
                 const met = e.target.checked;
                 this.saving = true;
+                this.saveError = '';
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                const resp = await fetch(this._saveUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({criterion_id: criterionId, met: met})
-                });
-                if (resp.ok) {
-                    const data = await resp.json();
-                    this.score = data.score;
-                    this.maxScore = data.max_score;
+                try {
+                    const resp = await fetch(this._saveUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({criterion_id: criterionId, met: met})
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.score = data.score;
+                        this.maxScore = data.max_score;
+                    } else {
+                        e.target.checked = !met;
+                        this.saveError = 'Save failed (server error)';
+                    }
+                } catch (err) {
+                    e.target.checked = !met;
+                    this.saveError = 'Save failed (network error)';
                 }
                 this.saving = false;
             }
         }));
         Alpine.data('leadTabs', () => ({
             tab: 'checkins',
+            init() {
+                const hash = window.location.hash.replace('#', '');
+                if (['checkins', 'review', 'manage'].includes(hash)) {
+                    this.tab = hash;
+                }
+            },
             get isCheckins() { return this.tab === 'checkins'; },
             get isReview() { return this.tab === 'review'; },
             get isManage() { return this.tab === 'manage'; },
             get checkinsClass() { return this.tab === 'checkins' ? 'nav-item nav-item--current' : 'nav-item'; },
             get reviewClass() { return this.tab === 'review' ? 'nav-item nav-item--current' : 'nav-item'; },
             get manageClass() { return this.tab === 'manage' ? 'nav-item nav-item--current' : 'nav-item'; },
-            setTab(e) { this.tab = e.currentTarget.dataset.tab; }
+            setTab(e) {
+                const name = e.currentTarget.dataset.tab;
+                this.tab = name;
+                window.location.hash = name;
+            }
         }));
     });
     </script>
@@ -64,7 +87,9 @@
                     <c-badge variant="neutral">Checked Out</c-badge>
                 {% endif %}
             </div>
-            <form method="post" action="{% url 'challenges:toggle_checkin' %}">
+            <form method="post"
+                  action="{% url 'challenges:toggle_checkin' %}"
+                  {% if active_checkin %}onsubmit="return confirm('Check out? You will stop receiving assignments.')"{% endif %}>
                 {% csrf_token %}
                 {% if active_checkin %}
                     <c-button type="submit" variant="danger">Check Out</c-button>
@@ -97,7 +122,8 @@
                 <td>{{ followup.note|default:"—" }}</td>
                 <td>
                     <form method="post"
-                          action="{% url 'challenges:followup_dismiss' followup.pk %}">
+                          action="{% url 'challenges:followup_dismiss' followup.pk %}"
+                          onsubmit="return confirm('Dismiss this reminder?')">
                         {% csrf_token %}
                         <c-button type="submit" variant="danger">Dismiss</c-button>
                     </form>
@@ -141,6 +167,10 @@
                     </td>
                     <td>
                         <span x-text="scoreDisplay" aria-live="polite">{{ assignment.score|default:"0" }} / {{ assignment.orange_check.max_score }}</span>
+                        <span x-show="saveError"
+                              x-text="saveError"
+                              class="text-danger text-sm d-block"
+                              x-cloak></span>
                     </td>
                     <td>
                         <ul class="plain-list">
@@ -163,7 +193,8 @@
                     <td>
                         {% if assignment.status != "submitted" %}
                             <form method="post"
-                                  action="{% url 'challenges:assignment_submit' assignment.pk %}">
+                                  action="{% url 'challenges:assignment_submit' assignment.pk %}"
+                                  onsubmit="return confirm('Submit this assignment? You cannot edit criteria after submission.')">
                                 {% csrf_token %}
                                 <c-button type="submit" variant="primary">Submit</c-button>
                             </form>
@@ -208,6 +239,7 @@
             <nav role="tablist" class="d-flex gap-10 mb-15 border-bottom p-10">
                 <button type="button"
                         role="tab"
+                        id="tab-checkins"
                         data-tab="checkins"
                         :class="checkinsClass"
                         :aria-selected="isCheckins"
@@ -217,6 +249,7 @@
                 </button>
                 <button type="button"
                         role="tab"
+                        id="tab-review"
                         data-tab="review"
                         :class="reviewClass"
                         :aria-selected="isReview"
@@ -226,13 +259,14 @@
                 </button>
                 <button type="button"
                         role="tab"
+                        id="tab-manage"
                         data-tab="manage"
                         :class="manageClass"
                         :aria-selected="isManage"
                         @click="setTab">Manage</button>
             </nav>
             {# Tab: Team Check-ins #}
-            <div x-show="isCheckins" role="tabpanel">
+            <div x-show="isCheckins" role="tabpanel" aria-labelledby="tab-checkins">
                 <h2>Checked-In Members</h2>
                 {% if checked_in_members %}
                     <c-table id="checked_in" aria_label="Checked-in members">
@@ -249,7 +283,8 @@
                             <td>{{ checkin.checked_in_at|date:"H:i" }}</td>
                             <td>
                                 <form method="post"
-                                      action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}">
+                                      action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}"
+                                      onsubmit="return confirm('Force check out this user?')">
                                     {% csrf_token %}
                                     <c-button type="submit" variant="danger">Check Out</c-button>
                                 </form>
@@ -262,7 +297,7 @@
                 {% endif %}
             </div>
             {# Tab: Review Queue #}
-            <div x-show="isReview" role="tabpanel">
+            <div x-show="isReview" role="tabpanel" aria-labelledby="tab-review">
                 <div class="d-flex justify-between items-center mb-10">
                     <h2 class="m-0">Scores for Review</h2>
                     <c-link href="{% url 'challenges:export_scores' %}" variant="default">Export CSV</c-link>
@@ -296,12 +331,14 @@
                                 {% if assignment.status == "submitted" %}
                                     <div class="d-flex gap-10">
                                         <form method="post"
-                                              action="{% url 'challenges:assignment_approve' assignment.pk %}">
+                                              action="{% url 'challenges:assignment_approve' assignment.pk %}"
+                                              onsubmit="return confirm('Approve this assignment?')">
                                             {% csrf_token %}
                                             <c-button type="submit" variant="primary">Approve</c-button>
                                         </form>
                                         <form method="post"
-                                              action="{% url 'challenges:assignment_reject' assignment.pk %}">
+                                              action="{% url 'challenges:assignment_reject' assignment.pk %}"
+                                              onsubmit="return confirm('Reject this assignment?')">
                                             {% csrf_token %}
                                             <input type="text"
                                                    name="notes"
@@ -320,7 +357,7 @@
                 {% endif %}
             </div>
             {# Tab: Manage #}
-            <div x-show="isManage" role="tabpanel">
+            <div x-show="isManage" role="tabpanel" aria-labelledby="tab-manage">
                 <c-button_row>
                 <c-link href="{% url 'challenges:check_list' %}" variant="default">Manage Checks</c-link>
                 </c-button_row>

@@ -14,8 +14,8 @@
     {{ form.attack_type }}
     </c-form_field>
     <!-- Source IP Selection -->
-    <div class="source-ip-section">
-        <label class="font-semibold text-sm d-block mb-5">Source IP</label>
+    <fieldset class="source-ip-section">
+        <legend class="font-semibold text-sm d-block mb-5">Source IP</legend>
         <div class="d-flex gap-20 mb-10">
             {% for radio in form.source_ip_type %}
                 <div class="d-inline">
@@ -48,7 +48,7 @@
                 </div>
             {% endif %}
         </div>
-    </div>
+    </fieldset>
     </c-fieldset>
     <!-- Target Information Section -->
     <c-fieldset heading="Target Information">
@@ -193,7 +193,9 @@
                             class="team-btn"
                             data-team-id="{{ checkbox.data.value }}"
                             data-team-label="{{ checkbox.choice_label }}"
-                            onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')"></button>
+                            onclick="toggleTeam(this, '{{ checkbox.id_for_label }}')">
+                        {{ checkbox.choice_label }}
+                    </button>
                 {% endfor %}
             </div>
         </div>
@@ -215,7 +217,7 @@
            multiple
            onchange="previewScreenshots(this)">
     </c-form_field>
-    <div id="screenshotPreview" class="grid-4 mb-15"></div>
+    <div id="screenshotPreview" class="grid-4 mb-15" aria-live="polite"></div>
     </c-fieldset>
     <!-- Additional Notes Section -->
     <c-fieldset heading="Additional Information">
@@ -223,8 +225,8 @@
     {{ form.notes }}
     </c-form_field>
     </c-fieldset>
-    <div class="text-muted mb-20">
-        <h2 class="mt-0 text-lg">Submission Guidelines</h2>
+    <c-fieldset heading="Submission Guidelines" collapsible="true" collapsed="true">
+    <div class="text-muted">
         <ul class="mb-0">
             <li>Provide detailed technical information about the vulnerability or attack</li>
             <li>Include all relevant IP addresses visible in screenshots</li>
@@ -232,8 +234,9 @@
             <li>Gold Team will review and assign point values</li>
         </ul>
     </div>
+    </c-fieldset>
     <c-button_row class="justify-end">
-    <c-link href="{% url 'scoring:red_team_scores' %}">Cancel</c-link>
+    <c-link href="{% url 'scoring:red_team_scores' %}" variant="cancel">Cancel</c-link>
     <c-button type="submit" variant="primary" ::disabled="submitting">Submit Finding</c-button>
     </c-button_row>
     </c-form>

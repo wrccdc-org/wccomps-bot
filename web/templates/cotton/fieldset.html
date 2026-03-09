@@ -9,15 +9,16 @@
               data-collapsed="{{ collapsed }}"
               class="module {% if aligned == 'true' %}aligned{% endif %} {{ class }}">
         {% if heading %}
-            <h2 class="fieldset-toggle"
-                @click="toggle"
-                role="button"
-                tabindex="0"
-                @keydown.enter="toggle"
-                @keydown.space.prevent="toggle"
-                :aria-expanded="expanded">
-                <span class="fieldset-toggle-icon" :class="iconClass">&#9654;</span>
-                {{ heading }}
+            <h2 class="fieldset-toggle">
+                <button type="button"
+                        class="fieldset-toggle-btn"
+                        @click="toggle"
+                        @keydown.enter="toggle"
+                        @keydown.space.prevent="toggle"
+                        :aria-expanded="expanded">
+                    <span class="fieldset-toggle-icon" :class="iconClass" aria-hidden="true">&#9654;</span>
+                    {{ heading }}
+                </button>
             </h2>
         {% endif %}
         <div x-show="expanded" x-collapse>{{ slot }}</div>

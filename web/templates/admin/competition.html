@@ -3,6 +3,9 @@
 {% block title %}
     Competition Management - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">Competition</div>
+{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div x-data="competitionAdmin">
         <c-page_header title="Competition Management" />
@@ -103,6 +106,7 @@
                 </form>
                 <div class="mb-10">
                     <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
+                    <p class="help">Authentik applications whose access will be toggled when starting/stopping the competition.</p>
                     <div class="d-flex gap-10 flex-wrap mb-10">
                         <template x-for="(app, index) in apps" :key="index">
                             <c-badge variant="default" class="d-flex items-center gap-10">
@@ -110,6 +114,7 @@
                             <button type="button"
                                     @click="removeApp"
                                     :data-app="app"
+                                    :aria-label="'Remove ' + app"
                                     class="text-danger btn-reset text-md">×</button>
                             </c-badge>
                         </template>
@@ -184,7 +189,11 @@
                     <span class="text-sm" x-text="progressStep"></span>
                     <span class="text-sm" x-text="progressText"></span>
                 </div>
-                <div class="progress-bar">
+                <div class="progress-bar"
+                     role="progressbar"
+                     :aria-valuenow="progressCurrent"
+                     aria-valuemin="0"
+                     :aria-valuemax="progressTotal">
                     <div class="progress-bar__fill"
                          :class="progressBarClass"
                          :style="progressStyle"></div>
@@ -272,7 +281,7 @@
         <!-- Toast Notification -->
         <template x-if="message">
             <div x-transition class="toast-position">
-                <div class="alert" :class="alertClass">
+                <div class="alert" :class="alertClass" role="alert">
                     <span x-text="message"></span>
                 </div>
             </div>
@@ -414,7 +423,7 @@ document.addEventListener('alpine:init', () => {
             if (!this.message) {
                 this.progressTotal = 0;
             }
-            setTimeout(() => { this.message = ''; this.progressTotal = 0; }, 5000);
+            setTimeout(() => { this.message = ''; }, 5000);
         },
 
         startCompetition() {
@@ -448,6 +457,7 @@ document.addEventListener('alpine:init', () => {
 
         removeApp(e) {
             const app = e.currentTarget.dataset.app;
+            if (!confirm('Remove ' + app + ' from controlled apps?')) return;
             const index = this.apps.indexOf(app);
             if (index > -1) {
                 this.apps.splice(index, 1);

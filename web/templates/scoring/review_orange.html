@@ -2,6 +2,13 @@
 {% block title %}
     Review Orange Team
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Orange Adjustments
+    </div>
+{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     {% load cotton %}
     <script>
@@ -17,6 +24,9 @@
     });
     </script>
     <c-page_header title="Review Orange Team Adjustments" subtitle="Approve or reject customer service bonuses and penalties" />
+    {% if messages %}
+        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
+    {% endif %}
     <c-module>
     {% if bonuses %}
         <c-slot name="toolbar">
@@ -80,8 +90,10 @@
                         <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
                     </td>
                     <td>
-                        <c-button type="submit" form="approve-{{ bonus.id }}" variant="primary" size="sm">Approve</c-button>
-                        <c-button type="submit" form="reject-{{ bonus.id }}" variant="danger" size="sm">Reject</c-button>
+                        <div class="d-flex gap-10">
+                            <c-button type="submit" form="approve-{{ bonus.id }}" variant="primary">Approve</c-button>
+                            <c-button type="submit" form="reject-{{ bonus.id }}" variant="danger">Reject</c-button>
+                        </div>
                     </td>
                 </tr>
             {% endfor %}
@@ -91,12 +103,14 @@
             <form id="approve-{{ bonus.id }}"
                   method="post"
                   action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
+                  onsubmit="return confirm('Approve this adjustment?')"
                   hidden>
                 {% csrf_token %}
             </form>
             <form id="reject-{{ bonus.id }}"
                   method="post"
                   action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"
+                  onsubmit="return confirm('Reject this adjustment? This cannot be undone.')"
                   hidden>
                 {% csrf_token %}
             </form>

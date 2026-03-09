@@ -3,6 +3,13 @@
 {% block title %}
     Manage Checks
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'challenges:dashboard' %}">Orange Team</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Manage Checks
+    </div>
+{% endblock page_breadcrumbs %}
 {% block content %}
     <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" />
     {% if messages %}

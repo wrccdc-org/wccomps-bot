@@ -292,11 +292,11 @@
                             <a href="{% url 'ticket_attachment_download' ticket.ticket_number attachment.id %}?inline=1"
                                target="_blank"
                                class="attachment-preview attachment-pdf">
-                                <span class="pdf-icon">PDF</span>
+                                <span class="pdf-icon" aria-hidden="true">PDF</span>
                             </a>
                         {% else %}
                             <div class="attachment-preview attachment-file">
-                                <span class="file-icon">F</span>
+                                <span class="file-icon" aria-hidden="true">F</span>
                             </div>
                         {% endif %}
                         <div class="attachment-info">

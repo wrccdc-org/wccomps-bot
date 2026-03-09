@@ -86,7 +86,7 @@
         {% else %}
             {% url 'challenges:check_list' %}
         {% endif %}
-        ">Cancel</c-link>
+        " variant="cancel">Cancel</c-link>
         <c-button type="submit" variant="primary" ::disabled="submitting">
         {% if mode == "create" %}
             Create Check
@@ -134,6 +134,7 @@
                     this._nextId++;
                 },
                 removeCriterion(e) {
+                    if (!confirm('Remove this criterion?')) return;
                     var index = parseInt(e.currentTarget.dataset.index);
                     this.criteria.splice(index, 1);
                 }
@@ -166,6 +167,7 @@
                     this._nextId++;
                 },
                 removeCriterion(e) {
+                    if (!confirm('Remove this criterion?')) return;
                     var index = parseInt(e.currentTarget.dataset.index);
                     this.criteria.splice(index, 1);
                 }

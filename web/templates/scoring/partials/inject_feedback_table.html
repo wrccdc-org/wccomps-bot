@@ -71,9 +71,9 @@
                         {% endif %}
                     </td>
                     <td>
-                        <c-button type="submit" form="save-{{ score.id }}" size="sm">Save</c-button>
+                        <c-button type="submit" form="save-{{ score.id }}">Save</c-button>
                         {% if not score.feedback_approved %}
-                            <c-button type="submit" form="approve-{{ score.id }}" variant="primary" size="sm">Approve</c-button>
+                            <c-button type="submit" form="approve-{{ score.id }}" variant="primary">Approve</c-button>
                         {% endif %}
                     </td>
                 </tr>

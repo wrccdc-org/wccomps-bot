@@ -881,13 +881,22 @@ td textarea[x-ref="editor"] {
    COLLAPSIBLE FIELDSET
    ============================================ */
 .fieldset-toggle {
-    cursor: pointer;
     user-select: none;
+}
+.fieldset-toggle-btn {
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    text-align: left;
     display: flex;
     align-items: center;
     gap: 8px;
 }
-.fieldset-toggle:hover {
+.fieldset-toggle-btn:hover {
     opacity: 0.8;
 }
 .fieldset-toggle-icon {

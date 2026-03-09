@@ -33,7 +33,7 @@
     </c-form_field>
     </c-fieldset>
     <c-fieldset heading="Per-Team Email Data (optional)">
-    <c-form_field label="Team data CSV" id="id_team_extras" help_text="Paste CSV with a 'team' column and any extra columns. Each team's row will be included in their email only.">
+    <c-form_field label="Team data CSV" id="id_team_extras" help_text="Paste CSV with a 'team' column header (e.g. Team01). Extra columns are included in each team's notification email. Teams without a row receive no extra data.">
     <textarea name="team_extras"
               id="id_team_extras"
               class="vLargeTextField"

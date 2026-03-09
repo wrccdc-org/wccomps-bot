@@ -65,10 +65,10 @@
                    multiple
                    onchange="previewScreenshots(this)">
             </c-form_field>
-            <div id="screenshotPreview" class="grid-4 mb-15"></div>
+            <div id="screenshotPreview" class="grid-4 mb-15" aria-live="polite"></div>
             </c-fieldset>
-            <div class="text-muted mb-20">
-                <h3 class="mt-0 text-lg">Incident Report Guidelines</h3>
+            <c-fieldset heading="Incident Report Guidelines" collapsible="true" collapsed="true">
+            <div class="text-muted">
                 <p>
                     Teams are strongly encouraged to provide incident reports for each Red Team incident they detect. Incident reports can be completed as needed throughout the competition and presented to the White Team for collection.
                 </p>
@@ -86,8 +86,9 @@
                     <strong>Important:</strong> A thorough incident report that correctly identifies and addresses a successful Red Team attack may reduce the Red Team penalty for that event. No partial points will be given for incomplete or vague incident reports.
                 </p>
             </div>
+            </c-fieldset>
             <c-button_row class="justify-end">
-            <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
+            <c-link href="{% url 'scoring:incident_list' %}" variant="cancel">Cancel</c-link>
             <c-button type="submit" variant="primary" ::disabled="submitting">Submit Report</c-button>
             </c-button_row>
             </c-form>

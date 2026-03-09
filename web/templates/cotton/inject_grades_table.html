@@ -68,16 +68,16 @@
                             </td>
                             <td class="field-outlier">
                                 {% if grade.is_outlier %}
-                                    <span class="text-warning font-semibold">⚠️ {{ grade.std_devs_from_mean|floatformat:1 }}σ</span>
+                                    <span class="text-warning font-semibold"><span aria-hidden="true">⚠️</span> {{ grade.std_devs_from_mean|floatformat:1 }}σ</span>
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
                             <td class="field-status">
                                 {% if grade.is_approved %}
-                                    <c-badge variant="resolved">✓ Approved</c-badge>
+                                    <c-badge variant="resolved"><span aria-hidden="true">✓</span> Approved</c-badge>
                                 {% else %}
-                                    <c-badge variant="claimed">⏳ Pending</c-badge>
+                                    <c-badge variant="claimed"><span aria-hidden="true">⏳</span> Pending</c-badge>
                                 {% endif %}
                             </td>
                         </tr>

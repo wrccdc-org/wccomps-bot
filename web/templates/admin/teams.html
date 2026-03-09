@@ -3,6 +3,13 @@
 {% block title %}
     Team Management - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin_competition' %}">Competition</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Teams
+    </div>
+{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div x-data="teamsAdmin">
         <c-page_header title="Team Management" />
@@ -82,7 +89,7 @@
         </c-module>
         <template x-if="message">
             <div x-transition class="toast-position">
-                <div class="alert" :class="alertClass">
+                <div class="alert" :class="alertClass" role="alert">
                     <span x-text="message"></span>
                 </div>
             </div>
@@ -102,7 +109,9 @@
                     if (!this.bulkTeamNumbers) {
                         this.message = 'Please enter team numbers';
                         this.messageType = 'error';
-                        setTimeout(() => this.message = '', 3000);
+                        if (this.messageType === 'success') {
+                            setTimeout(() => this.message = '', 3000);
+                        }
                         return;
                     }
 
@@ -147,7 +156,9 @@
                     }
 
                     this.loading = false;
-                    setTimeout(() => this.message = '', 5000);
+                    if (this.messageType === 'success') {
+                        setTimeout(() => this.message = '', 5000);
+                    }
                 }
             }));
     });

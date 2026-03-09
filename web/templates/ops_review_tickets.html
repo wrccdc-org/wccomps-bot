@@ -14,9 +14,10 @@
         <c-slot name="actions">
         <form method="post"
               action="{% url 'ops_batch_verify_tickets' %}"
-              class="d-inline">
+              class="d-inline"
+              onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.')">
             {% csrf_token %}
-            <c-button type="submit" variant="primary" hx-confirm="Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as points_verified=True.">Approve All Unverified</c-button>
+            <c-button type="submit" variant="primary">Approve All Unverified</c-button>
         </form>
         </c-slot>
         <c-filter_field label="Search" id="id_search" min_width="200px">
@@ -24,7 +25,7 @@
                name="search"
                id="id_search"
                value="{{ search_query }}"
-               placeholder="Ticket #, title, description..."
+               placeholder="Search... (press / to focus)"
                aria-label="Search tickets"
                accesskey="/">
         </c-filter_field>

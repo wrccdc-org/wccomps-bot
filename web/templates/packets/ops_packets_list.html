@@ -60,7 +60,11 @@
                         <span class="text-sm" x-text="progressStep"></span>
                         <span class="text-sm" x-text="progressText"></span>
                     </div>
-                    <div class="progress-bar">
+                    <div class="progress-bar"
+                         role="progressbar"
+                         :aria-valuenow="progressCurrent"
+                         aria-valuemin="0"
+                         :aria-valuemax="progressTotal">
                         <div class="progress-bar__fill"
                              :class="progressBarClass"
                              :style="progressStyle"></div>
@@ -224,7 +228,7 @@
                     if (!this.message) {
                         this.progressTotal = 0;
                     }
-                    setTimeout(() => { this.message = ''; this.progressTotal = 0; }, 5000);
+                    setTimeout(() => { this.message = ''; }, 5000);
                 },
 
                 async doTestEmail() {

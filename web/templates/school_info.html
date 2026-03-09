@@ -3,6 +3,13 @@
 {% block title %}
     School Information - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin_competition' %}">Competition</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Schools
+    </div>
+{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div id="content-main">
         <c-page_header title="School Information" />
@@ -69,6 +76,12 @@
                 </td>
                 <td class="field-action">
                     <c-link href="{% url 'school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="6">
+                    <c-empty_state title="No teams" description="No teams have been configured yet." />
                 </td>
             </tr>
         {% endfor %}

@@ -3,6 +3,13 @@
 {% block scoring_title %}
     Scoring Configuration
 {% endblock scoring_title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Configuration
+    </div>
+{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <c-page_header title="Scoring Configuration" />
     <c-module>
@@ -15,54 +22,53 @@
         Each category's raw score is scaled based on its weight and raw maximum so categories contribute their target proportion of the total.
         SLA violations, point adjustments, red team deductions, and black team adjustments are added directly (not scaled).
     </p>
-    <form method="post">
-        {% csrf_token %}
-        <c-fieldset heading="Category Weights">
-        <p class="text-muted mb-10">Percentage of total score for each category. Must sum to 100.</p>
-        <div class="max-points-grid">
-            <c-form_field label="Service Weight %" help_text="{{ form.service_weight.help_text }}" id="{{ form.service_weight.id_for_label }}">
-            {{ form.service_weight }}
-            </c-form_field>
-            <c-form_field label="Inject Weight %" help_text="{{ form.inject_weight.help_text }}" id="{{ form.inject_weight.id_for_label }}">
-            {{ form.inject_weight }}
-            </c-form_field>
-            <c-form_field label="Orange Weight %" help_text="{{ form.orange_weight.help_text }}" id="{{ form.orange_weight.id_for_label }}">
-            {{ form.orange_weight }}
-            </c-form_field>
-        </div>
-        </c-fieldset>
-        <c-fieldset heading="Raw Maximums">
-        <p class="text-muted mb-10">Maximum possible raw points in each category. Used to compute scaling modifiers.</p>
-        <div class="max-points-grid">
-            <c-form_field label="Service Max" help_text="{{ form.service_max.help_text }}" id="{{ form.service_max.id_for_label }}">
-            {{ form.service_max }}
-            </c-form_field>
-            <c-form_field label="Inject Max" help_text="{{ form.inject_max.help_text }}" id="{{ form.inject_max.id_for_label }}">
-            {{ form.inject_max }}
-            </c-form_field>
-            <c-form_field label="Orange Max" help_text="{{ form.orange_max.help_text }}" id="{{ form.orange_max.id_for_label }}">
-            {{ form.orange_max }}
-            </c-form_field>
-        </div>
-        </c-fieldset>
-        <c-button_row>
-        <c-button type="submit" variant="primary">Update Configuration</c-button>
-        </c-button_row>
-    </form>
+    <c-form>
+    {% csrf_token %}
+    <c-fieldset heading="Category Weights">
+    <p class="text-muted mb-10">Percentage of total score for each category. Must sum to 100.</p>
+    <div class="max-points-grid">
+        <c-form_field label="Service Weight %" help_text="{{ form.service_weight.help_text }}" id="{{ form.service_weight.id_for_label }}">
+        {{ form.service_weight }}
+        </c-form_field>
+        <c-form_field label="Inject Weight %" help_text="{{ form.inject_weight.help_text }}" id="{{ form.inject_weight.id_for_label }}">
+        {{ form.inject_weight }}
+        </c-form_field>
+        <c-form_field label="Orange Weight %" help_text="{{ form.orange_weight.help_text }}" id="{{ form.orange_weight.id_for_label }}">
+        {{ form.orange_weight }}
+        </c-form_field>
+    </div>
+    </c-fieldset>
+    <c-fieldset heading="Raw Maximums">
+    <p class="text-muted mb-10">Maximum possible raw points in each category. Used to compute scaling modifiers.</p>
+    <div class="max-points-grid">
+        <c-form_field label="Service Max" help_text="{{ form.service_max.help_text }}" id="{{ form.service_max.id_for_label }}">
+        {{ form.service_max }}
+        </c-form_field>
+        <c-form_field label="Inject Max" help_text="{{ form.inject_max.help_text }}" id="{{ form.inject_max.id_for_label }}">
+        {{ form.inject_max }}
+        </c-form_field>
+        <c-form_field label="Orange Max" help_text="{{ form.orange_max.help_text }}" id="{{ form.orange_max.id_for_label }}">
+        {{ form.orange_max }}
+        </c-form_field>
+    </div>
+    </c-fieldset>
+    <c-button_row>
+    <c-link href="{% url 'scoring:leaderboard' %}" variant="cancel">Cancel</c-link>
+    <c-button type="submit" variant="primary" ::disabled="submitting">Update Configuration</c-button>
+    </c-button_row>
+    </c-form>
     </c-module>
     <c-module>
     <h2>Quotient Sync</h2>
     <c-button_row>
-    <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
-        {% csrf_token %}
-        <c-button type="submit" variant="default">Sync Service Scores</c-button>
-    </form>
-    <form method="post"
-          action="{% url 'scoring:recalculate_scores' %}"
-          class="m-0">
-        {% csrf_token %}
-        <c-button type="submit" variant="primary">Recalculate Scores</c-button>
-    </form>
+    <c-form action="{% url 'scoring:sync_scores' %}" class="m-0">
+    {% csrf_token %}
+    <c-button type="submit" variant="default" ::disabled="submitting">Sync Service Scores</c-button>
+    </c-form>
+    <c-form action="{% url 'scoring:recalculate_scores' %}" class="m-0" onsubmit="return confirm('Recalculate all scores? This overwrites current values.')">
+    {% csrf_token %}
+    <c-button type="submit" variant="primary" ::disabled="submitting">Recalculate Scores</c-button>
+    </c-form>
     </c-button_row>
     </c-module>
     <style>

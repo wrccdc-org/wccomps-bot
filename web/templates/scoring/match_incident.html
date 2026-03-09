@@ -1,5 +1,12 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'scoring:review_incidents' %}">Incidents</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Review #{{ incident.id }}
+    </div>
+{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <c-page_header title="Review Incident #{{ incident.id }}" />
     <div class="grid-2 gap-20">
@@ -92,6 +99,7 @@
             </p>
         {% endif %}
         <c-form>
+        {% if form.errors %}<c-alert variant="error">Please fix the errors below.</c-alert>{% endif %}
         {% csrf_token %}
         <c-fieldset aligned="true">
         <c-form_field label="{{ form.matched_to_red_score.label }}" id="{{ form.matched_to_red_score.id_for_label }}" help_text="{{ form.matched_to_red_score.help_text }}" error="
@@ -120,7 +128,7 @@
             </ul>
         </div>
         <c-button_row class="mt-20 justify-end">
-        <c-link href="{% url 'scoring:review_incidents' %}">Cancel</c-link>
+        <c-link href="{% url 'scoring:review_incidents' %}" variant="cancel">Cancel</c-link>
         <c-button type="submit" variant="primary" ::disabled="submitting">Complete Review</c-button>
         </c-button_row>
         </c-form>
