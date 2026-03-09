@@ -1,9 +1,9 @@
-{% extends "scoring/base.html" %}
+{% extends "admin/base.html" %}
 {% load cotton %}
 {% block title %}
     Export Data - Scoring
 {% endblock title %}
-{% block scoring_content %}
+{% block admin_content %}
     <c-page_header title="Export Data" />
     <c-module>
     <p>Download scoring data in CSV or JSON format for analysis and archival purposes.</p>
@@ -73,4 +73,4 @@
     <c-link href="{% url 'scoring:export_all' %}" variant="primary">Download All Data (ZIP)</c-link>
     </c-button_row>
     </c-module>
-{% endblock scoring_content %}
+{% endblock admin_content %}

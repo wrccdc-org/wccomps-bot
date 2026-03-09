@@ -1,9 +1,9 @@
-{% extends "scoring/base.html" %}
+{% extends "admin/base_site.html" %}
 {% load cotton %}
-{% block scoring_title %}
+{% block title %}
     Leaderboard
-{% endblock scoring_title %}
-{% block scoring_content %}
+{% endblock title %}
+{% block content %}
     <c-page_header title="Leaderboard" />
     <c-module>
     <c-slot name="title">Live Scores</c-slot>
@@ -47,7 +47,7 @@
                     <strong>{{ score.total_score|floatformat:0 }}</strong>
                 </td>
                 <td>
-                    <c-link href="{% url 'scoring:scorecard' score.team.team_number %}" variant="change">View</c-link>
+                    <c-link href="{% url 'leaderboard_scorecard' score.team.team_number %}" variant="change">View</c-link>
                 </td>
             </tr>
         {% endfor %}
@@ -90,4 +90,4 @@
     {% endif %}
     </c-button_row>
     </c-module>
-{% endblock scoring_content %}
+{% endblock content %}

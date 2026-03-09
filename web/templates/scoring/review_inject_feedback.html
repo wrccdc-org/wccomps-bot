@@ -1,9 +1,9 @@
-{% extends "scoring/base.html" %}
+{% extends "scoring/white_team_base.html" %}
 {% load cotton %}
 {% block title %}
     Review Inject Feedback - WCComps
 {% endblock title %}
-{% block scoring_content %}
+{% block white_team_content %}
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('feedbackBulkSelect', () => ({
@@ -72,4 +72,4 @@
     </c-filter_toolbar>
     {% include "scoring/partials/inject_feedback_table.html" %}
     </c-module>
-{% endblock scoring_content %}
+{% endblock white_team_content %}

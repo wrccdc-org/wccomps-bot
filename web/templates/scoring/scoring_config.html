@@ -1,9 +1,9 @@
-{% extends "scoring/base.html" %}
+{% extends "admin/base.html" %}
 {% load cotton %}
-{% block scoring_title %}
+{% block title %}
     Scoring Configuration
-{% endblock scoring_title %}
-{% block scoring_content %}
+{% endblock title %}
+{% block admin_content %}
     <c-page_header title="Scoring Configuration" />
     <c-module>
     <h2>Scoring Formula</h2>
@@ -71,4 +71,4 @@
             gap: 15px;
         }
     </style>
-{% endblock scoring_content %}
+{% endblock admin_content %}

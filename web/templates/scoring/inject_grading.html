@@ -1,5 +1,5 @@
-{% extends "scoring/base.html" %}
-{% block scoring_content %}
+{% extends "scoring/white_team_base.html" %}
+{% block white_team_content %}
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('clearableForm', () => ({
@@ -45,4 +45,4 @@
         <c-inject_grading_content :selected_inject="selected_inject" :selected_inject_id="selected_inject_id" :team_data="team_data" :inject_choices="inject_choices" />
     {% endif %}
     </c-module>
-{% endblock scoring_content %}
+{% endblock white_team_content %}
