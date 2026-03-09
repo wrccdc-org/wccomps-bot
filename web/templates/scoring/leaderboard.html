@@ -54,7 +54,23 @@
         </c-table>
         <p class="text-muted text-sm mt-10">Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</p>
     {% else %}
-        <c-empty_state title="No live scores yet" description="Sync service scores from Quotient, then recalculate." />
+        <c-empty_state title="No live scores yet">
+        {% if is_gold_team or is_admin %}
+            <ol class="mt-5 mb-10">
+                <li>
+                    Sync metadata from Quotient on the <a href="{% url 'admin_competition' %}">Competition</a> page
+                </li>
+                <li>
+                    Click <strong>Sync Service Scores</strong> below to pull latest data
+                </li>
+                <li>
+                    Click <strong>Recalculate</strong> to generate the leaderboard
+                </li>
+            </ol>
+        {% else %}
+            <p>Scores will appear here once the competition is underway.</p>
+        {% endif %}
+        </c-empty_state>
     {% endif %}
     <c-button_row class="mt-10 justify-end">
     <c-link href="{% url 'scoring:export_scorecards' %}" variant="default">Download All PDFs</c-link>
