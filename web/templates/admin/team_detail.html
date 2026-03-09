@@ -3,6 +3,15 @@
 {% block title %}
     Team {{ team.team_number }} - WCComps
 {% endblock title %}
+{% block page_breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin_competition' %}">Competition</a>
+        <span class="bc-separator">&rsaquo;</span>
+        <a href="{% url 'admin_teams' %}">Teams</a>
+        <span class="bc-separator">&rsaquo;</span>
+        Team {{ team.team_number }}
+    </div>
+{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div x-data="teamDetail">
         <c-page_header title="Team {{ team.team_number }}">

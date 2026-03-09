@@ -939,3 +939,25 @@ td textarea[x-ref="editor"] {
     padding: 1px 6px;
     vertical-align: middle;
 }
+
+/* ============================================
+   BREADCRUMBS
+   ============================================ */
+.breadcrumbs {
+    padding: 8px 15px;
+    font-size: 12px;
+    color: var(--body-quiet-color, #666);
+    background: var(--darkened-bg, #f8f8f8);
+    border-bottom: 1px solid var(--hairline-color, #ddd);
+}
+.breadcrumbs a {
+    color: var(--link-fg, #447e9b);
+    text-decoration: none;
+}
+.breadcrumbs a:hover {
+    text-decoration: underline;
+}
+.breadcrumbs .bc-separator {
+    margin: 0 6px;
+    color: var(--body-quiet-color, #999);
+}
