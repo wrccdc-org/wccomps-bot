@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Incident Report #{{ incident.id }}" />
+        <c-page_header title="Incident Report #{{ incident.id }}" parent_url="{% url 'scoring:incident_list' %}" parent_label="Incidents" />
         <c-module>
         <c-slot name="toolbar">
         {% if incident.gold_team_reviewed %}

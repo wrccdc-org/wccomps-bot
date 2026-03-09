@@ -14,7 +14,7 @@
     {% else %}
         Edit Check
     {% endif %}
-    " subtitle="Define a check with rubric criteria" />
+    " subtitle="Define a check with rubric criteria" parent_url="{% url 'challenges:check_list' %}" parent_label="Checks" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}

@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Email Scorecard" />
+        <c-page_header title="Email Scorecard" parent_url="{% url 'leaderboard_page' %}" parent_label="Leaderboard" />
         <c-module>
         <c-alert variant="warning">
         Email the scorecard PDF for Team {{ team.team_number }} ({{ school_name }}) to:

@@ -43,16 +43,9 @@
         }
     </style>
 {% endblock extrastyle %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'ticket_list' %}">Tickets</a>
-        <span class="bc-separator">&rsaquo;</span>
-        #{{ ticket.ticket_number }}
-    </div>
-{% endblock page_breadcrumbs %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="{{ ticket.ticket_number }} — {{ ticket.title }}" subtitle="Team {{ ticket.team.team_number }}" />
+        <c-page_header title="{{ ticket.ticket_number }} — {{ ticket.title }}" subtitle="Team {{ ticket.team.team_number }}" parent_url="{% url 'ticket_list' %}" parent_label="Tickets" />
         {% if messages %}
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}

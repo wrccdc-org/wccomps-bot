@@ -8,19 +8,6 @@
     {% endif %}
     Category - WCComps
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'admin_competition' %}">Competition</a>
-        <span class="bc-separator">&rsaquo;</span>
-        <a href="{% url 'admin_categories' %}">Ticket Categories</a>
-        <span class="bc-separator">&rsaquo;</span>
-        {% if category %}
-            Edit
-        {% else %}
-            Create
-        {% endif %}
-    </div>
-{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <c-page_header title="
     {% if category %}
@@ -28,7 +15,7 @@
     {% else %}
         Create Category
     {% endif %}
-    " />
+    " parent_url="{% url 'admin_categories' %}" parent_label="Categories" />
     <c-module>
     {% if error %}<c-alert variant="danger">{{ error }}</c-alert>{% endif %}
     <c-form>

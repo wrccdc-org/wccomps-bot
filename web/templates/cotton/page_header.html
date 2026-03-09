@@ -1,9 +1,14 @@
-{# Page header component - title and subtitle #}
-{# Usage: <c-page_header title="Tickets" subtitle="Team Blue">Optional content</c-page_header> #}
-{# Props: title, subtitle #}
-<c-vars title subtitle />
-<div {{ attrs }} class="page-header">
-    <h1>{{ title }}</h1>
-    {% if subtitle %}<p class="page-header-subtitle">{{ subtitle }}</p>{% endif %}
-    {{ slot }}
+{# Page header component - breadcrumb-style title bar #}
+{# Usage: <c-page_header title="Tickets" /> #}
+{# Usage: <c-page_header title="#T010-15" parent_url="/tickets/" parent_label="Tickets" /> #}
+{# Props: title, subtitle, parent_url, parent_label #}
+<c-vars title subtitle parent_url parent_label />
+<div class="breadcrumbs">
+    {% if parent_url %}
+        <a href="{{ parent_url }}">{{ parent_label }}</a>
+        <span class="bc-separator">&rsaquo;</span>
+    {% endif %}
+    {{ title }}
 </div>
+{% if subtitle %}<p class="page-header-subtitle">{{ subtitle }}</p>{% endif %}
+{{ slot }}

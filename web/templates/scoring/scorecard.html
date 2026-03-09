@@ -3,16 +3,9 @@
 {% block title %}
     Scorecard - Team {{ team.team_number|stringformat:"02d" }}
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'leaderboard_page' %}">Leaderboard</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Team {{ team.team_number }} Scorecard
-    </div>
-{% endblock page_breadcrumbs %}
 {% block content %}
     <div class="scorecard">
-        <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" />
+        <c-page_header title="Team {{ team.team_number|stringformat:'02d' }} Scorecard" parent_url="{% url 'leaderboard_page' %}" parent_label="Leaderboard" />
         <c-button_row class="mb-10">
         <c-link href="{% url 'leaderboard_scorecard_pdf' team.team_number %}" variant="default">Download PDF</c-link>
         {% if is_gold_team or is_admin %}

@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block content %}
     <div id="content-main" x-data="emailScorecards">
-        <c-page_header title="Email All Scorecards" />
+        <c-page_header title="Email All Scorecards" parent_url="{% url 'leaderboard_page' %}" parent_label="Leaderboard" />
         <c-module>
         <div x-show="showWarning">
             <c-alert variant="warning">

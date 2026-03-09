@@ -17,7 +17,7 @@
 {% endblock extrastyle %}
 {% block content %}
     <div id="content-main">
-        <c-page_header title="Create Support Ticket" subtitle="Team {{ team.team_number }}" />
+        <c-page_header title="Create Support Ticket" subtitle="Team {{ team.team_number }}" parent_url="{% url 'ticket_list' %}" parent_label="Tickets" />
         <form method="post"
               id="ticketForm"
               x-data="ticketForm"

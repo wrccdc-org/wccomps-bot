@@ -1,7 +1,7 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
 {% block scoring_content %}
-    <c-page_header title="Review Incident #{{ incident.id }}" />
+    <c-page_header title="Review Incident #{{ incident.id }}" parent_url="{% url 'scoring:review_incidents' %}" parent_label="Incidents" />
     <div class="grid-2 gap-20">
         <c-module>
         <h2 class="module-header">Incident Report #{{ incident.id }}</h2>

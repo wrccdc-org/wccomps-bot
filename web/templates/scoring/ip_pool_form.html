@@ -4,7 +4,7 @@
 {% endblock title %}
 {% block red_content %}
     {% load cotton %}
-    <c-page_header title="{{ action }} IP Pool" subtitle="
+    <c-page_header title="{{ action }} IP Pool" parent_url="{% url 'scoring:ip_pool_list' %}" parent_label="IP Pools" subtitle="
     {% if action == 'Edit' %}
         Update pool '{{ pool.name }}'
     {% else %}

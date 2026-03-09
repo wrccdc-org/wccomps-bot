@@ -4,7 +4,7 @@
     {{ orange_check.title }}
 {% endblock title %}
 {% block content %}
-    <c-page_header title="{{ orange_check.title }}">
+    <c-page_header title="{{ orange_check.title }}" parent_url="{% url 'challenges:check_list' %}" parent_label="Checks">
     <c-slot name="subtitle">
     {% if orange_check.status == "draft" %}
         <c-badge variant="neutral">Draft</c-badge>

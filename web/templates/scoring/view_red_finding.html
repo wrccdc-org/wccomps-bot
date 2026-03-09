@@ -4,7 +4,7 @@
     Red Team Finding #{{ finding.id }}
 {% endblock title %}
 {% block red_content %}
-    <c-page_header title="Red Team Finding #{{ finding.id }}" />
+    <c-page_header title="Red Team Finding #{{ finding.id }}" parent_url="{% url 'scoring:red_team_scores' %}" parent_label="Findings" />
     <c-module>
     <c-slot name="toolbar">
     {% if finding.is_approved %}
