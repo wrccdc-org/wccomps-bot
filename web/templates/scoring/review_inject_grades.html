@@ -6,13 +6,6 @@
 {% block scoring_title %}
     Review Inject Grades
 {% endblock scoring_title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Inject Grades
-    </div>
-{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <script>
     document.addEventListener('alpine:init', () => {

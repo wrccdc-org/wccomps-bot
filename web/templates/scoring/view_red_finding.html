@@ -3,13 +3,6 @@
 {% block title %}
     Red Team Finding #{{ finding.id }}
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'scoring:red_team_scores' %}">All Findings</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Finding #{{ finding.id }}
-    </div>
-{% endblock page_breadcrumbs %}
 {% block red_content %}
     <c-page_header title="Red Team Finding #{{ finding.id }}" />
     <c-module>

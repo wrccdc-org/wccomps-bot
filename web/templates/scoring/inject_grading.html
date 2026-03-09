@@ -1,11 +1,4 @@
 {% extends "scoring/base.html" %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'scoring:leaderboard' %}">Scoring</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Inject Grading
-    </div>
-{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <script>
     document.addEventListener('alpine:init', () => {

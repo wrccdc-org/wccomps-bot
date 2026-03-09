@@ -3,13 +3,6 @@
 {% block title %}
     Sync Roles - WCComps
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'admin_competition' %}">Competition</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Sync Roles
-    </div>
-{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div x-data="syncRolesAdmin">
         <c-page_header title="Sync Roles" />

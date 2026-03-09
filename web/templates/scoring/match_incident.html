@@ -1,12 +1,5 @@
 {% extends "scoring/base.html" %}
 {% load cotton %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'scoring:review_incidents' %}">Incidents</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Review #{{ incident.id }}
-    </div>
-{% endblock page_breadcrumbs %}
 {% block scoring_content %}
     <c-page_header title="Review Incident #{{ incident.id }}" />
     <div class="grid-2 gap-20">

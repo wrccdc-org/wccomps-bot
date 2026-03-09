@@ -3,13 +3,6 @@
 {% block title %}
     Team Mappings - WCComps
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'admin_competition' %}">Competition</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Role Mappings
-    </div>
-{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div id="content-main" x-data="teamMappings">
         <c-page_header title="Team Mappings" />

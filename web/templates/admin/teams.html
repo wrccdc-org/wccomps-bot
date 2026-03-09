@@ -3,13 +3,6 @@
 {% block title %}
     Team Management - WCComps
 {% endblock title %}
-{% block page_breadcrumbs %}
-    <div class="breadcrumbs">
-        <a href="{% url 'admin_competition' %}">Competition</a>
-        <span class="bc-separator">&rsaquo;</span>
-        Teams
-    </div>
-{% endblock page_breadcrumbs %}
 {% block admin_content %}
     <div x-data="teamsAdmin">
         <c-page_header title="Team Management" />
