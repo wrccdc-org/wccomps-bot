@@ -37,7 +37,7 @@
                         </td>
                         <td>{{ packet.actual_distribution_time|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td>
-                            <c-button type="button" onclick="window.location='{% url 'download_packet' packet.id %}'">Download</c-button>
+                            <c-link href="{% url 'download_packet' packet.id %}">Download</c-link>
                         </td>
                     </tr>
                 {% endfor %}
@@ -88,7 +88,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <c-button type="button" onclick="window.location='{% url 'download_packet' dist.packet.id %}'">Download</c-button>
+                        <c-link href="{% url 'download_packet' dist.packet.id %}">Download</c-link>
                     </td>
                 </tr>
             {% endfor %}
@@ -97,8 +97,8 @@
             <c-empty_state title="No packets available" description="Packets will appear here when distributed" />
         {% endif %}
         </c-module>
-        <p class="mt-20">
-            <c-link href="{% url 'home' %}" variant="history">Back to Home</c-link>
-        </p>
+        <c-button_row class="mt-20">
+        <c-link href="{% url 'home' %}" variant="history">Back to Home</c-link>
+        </c-button_row>
     </div>
 {% endblock content %}

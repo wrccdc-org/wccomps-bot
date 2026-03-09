@@ -14,8 +14,7 @@
         <form method="post">
             {% csrf_token %}
             <c-button_row class="mt-20 justify-end">
-            <a href="{% url 'scoring:scorecard' team.team_number %}"
-               class="btn btn-secondary">Cancel</a>
+            <c-link href="{% url 'scoring:scorecard' team.team_number %}">Cancel</c-link>
             <c-button type="submit" variant="primary">Send Email</c-button>
             </c-button_row>
         </form>

@@ -60,13 +60,13 @@
         </c-table>
         <c-button_row class="mt-20 justify-end">
         <div x-show="showForm" class="d-flex gap-10 items-center">
-            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Cancel</a>
+            <c-link href="{% url 'scoring:leaderboard' %}">Cancel</c-link>
             <c-button variant="primary" @click="sendEmails" ::disabled="loading">
             Send {{ teams_with_email }} Email(s)
             </c-button>
         </div>
         <div x-show="done" x-cloak>
-            <a href="{% url 'scoring:leaderboard' %}" class="btn btn-secondary">Back to Leaderboard</a>
+            <c-link href="{% url 'scoring:leaderboard' %}">Back to Leaderboard</c-link>
         </div>
         </c-button_row>
         </c-module>
