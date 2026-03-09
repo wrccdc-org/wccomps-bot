@@ -59,7 +59,13 @@
             {% endif %}
         </div>
         <!-- Section 1: Pre-Competition Setup -->
-        <c-fieldset heading="Pre-Competition Setup" class="mb-20" collapsible="true" collapsed="{% if config.applications_enabled %}true{% else %}false{% endif %}">
+        <c-fieldset heading="Pre-Competition Setup" class="mb-20" collapsible="true" collapsed="
+        {% if config.applications_enabled %}
+            true
+        {% else %}
+            false
+        {% endif %}
+        ">
         <div class="grid-2 mb-20">
             <!-- Team Configuration -->
             <div>
@@ -199,7 +205,15 @@
         </c-button>
         </c-fieldset>
         <!-- Section 3: Post-Competition -->
-        <c-fieldset heading="Post-Competition" class="mb-20" collapsible="true" collapsed="{% if config.applications_enabled %}true{% elif config.competition_start_time %}false{% else %}true{% endif %}">
+        <c-fieldset heading="Post-Competition" class="mb-20" collapsible="true" collapsed="
+        {% if config.applications_enabled %}
+            true
+        {% elif config.competition_start_time %}
+            false
+        {% else %}
+            true
+        {% endif %}
+        ">
         <!-- Password Reset -->
         <div class="mb-20">
             <h3 class="mt-0 mb-10">Password Management</h3>
