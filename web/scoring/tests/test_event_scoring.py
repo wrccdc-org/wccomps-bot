@@ -265,7 +265,7 @@ class TestScorecardView:
     """Tests for scorecard view."""
 
     def test_requires_authentication(self, client, teams, scores):
-        url = reverse("scoring:scorecard", args=[1])
+        url = reverse("leaderboard_scorecard", args=[1])
         response = client.get(url)
         assert response.status_code == 302
         assert "login" in response.url
@@ -273,14 +273,14 @@ class TestScorecardView:
     def test_gold_team_can_access(self, gold_team_user, teams, scores):
         client = Client()
         client.force_login(gold_team_user)
-        url = reverse("scoring:scorecard", args=[1])
+        url = reverse("leaderboard_scorecard", args=[1])
         response = client.get(url)
         assert response.status_code == 200
 
     def test_returns_404_for_missing_team(self, gold_team_user, teams, scores):
         client = Client()
         client.force_login(gold_team_user)
-        url = reverse("scoring:scorecard", args=[99])
+        url = reverse("leaderboard_scorecard", args=[99])
         response = client.get(url)
         assert response.status_code == 404
 
@@ -302,7 +302,7 @@ class TestScorecardRedTeamDetail:
 
         client = Client()
         client.force_login(gold_team_user)
-        response = client.get(reverse("scoring:scorecard", args=[1]))
+        response = client.get(reverse("leaderboard_scorecard", args=[1]))
 
         assert response.status_code == 200
         content = response.content.decode()
@@ -324,7 +324,7 @@ class TestScorecardRedTeamDetail:
 
         client = Client()
         client.force_login(gold_team_user)
-        response = client.get(reverse("scoring:scorecard", args=[1]))
+        response = client.get(reverse("leaderboard_scorecard", args=[1]))
 
         content = response.content.decode()
         assert "web-01, db-02" in content
@@ -345,7 +345,7 @@ class TestScorecardRedTeamDetail:
 
         client = Client()
         client.force_login(gold_team_user)
-        response = client.get(reverse("scoring:scorecard", args=[1]))
+        response = client.get(reverse("leaderboard_scorecard", args=[1]))
 
         content = response.content.decode()
         assert "Root Access (-100)" in content
@@ -369,7 +369,7 @@ class TestScorecardScalingContext:
 
         client = Client()
         client.force_login(gold_team_user)
-        response = client.get(reverse("scoring:scorecard", args=[1]))
+        response = client.get(reverse("leaderboard_scorecard", args=[1]))
 
         content = response.content.decode()
         assert "Service 40%" in content
@@ -383,7 +383,7 @@ class TestScorecardPdf:
     def test_pdf_returns_pdf_content_type(self, gold_team_user, teams, scores):
         client = Client()
         client.force_login(gold_team_user)
-        url = reverse("scoring:scorecard_pdf", args=[1])
+        url = reverse("leaderboard_scorecard_pdf", args=[1])
         response = client.get(url)
 
         assert response.status_code == 200
@@ -391,13 +391,13 @@ class TestScorecardPdf:
         assert 'filename="team-01-scorecard.pdf"' in response["Content-Disposition"]
 
     def test_pdf_requires_authentication(self, client, teams, scores):
-        url = reverse("scoring:scorecard_pdf", args=[1])
+        url = reverse("leaderboard_scorecard_pdf", args=[1])
         response = client.get(url)
         assert response.status_code == 302
 
     def test_pdf_returns_404_for_missing_team(self, gold_team_user, teams, scores):
         client = Client()
         client.force_login(gold_team_user)
-        url = reverse("scoring:scorecard_pdf", args=[99])
+        url = reverse("leaderboard_scorecard_pdf", args=[99])
         response = client.get(url)
         assert response.status_code == 404

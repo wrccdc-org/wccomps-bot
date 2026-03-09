@@ -1,9 +1,9 @@
-{% extends "scoring/base.html" %}
+{% extends "admin/base_site.html" %}
 {% load cotton %}
 {% block scoring_title %}
     Email All Scorecards
 {% endblock scoring_title %}
-{% block scoring_content %}
+{% block content %}
     <div id="content-main" x-data="emailScorecards">
         <c-page_header title="Email All Scorecards" />
         <c-module>

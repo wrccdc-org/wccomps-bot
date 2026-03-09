@@ -12,7 +12,7 @@ class TestLeaderboardPermissions:
 
     def test_unauthenticated_redirects_to_login(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
-        response = unauthenticated_client.get(reverse("scoring:leaderboard"))
+        response = unauthenticated_client.get(reverse("leaderboard_page"))
         assert response.status_code == 302
         assert "/accounts/" in response.url or "login" in response.url
 
@@ -20,56 +20,56 @@ class TestLeaderboardPermissions:
         """Blue Team should not access leaderboard."""
         client = Client()
         client.force_login(blue_team_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 302
 
     def test_red_team_allowed(self, red_team_user):
         """Red Team should access leaderboard."""
         client = Client()
         client.force_login(red_team_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 200
 
     def test_gold_team_allowed(self, gold_team_user):
         """Gold Team should access leaderboard."""
         client = Client()
         client.force_login(gold_team_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 200
 
     def test_white_team_allowed(self, white_team_user):
         """White Team should access leaderboard."""
         client = Client()
         client.force_login(white_team_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 200
 
     def test_orange_team_denied(self, orange_team_user):
         """Orange Team should not access leaderboard."""
         client = Client()
         client.force_login(orange_team_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 302
 
     def test_ticketing_support_denied(self, ticketing_support_user):
         """Ticketing Support should not access leaderboard."""
         client = Client()
         client.force_login(ticketing_support_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 302
 
     def test_ticketing_admin_allowed(self, ticketing_admin_user):
         """Ticketing Admin should access leaderboard."""
         client = Client()
         client.force_login(ticketing_admin_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 200
 
     def test_admin_allowed(self, admin_user):
         """Admin (Gold Team) should access leaderboard."""
         client = Client()
         client.force_login(admin_user)
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
         assert response.status_code == 200
 
 

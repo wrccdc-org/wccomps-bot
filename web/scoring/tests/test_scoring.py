@@ -207,7 +207,7 @@ class TestLeaderboardAccess:
     def test_unauthenticated_user_denied_access(self) -> None:
         """Unauthenticated users should be redirected to login."""
         client = Client()
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 302
         assert "login" in response.url
@@ -218,7 +218,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 200
 
@@ -228,7 +228,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 200
 
@@ -244,7 +244,7 @@ class TestLeaderboardAccess:
         # Template has an unrelated error (missing ops_review_tickets URL) that causes NoReverseMatch
         # We verify the permission check passes by confirming we get past it (no 403)
         try:
-            response = client.get(reverse("scoring:leaderboard"))
+            response = client.get(reverse("leaderboard_page"))
             assert response.status_code == 200
         except NoReverseMatch:
             # Expected due to template issue - permission check passed (otherwise would be 403)
@@ -257,7 +257,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 200
 
@@ -267,7 +267,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 302
 
@@ -277,7 +277,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 200
 
@@ -287,7 +287,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 302
 
@@ -297,7 +297,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 302
 
@@ -307,7 +307,7 @@ class TestLeaderboardAccess:
         client = Client()
         client.force_login(user)
 
-        response = client.get(reverse("scoring:leaderboard"))
+        response = client.get(reverse("leaderboard_page"))
 
         assert response.status_code == 200
 
