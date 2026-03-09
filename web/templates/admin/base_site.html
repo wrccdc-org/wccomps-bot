@@ -506,6 +506,20 @@
                 }
             };
         });
+        Alpine.data('advancedFilters', function() {
+            return {
+                open: false,
+                init() {
+                    this.open = this.$el.dataset.hasActive === 'true';
+                },
+                get closed() {
+                    return !this.open;
+                },
+                toggle() {
+                    this.open = !this.open;
+                }
+            };
+        });
     });
     </script>
     {% if is_ticketing_support or is_ticketing_admin %}

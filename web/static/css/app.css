@@ -922,3 +922,20 @@ td textarea[x-ref="editor"] {
     vertical-align: middle;
     cursor: help;
 }
+
+/* ============================================
+   ADVANCED FILTERS TOGGLE
+   ============================================ */
+.advanced-filters-wrap {
+    width: 100%;
+    margin-top: 8px;
+}
+.advanced-filters-toggle {
+    font-size: 12px;
+    color: var(--link-fg, #447e9b);
+}
+.advanced-filters-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    vertical-align: middle;
+}
