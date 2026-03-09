@@ -191,9 +191,21 @@
 
         /* Mobile layout */
         @media (max-width: 767px) {
-            .primary-navigation {
+            #header {
+                flex-direction: row;
                 flex-wrap: wrap;
-                padding: 10px 15px;
+                align-items: center;
+                position: relative;
+            }
+
+            #branding {
+                flex: 1;
+            }
+
+            .primary-navigation {
+                padding: 0;
+                background: transparent;
+                border-bottom: none;
             }
 
             .nav-toggle {
@@ -202,13 +214,20 @@
 
             .nav-menu {
                 display: none;
-                width: 100%;
                 flex-direction: column;
                 padding-top: 10px;
             }
 
             .nav-menu--open {
                 display: flex;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--primary, #417690);
+                padding: 10px 15px;
+                border-bottom: 1px solid var(--primary-dark, #2e5266);
+                z-index: 1000;
             }
 
             .nav-links {
