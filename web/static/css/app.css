@@ -903,3 +903,22 @@ td textarea[x-ref="editor"] {
         transition: none;
     }
 }
+
+/* ============================================
+   TABLE HEADER TOOLTIP INDICATOR
+   ============================================ */
+.th-tooltip-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 50%;
+    background: var(--darkened-bg, #e0e0e0);
+    color: var(--body-quiet-color, #666);
+    margin-left: 4px;
+    vertical-align: middle;
+    cursor: help;
+}

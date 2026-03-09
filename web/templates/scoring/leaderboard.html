@@ -7,25 +7,18 @@
     <c-page_header title="Leaderboard" />
     <c-module>
     <c-slot name="title">Live Scores</c-slot>
-    <c-slot name="toolbar">
-    <c-link href="{% url 'scoring:export_scorecards' %}">Download All PDFs</c-link>
-    <c-link href="{% url 'scoring:api_scores' %}">JSON</c-link>
-    {% if is_gold_team or is_admin %}
-        <c-link href="{% url 'scoring:email_scorecards' %}">Email All Scorecards</c-link>
-    {% endif %}
-    </c-slot>
     {% if scores %}
         <c-table id="result_list" aria_label="Score leaderboard">
         <c-slot name="headers">
         <tr>
             <c-table_header sortable="false">Rank</c-table_header>
             <c-table_header sortable="false">Team</c-table_header>
-            <c-table_header sortable="false" class="text-right">Services</c-table_header>
-            <c-table_header sortable="false" class="text-right">Injects</c-table_header>
-            <c-table_header sortable="false" class="text-right">Orange</c-table_header>
-            <c-table_header sortable="false" class="text-right">Red</c-table_header>
-            <c-table_header sortable="false" class="text-right">Recovery</c-table_header>
-            <c-table_header sortable="false" class="text-right">SLA</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Points from service uptime monitoring">Services</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Points from inject submission grading">Injects</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Adjustments from orange team checks">Orange</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Deductions from red team findings">Red</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Points recovered by filing incident reports">Recovery</c-table_header>
+            <c-table_header sortable="false" class="text-right" tooltip="Penalties for service level agreement violations">SLA</c-table_header>
             <c-table_header sortable="false" class="text-right">Total</c-table_header>
             <c-table_header sortable="false">Scorecard</c-table_header>
         </tr>
@@ -59,39 +52,26 @@
             </tr>
         {% endfor %}
         </c-table>
-        <div class="table-footer">
-            <span>Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</span>
-            {% if is_gold_team or is_admin %}
-                <div class="d-flex gap-10">
-                    <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
-                        {% csrf_token %}
-                        <c-button type="submit" variant="default">Sync Service Scores</c-button>
-                    </form>
-                    <form method="post"
-                          action="{% url 'scoring:recalculate_scores' %}"
-                          class="m-0">
-                        {% csrf_token %}
-                        <c-button type="submit" variant="primary">Recalculate</c-button>
-                    </form>
-                </div>
-            {% endif %}
-        </div>
+        <p class="text-muted text-sm mt-10">Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</p>
     {% else %}
         <c-empty_state title="No live scores yet" description="Sync service scores from Quotient, then recalculate." />
-        {% if is_gold_team or is_admin %}
-            <div class="d-flex gap-10 mt-10">
-                <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
-                    {% csrf_token %}
-                    <c-button type="submit" variant="default">Sync Service Scores</c-button>
-                </form>
-                <form method="post"
-                      action="{% url 'scoring:recalculate_scores' %}"
-                      class="m-0">
-                    {% csrf_token %}
-                    <c-button type="submit" variant="primary">Recalculate Scores</c-button>
-                </form>
-            </div>
-        {% endif %}
     {% endif %}
+    <c-button_row class="mt-10 justify-end">
+    <c-link href="{% url 'scoring:export_scorecards' %}" variant="default">Download All PDFs</c-link>
+    <c-link href="{% url 'scoring:api_scores' %}" variant="default">JSON</c-link>
+    {% if is_gold_team or is_admin %}
+        <c-link href="{% url 'scoring:email_scorecards' %}" variant="default">Email All Scorecards</c-link>
+        <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
+            {% csrf_token %}
+            <c-button type="submit" variant="default">Sync Service Scores</c-button>
+        </form>
+        <form method="post"
+              action="{% url 'scoring:recalculate_scores' %}"
+              class="m-0">
+            {% csrf_token %}
+            <c-button type="submit" variant="primary">Recalculate</c-button>
+        </form>
+    {% endif %}
+    </c-button_row>
     </c-module>
 {% endblock scoring_content %}
