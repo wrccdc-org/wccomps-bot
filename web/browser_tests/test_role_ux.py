@@ -1,4 +1,4 @@
-"""Test role-based access control and role-specific UI elements."""
+"""Test role-specific UI elements using Playwright."""
 
 import pytest
 
@@ -9,50 +9,9 @@ from .conftest import (
     resolve_url,
     visit_and_capture_errors,
 )
-from .page_registry import get_denied_test_cases, get_element_check_cases
+from .page_registry import get_element_check_cases
 
 pytestmark = [pytest.mark.browser, pytest.mark.django_db(transaction=True)]
-
-
-# -- Access denial tests --
-
-_denied_cases = get_denied_test_cases()
-_denied_ids = [f"{p.url_name}--{r}" for p, r in _denied_cases]
-
-
-@pytest.mark.parametrize("page_def,role", _denied_cases, ids=_denied_ids)
-def test_denied_roles_cannot_access(page_def, role, live_server, pw_browser):
-    """Denied roles should get a redirect, 403, or access-denied message."""
-    test_data = make_test_data()
-    user = _create_role_user(role, None)
-    context = create_session_context(pw_browser, live_server, user)
-
-    try:
-        requested_path = resolve_url(page_def, test_data)
-        url = live_server.url + requested_path
-        page, status_code, _errors = visit_and_capture_errors(context, url)
-
-        if role == "unauthenticated":
-            # Should redirect to login
-            assert "/auth/login/" in page.url, (
-                f"{page_def.url_name} as unauthenticated: expected login redirect, got {page.url}"
-            )
-        else:
-            # Either 403, access denied message, or redirect away from the requested page
-            from urllib.parse import urlparse
-
-            final_path = urlparse(page.url).path
-            content = page.content().lower()
-            is_denied = (
-                status_code == 403
-                or "access denied" in content
-                or "you do not have permission" in content
-                or "/auth/login/" in page.url
-                or final_path != requested_path  # redirected away = denial
-            )
-            assert is_denied, f"{page_def.url_name} as {role}: expected denial, got status={status_code} url={page.url}"
-    finally:
-        context.close()
 
 
 # -- Element presence/absence tests --

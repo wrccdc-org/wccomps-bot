@@ -1,13 +1,14 @@
 """Tests for Red Team findings filtering functionality."""
 
-import time
 from collections.abc import Callable
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from scoring.models import AttackType, RedTeamScore
 from team.models import Team
@@ -287,6 +288,7 @@ class TestRedTeamSortCycle:
     def _create_findings(self, user: User) -> tuple[RedTeamScore, RedTeamScore, RedTeamScore]:
         """Create 3 findings with different timestamps."""
         team = Team.objects.create(team_number=1, team_name="Team 1")
+        base_time = timezone.now()
         findings = []
         for i, vector in enumerate(["Alpha Attack", "Beta Attack", "Gamma Attack"]):
             f = RedTeamScore.objects.create(
@@ -296,8 +298,10 @@ class TestRedTeamSortCycle:
                 submitted_by=user,
             )
             f.affected_teams.add(team)
+            # Set distinct timestamps without sleeping
+            RedTeamScore.objects.filter(pk=f.pk).update(created_at=base_time + timedelta(seconds=i))
+            f.refresh_from_db()
             findings.append(f)
-            time.sleep(0.01)  # ensure distinct created_at timestamps
         return findings[0], findings[1], findings[2]
 
     def test_sort_ascending(self, create_user_with_groups: Callable[..., User]) -> None:
