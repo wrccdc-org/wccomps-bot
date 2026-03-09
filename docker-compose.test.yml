@@ -11,6 +11,11 @@ services:
       -c max_connections=300
       -c shared_buffers=256MB
       -c effective_cache_size=1GB
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
+      -c random_page_cost=1.0
+      -c log_min_messages=PANIC
     ports:
       - "5433:5432"
     tmpfs:
