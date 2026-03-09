@@ -3,9 +3,9 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import include, path
+from scoring.views.leaderboard import leaderboard, scorecard, scorecard_pdf
 
 from core import admin_views, oauth, views
-from scoring.views.leaderboard import leaderboard, scorecard, scorecard_pdf
 from ticketing import views as ticketing_views
 
 urlpatterns = [
