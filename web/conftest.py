@@ -176,9 +176,10 @@ def reset_has_permission_reference():
     core.auth_utils.has_permission = _real
 
     import challenges.views
-    import core.admin_views.competition
     import scoring.views.incidents
     import scoring.views.red_team
+
+    import core.admin_views.competition
 
     challenges.views.has_permission = _real
     core.admin_views.competition.has_permission = _real
