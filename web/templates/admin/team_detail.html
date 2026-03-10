@@ -54,18 +54,7 @@
         <c-module class="mt-20">
         <c-slot name="title">Linked Members ({{ members|length }})</c-slot>
         {% if members %}
-            <c-table id="members_list" class="w-full" fixed_layout="true" aria_label="Team members">
-            <c-slot name="colgroup">
-            {# djlint:off H021 #}
-            <colgroup>
-                <col style="width: 25%;">
-                <col style="width: 25%;">
-                <col style="width: 20%;">
-                <col style="width: 20%;">
-                <col style="width: 10%;">
-            </colgroup>
-            {# djlint:on #}
-            </c-slot>
+            <c-table id="members_list" class="w-full" aria_label="Team members">
             <c-slot name="headers">
             <tr>
                 <c-table_header sortable="false">Discord Username</c-table_header>

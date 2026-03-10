@@ -9,21 +9,7 @@
     <c-slot name="toolbar">
     <c-link href="{% url 'admin_category_create' %}" variant="add">Add Category</c-link>
     </c-slot>
-    <c-table id="categories_list" class="w-full" fixed_layout="true" aria_label="Ticket categories list">
-    <c-slot name="colgroup">
-    {# djlint:off H021 #}
-    <colgroup>
-        <col style="width: 8%;">
-        <col style="width: 20%;">
-        <col style="width: 10%;">
-        <col style="width: 17%;">
-        <col style="width: 10%;">
-        <col style="width: 10%;">
-        <col style="width: 10%;">
-        <col style="width: 15%;">
-    </colgroup>
-    {# djlint:on #}
-    </c-slot>
+    <c-table id="categories_list" class="w-full" aria_label="Ticket categories list">
     <c-slot name="headers">
     <tr>
         <c-table_header sortable="false">Order</c-table_header>

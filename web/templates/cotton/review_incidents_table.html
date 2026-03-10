@@ -1,20 +1,6 @@
 {# Review incidents table - swappable content for htmx #}
 <div {{ attrs }} id="review-incidents-content">
-    <c-table id="result_list" fixed_layout="true" aria_label="Incident reports list">
-    <c-slot name="colgroup">
-    {# djlint:off H021 #}
-    <colgroup>
-        <col style="width: 6%;">
-        <col style="width: 15%;">
-        <col style="width: 15%;">
-        <col style="width: 22%;">
-        <col style="width: 14%;">
-        <col style="width: 8%;">
-        <col style="width: 10%;">
-        <col style="width: 10%;">
-    </colgroup>
-    {# djlint:on #}
-    </c-slot>
+    <c-table id="result_list" aria_label="Incident reports list">
     <c-slot name="headers">
     <tr role="row">
         <c-table_header sortable="false">ID</c-table_header>

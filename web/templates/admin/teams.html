@@ -28,19 +28,7 @@
         </form>
         </c-module>
         <c-module class="mt-6">
-        <c-table id="teams_list" class="w-full" fixed_layout="true" aria_label="Team management list">
-        <c-slot name="colgroup">
-        {# djlint:off H021 #}
-        <colgroup>
-            <col style="width: 10%;">
-            <col style="width: 25%;">
-            <col style="width: 15%;">
-            <col style="width: 15%;">
-            <col style="width: 15%;">
-            <col style="width: 20%;">
-        </colgroup>
-        {# djlint:on #}
-        </c-slot>
+        <c-table id="teams_list" class="w-full" aria_label="Team management list">
         <c-slot name="headers">
         <tr>
             <c-table_header sortable="false">Team #</c-table_header>

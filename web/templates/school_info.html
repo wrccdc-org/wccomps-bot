@@ -10,19 +10,7 @@
         <c-slot name="toolbar">
         <c-link href="{% url 'school_info_import' %}" variant="add">Import from CSV</c-link>
         </c-slot>
-        <c-table id="result_list" class="w-full" fixed_layout="true" aria_label="School information for all teams">
-        <c-slot name="colgroup">
-        {# djlint:off H021 #}
-        <colgroup>
-            <col style="width: 15%;">
-            <col style="width: 25%;">
-            <col style="width: 25%;">
-            <col style="width: 20%;">
-            <col style="width: 10%;">
-            <col style="width: 5%;">
-        </colgroup>
-        {# djlint:on #}
-        </c-slot>
+        <c-table id="result_list" class="w-full" aria_label="School information for all teams">
         <c-slot name="headers">
         <tr>
             <c-table_header sortable="false">Team</c-table_header>
