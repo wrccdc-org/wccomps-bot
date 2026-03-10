@@ -58,79 +58,69 @@ class TestAdminCommands:
         call_args = mock_interaction.response.send_message.call_args
         assert "not found" in call_args.args[0].lower()
 
-    @patch("bot.cogs.admin_competition.settings")
-    @patch("bot.cogs.admin_competition.AuthentikManager")
-    @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords(
         self,
-        mock_generate_password: Any,
-        mock_manager_cls: Any,
-        mock_settings: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
     ) -> None:
         """Test /admin reset-blueteam-passwords - verifies password reset flow."""
         mock_interaction.user.id = mock_admin_user._discord_id
-        mock_settings.AUTHENTIK_TOKEN = "test-token"
 
-        # Mock password generation
-        mock_generate_password.return_value = "Test-Password-123!"
+        with (
+            patch("bot.cogs.admin_competition.generate_blueteam_password") as mock_generate_password,
+            patch("bot.cogs.admin_competition.AuthentikManager") as mock_manager_cls,
+            patch("bot.cogs.admin_competition.settings") as mock_settings,
+        ):
+            mock_settings.AUTHENTIK_TOKEN = "test-token"
+            mock_generate_password.return_value = "Test-Password-123!"
+            mock_manager_instance = mock_manager_cls.return_value
+            mock_manager_instance.reset_blueteam_password.return_value = (True, "")
 
-        # Mock successful password reset via AuthentikManager instance
-        mock_manager_instance = mock_manager_cls.return_value
-        mock_manager_instance.reset_blueteam_password.return_value = (True, "")
+            cog = AdminCompetitionCog(mock_bot)
+            await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
-        cog = AdminCompetitionCog(mock_bot)
-        await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
+            # Verify password was generated for each team
+            assert mock_generate_password.call_count == 3
 
-        # Verify password was generated for each team
-        assert mock_generate_password.call_count == 3
+            # Verify password reset was called for each team
+            assert mock_manager_instance.reset_blueteam_password.call_count == 3
 
-        # Verify password reset was called for each team
-        assert mock_manager_instance.reset_blueteam_password.call_count == 3
+            mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
 
-        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+            # Verify response includes password file
+            mock_interaction.followup.send.assert_called_once()
+            call_args = mock_interaction.followup.send.call_args
+            assert "file" in call_args.kwargs, "Should send file with passwords"
 
-        # Verify response includes password file
-        mock_interaction.followup.send.assert_called_once()
-        call_args = mock_interaction.followup.send.call_args
-        assert "file" in call_args.kwargs, "Should send file with passwords"
-
-    @patch("bot.cogs.admin_competition.settings")
-    @patch("bot.cogs.admin_competition.AuthentikManager")
-    @patch("bot.cogs.admin_competition.generate_blueteam_password")
     async def test_reset_blueteam_passwords_api_failure(
         self,
-        mock_generate_password: Any,
-        mock_manager_cls: Any,
-        mock_settings: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
     ) -> None:
         """Test /admin reset-blueteam-passwords handles API failures."""
         mock_interaction.user.id = mock_admin_user._discord_id
-        mock_settings.AUTHENTIK_TOKEN = "test-token"
 
-        # Mock password generation
-        mock_generate_password.return_value = "Test-Password-123!"
+        with (
+            patch("bot.cogs.admin_competition.generate_blueteam_password") as mock_generate_password,
+            patch("bot.cogs.admin_competition.AuthentikManager") as mock_manager_cls,
+            patch("bot.cogs.admin_competition.settings") as mock_settings,
+        ):
+            mock_settings.AUTHENTIK_TOKEN = "test-token"
+            mock_generate_password.return_value = "Test-Password-123!"
+            mock_manager_instance = mock_manager_cls.return_value
+            mock_manager_instance.reset_blueteam_password.return_value = (False, "HTTP 500: Internal Server Error")
 
-        # Simulate API failure for password reset via AuthentikManager instance
-        mock_manager_instance = mock_manager_cls.return_value
-        mock_manager_instance.reset_blueteam_password.return_value = (False, "HTTP 500: Internal Server Error")
+            cog = AdminCompetitionCog(mock_bot)
+            await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
-        cog = AdminCompetitionCog(mock_bot)
+            # Verify error was communicated
+            assert mock_interaction.followup.send.called, "Should send error message"
 
-        # Should handle error gracefully
-        await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
-
-        # Verify error was communicated
-        assert mock_interaction.followup.send.called, "Should send error message"
-
-        # Verify CSV file was still sent (with attempted passwords)
-        call_args = mock_interaction.followup.send.call_args
-        assert "file" in call_args.kwargs, "Should still send CSV file"
+            # Verify CSV file was still sent (with attempted passwords)
+            call_args = mock_interaction.followup.send.call_args
+            assert "file" in call_args.kwargs, "Should still send CSV file"
 
     @patch("bot.cogs.admin_teams.remove_blueteam_role")
     @patch("bot.cogs.admin_teams.safe_remove_role")
