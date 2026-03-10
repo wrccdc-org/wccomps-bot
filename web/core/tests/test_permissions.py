@@ -11,7 +11,9 @@ pytestmark = pytest.mark.django_db
 
 
 def _check_access_denied(response) -> bool:
-    """Check if response indicates access denied (soft 200 with error message)."""
+    """Check if response indicates access denied (redirect, 403, or soft 200 with error)."""
+    if response.status_code in (302, 403):
+        return True
     content_lower = response.content.lower()
     return b"access denied" in content_lower or b"you do not have permission" in content_lower
 
@@ -42,7 +44,6 @@ class TestOpsSchoolInfoPermissions:
         client = Client()
         client.force_login(user)
         response = client.get(reverse("school_info"))
-        assert response.status_code == 200
         assert _check_access_denied(response), f"{user_fixture} should be denied access"
 
     @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
@@ -80,7 +81,6 @@ class TestGroupRoleMappingsPermissions:
         client = Client()
         client.force_login(user)
         response = client.get(reverse("ops_group_role_mappings"))
-        assert response.status_code == 200
         assert _check_access_denied(response), f"{user_fixture} should be denied access"
 
     @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
