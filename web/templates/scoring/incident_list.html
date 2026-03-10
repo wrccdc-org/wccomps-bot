@@ -20,7 +20,6 @@
                 <c-table_header sortable="false">Affected Box</c-table_header>
                 <c-table_header sortable="false">Attack Description</c-table_header>
                 <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
             </tr>
             </c-slot>
             {% for incident in incidents %}
@@ -37,18 +36,6 @@
                             <c-badge variant="resolved">Reviewed</c-badge>
                         {% else %}
                             <c-badge variant="claimed">Pending</c-badge>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <c-link href="{% url 'scoring:view_incident_report' incident.id %}" variant="change">View</c-link>
-                        {% if incident.submitted_by == current_user and not incident.gold_team_reviewed %}
-                            <form method="post"
-                                  action="{% url 'scoring:delete_incident_report' incident.id %}"
-                                  class="d-inline"
-                                  onsubmit="return confirm('Delete this incident report?');">
-                                {% csrf_token %}
-                                <c-button type="submit" variant="danger">Delete</c-button>
-                            </form>
                         {% endif %}
                     </td>
                 </tr>
