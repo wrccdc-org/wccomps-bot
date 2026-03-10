@@ -85,12 +85,8 @@
                 {% else %}
                     <span>{{ category_name }}</span>
                 {% endif %}
-                {% if is_ops and ticket.points_charged is not None %}
-                    <span>{{ ticket.points_charged }}pt charged</span>
-                {% endif %}
-                {% if ticket.assigned_to %}
-                    <span>Assigned: {{ ticket.assigned_to }}</span>
-                {% endif %}
+                {% if is_ops and ticket.points_charged is not None %}<span>{{ ticket.points_charged }}pt charged</span>{% endif %}
+                {% if ticket.assigned_to %}<span>Assigned: {{ ticket.assigned_to }}</span>{% endif %}
             </div>
             <!-- Row 2: Action buttons (ops only) -->
             {% if is_ops %}
@@ -118,15 +114,9 @@
             <!-- Row 3: Key metadata (service/hostname/IP) -->
             {% if ticket.service_name or ticket.hostname or ticket.ip_address %}
                 <div class="d-flex gap-10 flex-wrap mt-10 text-sm">
-                    {% if ticket.service_name %}
-                        <span><strong>Service:</strong> {{ ticket.service_name }}</span>
-                    {% endif %}
-                    {% if ticket.hostname %}
-                        <span><strong>Host:</strong> {{ ticket.hostname }}</span>
-                    {% endif %}
-                    {% if ticket.ip_address %}
-                        <span><strong>IP:</strong> {{ ticket.ip_address }}</span>
-                    {% endif %}
+                    {% if ticket.service_name %}<span><strong>Service:</strong> {{ ticket.service_name }}</span>{% endif %}
+                    {% if ticket.hostname %}<span><strong>Host:</strong> {{ ticket.hostname }}</span>{% endif %}
+                    {% if ticket.ip_address %}<span><strong>IP:</strong> {{ ticket.ip_address }}</span>{% endif %}
                 </div>
             {% endif %}
         </div>
@@ -167,16 +157,16 @@
                 </c-form>
                 {% if is_ticketing_support or is_ticketing_admin %}
                     <div class="border-top mt-15 pt-15">
-                    <c-form action="{% url 'ticket_reassign' ticket.ticket_number %}" class="d-flex gap-10 items-center m-0">
-                    {% csrf_token %}
-                    <input type="text"
-                           name="new_assignee_username"
-                           placeholder="Reassign to..."
-                           aria-label="Reassign to username"
-                           required
-                           class="py-5 px-10 w-150">
-                    <c-button type="submit" variant="default" ::disabled="submitting">Reassign</c-button>
-                    </c-form>
+                        <c-form action="{% url 'ticket_reassign' ticket.ticket_number %}" class="d-flex gap-10 items-center m-0">
+                        {% csrf_token %}
+                        <input type="text"
+                               name="new_assignee_username"
+                               placeholder="Reassign to..."
+                               aria-label="Reassign to username"
+                               required
+                               class="py-5 px-10 w-150">
+                        <c-button type="submit" variant="default" ::disabled="submitting">Reassign</c-button>
+                        </c-form>
                     </div>
                 {% endif %}
                 </c-fieldset>
@@ -214,7 +204,9 @@
         </c-detail_grid>
         </c-fieldset>
         <!-- Comments -->
+        {# djlint:off #}
         <c-fieldset heading="Comments" collapsible="true" collapsed="{% if not comments %}true{% else %}false{% endif %}">
+        {# djlint:on #}
         <div id="comments-list"
              aria-live="polite"
              hx-get="{% url 'ticket_detail_dynamic' ticket.ticket_number %}"
@@ -261,7 +253,9 @@
         {% endif %}
         </c-fieldset>
         <!-- Attachments -->
+        {# djlint:off #}
         <c-fieldset heading="Attachments" collapsible="true" collapsed="{% if not attachments %}true{% else %}false{% endif %}">
+        {# djlint:on #}
         {% if attachments %}
             <div class="attachment-grid">
                 {% for attachment in attachments %}
@@ -330,44 +324,50 @@
                 {% if history %}
                     <!-- Desktop table -->
                     <div class="history-table">
-                    <c-table aria_label="Ticket history">
-                    <c-slot name="headers">
-                    <tr>
-                        <c-table_header sortable="false">Timestamp</c-table_header>
-                        <c-table_header sortable="false">Action</c-table_header>
-                        <c-table_header sortable="false">Actor</c-table_header>
-                        <c-table_header sortable="false">Details</c-table_header>
-                    </tr>
-                    </c-slot>
-                    {% for event in history %}
-                        <tr class="{% cycle 'row1' 'row2' %}">
-                            <td>{{ event.timestamp|timesince }} ago</td>
-                            <td>{{ event.action }}</td>
-                            <td>
-                                {% if event.actor %}
-                                    {{ event.actor }}
-                                {% else %}
-                                    System
-                                {% endif %}
-                            </td>
-                            <td>{{ event.details|format_history_details }}</td>
+                        <c-table aria_label="Ticket history">
+                        <c-slot name="headers">
+                        <tr>
+                            <c-table_header sortable="false">Timestamp</c-table_header>
+                            <c-table_header sortable="false">Action</c-table_header>
+                            <c-table_header sortable="false">Actor</c-table_header>
+                            <c-table_header sortable="false">Details</c-table_header>
                         </tr>
-                    {% endfor %}
-                    </c-table>
+                        </c-slot>
+                        {% for event in history %}
+                            <tr class="{% cycle 'row1' 'row2' %}">
+                                <td>{{ event.timestamp|timesince }} ago</td>
+                                <td>{{ event.action }}</td>
+                                <td>
+                                    {% if event.actor %}
+                                        {{ event.actor }}
+                                    {% else %}
+                                        System
+                                    {% endif %}
+                                </td>
+                                <td>{{ event.details|format_history_details }}</td>
+                            </tr>
+                        {% endfor %}
+                        </c-table>
                     </div>
                     <!-- Mobile cards -->
                     <div class="history-cards">
-                    {% for event in history %}
-                        <div class="history-card">
-                            <div class="history-card-header">
-                                <span>{{ event.action }} · {% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</span>
-                                <span class="history-card-time">{{ event.timestamp|timesince }} ago</span>
+                        {% for event in history %}
+                            <div class="history-card">
+                                <div class="history-card-header">
+                                    <span>{{ event.action }} ·
+                                        {% if event.actor %}
+                                            {{ event.actor }}
+                                        {% else %}
+                                            System
+                                        {% endif %}
+                                    </span>
+                                    <span class="history-card-time">{{ event.timestamp|timesince }} ago</span>
+                                </div>
+                                {% if event.details|format_history_details %}
+                                    <div class="history-card-details">{{ event.details|format_history_details }}</div>
+                                {% endif %}
                             </div>
-                            {% if event.details|format_history_details %}
-                                <div class="history-card-details">{{ event.details|format_history_details }}</div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
+                        {% endfor %}
                     </div>
                 {% else %}
                     <p class="text-muted">No history available.</p>
