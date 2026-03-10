@@ -25,68 +25,52 @@
             </ol>
             </c-alert>
         {% endif %}
-        <!-- Status Banner -->
-        <div class="status-bar mb-20">
-            <div class="d-flex items-center gap-10 mb-10">
-                <strong class="text-lg">Competition Status</strong>
-                <c-badge variant="
-                {% if config.applications_enabled %}
-                    success
-                {% elif config.competition_start_time %}
-                    info
-                {% else %}
-                    warning
-                {% endif %}
-                ">
-                {% if config.applications_enabled %}
-                    RUNNING
-                {% elif config.competition_start_time %}
-                    SCHEDULED
-                {% else %}
-                    STOPPED
-                {% endif %}
-                </c-badge>
-            </div>
-            <div class="text-sm">
-                <strong>Teams:</strong> {{ active_teams }}/{{ total_teams }} registered
-                &nbsp;•&nbsp; <strong>Users:</strong> {{ linked_users }} linked
-                &nbsp;•&nbsp; <strong>Max Members:</strong> {{ config.max_team_members }}
-                {% if config.controlled_applications %}
-                    &nbsp;•&nbsp; <strong>Apps:</strong> {{ config.controlled_applications|length }} configured
-                {% endif %}
-                &nbsp;•&nbsp; <strong>Accounts:</strong>
-                {% if config.applications_enabled %}
-                    Enabled
-                {% else %}
-                    Disabled
-                {% endif %}
-            </div>
-            {% if config.competition_start_time or config.competition_end_time %}
-                <div class="text-sm mt-5">
-                    {% if config.competition_start_time %}
-                        <strong>Starts:</strong> <span x-data="formatTime"
-       data-iso="{{ config.competition_start_time|date:'c' }}"
-       x-text="formatted"></span>
-                    {% endif %}
-                    {% if config.competition_end_time %}
-                        {% if config.competition_start_time %}&nbsp;•&nbsp;{% endif %}
-                        <strong>Ends:</strong> <span x-data="formatTime"
-       data-iso="{{ config.competition_end_time|date:'c' }}"
-       x-text="formatted"></span>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </div>
-        <!-- Section 1: Pre-Competition Setup -->
-        <c-fieldset heading="Pre-Competition Setup" class="mb-20" collapsible="true" collapsed="
+        <!-- Status -->
+        <c-module>
+        <c-slot name="title">Competition Status</c-slot>
+        <c-detail_grid>
+        <c-detail_row label="Status">
         {% if config.applications_enabled %}
-            true
+            <c-badge variant="success">Running</c-badge>
+        {% elif config.competition_start_time %}
+            <c-badge variant="info">Scheduled</c-badge>
         {% else %}
-            false
+            <c-badge variant="warning">Stopped</c-badge>
         {% endif %}
-        ">
+        </c-detail_row>
+        <c-detail_row label="Teams">{{ active_teams }}/{{ total_teams }} registered</c-detail_row>
+        <c-detail_row label="Users">{{ linked_users }} linked</c-detail_row>
+        <c-detail_row label="Max Members">{{ config.max_team_members }}</c-detail_row>
+        {% if config.controlled_applications %}
+            <c-detail_row label="Apps">{{ config.controlled_applications|length }} configured</c-detail_row>
+        {% endif %}
+        <c-detail_row label="Accounts">
+        {% if config.applications_enabled %}
+            Enabled
+        {% else %}
+            Disabled
+        {% endif %}
+        </c-detail_row>
+        {% if config.competition_start_time %}
+            <c-detail_row label="Starts">
+            <span x-data="formatTime"
+                  data-iso="{{ config.competition_start_time|date:'c' }}"
+                  x-text="formatted"></span>
+            </c-detail_row>
+        {% endif %}
+        {% if config.competition_end_time %}
+            <c-detail_row label="Ends">
+            <span x-data="formatTime"
+                  data-iso="{{ config.competition_end_time|date:'c' }}"
+                  x-text="formatted"></span>
+            </c-detail_row>
+        {% endif %}
+        </c-detail_grid>
+        </c-module>
+        <!-- Setup -->
+        <c-module class="mt-20">
+        <c-slot name="title">Setup</c-slot>
         <div class="grid-2 mb-20">
-            <!-- Team Configuration -->
             <div>
                 <h3 class="mt-0 mb-10">Team Configuration</h3>
                 <form @submit.prevent="setMaxMembers" class="d-flex gap-10 items-end mb-15">
@@ -112,7 +96,7 @@
                                     @click="removeApp"
                                     :data-app="app"
                                     aria-label="Remove app"
-                                    class="text-danger btn-reset text-md">×</button>
+                                    class="text-danger btn-reset text-md">&times;</button>
                             </c-badge>
                         </template>
                         <template x-if="noApps">
@@ -128,7 +112,6 @@
                     </form>
                 </div>
             </div>
-            <!-- Schedule -->
             <div>
                 <h3 class="mt-0 mb-10">Schedule</h3>
                 <form @submit.prevent="setStartTime" class="d-flex gap-10 items-end mb-15">
@@ -169,16 +152,27 @@
                 </form>
             </div>
         </div>
-        </c-fieldset>
-        <!-- Section 2: Competition Controls -->
-        <c-fieldset heading="Competition Controls" class="mb-20" collapsible="true" collapsed="false">
-        <c-button_row class="mt-10">
-        <c-button variant="primary" @click="startCompetition" ::disabled="loading">
-        Start Competition
-        </c-button>
-        <c-button variant="warning" @click="stopCompetition" ::disabled="loading">
-        Stop Competition
-        </c-button>
+        <h3 class="mt-0 mb-10">Quotient Integration</h3>
+        {% if quotient_metadata %}
+            <c-detail_grid class="mb-10">
+            <c-detail_row label="Last Synced">{{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</c-detail_row>
+            <c-detail_row label="Event">{{ quotient_metadata.event_name }}</c-detail_row>
+            <c-detail_row label="Teams">{{ quotient_metadata.team_count }}</c-detail_row>
+            <c-detail_row label="Boxes">{{ quotient_metadata.boxes|length }}</c-detail_row>
+            </c-detail_grid>
+        {% else %}
+            <p class="text-muted mb-10">Metadata not synced yet.</p>
+        {% endif %}
+        <c-button_row>
+        <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Quotient Metadata</c-button>
+        </c-button_row>
+        </c-module>
+        <!-- Competition Controls -->
+        <c-module class="mt-20">
+        <c-slot name="title">Competition Controls</c-slot>
+        <c-button_row>
+        <c-button variant="primary" @click="startCompetition" ::disabled="loading">Start Competition</c-button>
+        <c-button variant="warning" @click="stopCompetition" ::disabled="loading">Stop Competition</c-button>
         </c-button_row>
         <template x-if="hasProgress">
             <div class="mt-10">
@@ -200,81 +194,39 @@
                 </template>
             </div>
         </template>
-        </c-fieldset>
-        <!-- Section 2.5: Quotient Integration -->
-        <c-fieldset heading="Quotient Integration" class="mb-20" collapsible="true" collapsed="true">
-        {% if quotient_metadata %}
-            <c-detail_grid class="mb-10">
-            <dt>Last Synced</dt>
-            <dd>
-                {{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}
-            </dd>
-            <dt>Event</dt>
-            <dd>
-                {{ quotient_metadata.event_name }}
-            </dd>
-            <dt>Teams</dt>
-            <dd>
-                {{ quotient_metadata.team_count }}
-            </dd>
-            <dt>Boxes</dt>
-            <dd>
-                {{ quotient_metadata.boxes|length }}
-            </dd>
-            </c-detail_grid>
-        {% else %}
-            <p class="text-muted mb-10">Metadata not synced yet.</p>
-        {% endif %}
-        <c-button_row>
-        <c-button variant="default" @click="syncQuotient" ::disabled="loading">
-        Sync Quotient Metadata
-        </c-button>
-        </c-button_row>
-        </c-fieldset>
-        <!-- Section 3: Post-Competition -->
-        <c-fieldset heading="Post-Competition" class="mb-20" collapsible="true" collapsed="
-        {% if config.applications_enabled %}
-            true
-        {% elif config.competition_start_time %}
-            false
-        {% else %}
-            true
-        {% endif %}
-        ">
-        <!-- Password Reset -->
-        <div class="mb-20">
-            <h3 class="mt-0 mb-10">Password Management</h3>
-            <form @submit.prevent="resetPasswords" class="max-w-500">
-                <c-form_field label="Team Numbers" id="team_numbers" help_text="Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.">
-                <input type="text"
-                       name="team_numbers"
-                       id="team_numbers"
-                       x-model="teamNumbers"
-                       placeholder="1,3,5-10 (empty = all)"
-                       class="vTextField">
-                </c-form_field>
-                <c-button_row class="mt-10">
-                <c-button type="submit" variant="warning" ::disabled="loading">Reset Passwords</c-button>
-                </c-button_row>
-            </form>
-            <template x-if="csvContent">
-                <c-action_box heading="Password CSV Generated" class="mt-20">
-                <textarea readonly
-                          class="w-full vTextField h-120 font-mono text-sm"
-                          x-text="csvContent"></textarea>
-                <c-button_row class="mt-10">
-                <c-button type="button" variant="default" @click="downloadCsv">Download CSV</c-button>
-                </c-button_row>
-                </c-action_box>
-            </template>
-        </div>
-        <!-- Danger Zone (separate page) -->
+        </c-module>
+        <!-- Post-Competition -->
+        <c-module class="mt-20">
+        <c-slot name="title">Post-Competition</c-slot>
+        <form @submit.prevent="resetPasswords" class="max-w-500">
+            <c-form_field label="Team Numbers" id="team_numbers" help_text="Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.">
+            <input type="text"
+                   name="team_numbers"
+                   id="team_numbers"
+                   x-model="teamNumbers"
+                   placeholder="1,3,5-10 (empty = all)"
+                   class="vTextField">
+            </c-form_field>
+            <c-button_row class="mt-10">
+            <c-button type="submit" variant="warning" ::disabled="loading">Reset Passwords</c-button>
+            </c-button_row>
+        </form>
+        <template x-if="csvContent">
+            <c-action_box heading="Password CSV Generated" class="mt-20">
+            <textarea readonly
+                      class="w-full vTextField h-120 font-mono text-sm"
+                      x-text="csvContent"></textarea>
+            <c-button_row class="mt-10">
+            <c-button type="button" variant="default" @click="downloadCsv">Download CSV</c-button>
+            </c-button_row>
+            </c-action_box>
+        </template>
         <div class="mt-20">
             <c-link href="{% url 'admin_competition_danger' %}" variant="danger">
             Cleanup &amp; Danger Zone &rarr;
             </c-link>
         </div>
-        </c-fieldset>
+        </c-module>
         <!-- Toast Notification -->
         <template x-if="message">
             <div x-transition class="toast-position">
