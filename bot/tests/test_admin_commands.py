@@ -93,11 +93,14 @@ class TestAdminCommands:
         mock_settings.AUTHENTIK_TOKEN = "test-token"
 
         callback = AdminCompetitionCog.admin_reset_blueteam_passwords.callback
-        with patch_globals(callback, {
-            "generate_blueteam_password": mock_generate_password,
-            "AuthentikManager": mock_manager_cls,
-            "settings": mock_settings,
-        }):
+        with patch_globals(
+            callback,
+            {
+                "generate_blueteam_password": mock_generate_password,
+                "AuthentikManager": mock_manager_cls,
+                "settings": mock_settings,
+            },
+        ):
             cog = AdminCompetitionCog(mock_bot)
             await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
@@ -125,11 +128,14 @@ class TestAdminCommands:
         mock_settings.AUTHENTIK_TOKEN = "test-token"
 
         callback = AdminCompetitionCog.admin_reset_blueteam_passwords.callback
-        with patch_globals(callback, {
-            "generate_blueteam_password": mock_generate_password,
-            "AuthentikManager": mock_manager_cls,
-            "settings": mock_settings,
-        }):
+        with patch_globals(
+            callback,
+            {
+                "generate_blueteam_password": mock_generate_password,
+                "AuthentikManager": mock_manager_cls,
+                "settings": mock_settings,
+            },
+        ):
             cog = AdminCompetitionCog(mock_bot)
             await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
@@ -220,11 +226,14 @@ class TestAdminCommands:
         mock_remove_blueteam.side_effect = track_blueteam_removal
 
         callback = AdminTeamsCog.admin_remove_team.callback
-        with patch_globals(callback, {
-            "safe_remove_role": mock_safe_remove_role,
-            "remove_blueteam_role": mock_remove_blueteam,
-            "log_to_ops_channel": AsyncMock(),
-        }):
+        with patch_globals(
+            callback,
+            {
+                "safe_remove_role": mock_safe_remove_role,
+                "remove_blueteam_role": mock_remove_blueteam,
+                "log_to_ops_channel": AsyncMock(),
+            },
+        ):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_remove_team.callback(cog, mock_interaction, team_number=team_number)
 
@@ -326,11 +335,14 @@ class TestAdminCommands:
         mock_log_ops = AsyncMock()
 
         callback = AdminTeamsCog.admin_unlink.callback
-        with patch_globals(callback, {
-            "safe_remove_role": mock_safe_remove,
-            "remove_blueteam_role": mock_remove_blueteam,
-            "log_to_ops_channel": mock_log_ops,
-        }):
+        with patch_globals(
+            callback,
+            {
+                "safe_remove_role": mock_safe_remove,
+                "remove_blueteam_role": mock_remove_blueteam,
+                "log_to_ops_channel": mock_log_ops,
+            },
+        ):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
@@ -425,10 +437,13 @@ class TestAdminCommands:
         member_mock.mention = "<@test>"
 
         callback = AdminTeamsCog.admin_unlink.callback
-        with patch_globals(callback, {
-            "safe_remove_role": AsyncMock(),
-            "log_to_ops_channel": AsyncMock(),
-        }):
+        with patch_globals(
+            callback,
+            {
+                "safe_remove_role": AsyncMock(),
+                "log_to_ops_channel": AsyncMock(),
+            },
+        ):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
