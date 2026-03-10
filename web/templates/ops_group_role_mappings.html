@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block admin_content %}
     <div id="content-main" x-data="teamMappings">
-        <c-page_header title="Team Mappings" />
+        <c-page_header title="Team Mappings" parent_url="{% url 'admin_teams' %}" parent_label="Teams" />
         <c-module>
         <c-slot name="toolbar">
         <label for="team-search" class="assistive-text">Search</label>

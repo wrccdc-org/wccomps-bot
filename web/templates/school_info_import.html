@@ -5,7 +5,7 @@
 {% endblock title %}
 {% block admin_content %}
     <div id="content-main">
-        <c-page_header title="Import School Information from CSV" />
+        <c-page_header title="Import School Information from CSV" parent_url="{% url 'school_info' %}" parent_label="Schools" />
         <c-module>
         {% if import_results %}
             {# Step 3: Show success message #}

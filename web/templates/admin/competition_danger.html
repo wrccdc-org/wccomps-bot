@@ -5,10 +5,7 @@
 {% endblock title %}
 {% block admin_content %}
     <div x-data="competitionDanger">
-        <c-page_header title="Competition Danger Zone" />
-        <c-button_row class="mb-20">
-        <c-link href="{% url 'admin_competition' %}" variant="history">&larr; Back to Competition</c-link>
-        </c-button_row>
+        <c-page_header title="Competition Danger Zone" parent_url="{% url 'admin_competition' %}" parent_label="Competition" />
         <!-- Cleanup -->
         <c-fieldset heading="Cleanup" class="mb-20">
         <p class="help-text mb-10">

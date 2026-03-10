@@ -4,7 +4,7 @@
     Manage Checks
 {% endblock title %}
 {% block content %}
-    <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" />
+    <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" parent_url="{% url 'challenges:dashboard' %}" parent_label="Orange Team" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}

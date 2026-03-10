@@ -5,7 +5,7 @@
 {% block content %}
     {% load cotton %}
     <div class="max-w-1200">
-        <c-page_header title="Submit Incident Report" subtitle="Report detected attacks on your systems" />
+        <c-page_header title="Submit Incident Report" subtitle="Report detected attacks on your systems" parent_url="{% url 'scoring:incident_list' %}" parent_label="Incidents" />
         <c-module>
         {% if team or is_admin %}
             <c-form enctype="multipart/form-data" id="incidentForm">
