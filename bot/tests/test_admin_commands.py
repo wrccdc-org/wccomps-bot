@@ -1,7 +1,8 @@
 """Tests for admin slash commands."""
 
+from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pytest
@@ -13,6 +14,23 @@ from bot.cogs.admin_tickets import AdminTicketsCog
 from core.models import AuditLog
 from team.models import DiscordLink, Team
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
+
+
+@contextmanager
+def patch_globals(callback: Any, overrides: dict[str, Any]):
+    """Patch a function's __globals__ directly.
+
+    Under pytest-xdist, unittest.mock.patch on bot.cogs.* modules can target a
+    different module object than the one the callback resolves names through.
+    Patching __globals__ directly is the only reliable approach.
+    """
+    g = callback.__globals__
+    orig = {k: g[k] for k in overrides if k in g}
+    g.update(overrides)
+    try:
+        yield
+    finally:
+        g.update(orig)
 
 
 @pytest.mark.asyncio
@@ -67,28 +85,25 @@ class TestAdminCommands:
         """Test /admin reset-blueteam-passwords - verifies password reset flow."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        with (
-            patch("bot.cogs.admin_competition.generate_blueteam_password") as mock_generate_password,
-            patch("bot.cogs.admin_competition.AuthentikManager") as mock_manager_cls,
-            patch("bot.cogs.admin_competition.settings") as mock_settings,
-        ):
-            mock_settings.AUTHENTIK_TOKEN = "test-token"
-            mock_generate_password.return_value = "Test-Password-123!"
-            mock_manager_instance = mock_manager_cls.return_value
-            mock_manager_instance.reset_blueteam_password.return_value = (True, "")
+        mock_generate_password = MagicMock(return_value="Test-Password-123!")
+        mock_manager_cls = MagicMock()
+        mock_manager_instance = mock_manager_cls.return_value
+        mock_manager_instance.reset_blueteam_password.return_value = (True, "")
+        mock_settings = MagicMock()
+        mock_settings.AUTHENTIK_TOKEN = "test-token"
 
+        callback = AdminCompetitionCog.admin_reset_blueteam_passwords.callback
+        with patch_globals(callback, {
+            "generate_blueteam_password": mock_generate_password,
+            "AuthentikManager": mock_manager_cls,
+            "settings": mock_settings,
+        }):
             cog = AdminCompetitionCog(mock_bot)
             await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
-            # Verify password was generated for each team
             assert mock_generate_password.call_count == 3
-
-            # Verify password reset was called for each team
             assert mock_manager_instance.reset_blueteam_password.call_count == 3
-
             mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
-
-            # Verify response includes password file
             mock_interaction.followup.send.assert_called_once()
             call_args = mock_interaction.followup.send.call_args
             assert "file" in call_args.kwargs, "Should send file with passwords"
@@ -102,23 +117,23 @@ class TestAdminCommands:
         """Test /admin reset-blueteam-passwords handles API failures."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        with (
-            patch("bot.cogs.admin_competition.generate_blueteam_password") as mock_generate_password,
-            patch("bot.cogs.admin_competition.AuthentikManager") as mock_manager_cls,
-            patch("bot.cogs.admin_competition.settings") as mock_settings,
-        ):
-            mock_settings.AUTHENTIK_TOKEN = "test-token"
-            mock_generate_password.return_value = "Test-Password-123!"
-            mock_manager_instance = mock_manager_cls.return_value
-            mock_manager_instance.reset_blueteam_password.return_value = (False, "HTTP 500: Internal Server Error")
+        mock_generate_password = MagicMock(return_value="Test-Password-123!")
+        mock_manager_cls = MagicMock()
+        mock_manager_instance = mock_manager_cls.return_value
+        mock_manager_instance.reset_blueteam_password.return_value = (False, "HTTP 500: Internal Server Error")
+        mock_settings = MagicMock()
+        mock_settings.AUTHENTIK_TOKEN = "test-token"
 
+        callback = AdminCompetitionCog.admin_reset_blueteam_passwords.callback
+        with patch_globals(callback, {
+            "generate_blueteam_password": mock_generate_password,
+            "AuthentikManager": mock_manager_cls,
+            "settings": mock_settings,
+        }):
             cog = AdminCompetitionCog(mock_bot)
             await cog.admin_reset_blueteam_passwords.callback(cog, mock_interaction, team_numbers="1-3")
 
-            # Verify error was communicated
             assert mock_interaction.followup.send.called, "Should send error message"
-
-            # Verify CSV file was still sent (with attempted passwords)
             call_args = mock_interaction.followup.send.call_args
             assert "file" in call_args.kwargs, "Should still send CSV file"
 
@@ -189,27 +204,27 @@ class TestAdminCommands:
         category.delete = AsyncMock()
         team_role.delete = AsyncMock()
 
-        with (
-            patch("bot.cogs.admin_teams.safe_remove_role") as mock_safe_remove_role,
-            patch("bot.cogs.admin_teams.remove_blueteam_role") as mock_remove_blueteam,
-            patch("bot.cogs.admin_teams.log_to_ops_channel"),
-        ):
-            mock_safe_remove_role.return_value = None
-            mock_remove_blueteam.return_value = None
+        mock_safe_remove_role = AsyncMock()
+        mock_remove_blueteam = AsyncMock()
 
-            # Track call order to verify roles are removed BEFORE links deactivated
-            call_order = []
+        # Track call order to verify roles are removed BEFORE links deactivated
+        call_order = []
 
-            async def track_role_removal(*args, **kwargs):
-                call_order.append(("role_removed", args[1].name if args else "unknown"))
+        async def track_role_removal(*args, **kwargs):
+            call_order.append(("role_removed", args[1].name if args else "unknown"))
 
-            async def track_blueteam_removal(*args, **kwargs):
-                call_order.append(("blueteam_removed", args[0].id))
+        async def track_blueteam_removal(*args, **kwargs):
+            call_order.append(("blueteam_removed", args[0].id))
 
-            mock_safe_remove_role.side_effect = track_role_removal
-            mock_remove_blueteam.side_effect = track_blueteam_removal
+        mock_safe_remove_role.side_effect = track_role_removal
+        mock_remove_blueteam.side_effect = track_blueteam_removal
 
-            # Execute command
+        callback = AdminTeamsCog.admin_remove_team.callback
+        with patch_globals(callback, {
+            "safe_remove_role": mock_safe_remove_role,
+            "remove_blueteam_role": mock_remove_blueteam,
+            "log_to_ops_channel": AsyncMock(),
+        }):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_remove_team.callback(cog, mock_interaction, team_number=team_number)
 
@@ -306,14 +321,17 @@ class TestAdminCommands:
         # Mock guild.get_member to return the member
         mock_interaction.guild.get_member.return_value = member_mock
 
-        # Mock safe_remove_role and remove_blueteam_role
-        with (
-            patch("bot.cogs.admin_teams.safe_remove_role") as mock_safe_remove,
-            patch("bot.cogs.admin_teams.remove_blueteam_role") as mock_remove_blueteam,
-            patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops,
-        ):
+        mock_safe_remove = AsyncMock()
+        mock_remove_blueteam = AsyncMock()
+        mock_log_ops = AsyncMock()
+
+        callback = AdminTeamsCog.admin_unlink.callback
+        with patch_globals(callback, {
+            "safe_remove_role": mock_safe_remove,
+            "remove_blueteam_role": mock_remove_blueteam,
+            "log_to_ops_channel": mock_log_ops,
+        }):
             cog = AdminTeamsCog(mock_bot)
-            # Pass member ID as string
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
             # Verify link was deactivated
@@ -348,7 +366,6 @@ class TestAdminCommands:
             call_args = mock_interaction.followup.send.call_args
             assert "Unlinked" in call_args.args[0] or "✓" in call_args.args[0]
 
-            # Verify ops channel log
             mock_log_ops.assert_called_once()
 
     async def test_admin_unlink_user_not_linked(
@@ -407,10 +424,11 @@ class TestAdminCommands:
         member_mock.id = member_id
         member_mock.mention = "<@test>"
 
-        with (
-            patch("bot.cogs.admin_teams.safe_remove_role"),
-            patch("bot.cogs.admin_teams.log_to_ops_channel"),
-        ):
+        callback = AdminTeamsCog.admin_unlink.callback
+        with patch_globals(callback, {
+            "safe_remove_role": AsyncMock(),
+            "log_to_ops_channel": AsyncMock(),
+        }):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_unlink.callback(cog, mock_interaction, str(member_id))
 
@@ -506,7 +524,8 @@ class TestAdminCommands:
 
         mock_interaction.response.send_message = capture_and_confirm
 
-        with patch("bot.cogs.admin_tickets.log_to_ops_channel"):
+        callback = AdminTicketsCog.admin_ticket_clear.callback
+        with patch_globals(callback, {"log_to_ops_channel": AsyncMock()}):
             await cog.admin_ticket_clear.callback(cog, mock_interaction)
 
         # Verify all tickets deleted
@@ -532,7 +551,8 @@ class TestAdminCommands:
         """Test /tickets clear with no tickets shows appropriate message."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        with patch("bot.cogs.admin_tickets.log_to_ops_channel"):
+        callback = AdminTicketsCog.admin_ticket_clear.callback
+        with patch_globals(callback, {"log_to_ops_channel": AsyncMock()}):
             cog = AdminTicketsCog(mock_bot)
             await cog.admin_ticket_clear.callback(cog, mock_interaction)
 
@@ -550,11 +570,12 @@ class TestAdminCommands:
         await Team.objects.acreate(team_number=2, team_name="Team 02", max_members=5, is_active=False)
         await Team.objects.acreate(team_number=3, team_name="Team 03", max_members=5, is_active=True)
 
-        with patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops:
+        mock_log_ops = AsyncMock()
+        callback = AdminTeamsCog.admin_activate_teams.callback
+        with patch_globals(callback, {"log_to_ops_channel": mock_log_ops}):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_activate_teams.callback(cog, mock_interaction, teams="1-3")
 
-            # Verify ops channel log
             mock_log_ops.assert_called_once()
 
         # Verify all teams are now active
@@ -584,11 +605,12 @@ class TestAdminCommands:
         await Team.objects.acreate(team_number=5, team_name="Team 05", max_members=5, is_active=True)
         await Team.objects.acreate(team_number=6, team_name="Team 06", max_members=5, is_active=False)
 
-        with patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops:
+        mock_log_ops = AsyncMock()
+        callback = AdminTeamsCog.admin_deactivate_teams.callback
+        with patch_globals(callback, {"log_to_ops_channel": mock_log_ops}):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_deactivate_teams.callback(cog, mock_interaction, teams="4,5,6")
 
-            # Verify ops channel log
             mock_log_ops.assert_called_once()
 
         # Verify all teams are now inactive
@@ -667,15 +689,21 @@ class TestAdminCommands:
         new_category.channels = [MagicMock(), MagicMock()]  # Mock 2 channels
         mock_manager.setup_team_infrastructure = AsyncMock(return_value=(new_role, new_category))
 
-        with (
-            patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops,
-            patch("bot.discord_manager.DiscordManager", return_value=mock_manager),
-        ):
-            cog = AdminTeamsCog(mock_bot)
-            await cog.admin_recreate_teams.callback(cog, mock_interaction, teams="20,21")
+        mock_log_ops = AsyncMock()
+        callback = AdminTeamsCog.admin_recreate_teams.callback
+        # DiscordManager is imported locally inside the method, so patch at the source module
+        import bot.discord_manager
 
-            # Verify ops channel log
-            mock_log_ops.assert_called_once()
+        orig_dm = bot.discord_manager.DiscordManager
+        bot.discord_manager.DiscordManager = MagicMock(return_value=mock_manager)
+        try:
+            with patch_globals(callback, {"log_to_ops_channel": mock_log_ops}):
+                cog = AdminTeamsCog(mock_bot)
+                await cog.admin_recreate_teams.callback(cog, mock_interaction, teams="20,21")
+
+                mock_log_ops.assert_called_once()
+        finally:
+            bot.discord_manager.DiscordManager = orig_dm
 
         # Verify old infrastructure was deleted
         role20.delete.assert_called_once()
