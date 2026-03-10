@@ -213,7 +213,7 @@
         </c-detail_grid>
         </c-fieldset>
         <!-- Comments -->
-        <c-fieldset heading="Comments">
+        <c-fieldset heading="Comments" collapsible="true" collapsed="{% if not comments %}true{% else %}false{% endif %}">
         <div id="comments-list"
              aria-live="polite"
              hx-get="{% url 'ticket_detail_dynamic' ticket.ticket_number %}"
@@ -260,7 +260,7 @@
         {% endif %}
         </c-fieldset>
         <!-- Attachments -->
-        <c-fieldset heading="Attachments">
+        <c-fieldset heading="Attachments" collapsible="true" collapsed="{% if not attachments %}true{% else %}false{% endif %}">
         {% if attachments %}
             <div class="attachment-grid">
                 {% for attachment in attachments %}
@@ -319,7 +319,7 @@
         {% endif %}
         <!-- History (ops only) -->
         {% if is_ops %}
-            <c-fieldset heading="History">
+            <c-fieldset heading="History" collapsible="true" collapsed="true">
             <div id="history-list"
                  aria-live="polite"
                  hx-get="{% url 'ticket_detail_dynamic' ticket.ticket_number %}"
