@@ -18,29 +18,24 @@
             <c-table_header sortable="false">IP Count</c-table_header>
             <c-table_header sortable="false">Findings</c-table_header>
             <c-table_header sortable="false">Created</c-table_header>
-            <c-table_header sortable="false">Actions</c-table_header>
+            <c-table_header sortable="false"></c-table_header>
         </tr>
         </c-slot>
         {% for pool in pools %}
             <tr>
                 <td>
-                    <strong>{{ pool.name }}</strong>
+                    <a href="{% url 'scoring:ip_pool_edit' pool.id %}"><strong>{{ pool.name }}</strong></a>
                 </td>
                 <td>{{ pool.ip_count }}</td>
                 <td>{{ pool.findings.count }}</td>
                 <td>{{ pool.created_at|date:"M d, Y" }}</td>
                 <td>
-                    <div class="d-flex gap-10">
-                        <c-link href="{% url 'scoring:ip_pool_edit' pool.id %}" variant="change">Edit</c-link>
-                        {% if not pool.findings.exists %}
-                            <c-form action="{% url 'scoring:ip_pool_delete' pool.id %}" onsubmit="return confirm('Delete pool \'{{ pool.name }}\'?');">
-                            {% csrf_token %}
-                            <c-button type="submit" variant="danger" ::disabled="submitting">Delete</c-button>
-                            </c-form>
-                        {% else %}
-                            <span class="text-muted text-sm">(in use)</span>
-                        {% endif %}
-                    </div>
+                    {% if not pool.findings.exists %}
+                        <c-form action="{% url 'scoring:ip_pool_delete' pool.id %}" onsubmit="return confirm('Delete pool \'{{ pool.name }}\'?');">
+                        {% csrf_token %}
+                        <c-button type="submit" variant="danger" ::disabled="submitting">Delete</c-button>
+                        </c-form>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}

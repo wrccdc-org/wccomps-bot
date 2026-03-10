@@ -21,7 +21,6 @@
             <c-table_header sortable="false">Criteria</c-table_header>
             <c-table_header sortable="false">Assignments</c-table_header>
             <c-table_header sortable="false">Created</c-table_header>
-            <c-table_header sortable="false">Actions</c-table_header>
         </tr>
         </c-slot>
         {% for check in checks %}
@@ -43,9 +42,6 @@
                 <td>{{ check.criteria_count }}</td>
                 <td>{{ check.assignment_count }}</td>
                 <td>{{ check.created_at|date:"M d, Y H:i" }}</td>
-                <td>
-                    <c-link href="{% url 'challenges:check_detail' check.pk %}" variant="change">View</c-link>
-                </td>
             </tr>
         {% endfor %}
         </c-table>

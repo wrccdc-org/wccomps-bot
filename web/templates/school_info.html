@@ -18,13 +18,12 @@
             <c-table_header sortable="false">Contact Email</c-table_header>
             <c-table_header sortable="false">Secondary Email</c-table_header>
             <c-table_header sortable="false">Last Updated</c-table_header>
-            <c-table_header sortable="false">Action</c-table_header>
         </tr>
         </c-slot>
         {% for item in teams %}
             <tr class="{% cycle 'row1' 'row2' %}">
                 <th class="field-team">
-                    Team {{ item.team.team_number }}
+                    <a href="{% url 'school_info_edit' item.team.team_number %}">Team {{ item.team.team_number }}</a>
                     <div>{{ item.team.team_name }}</div>
                 </th>
                 <td class="field-school_name">
@@ -55,15 +54,12 @@
                         —
                     {% endif %}
                 </td>
-                <td class="field-action">
-                    <c-link href="{% url 'school_info_edit' item.team.team_number %}" variant="change">Edit</c-link>
-                </td>
             </tr>
         {% empty %}
             <tr>
-                <td colspan="6">
+                <td colspan="5">
                     <c-empty_state title="No teams" description="No teams have been configured yet." />
-                </td>
+                    </td>
             </tr>
         {% endfor %}
         </c-table>

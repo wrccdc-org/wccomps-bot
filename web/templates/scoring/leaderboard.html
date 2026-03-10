@@ -20,7 +20,6 @@
             <c-table_header sortable="false" class="text-right" tooltip="Points recovered by filing incident reports">Recovery</c-table_header>
             <c-table_header sortable="false" class="text-right" tooltip="Penalties for service level agreement violations">SLA</c-table_header>
             <c-table_header sortable="false" class="text-right">Total</c-table_header>
-            <c-table_header sortable="false">Scorecard</c-table_header>
         </tr>
         </c-slot>
         {% for score in scores %}
@@ -28,7 +27,7 @@
                 <td>
                     <strong>{{ score.rank }}</strong>
                 </td>
-                <td>Team {{ score.team.team_number }}</td>
+                <td><a href="{% url 'leaderboard_scorecard' score.team.team_number %}">Team {{ score.team.team_number }}</a></td>
                 <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
                 <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
                 <td class="text-right">
@@ -45,9 +44,6 @@
                 </td>
                 <td class="text-right">
                     <strong>{{ score.total_score|floatformat:0 }}</strong>
-                </td>
-                <td>
-                    <c-link href="{% url 'leaderboard_scorecard' score.team.team_number %}" variant="change">View</c-link>
                 </td>
             </tr>
         {% endfor %}
