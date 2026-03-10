@@ -73,8 +73,8 @@
         <div class="grid-2 mb-20">
             <div>
                 <h3 class="mt-0 mb-10">Team Configuration</h3>
-                <form @submit.prevent="setMaxMembers" class="d-flex gap-10 items-end mb-15">
-                    <c-form_field label="Max Team Members" id="max_members" class="flex-1">
+                <form @submit.prevent="setMaxMembers" class="mb-15">
+                    <c-form_field label="Max Team Members" id="max_members">
                     <input type="number"
                            name="max_members"
                            id="max_members"
@@ -83,7 +83,9 @@
                            max="20"
                            class="vTextField">
                     </c-form_field>
+                    <c-button_row class="mt-10">
                     <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
+                    </c-button_row>
                 </form>
                 <div class="mb-10">
                     <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
@@ -114,41 +116,49 @@
             </div>
             <div>
                 <h3 class="mt-0 mb-10">Schedule</h3>
-                <form @submit.prevent="setStartTime" class="d-flex gap-10 items-end mb-15">
-                    <c-form_field label="Start Time" id="start_datetime" class="flex-1">
-                    <input type="datetime-local"
-                           name="start_datetime"
-                           id="start_datetime"
-                           x-model="startDatetime"
-                           class="vTextField">
-                    </c-form_field>
-                    <c-form_field label="TZ" id="start_timezone">
-                    <select name="start_timezone"
-                            id="start_timezone"
-                            x-model="startTimezone"
-                            class="vTextField">
-                        {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                    </select>
-                    </c-form_field>
-                    <c-button type="submit" variant="default" ::disabled="loading">Set</c-button>
+                <form @submit.prevent="setStartTime" class="mb-15">
+                    <div class="d-flex gap-10 items-end">
+                        <c-form_field label="Start Time" id="start_datetime" class="flex-1">
+                        <input type="datetime-local"
+                               name="start_datetime"
+                               id="start_datetime"
+                               x-model="startDatetime"
+                               class="vTextField">
+                        </c-form_field>
+                        <c-form_field label="TZ" id="start_timezone">
+                        <select name="start_timezone"
+                                id="start_timezone"
+                                x-model="startTimezone"
+                                class="vTextField">
+                            {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                        </select>
+                        </c-form_field>
+                    </div>
+                    <c-button_row class="mt-10">
+                    <c-button type="submit" variant="default" ::disabled="loading">Set Start Time</c-button>
+                    </c-button_row>
                 </form>
-                <form @submit.prevent="setEndTime" class="d-flex gap-10 items-end">
-                    <c-form_field label="End Time" id="end_datetime" class="flex-1">
-                    <input type="datetime-local"
-                           name="end_datetime"
-                           id="end_datetime"
-                           x-model="endDatetime"
-                           class="vTextField">
-                    </c-form_field>
-                    <c-form_field label="TZ" id="end_timezone">
-                    <select name="end_timezone"
-                            id="end_timezone"
-                            x-model="endTimezone"
-                            class="vTextField">
-                        {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                    </select>
-                    </c-form_field>
-                    <c-button type="submit" variant="default" ::disabled="loading">Set</c-button>
+                <form @submit.prevent="setEndTime">
+                    <div class="d-flex gap-10 items-end">
+                        <c-form_field label="End Time" id="end_datetime" class="flex-1">
+                        <input type="datetime-local"
+                               name="end_datetime"
+                               id="end_datetime"
+                               x-model="endDatetime"
+                               class="vTextField">
+                        </c-form_field>
+                        <c-form_field label="TZ" id="end_timezone">
+                        <select name="end_timezone"
+                                id="end_timezone"
+                                x-model="endTimezone"
+                                class="vTextField">
+                            {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                        </select>
+                        </c-form_field>
+                    </div>
+                    <c-button_row class="mt-10">
+                    <c-button type="submit" variant="default" ::disabled="loading">Set End Time</c-button>
+                    </c-button_row>
                 </form>
             </div>
         </div>
