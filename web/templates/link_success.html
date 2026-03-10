@@ -8,20 +8,9 @@
         <c-page_header title="Successfully Linked" />
         <c-module>
         <c-detail_grid>
-        <dt>Discord Account</dt>
-        <dd>
-            {{ discord_username }}
-        </dd>
-        <dt>Authentik Username</dt>
-        <dd>
-            {{ authentik_username }}
-        </dd>
-        {% if is_team_account %}
-            <dt>Team</dt>
-            <dd>
-                {{ team_name }} (#{{ team_number }})
-            </dd>
-        {% endif %}
+        <c-detail_row label="Discord Account">{{ discord_username }}</c-detail_row>
+        <c-detail_row label="Authentik Username">{{ authentik_username }}</c-detail_row>
+        {% if is_team_account %}<c-detail_row label="Team">{{ team_name }} (#{{ team_number }})</c-detail_row>{% endif %}
         </c-detail_grid>
         {% if is_team_account %}
             <p class="mt-20">Your team role will be assigned shortly. You can now close this window and return to Discord.</p>

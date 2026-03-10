@@ -18,53 +18,28 @@
             <div>
                 <h3>Report Details</h3>
                 <c-detail_grid>
-                <dt>Team</dt>
-                <dd>
-                    Team {{ incident.team.team_number }}
-                </dd>
-                <dt>Submitted By</dt>
-                <dd>
-                    {{ incident.submitted_by.username }}
-                </dd>
-                <dt>Submitted At</dt>
-                <dd>
-                    {{ incident.created_at|date:"Y-m-d H:i:s" }}
-                </dd>
-                <dt>Attack Detected</dt>
-                <dd>
-                    {{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}
-                </dd>
+                <c-detail_row label="Team">Team {{ incident.team.team_number }}</c-detail_row>
+                <c-detail_row label="Submitted By">{{ incident.submitted_by.username }}</c-detail_row>
+                <c-detail_row label="Submitted At">{{ incident.created_at|date:"Y-m-d H:i:s" }}</c-detail_row>
+                <c-detail_row label="Attack Detected">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</c-detail_row>
                 </c-detail_grid>
             </div>
             <div>
                 <h3>Attack Information</h3>
                 <c-detail_grid>
-                <dt>Affected Boxes</dt>
-                <dd>
-                    {{ incident.affected_boxes_display|default:"—" }}
-                </dd>
-                <dt>Affected Service</dt>
-                <dd>
-                    {{ incident.affected_service|default:"—" }}
-                </dd>
-                <dt>Source IP</dt>
-                <dd>
-                    <code>{{ incident.source_ip }}</code>
-                </dd>
+                <c-detail_row label="Affected Boxes">{{ incident.affected_boxes_display|default:"—" }}</c-detail_row>
+                <c-detail_row label="Affected Service">{{ incident.affected_service|default:"—" }}</c-detail_row>
+                <c-detail_row label="Source IP"><code>{{ incident.source_ip }}</code></c-detail_row>
                 {% if incident.destination_ip %}
-                    <dt>Destination IP</dt>
-                    <dd>
-                        <code>{{ incident.destination_ip }}</code>
-                    </dd>
+                    <c-detail_row label="Destination IP"><code>{{ incident.destination_ip }}</code></c-detail_row>
                 {% endif %}
-                <dt>Attack Mitigated</dt>
-                <dd>
-                    {% if incident.attack_mitigated %}
-                        Yes
-                    {% else %}
-                        No
-                    {% endif %}
-                </dd>
+                <c-detail_row label="Attack Mitigated">
+                {% if incident.attack_mitigated %}
+                    Yes
+                {% else %}
+                    No
+                {% endif %}
+                </c-detail_row>
                 </c-detail_grid>
             </div>
         </div>
@@ -107,24 +82,12 @@
         {% if incident.gold_team_reviewed %}
             <c-fieldset heading="Review Status">
             <c-detail_grid>
-            <dt>Reviewed By</dt>
-            <dd>
-                {{ incident.reviewed_by.username }}
-            </dd>
-            <dt>Reviewed At</dt>
-            <dd>
-                {{ incident.reviewed_at|date:"Y-m-d H:i:s" }}
-            </dd>
+            <c-detail_row label="Reviewed By">{{ incident.reviewed_by.username }}</c-detail_row>
+            <c-detail_row label="Reviewed At">{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</c-detail_row>
             {% if incident.matched_to_red_score %}
-                <dt>Matched To</dt>
-                <dd>
-                    Red Team Finding #{{ incident.matched_to_red_score.id }}
-                </dd>
+                <c-detail_row label="Matched To">Red Team Finding #{{ incident.matched_to_red_score.id }}</c-detail_row>
             {% endif %}
-            <dt>Points Returned</dt>
-            <dd>
-                <strong><c-score_value :value="incident.points_returned" format="signed" /></strong>
-            </dd>
+            <c-detail_row label="Points Returned"><strong><c-score_value :value="incident.points_returned" format="signed" /></strong></c-detail_row>
             </c-detail_grid>
             </c-fieldset>
         {% else %}

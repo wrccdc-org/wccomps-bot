@@ -25,14 +25,8 @@
         <p>You are about to reject the registration for:</p>
         <c-detail_grid>
         <c-slot name="items">
-        <dt>School Name</dt>
-        <dd>
-            {{ registration.school_name }}
-        </dd>
-        <dt>Contact Email</dt>
-        <dd>
-            {{ registration.contact_email }}
-        </dd>
+        <c-detail_row label="School Name">{{ registration.school_name }}</c-detail_row>
+        <c-detail_row label="Contact Email">{{ registration.contact_email }}</c-detail_row>
         </c-slot>
         </c-detail_grid>
         <form method="post">

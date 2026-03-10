@@ -179,27 +179,13 @@
         <!-- Ticket Details -->
         <c-fieldset heading="Ticket Information">
         <c-detail_grid>
-        {% if ticket.description %}
-            <dt>Description</dt>
-            <dd>
-                {{ ticket.description }}
-            </dd>
-        {% endif %}
-        <dt>Created</dt>
-        <dd>
-            {{ ticket.created_at|timesince }} ago
-        </dd>
+        {% if ticket.description %}<c-detail_row label="Description">{{ ticket.description }}</c-detail_row>{% endif %}
+        <c-detail_row label="Created">{{ ticket.created_at|timesince }} ago</c-detail_row>
         {% if ticket.resolved_at %}
-            <dt>Resolved</dt>
-            <dd>
-                {{ ticket.resolved_at|timesince }} ago
-            </dd>
+            <c-detail_row label="Resolved">{{ ticket.resolved_at|timesince }} ago</c-detail_row>
         {% endif %}
         {% if ticket.resolution_notes %}
-            <dt>Resolution Notes</dt>
-            <dd>
-                {{ ticket.resolution_notes }}
-            </dd>
+            <c-detail_row label="Resolution Notes">{{ ticket.resolution_notes }}</c-detail_row>
         {% endif %}
         </c-detail_grid>
         </c-fieldset>

@@ -151,31 +151,16 @@
         <!-- Packet Details -->
         <c-fieldset heading="Packet Details">
         <c-detail_grid>
-        <dt>Uploaded By</dt>
-        <dd>
-            {{ packet.uploaded_by }}
-        </dd>
-        <dt>Created</dt>
-        <dd>
-            {{ packet.created_at }}
-        </dd>
-        <dt>Methods</dt>
-        <dd>
-            {% if packet.send_via_email %}Email{% endif %}
-            {% if packet.web_access_enabled %}Web{% endif %}
-        </dd>
+        <c-detail_row label="Uploaded By">{{ packet.uploaded_by }}</c-detail_row>
+        <c-detail_row label="Created">{{ packet.created_at }}</c-detail_row>
+        <c-detail_row label="Methods">
+        {% if packet.send_via_email %}Email{% endif %}
+        {% if packet.web_access_enabled %}Web{% endif %}
+        </c-detail_row>
         {% if packet.actual_distribution_time %}
-            <dt>Distributed</dt>
-            <dd>
-                {{ packet.actual_distribution_time }}
-            </dd>
+            <c-detail_row label="Distributed">{{ packet.actual_distribution_time }}</c-detail_row>
         {% endif %}
-        {% if packet.notes %}
-            <dt>Notes</dt>
-            <dd>
-                {{ packet.notes }}
-            </dd>
-        {% endif %}
+        {% if packet.notes %}<c-detail_row label="Notes">{{ packet.notes }}</c-detail_row>{% endif %}
         </c-detail_grid>
         </c-fieldset>
     </div>

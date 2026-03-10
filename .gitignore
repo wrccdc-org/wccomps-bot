@@ -69,3 +69,4 @@ backups/
 *.json
 !package.json
 !package-lock.json
+.superpowers/

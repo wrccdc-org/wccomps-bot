@@ -248,6 +248,40 @@ class TestCottonComponentUsage:
             pytest.fail("Templates using raw HTML instead of Cotton components:\n" + "\n".join(issue_lines))
 
 
+class TestDetailGridUsage:
+    """Tests to ensure c-detail_grid uses c-detail_row instead of raw <dt>/<dd>."""
+
+    def test_no_raw_dt_in_detail_grid(self) -> None:
+        """c-detail_grid contents should use c-detail_row, not raw <dt>/<dd>."""
+        templates_with_issues: list[tuple[str, int]] = []
+
+        for template_path in get_all_template_files():
+            if is_cotton_component(template_path):
+                continue
+
+            content = template_path.read_text()
+            relative_path = template_path.relative_to(TEMPLATES_DIR)
+
+            # Find all c-detail_grid blocks and check for raw <dt> inside them
+            for grid_match in re.finditer(
+                r"<c-detail_grid[^>]*>(.*?)</c-detail_grid>",
+                content,
+                re.DOTALL,
+            ):
+                grid_content = grid_match.group(1)
+                grid_start = grid_match.start()
+
+                for dt_match in re.finditer(r"<dt>", grid_content):
+                    line_num = content[: grid_start + dt_match.start()].count("\n") + 1
+                    templates_with_issues.append((str(relative_path), line_num))
+
+        if templates_with_issues:
+            issue_lines = [f"  - {path}:{line}" for path, line in sorted(templates_with_issues)]
+            pytest.fail(
+                "Templates using raw <dt> inside c-detail_grid (use <c-detail_row> instead):\n" + "\n".join(issue_lines)
+            )
+
+
 class TestNestedForms:
     """Tests to prevent nested <form> tags, which cause browser validation bugs."""
 

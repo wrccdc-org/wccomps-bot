@@ -6,26 +6,11 @@
         <c-module>
         <h2 class="module-header">Incident Report #{{ incident.id }}</h2>
         <c-detail_grid class="mb-15">
-        <dt>Team</dt>
-        <dd>
-            Team {{ incident.team.team_number }}
-        </dd>
-        <dt>Affected Boxes</dt>
-        <dd>
-            {{ incident.affected_boxes_display|default:"—" }}
-        </dd>
-        <dt>Affected Service</dt>
-        <dd>
-            {{ incident.affected_service }}
-        </dd>
-        <dt>Source IP</dt>
-        <dd>
-            <code>{{ incident.source_ip }}</code>
-        </dd>
-        <dt>Detected At</dt>
-        <dd>
-            {{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}
-        </dd>
+        <c-detail_row label="Team">Team {{ incident.team.team_number }}</c-detail_row>
+        <c-detail_row label="Affected Boxes">{{ incident.affected_boxes_display|default:"—" }}</c-detail_row>
+        <c-detail_row label="Affected Service">{{ incident.affected_service }}</c-detail_row>
+        <c-detail_row label="Source IP"><code>{{ incident.source_ip }}</code></c-detail_row>
+        <c-detail_row label="Detected At">{{ incident.attack_detected_at|date:"Y-m-d H:i:s" }}</c-detail_row>
         </c-detail_grid>
         <c-fieldset heading="Attack Description">
         <c-info_box>
