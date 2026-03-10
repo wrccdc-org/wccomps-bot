@@ -46,7 +46,6 @@
             </td>
             <td class="field-tickets">{{ category.tickets.count }}</td>
             <td class="field-actions">
-                <c-link href="{% url 'admin_category_edit' category.pk %}" variant="change">Edit</c-link>
                 <c-link href="{% url 'admin_category_delete' category.pk %}" variant="danger">Delete</c-link>
             </td>
         </tr>

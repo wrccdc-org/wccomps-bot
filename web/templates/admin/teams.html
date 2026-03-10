@@ -36,7 +36,6 @@
             <c-table_header sortable="false">Members</c-table_header>
             <c-table_header sortable="false">Status</c-table_header>
             <c-table_header sortable="false">Discord</c-table_header>
-            <c-table_header sortable="false">Actions</c-table_header>
         </tr>
         </c-slot>
         {% for item in teams %}
@@ -59,9 +58,6 @@
                     {% else %}
                         <c-badge variant="neutral">Not set</c-badge>
                     {% endif %}
-                </td>
-                <td class="field-actions">
-                    <c-link href="{% url 'admin_team_detail' item.team.team_number %}" variant="change">View</c-link>
                 </td>
             </tr>
         {% endfor %}
