@@ -416,6 +416,55 @@ class TestAlpineCSPCompatibility:
             )
 
 
+class TestFormFlexLayout:
+    """Prevent <form class="d-flex"> with buttons alongside fields.
+
+    Buttons should be in a separate <c-button_row> below fields, not
+    floating inline.  The correct pattern wraps fields in an inner
+    <div class="d-flex ..."> and places buttons in <c-button_row>.
+    """
+
+    # <form ... class="... d-flex ..." ...> (d-flex directly on the form tag)
+    FORM_DFLEX_RE = re.compile(
+        r"<form\b[^>]*\bclass=\"[^\"]*\bd-flex\b[^\"]*\"[^>]*>",
+        re.DOTALL,
+    )
+
+    def test_no_d_flex_on_form_with_fields_and_buttons(self) -> None:
+        """Forms with d-flex must not mix c-form_field and c-button as siblings."""
+        violations: list[tuple[str, int]] = []
+
+        for template_path in get_all_template_files():
+            if is_cotton_component(template_path):
+                continue
+
+            content = template_path.read_text()
+            relative = str(template_path.relative_to(TEMPLATES_DIR))
+
+            for match in self.FORM_DFLEX_RE.finditer(content):
+                # Find the matching </form>
+                form_start = match.start()
+                end = content.find("</form>", form_start)
+                if end == -1:
+                    continue
+
+                form_body = content[form_start:end]
+                has_field = "<c-form_field" in form_body or "<c-form_row" in form_body
+                has_button = "<c-button" in form_body
+
+                if has_field and has_button:
+                    line = content[:form_start].count("\n") + 1
+                    violations.append((relative, line))
+
+        if violations:
+            lines = [f"  - {path}:{line}" for path, line in sorted(violations)]
+            pytest.fail(
+                "Forms using d-flex with fields and buttons as siblings "
+                "(wrap fields in <div class=\"d-flex ...\"> and use <c-button_row>):\n"
+                + "\n".join(lines)
+            )
+
+
 class TestCottonAttrsPassthrough:
     """Ensure Cotton components include {{ attrs }} for attribute passthrough.
 
