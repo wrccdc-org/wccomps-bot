@@ -296,6 +296,7 @@ nav[role="navigation"] {
 }
 
 /* Flex utilities */
+.flex-column { flex-direction: column; }
 .flex-1 { flex: 1; }
 .flex-grow-1 { flex-grow: 1; }
 .flex-wrap { flex-wrap: wrap; }
