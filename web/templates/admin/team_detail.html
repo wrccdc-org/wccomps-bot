@@ -27,23 +27,23 @@
             </c-module>
             <c-module>
             <c-slot name="title">Actions</c-slot>
-            <div class="d-flex flex-column gap-10">
-                {% if team.is_active %}
-                    <c-button variant="default" class="w-full" @click="teamAction" data-action="deactivate" ::disabled="loading">
-                    Deactivate Team
-                    </c-button>
-                {% else %}
-                    <c-button variant="primary" class="w-full" @click="teamAction" data-action="activate" ::disabled="loading">
-                    Activate Team
-                    </c-button>
-                {% endif %}
-                <c-button variant="danger" class="w-full" @click="resetTeam" ::disabled="loading">
-                Reset Team (Unlink All + New Password)
+            <c-button_row class="flex-wrap">
+            {% if team.is_active %}
+                <c-button variant="default" @click="teamAction" data-action="deactivate" ::disabled="loading">
+                Deactivate Team
                 </c-button>
-                <c-button variant="default" class="w-full" @click="teamAction" data-action="recreate_channels" ::disabled="loading">
-                Recreate Discord Channels
+            {% else %}
+                <c-button variant="primary" @click="teamAction" data-action="activate" ::disabled="loading">
+                Activate Team
                 </c-button>
-            </div>
+            {% endif %}
+            <c-button variant="danger" @click="resetTeam" ::disabled="loading">
+            Reset Team
+            </c-button>
+            <c-button variant="default" @click="teamAction" data-action="recreate_channels" ::disabled="loading">
+            Recreate Discord Channels
+            </c-button>
+            </c-button_row>
             <template x-if="newPassword">
                 <c-action_box heading="New Password" variant="warning" class="mt-20">
                 <code class="text-lg" x-text="newPassword"></code>
