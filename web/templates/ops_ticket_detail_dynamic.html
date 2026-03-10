@@ -26,6 +26,8 @@
 <!-- History List -->
 <div id="history-list">
     {% if history %}
+        <!-- Desktop table -->
+        <div class="history-table">
         <c-table aria_label="Ticket history">
         <c-slot name="headers">
         <tr>
@@ -50,6 +52,21 @@
             </tr>
         {% endfor %}
         </c-table>
+        </div>
+        <!-- Mobile cards -->
+        <div class="history-cards">
+        {% for event in history %}
+            <div class="history-card">
+                <div class="history-card-header">
+                    <span>{{ event.action }} · {% if event.actor %}{{ event.actor }}{% else %}System{% endif %}</span>
+                    <span class="history-card-time">{{ event.timestamp|timesince }} ago</span>
+                </div>
+                {% if event.details|format_history_details %}
+                    <div class="history-card-details">{{ event.details|format_history_details }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        </div>
     {% else %}
         <p class="text-muted">No history available.</p>
     {% endif %}

@@ -970,3 +970,45 @@ td textarea[x-ref="editor"] {
     margin: 0 6px;
     color: var(--body-quiet-color, #999);
 }
+
+/* ============================================
+   RESPONSIVE HISTORY (ticket detail mobile)
+   ============================================ */
+.history-cards {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .history-table {
+        display: none;
+    }
+    .history-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .history-card {
+        padding: 10px;
+        background: var(--darkened-bg, #f8f8f8);
+        border: 1px solid var(--hairline-color, #ddd);
+        border-radius: 4px;
+    }
+    .history-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .history-card-time {
+        font-size: 12px;
+        color: var(--body-quiet-color, #666);
+        font-weight: 400;
+    }
+    .history-card-details {
+        font-size: 13px;
+        color: var(--body-quiet-color, #666);
+        margin-top: 4px;
+    }
+}
