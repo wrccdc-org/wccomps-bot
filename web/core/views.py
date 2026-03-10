@@ -24,7 +24,7 @@ from .auth_utils import (
     get_authentik_id,
     get_permissions_context,
     get_role_based_landing_url,
-    has_permission,
+    require_permission,
 )
 from .utils import get_team_from_groups
 
@@ -177,24 +177,9 @@ def link_callback(request: HttpRequest) -> HttpResponse:
     )
 
 
+@require_permission("gold_team")
 def school_info(request: HttpRequest) -> HttpResponse:
     """View and edit school information (GoldTeam only)."""
-    # Get user's permissions
-    user = cast(User, request.user)
-
-    # Check if user is GoldTeam
-    if not has_permission(user, "gold_team"):
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Access denied",
-                "message": (
-                    "You do not have permission to access school information. This requires WCComps_GoldTeam role."
-                ),
-            },
-        )
-
     # Get all teams with their school info
     teams = Team.objects.filter(is_active=True).order_by("team_number")
 
@@ -218,22 +203,11 @@ def school_info(request: HttpRequest) -> HttpResponse:
     )
 
 
+@require_permission("gold_team")
 def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     """Edit school information for a team (GoldTeam only)."""
-    # Get user's permissions
     user = cast(User, request.user)
     authentik_username = user.username
-
-    # Check if user is GoldTeam
-    if not has_permission(user, "gold_team"):
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to edit school information.",
-            },
-        )
 
     # Get team
     try:
@@ -399,22 +373,13 @@ def _apply_school_info_import(
     return None, {"created": result["created"], "assigned": result["assigned"]}
 
 
+@require_permission("gold_team")
 def school_info_import(request: HttpRequest) -> HttpResponse:
     """Import school information from CSV file (GoldTeam only)."""
     from team.forms import CSVUploadForm
 
     user = cast(User, request.user)
     authentik_username = user.username
-
-    if not has_permission(user, "gold_team"):
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to import school information.",
-            },
-        )
 
     permissions = get_permissions_context(user)
     form = CSVUploadForm()
@@ -451,22 +416,9 @@ def school_info_import(request: HttpRequest) -> HttpResponse:
     )
 
 
+@require_permission("gold_team")
 def ops_group_role_mappings(request: HttpRequest) -> HttpResponse:
     """View team membership status and linked users (GoldTeam only)."""
-    # Get user's permissions
-    user = cast(User, request.user)
-
-    # Check if user is GoldTeam
-    if not has_permission(user, "gold_team"):
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to access team mappings. This requires WCComps_GoldTeam role.",
-            },
-        )
-
     # Get all active teams with their linked members
     teams = Team.objects.filter(is_active=True).order_by("team_number")
 

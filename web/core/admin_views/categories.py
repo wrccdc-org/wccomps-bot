@@ -1,33 +1,23 @@
 """Admin views for ticket category management."""
 
-from typing import cast
-
-from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
-from ..auth_utils import has_permission
-from .competition import _has_admin_or_gold_access
+from ..auth_utils import require_permission
 
 
+@require_permission("gold_team", "ticketing_admin")
 def admin_categories(request: HttpRequest) -> HttpResponse:
     """List all ticket categories."""
-    user = cast(User, request.user)
-    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied", status=403)
-
     from ticketing.models import TicketCategory
 
     categories = TicketCategory.objects.all()
     return render(request, "admin/categories.html", {"categories": categories})
 
 
+@require_permission("gold_team", "ticketing_admin")
 def admin_category_create(request: HttpRequest) -> HttpResponse:
     """Create a new ticket category."""
-    user = cast(User, request.user)
-    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied", status=403)
-
     from ticketing.models import TicketCategory
 
     if request.method == "POST":
@@ -59,12 +49,9 @@ def admin_category_create(request: HttpRequest) -> HttpResponse:
     return render(request, "admin/category_form.html", {})
 
 
+@require_permission("gold_team", "ticketing_admin")
 def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
     """Edit an existing ticket category."""
-    user = cast(User, request.user)
-    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied", status=403)
-
     from ticketing.models import TicketCategory
 
     try:
@@ -101,12 +88,9 @@ def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
     return render(request, "admin/category_form.html", {"category": category})
 
 
+@require_permission("gold_team", "ticketing_admin")
 def admin_category_delete(request: HttpRequest, category_id: int) -> HttpResponse:
     """Delete a ticket category."""
-    user = cast(User, request.user)
-    if not _has_admin_or_gold_access(user) and not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied", status=403)
-
     from ticketing.models import TicketCategory
 
     try:

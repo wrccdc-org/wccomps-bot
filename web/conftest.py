@@ -161,18 +161,29 @@ def reset_quotient_client_cache():
 @pytest.fixture(autouse=True)
 def reset_has_permission_reference():
     """
-    Reset scoring.views.has_permission to the real function after each test.
+    Reset has_permission references to the real function after each test.
 
     This fixes test isolation issues where @patch("core.auth_utils.has_permission")
-    in one test module pollutes the reference in scoring.views.
+    pollutes local module bindings if the module was first imported while the
+    patch was active.
     """
+    from core.auth_utils import has_permission as _real
+
     yield
-    # After test, ensure scoring.views.has_permission points to the real function
-    import scoring.views
+    # After test, restore real function on source module and all affected local bindings
+    import core.auth_utils
 
-    from core import auth_utils
+    core.auth_utils.has_permission = _real
 
-    scoring.views.has_permission = auth_utils.has_permission
+    import challenges.views
+    import core.admin_views.competition
+    import scoring.views.incidents
+    import scoring.views.red_team
+
+    challenges.views.has_permission = _real
+    core.admin_views.competition.has_permission = _real
+    scoring.views.incidents.has_permission = _real
+    scoring.views.red_team.has_permission = _real
 
 
 @pytest.fixture
