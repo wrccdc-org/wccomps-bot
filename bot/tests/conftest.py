@@ -236,17 +236,22 @@ def reset_bot_module_references() -> None:
     binding captures the mock instead of the real function.
     """
     import bot.utils
+    import core.authentik_utils
 
     _real_log = bot.utils.log_to_ops_channel
     _real_safe_remove = bot.utils.safe_remove_role
     _real_remove_blueteam = bot.utils.remove_blueteam_role
+    _real_generate_pw = core.authentik_utils.generate_blueteam_password
+    _real_parse_range = core.authentik_utils.parse_team_range
 
     yield
 
-    # Restore source module
+    # Restore source modules
     bot.utils.log_to_ops_channel = _real_log
     bot.utils.safe_remove_role = _real_safe_remove
     bot.utils.remove_blueteam_role = _real_remove_blueteam
+    core.authentik_utils.generate_blueteam_password = _real_generate_pw
+    core.authentik_utils.parse_team_range = _real_parse_range
 
     # Restore consumer modules
     import bot.cogs.admin_teams
@@ -254,10 +259,14 @@ def reset_bot_module_references() -> None:
     bot.cogs.admin_teams.log_to_ops_channel = _real_log
     bot.cogs.admin_teams.safe_remove_role = _real_safe_remove
     bot.cogs.admin_teams.remove_blueteam_role = _real_remove_blueteam
+    bot.cogs.admin_teams.generate_blueteam_password = _real_generate_pw
+    bot.cogs.admin_teams.parse_team_range = _real_parse_range
 
     import bot.cogs.admin_competition
 
     bot.cogs.admin_competition.log_to_ops_channel = _real_log
+    bot.cogs.admin_competition.generate_blueteam_password = _real_generate_pw
+    bot.cogs.admin_competition.parse_team_range = _real_parse_range
 
 
 @pytest.fixture(autouse=True)
