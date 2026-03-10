@@ -117,8 +117,8 @@
             <div>
                 <h3 class="mt-0 mb-10">Schedule</h3>
                 <form @submit.prevent="setStartTime" class="mb-15">
-                    <div class="d-flex gap-10 items-end">
-                        <c-form_field label="Start Time" id="start_datetime" class="flex-1">
+                    <div class="d-flex gap-10 items-end flex-wrap">
+                        <c-form_field label="Start Time" id="start_datetime" class="flex-1 min-w-200">
                         <input type="datetime-local"
                                name="start_datetime"
                                id="start_datetime"
@@ -139,8 +139,8 @@
                     </c-button_row>
                 </form>
                 <form @submit.prevent="setEndTime">
-                    <div class="d-flex gap-10 items-end">
-                        <c-form_field label="End Time" id="end_datetime" class="flex-1">
+                    <div class="d-flex gap-10 items-end flex-wrap">
+                        <c-form_field label="End Time" id="end_datetime" class="flex-1 min-w-200">
                         <input type="datetime-local"
                                name="end_datetime"
                                id="end_datetime"
