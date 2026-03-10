@@ -158,6 +158,19 @@ nav[role="navigation"] {
     color: #fff;
 }
 
+.button.deletelink {
+    background: var(--delete-button-bg);
+    color: #fff;
+    border: none;
+    opacity: 1;
+    width: auto;
+    height: auto;
+    padding: 10px 15px;
+    font-size: 14px;
+    text-indent: 0;
+    background-image: none;
+}
+
 /* Team status in mappings page */
 .field-status > div:first-child {
     font-weight: 700;
@@ -491,6 +504,7 @@ nav[role="navigation"] {
 
 /* Grid layouts */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+@media (max-width: 767px) { .grid-2 { grid-template-columns: 1fr; } }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 
 /* Container widths */
