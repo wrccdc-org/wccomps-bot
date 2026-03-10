@@ -319,6 +319,7 @@ nav[role="navigation"] {
 .p-20 { padding: 20px; }
 .py-5 { padding-top: 5px; padding-bottom: 5px; }
 .px-10 { padding-left: 10px; padding-right: 10px; }
+.pt-15 { padding-top: 15px; }
 
 /* Widths */
 .w-40 { width: 40px; }
