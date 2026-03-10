@@ -541,9 +541,7 @@ class TestAdminCommands:
         call_args = mock_interaction.response.send_message.call_args
         assert "No tickets to clear" in call_args.args[0]
 
-    async def test_activate_teams(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_activate_teams(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         """Test /teams activate command."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
@@ -577,9 +575,7 @@ class TestAdminCommands:
         audit_logs = await AuditLog.objects.filter(action="teams_activated").acount()
         assert audit_logs == 1
 
-    async def test_deactivate_teams(
-        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
-    ) -> None:
+    async def test_deactivate_teams(self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any) -> None:
         """Test /teams deactivate command."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
