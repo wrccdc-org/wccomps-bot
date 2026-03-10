@@ -27,7 +27,9 @@
                 <td>
                     <strong>{{ score.rank }}</strong>
                 </td>
-                <td><a href="{% url 'leaderboard_scorecard' score.team.team_number %}">Team {{ score.team.team_number }}</a></td>
+                <td>
+                    <a href="{% url 'leaderboard_scorecard' score.team.team_number %}">Team {{ score.team.team_number }}</a>
+                </td>
                 <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
                 <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
                 <td class="text-right">
