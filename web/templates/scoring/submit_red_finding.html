@@ -32,7 +32,7 @@
         </div>
         <!-- IP Pool selection -->
         <div id="poolSection" class="d-none">
-            <div class="d-flex gap-10 items-end">
+            <div class="d-flex gap-10 items-end flex-wrap">
                 <div class="flex-grow-1">
                     <c-form_field label="{{ form.source_ip_pool.label }}" :id="form.source_ip_pool.id_for_label" help_text="{{ form.source_ip_pool.help_text }}" error="{{ form.source_ip_pool.errors|join:', ' }}">
                     {{ form.source_ip_pool }}

@@ -464,6 +464,55 @@ class TestFormFlexLayout:
             )
 
 
+class TestFlexWrapWithFormFields:
+    """Ensure d-flex containers with c-form_field children use flex-wrap.
+
+    Without flex-wrap, form fields in a d-flex container won't stack on
+    narrow screens and get cramped side-by-side.
+    """
+
+    # <div ... class="... d-flex ..." ...>
+    DIV_DFLEX_RE = re.compile(
+        r'<div\b[^>]*\bclass="([^"]*\bd-flex\b[^"]*)"[^>]*>',
+        re.DOTALL,
+    )
+
+    def test_d_flex_with_form_fields_has_flex_wrap(self) -> None:
+        """d-flex containers with c-form_field must include flex-wrap."""
+        violations: list[tuple[str, int]] = []
+
+        for template_path in get_all_template_files():
+            if is_cotton_component(template_path):
+                continue
+
+            content = template_path.read_text()
+            relative = str(template_path.relative_to(TEMPLATES_DIR))
+
+            for match in self.DIV_DFLEX_RE.finditer(content):
+                classes = match.group(1)
+                if "flex-wrap" in classes:
+                    continue
+
+                # Find the matching </div>
+                div_start = match.start()
+                # Simple: grab until next </div> (works for non-nested cases)
+                end = content.find("</div>", match.end())
+                if end == -1:
+                    continue
+
+                div_body = content[match.end() : end]
+                if "<c-form_field" in div_body:
+                    line = content[:div_start].count("\n") + 1
+                    violations.append((relative, line))
+
+        if violations:
+            lines = [f"  - {path}:{line}" for path, line in sorted(violations)]
+            pytest.fail(
+                "d-flex containers with c-form_field children missing flex-wrap "
+                "(fields won't stack on mobile):\n" + "\n".join(lines)
+            )
+
+
 class TestCottonAttrsPassthrough:
     """Ensure Cotton components include {{ attrs }} for attribute passthrough.
 

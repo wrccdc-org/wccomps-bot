@@ -83,7 +83,7 @@
                 </div>
             </template>
             <!-- Test Email -->
-            <div class="d-flex gap-10 items-end mt-15">
+            <div class="d-flex gap-10 items-end mt-15 flex-wrap">
                 <c-form_field label="Test Email" id="test-team">
                 <select id="test-team" x-ref="testTeam" class="vTextField">
                     {% for team in teams %}<option value="{{ team.id }}">Team {{ team.team_number }}</option>{% endfor %}
