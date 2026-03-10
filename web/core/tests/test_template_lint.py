@@ -460,8 +460,7 @@ class TestFormFlexLayout:
             lines = [f"  - {path}:{line}" for path, line in sorted(violations)]
             pytest.fail(
                 "Forms using d-flex with fields and buttons as siblings "
-                "(wrap fields in <div class=\"d-flex ...\"> and use <c-button_row>):\n"
-                + "\n".join(lines)
+                '(wrap fields in <div class="d-flex ..."> and use <c-button_row>):\n' + "\n".join(lines)
             )
 
 
