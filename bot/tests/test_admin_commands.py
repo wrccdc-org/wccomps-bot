@@ -122,20 +122,13 @@ class TestAdminCommands:
             call_args = mock_interaction.followup.send.call_args
             assert "file" in call_args.kwargs, "Should still send CSV file"
 
-    @patch("bot.cogs.admin_teams.remove_blueteam_role")
-    @patch("bot.cogs.admin_teams.safe_remove_role")
-    @patch("bot.cogs.admin_teams.log_to_ops_channel")
     async def test_admin_remove_team(
         self,
-        mock_log_ops: Any,
-        mock_safe_remove_role: Any,
-        mock_remove_blueteam: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
     ) -> None:
         """Test /admin remove-team removes roles BEFORE deactivating links and creates audit log."""
-        # Setup
         mock_interaction.user.id = mock_admin_user._discord_id
 
         team_number = 13
@@ -193,72 +186,77 @@ class TestAdminCommands:
         mock_interaction.guild.get_role = MagicMock(side_effect=lambda rid: team_role if rid == 1001 else None)
         mock_interaction.guild.get_channel = MagicMock(side_effect=lambda cid: category if cid == 2001 else None)
 
-        # Setup mocks for role removal
-        mock_safe_remove_role.return_value = None
-        mock_remove_blueteam.return_value = None
         category.delete = AsyncMock()
         team_role.delete = AsyncMock()
 
-        # Track call order to verify roles are removed BEFORE links deactivated
-        call_order = []
+        with (
+            patch("bot.cogs.admin_teams.safe_remove_role") as mock_safe_remove_role,
+            patch("bot.cogs.admin_teams.remove_blueteam_role") as mock_remove_blueteam,
+            patch("bot.cogs.admin_teams.log_to_ops_channel"),
+        ):
+            mock_safe_remove_role.return_value = None
+            mock_remove_blueteam.return_value = None
 
-        async def track_role_removal(*args, **kwargs):
-            call_order.append(("role_removed", args[1].name if args else "unknown"))
+            # Track call order to verify roles are removed BEFORE links deactivated
+            call_order = []
 
-        async def track_blueteam_removal(*args, **kwargs):
-            call_order.append(("blueteam_removed", args[0].id))
+            async def track_role_removal(*args, **kwargs):
+                call_order.append(("role_removed", args[1].name if args else "unknown"))
 
-        mock_safe_remove_role.side_effect = track_role_removal
-        mock_remove_blueteam.side_effect = track_blueteam_removal
+            async def track_blueteam_removal(*args, **kwargs):
+                call_order.append(("blueteam_removed", args[0].id))
 
-        # Execute command
-        cog = AdminTeamsCog(mock_bot)
-        await cog.admin_remove_team.callback(cog, mock_interaction, team_number=team_number)
+            mock_safe_remove_role.side_effect = track_role_removal
+            mock_remove_blueteam.side_effect = track_blueteam_removal
 
-        # Verify response was sent
-        mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
-        mock_interaction.followup.send.assert_called_once()
-        send_call_args = mock_interaction.followup.send.call_args
-        assert "Removed" in send_call_args.args[0]
+            # Execute command
+            cog = AdminTeamsCog(mock_bot)
+            await cog.admin_remove_team.callback(cog, mock_interaction, team_number=team_number)
 
-        # Verify links were deactivated AFTER role removal
-        await member1_link.arefresh_from_db()
-        await member2_link.arefresh_from_db()
-        assert member1_link.is_active is False
-        assert member2_link.is_active is False
-        assert member1_link.unlinked_at is not None
-        assert member2_link.unlinked_at is not None
+            # Verify response was sent
+            mock_interaction.response.defer.assert_called_once_with(ephemeral=True)
+            mock_interaction.followup.send.assert_called_once()
+            send_call_args = mock_interaction.followup.send.call_args
+            assert "Removed" in send_call_args.args[0]
 
-        # Verify role removal was called for each member
-        assert mock_safe_remove_role.call_count >= 2  # At least one call per member
-        assert mock_remove_blueteam.call_count >= 2  # Once per member
+            # Verify links were deactivated AFTER role removal
+            await member1_link.arefresh_from_db()
+            await member2_link.arefresh_from_db()
+            assert member1_link.is_active is False
+            assert member2_link.is_active is False
+            assert member1_link.unlinked_at is not None
+            assert member2_link.unlinked_at is not None
 
-        # Verify category and role were deleted
-        category.delete.assert_called_once()
-        team_role.delete.assert_called_once()
+            # Verify role removal was called for each member
+            assert mock_safe_remove_role.call_count >= 2
+            assert mock_remove_blueteam.call_count >= 2
 
-        # Verify team Discord IDs were cleared
-        await team.arefresh_from_db()
-        assert team.discord_role_id is None
-        assert team.discord_category_id is None
+            # Verify category and role were deleted
+            category.delete.assert_called_once()
+            team_role.delete.assert_called_once()
 
-        # Verify audit log was created
-        audit_logs = await AuditLog.objects.filter(
-            action="team_removed",
-            target_id=team_number,
-        ).acount()
-        assert audit_logs == 1
+            # Verify team Discord IDs were cleared
+            await team.arefresh_from_db()
+            assert team.discord_role_id is None
+            assert team.discord_category_id is None
 
-        audit_log = await AuditLog.objects.filter(
-            action="team_removed",
-            target_id=team_number,
-        ).afirst()
-        assert audit_log is not None
-        assert audit_log.admin_user == str(mock_interaction.user)
-        assert audit_log.target_entity == "team"
-        assert audit_log.details["team_name"] == "Test Team to Remove"
-        assert audit_log.details["unlinked_members"] == 2
-        assert "role" in audit_log.details["removed_items"]
+            # Verify audit log was created
+            audit_logs = await AuditLog.objects.filter(
+                action="team_removed",
+                target_id=team_number,
+            ).acount()
+            assert audit_logs == 1
+
+            audit_log = await AuditLog.objects.filter(
+                action="team_removed",
+                target_id=team_number,
+            ).afirst()
+            assert audit_log is not None
+            assert audit_log.admin_user == str(mock_interaction.user)
+            assert audit_log.target_entity == "team"
+            assert audit_log.details["team_name"] == "Test Team to Remove"
+            assert audit_log.details["unlinked_members"] == 2
+            assert "role" in audit_log.details["removed_items"]
 
     async def test_admin_unlink_deactivates_link_and_removes_roles(
         self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
@@ -428,10 +426,8 @@ class TestAdminCommands:
             assert "guild" in call_args.args[0].lower()
             assert call_args.kwargs.get("ephemeral") is True
 
-    @patch("bot.cogs.admin_tickets.log_to_ops_channel")
     async def test_admin_clear_tickets(
         self,
-        mock_log_ops: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
@@ -510,7 +506,8 @@ class TestAdminCommands:
 
         mock_interaction.response.send_message = capture_and_confirm
 
-        await cog.admin_ticket_clear.callback(cog, mock_interaction)
+        with patch("bot.cogs.admin_tickets.log_to_ops_channel"):
+            await cog.admin_ticket_clear.callback(cog, mock_interaction)
 
         # Verify all tickets deleted
         assert await Ticket.objects.acount() == 0
@@ -529,24 +526,23 @@ class TestAdminCommands:
         assert audit is not None
         assert audit.details["tickets_deleted"] == 2
 
-    @patch("bot.cogs.admin_tickets.log_to_ops_channel")
     async def test_admin_clear_tickets_no_tickets(
-        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
     ) -> None:
         """Test /tickets clear with no tickets shows appropriate message."""
         mock_interaction.user.id = mock_admin_user._discord_id
 
-        cog = AdminTicketsCog(mock_bot)
-        await cog.admin_ticket_clear.callback(cog, mock_interaction)
+        with patch("bot.cogs.admin_tickets.log_to_ops_channel"):
+            cog = AdminTicketsCog(mock_bot)
+            await cog.admin_ticket_clear.callback(cog, mock_interaction)
 
         # Should send message about no tickets
         mock_interaction.response.send_message.assert_called_once()
         call_args = mock_interaction.response.send_message.call_args
         assert "No tickets to clear" in call_args.args[0]
 
-    @patch("bot.cogs.admin_teams.log_to_ops_channel")
     async def test_activate_teams(
-        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
     ) -> None:
         """Test /teams activate command."""
         mock_interaction.user.id = mock_admin_user._discord_id
@@ -556,8 +552,12 @@ class TestAdminCommands:
         await Team.objects.acreate(team_number=2, team_name="Team 02", max_members=5, is_active=False)
         await Team.objects.acreate(team_number=3, team_name="Team 03", max_members=5, is_active=True)
 
-        cog = AdminTeamsCog(mock_bot)
-        await cog.admin_activate_teams.callback(cog, mock_interaction, teams="1-3")
+        with patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops:
+            cog = AdminTeamsCog(mock_bot)
+            await cog.admin_activate_teams.callback(cog, mock_interaction, teams="1-3")
+
+            # Verify ops channel log
+            mock_log_ops.assert_called_once()
 
         # Verify all teams are now active
         team1 = await Team.objects.aget(team_number=1)
@@ -577,12 +577,8 @@ class TestAdminCommands:
         audit_logs = await AuditLog.objects.filter(action="teams_activated").acount()
         assert audit_logs == 1
 
-        # Verify ops channel log
-        mock_log_ops.assert_called_once()
-
-    @patch("bot.cogs.admin_teams.log_to_ops_channel")
     async def test_deactivate_teams(
-        self, mock_log_ops: Any, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
+        self, mock_interaction: Any, mock_admin_user: Any, mock_bot: Any
     ) -> None:
         """Test /teams deactivate command."""
         mock_interaction.user.id = mock_admin_user._discord_id
@@ -592,8 +588,12 @@ class TestAdminCommands:
         await Team.objects.acreate(team_number=5, team_name="Team 05", max_members=5, is_active=True)
         await Team.objects.acreate(team_number=6, team_name="Team 06", max_members=5, is_active=False)
 
-        cog = AdminTeamsCog(mock_bot)
-        await cog.admin_deactivate_teams.callback(cog, mock_interaction, teams="4,5,6")
+        with patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops:
+            cog = AdminTeamsCog(mock_bot)
+            await cog.admin_deactivate_teams.callback(cog, mock_interaction, teams="4,5,6")
+
+            # Verify ops channel log
+            mock_log_ops.assert_called_once()
 
         # Verify all teams are now inactive
         team4 = await Team.objects.aget(team_number=4)
@@ -613,15 +613,8 @@ class TestAdminCommands:
         audit_logs = await AuditLog.objects.filter(action="teams_deactivated").acount()
         assert audit_logs == 1
 
-        # Verify ops channel log
-        mock_log_ops.assert_called_once()
-
-    @patch("bot.cogs.admin_teams.log_to_ops_channel")
-    @patch("bot.discord_manager.DiscordManager")
     async def test_recreate_teams(
         self,
-        mock_discord_manager_class: Any,
-        mock_log_ops: Any,
         mock_interaction: Any,
         mock_admin_user: Any,
         mock_bot: Any,
@@ -677,10 +670,16 @@ class TestAdminCommands:
         new_category = MagicMock(spec=discord.CategoryChannel)
         new_category.channels = [MagicMock(), MagicMock()]  # Mock 2 channels
         mock_manager.setup_team_infrastructure = AsyncMock(return_value=(new_role, new_category))
-        mock_discord_manager_class.return_value = mock_manager
 
-        cog = AdminTeamsCog(mock_bot)
-        await cog.admin_recreate_teams.callback(cog, mock_interaction, teams="20,21")
+        with (
+            patch("bot.cogs.admin_teams.log_to_ops_channel") as mock_log_ops,
+            patch("bot.discord_manager.DiscordManager", return_value=mock_manager),
+        ):
+            cog = AdminTeamsCog(mock_bot)
+            await cog.admin_recreate_teams.callback(cog, mock_interaction, teams="20,21")
+
+            # Verify ops channel log
+            mock_log_ops.assert_called_once()
 
         # Verify old infrastructure was deleted
         role20.delete.assert_called_once()

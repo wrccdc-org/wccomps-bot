@@ -228,6 +228,39 @@ def mock_discord_guild() -> Any:
 
 
 @pytest.fixture(autouse=True)
+def reset_bot_module_references() -> None:
+    """Reset bot module references that may be polluted by @patch on bot.utils.
+
+    Same pattern as web/conftest.py reset_has_permission_reference: if a module
+    is first imported while a patch on the source module is active, the local
+    binding captures the mock instead of the real function.
+    """
+    import bot.utils
+
+    _real_log = bot.utils.log_to_ops_channel
+    _real_safe_remove = bot.utils.safe_remove_role
+    _real_remove_blueteam = bot.utils.remove_blueteam_role
+
+    yield
+
+    # Restore source module
+    bot.utils.log_to_ops_channel = _real_log
+    bot.utils.safe_remove_role = _real_safe_remove
+    bot.utils.remove_blueteam_role = _real_remove_blueteam
+
+    # Restore consumer modules
+    import bot.cogs.admin_teams
+
+    bot.cogs.admin_teams.log_to_ops_channel = _real_log
+    bot.cogs.admin_teams.safe_remove_role = _real_safe_remove
+    bot.cogs.admin_teams.remove_blueteam_role = _real_remove_blueteam
+
+    import bot.cogs.admin_competition
+
+    bot.cogs.admin_competition.log_to_ops_channel = _real_log
+
+
+@pytest.fixture(autouse=True)
 def setup_django() -> None:
     """Set up Django for tests."""
     import os
