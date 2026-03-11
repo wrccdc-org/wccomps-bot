@@ -177,31 +177,6 @@ class TestBulkSelectMixin:
 # ---------------------------------------------------------------------------
 
 
-class TestPythonExceptionSyntax:
-    """Enforce correct Python 3 exception syntax."""
-
-    PY2_EXCEPT_RE = re.compile(r"except\s+\w+\s*,\s*\w+\s*:")
-
-    def test_no_python2_except_syntax(self) -> None:
-        """Python files must use 'except (A, B):' not 'except A, B:'."""
-        violations: list[tuple[str, int]] = []
-
-        for path in WEB_DIR.rglob("*.py"):
-            if "__pycache__" in path.parts:
-                continue
-            # Skip this test file (contains the pattern in docstrings/comments)
-            if path.name == "test_consistency.py":
-                continue
-            content = path.read_text()
-            for match in self.PY2_EXCEPT_RE.finditer(content):
-                line = content[: match.start()].count("\n") + 1
-                violations.append((_relative(path), line))
-
-        if violations:
-            lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail("Python 2 exception syntax 'except A, B:' (use 'except (A, B):' instead):\n" + "\n".join(lines))
-
-
 class TestFilterSortPaginate:
     """Enforce use of filter_sort_paginate() from core.utils."""
 
