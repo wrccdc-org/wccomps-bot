@@ -208,7 +208,7 @@
         <!-- Post-Competition -->
         <c-module class="mt-20">
         <c-slot name="title">Post-Competition</c-slot>
-        <form @submit.prevent="resetPasswords" class="max-w-500">
+        <form @submit.prevent="resetPasswords">
             <c-form_field label="Team Numbers" id="team_numbers" help_text="Leave empty to reset all 50 teams. Generates new passwords and revokes sessions.">
             <input type="text"
                    name="team_numbers"

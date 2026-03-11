@@ -511,7 +511,7 @@ nav[role="navigation"] {
 /* Container widths */
 .max-w-400 { max-width: 400px; }
 .max-w-800 { max-width: 800px; }
-.max-w-1200 { max-width: 1200px; margin: 0 auto; }
+
 
 /* Detail list - definition list styling */
 .detail-list {
