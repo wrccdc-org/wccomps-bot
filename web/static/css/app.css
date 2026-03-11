@@ -159,7 +159,7 @@ nav[role="navigation"] {
 }
 
 .button.deletelink {
-    background: var(--warning-fg);
+    background: var(--error-fg, #dc3545);
     color: #fff;
     border: none;
     opacity: 1;
@@ -173,10 +173,10 @@ nav[role="navigation"] {
 
 /* Override Django admin's default red deletelink styling for danger links */
 a.deletelink {
-    color: var(--warning-fg);
+    color: var(--error-fg, #dc3545);
 }
 a.deletelink:hover {
-    color: var(--warning-fg);
+    color: var(--error-fg, #dc3545);
     filter: brightness(0.85);
 }
 
