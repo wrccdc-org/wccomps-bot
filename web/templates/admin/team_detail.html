@@ -85,13 +85,9 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('teamDetail', () => ({
+                ...toastMixin(),
                 loading: false,
-                message: '',
-                messageType: 'success',
                 newPassword: '',
-
-                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
-                get disabledClass() { return this.loading ? 'disabled' : ''; },
 
                 async teamAction(e) {
                     const action = e.currentTarget.dataset.action;
@@ -110,19 +106,7 @@
                     this.newPassword = '';
 
                     try {
-                        const formData = new FormData();
-                        formData.append('action', action);
-
-                        const response = await fetch('{% url "admin_team_action" team.team_number %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData
-                        });
-
-                        const result = await response.json();
-
+                        const result = await wcPost('{% url "admin_team_action" team.team_number %}', { action });
                         if (result.success) {
                             this.message = result.message;
                             this.messageType = 'success';
@@ -150,19 +134,7 @@
                     this.newPassword = '';
 
                     try {
-                        const formData = new FormData();
-                        formData.append('action', 'reset');
-
-                        const response = await fetch('{% url "admin_team_action" team.team_number %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData
-                        });
-
-                        const result = await response.json();
-
+                        const result = await wcPost('{% url "admin_team_action" team.team_number %}', { action: 'reset' });
                         if (result.success) {
                             this.message = result.message;
                             this.messageType = 'success';
@@ -194,20 +166,7 @@
                     this.message = '';
 
                     try {
-                        const formData = new FormData();
-                        formData.append('action', 'unlink_user');
-                        formData.append('discord_id', discordId);
-
-                        const response = await fetch('{% url "admin_team_action" team.team_number %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData
-                        });
-
-                        const result = await response.json();
-
+                        const result = await wcPost('{% url "admin_team_action" team.team_number %}', { action: 'unlink_user', discord_id: discordId });
                         if (result.success) {
                             this.message = result.message;
                             this.messageType = 'success';

@@ -25,16 +25,16 @@
                  aria-valuemin="0"
                  :aria-valuemax="progressTotal">
                 <div class="progress-bar__fill"
-                     :class="progressFillClass"
-                     :style="progressFillStyle"></div>
+                     :class="progressBarClass"
+                     :style="progressStyle"></div>
             </div>
-            <div x-show="progressFailed"
+            <div x-show="hasFailures"
                  class="text-sm text-warning mt-5"
-                 x-text="progressFailedText"></div>
+                 x-text="failedText"></div>
         </div>
         <!-- Result message -->
         <div x-show="done" x-cloak x-transition class="mb-10">
-            <div class="alert" :class="resultClass" role="alert">
+            <div class="alert" :class="alertClass" role="alert">
                 <span x-text="message"></span>
             </div>
         </div>
@@ -78,20 +78,12 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('emailScorecards', () => ({
+            ...toastMixin(),
+            ...progressMixin(),
             loading: false,
             showWarning: true,
             showForm: true,
             done: false,
-            message: '',
-            resultClass: 'alert--success',
-            progressStep: '',
-            progressCurrent: 0,
-            progressTotal: 0,
-            progressFailed: 0,
-            progressText: '0/0',
-            progressFillClass: '',
-            progressFillStyle: 'width: 0%',
-            progressFailedText: '',
 
             async sendEmails() {
                 this.loading = true;
@@ -101,53 +93,28 @@
                 this.progressCurrent = 0;
                 this.progressTotal = 1;
                 this.progressFailed = 0;
-                this.progressText = '0/1';
-                this.progressFillClass = '';
-                this.progressFillStyle = 'width: 0%';
-                this.progressFailedText = '';
 
                 try {
-                    const response = await fetch('{% url "scoring:stream_email_scorecards" %}', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-                    });
-
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            if (!line.trim()) continue;
-                            const msg = JSON.parse(line);
-                            if (msg.done) {
-                                this.message = msg.message;
-                                this.resultClass = msg.success ? 'alert--success' : 'alert--error';
-                                this.loading = false;
-                                this.showForm = false;
-                                this.done = true;
-                            } else {
-                                this.progressStep = msg.step;
-                                this.progressCurrent = msg.current;
-                                this.progressTotal = msg.total;
-                                this.progressText = msg.current + '/' + msg.total;
-                                this.progressFillStyle = 'width: ' + Math.round(msg.current / msg.total * 100) + '%';
-                                if (!msg.ok) {
-                                    this.progressFailed++;
-                                    this.progressFillClass = 'progress-bar__fill--warn';
-                                    this.progressFailedText = this.progressFailed + ' failed';
-                                }
-                            }
-                        }
-                    }
+                    await wcStream(
+                        '{% url "scoring:stream_email_scorecards" %}',
+                        {},
+                        (msg) => {
+                            this.progressStep = msg.step;
+                            this.progressCurrent = msg.current;
+                            this.progressTotal = msg.total;
+                            if (!msg.ok) this.progressFailed++;
+                        },
+                        (msg) => {
+                            this.message = msg.message;
+                            this.messageType = msg.success ? 'success' : 'error';
+                            this.loading = false;
+                            this.showForm = false;
+                            this.done = true;
+                        },
+                    );
                 } catch (e) {
                     this.message = 'Request failed: ' + e.message;
-                    this.resultClass = 'alert--error';
+                    this.messageType = 'error';
                     this.loading = false;
                     this.showForm = true;
                     this.done = true;

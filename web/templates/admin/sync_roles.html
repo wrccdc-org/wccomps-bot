@@ -44,14 +44,12 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('syncRolesAdmin', () => ({
+                ...toastMixin(),
                 loading: false,
-                message: '',
-                messageType: 'success',
                 taskId: null,
                 changes: [],
                 isDryRun: false,
                 get notLoading() { return !this.loading; },
-                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
                 get hasChanges() { return this.changes.length > 0; },
                 requestSyncPreview() { this.requestSync(true); },
 
@@ -71,19 +69,7 @@
                     this.changes = [];
 
                     try {
-                        const formData = new FormData();
-                        formData.append('dry_run', dryRun ? 'true' : 'false');
-
-                        const response = await fetch('{% url "admin_sync_roles_action" %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData
-                        });
-
-                        const result = await response.json();
-
+                        const result = await wcPost('{% url "admin_sync_roles_action" %}', { dry_run: dryRun ? 'true' : 'false' });
                         if (result.success && result.task_id) {
                             this.taskId = result.task_id;
                             this.message = result.message;

@@ -167,21 +167,7 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('packetAdmin', () => ({
-            loading: false,
-            message: '',
-            messageType: 'success',
-            progressStep: '',
-            progressCurrent: 0,
-            progressTotal: 0,
-            progressFailed: 0,
-
-            get disabledClass() { return this.loading ? 'disabled' : ''; },
-            get hasProgress() { return this.progressTotal > 0; },
-            get progressText() { return this.progressCurrent + '/' + this.progressTotal; },
-            get progressBarClass() { return this.progressFailed > 0 ? 'progress-bar__fill--warn' : ''; },
-            get progressStyle() { return this.progressTotal > 0 ? 'width:' + Math.round(this.progressCurrent / this.progressTotal * 100) + '%' : 'width: 0%'; },
-            get hasFailures() { return this.progressFailed > 0; },
-            get failedText() { return this.progressFailed + ' failed'; },
+            ...streamMixin('{% url "packet_action" packet.id %}'),
 
             distributePacket() {
                 if (confirm('Distribute this packet to all teams now?')) this.doStreamAction('distribute');
@@ -191,61 +177,6 @@
             },
             cancelPacket() {
                 if (confirm('Cancel this packet distribution?')) this.doStreamAction('cancel');
-            },
-
-            async doStreamAction(action) {
-                this.loading = true;
-                this.message = '';
-                this.progressStep = 'Starting...';
-                this.progressCurrent = 0;
-                this.progressTotal = 1;
-                this.progressFailed = 0;
-
-                try {
-                    const formData = new FormData();
-                    formData.append('action', action);
-
-                    const response = await fetch('{% url "packet_action" packet.id %}', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: formData
-                    });
-
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            if (!line.trim()) continue;
-                            const msg = JSON.parse(line);
-                            if (msg.done) {
-                                this.message = msg.message;
-                                this.messageType = msg.success ? 'success' : 'error';
-                                if (msg.success) setTimeout(() => location.reload(), 2000);
-                            } else {
-                                this.progressStep = msg.step;
-                                this.progressCurrent = msg.current;
-                                this.progressTotal = msg.total;
-                                if (!msg.ok) this.progressFailed++;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    this.message = 'Request failed: ' + e.message;
-                    this.messageType = 'error';
-                }
-
-                this.loading = false;
-                if (!this.message) {
-                    this.progressTotal = 0;
-                }
-                setTimeout(() => { this.message = ''; }, 5000);
             },
 
             async doTestEmail() {
@@ -260,43 +191,20 @@
 
                 this.loading = true;
                 this.message = '';
-
                 try {
-                    const formData = new FormData();
-                    formData.append('action', 'test_email');
-                    formData.append('team_id', teamId);
-                    formData.append('email', email);
-
-                    const response = await fetch('{% url "packet_action" packet.id %}', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: formData
-                    });
-
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            if (!line.trim()) continue;
-                            const msg = JSON.parse(line);
-                            if (msg.done) {
-                                this.message = msg.message;
-                                this.messageType = msg.success ? 'success' : 'error';
-                            }
-                        }
-                    }
+                    await wcStream(
+                        '{% url "packet_action" packet.id %}',
+                        { action: 'test_email', team_id: teamId, email },
+                        () => {},
+                        (msg) => {
+                            this.message = msg.message;
+                            this.messageType = msg.success ? 'success' : 'error';
+                        },
+                    );
                 } catch (e) {
                     this.message = 'Request failed: ' + e.message;
                     this.messageType = 'error';
                 }
-
                 this.loading = false;
                 setTimeout(() => this.message = '', 5000);
             }

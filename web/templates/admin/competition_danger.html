@@ -29,10 +29,8 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('competitionDanger', () => ({
+            ...toastMixin(),
             loading: false,
-            message: '',
-            messageType: 'success',
-            get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
             get disabledClass() { return this.loading ? 'disabled' : ''; },
             get notLoading() { return !this.loading; },
 
@@ -43,14 +41,7 @@
                 this.loading = true;
                 this.message = '';
                 try {
-                    const formData = new FormData();
-                    formData.append('action', action);
-                    const response = await fetch('{% url "admin_competition_action" %}', {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: formData
-                    });
-                    const result = await response.json();
+                    const result = await wcPost('{% url "admin_competition_action" %}', { action });
                     if (result.success) {
                         this.message = result.message;
                         this.messageType = 'success';

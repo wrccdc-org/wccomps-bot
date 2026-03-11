@@ -7,13 +7,8 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('orangeBulkSelect', () => ({
-            selected: [],
-            selectableIds: [],
-            submitting: false,
-            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-check-id]')).map(el => el.dataset.checkId); },
-            get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
-            get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
-            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
+            ...bulkSelectMixin('check-id'),
+            init() { this.initBulkSelect(); },
             submitBulk() {
                 if (this.submitting) return;
                 if (this.selected.length === 0) { alert('Please select at least one check to approve'); return; }

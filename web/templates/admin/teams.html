@@ -69,20 +69,15 @@
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('teamsAdmin', () => ({
+                ...toastMixin(),
                 loading: false,
-                message: '',
-                messageType: 'success',
                 bulkTeamNumbers: '',
                 bulkActionType: 'activate',
-                get alertClass() { return this.messageType === 'success' ? 'alert--success' : 'alert--error'; },
 
                 async bulkAction() {
                     if (!this.bulkTeamNumbers) {
                         this.message = 'Please enter team numbers';
                         this.messageType = 'error';
-                        if (this.messageType === 'success') {
-                            setTimeout(() => this.message = '', 3000);
-                        }
                         return;
                     }
 
@@ -99,20 +94,7 @@
                     this.loading = true;
 
                     try {
-                        const formData = new FormData();
-                        formData.append('action', this.bulkActionType);
-                        formData.append('team_numbers', this.bulkTeamNumbers);
-
-                        const response = await fetch('{% url "admin_teams_bulk_action" %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData
-                        });
-
-                        const result = await response.json();
-
+                        const result = await wcPost('{% url "admin_teams_bulk_action" %}', { action: this.bulkActionType, team_numbers: this.bulkTeamNumbers });
                         if (result.success) {
                             this.message = result.message;
                             this.messageType = 'success';
