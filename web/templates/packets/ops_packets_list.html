@@ -6,9 +6,14 @@
 {% block admin_content %}
     <div x-data="packetAdmin">
         <c-page_header title="Packets" />
+        <c-module>
+        <c-slot name="toolbar">
+        <c-link href="{% url 'upload_packet' %}" variant="add">Upload New Packet</c-link>
+        </c-slot>
         {% if messages %}
             {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
         {% endif %}
+        </c-module>
         <!-- Active Packet -->
         {% if active_packet %}
             <c-fieldset heading="Active Packet">
@@ -142,9 +147,6 @@
             </c-table>
             </c-fieldset>
         {% endif %}
-        <c-button_row>
-        <c-link href="{% url 'upload_packet' %}" variant="add">Upload New Packet</c-link>
-        </c-button_row>
     </div>
     {% if active_packet %}
         <script>

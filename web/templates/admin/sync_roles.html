@@ -29,13 +29,7 @@
         <p>You can also sync roles via Discord:</p>
         <code class="code-block">/admin sync-roles</code>
         </c-module>
-        <template x-if="message">
-            <div x-transition class="toast-position">
-                <div class="alert" :class="alertClass" role="alert">
-                    <span x-text="message"></span>
-                </div>
-            </div>
-        </template>
+        <c-toast />
         <template x-if="hasChanges">
             <c-module class="mt-20">
             <c-slot name="title">Changes Made</c-slot>

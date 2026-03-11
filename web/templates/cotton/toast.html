@@ -1,0 +1,11 @@
+{# Toast component - Alpine.js dynamic toast notification #}
+{# Usage: <c-toast message="message" alert_class="alertClass" /> #}
+{# Props: message (Alpine.js expression for text + visibility), alert_class (Alpine.js expression for CSS class) #}
+<c-vars message="message" alert_class="alertClass" />
+<template x-if="{{ message }}">
+    <div x-transition class="toast-position">
+        <div {{ attrs }} class="alert" :class="{{ alert_class }}" role="alert">
+            <span x-text="{{ message }}"></span>
+        </div>
+    </div>
+</template>

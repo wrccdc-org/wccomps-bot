@@ -237,14 +237,7 @@
             </c-link>
         </div>
         </c-module>
-        <!-- Toast Notification -->
-        <template x-if="message">
-            <div x-transition class="toast-position">
-                <div class="alert" :class="alertClass" role="alert">
-                    <span x-text="message"></span>
-                </div>
-            </div>
-        </template>
+        <c-toast />
     </div>
     <script>
 document.addEventListener('alpine:init', () => {
