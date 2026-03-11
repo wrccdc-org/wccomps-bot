@@ -1,5 +1,6 @@
 """Orange team check review and bulk approve views."""
 
+import contextlib
 from typing import cast
 
 from django.contrib import messages
@@ -23,10 +24,10 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
 @require_permission("orange_team", error_message="Only Orange Team or Gold Team members can review checks")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Review page for orange team checks."""
+    from challenges.models import OrangeCheck
     from django.core.paginator import Paginator
     from django.db.models import Q
 
-    from challenges.models import OrangeCheck
     from team.models import Team
 
     status_filter = request.GET.get("status", "pending") or "pending"
@@ -38,9 +39,7 @@ def review_orange(request: HttpRequest) -> HttpResponse:
         sort_by = ""
     page = request.GET.get("page", "1")
 
-    base_query = OrangeTeamScore.objects.select_related(
-        "team", "submitted_by", "approved_by", "orange_check"
-    )
+    base_query = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by", "orange_check")
 
     if status_filter == "pending":
         base_query = base_query.filter(is_approved=False)
@@ -54,10 +53,8 @@ def review_orange(request: HttpRequest) -> HttpResponse:
         if check_filter == "manual":
             base_query = base_query.filter(orange_check__isnull=True)
         else:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 base_query = base_query.filter(orange_check_id=int(check_filter))
-            except (ValueError, TypeError):
-                pass
 
     if search_query:
         base_query = base_query.filter(Q(description__icontains=search_query))
@@ -131,7 +128,7 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
     for adj_id in adjustment_ids:
         try:
             valid_ids.append(int(adj_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     # Bulk update adjustments

@@ -50,7 +50,8 @@ def _normalize_red_score_post(post_data: QueryDict) -> QueryDict:
 
 
 @require_permission(
-    "red_team", "gold_team",
+    "red_team",
+    "gold_team",
     error_message="Only Red Team or Gold Team members can review findings",
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
@@ -169,7 +170,6 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
-    search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
     if sort_by == "default":
         sort_by = ""
@@ -238,7 +238,8 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission(
-    "red_team", "gold_team",
+    "red_team",
+    "gold_team",
     error_message="Only Red Team or Gold Team members can approve findings",
 )
 @transaction.atomic

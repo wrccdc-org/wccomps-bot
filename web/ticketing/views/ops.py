@@ -13,19 +13,18 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
-from core.auth_utils import has_permission, require_permission
+from core.auth_utils import require_permission
 from core.tickets_config import get_all_categories, get_category_config
 from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
 
 
-@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can review tickets")
+@require_permission(
+    "ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can review tickets"
+)
 def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     """Review resolved tickets for point approval."""
-    # Get user's permissions
-    user = cast(User, request.user)
-
     # Get filter parameters
     status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
@@ -115,7 +114,9 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_review_tickets.html", context)
 
 
-@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can verify tickets")
+@require_permission(
+    "ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can verify tickets"
+)
 def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Verify ticket points (admin only)."""
     if request.method != "POST":
@@ -174,7 +175,9 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return redirect("ops_review_tickets")
 
 
-@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can batch verify tickets")
+@require_permission(
+    "ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can batch verify tickets"
+)
 @require_http_methods(["POST"])
 def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
     """Bulk approve selected ticket points."""
@@ -190,7 +193,7 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
     for tid in ticket_ids:
         try:
             valid_ids.append(int(tid))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     if not valid_ids:
