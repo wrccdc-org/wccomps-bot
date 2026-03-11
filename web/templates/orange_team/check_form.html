@@ -1,20 +1,20 @@
-{% extends "admin/base_site.html" %}
+{% extends "orange_team/base.html" %}
 {% load cotton %}
-{% block title %}
+{% block orange_title %}
     {% if mode == "create" %}
-        Create Check
+        Create Check - Orange Team
     {% else %}
-        Edit Check
+        Edit Check - Orange Team
     {% endif %}
-{% endblock title %}
-{% block content %}
+{% endblock orange_title %}
+{% block orange_content %}
     <c-page_header title="
     {% if mode == 'create' %}
         Create Check
     {% else %}
         Edit Check
     {% endif %}
-    " subtitle="Define a check with rubric criteria" parent_url="{% url 'challenges:check_list' %}" parent_label="Checks" />
+    " subtitle="Define a check with rubric criteria" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}
@@ -176,4 +176,4 @@
         });
     });
     </script>
-{% endblock content %}
+{% endblock orange_content %}

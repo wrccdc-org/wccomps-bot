@@ -1,10 +1,10 @@
-{% extends "admin/base_site.html" %}
+{% extends "orange_team/base.html" %}
 {% load cotton %}
-{% block title %}
-    Manage Checks
-{% endblock title %}
-{% block content %}
-    <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" parent_url="{% url 'challenges:dashboard' %}" parent_label="Orange Team" />
+{% block orange_title %}
+    Manage Checks - Orange Team
+{% endblock orange_title %}
+{% block orange_content %}
+    <c-page_header title="Manage Checks" subtitle="Create and manage orange team checks" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}
@@ -49,7 +49,4 @@
         <c-empty_state title="No checks" description="Create your first orange team check to get started." />
     {% endif %}
     </c-module>
-    <c-button_row>
-    <c-link href="{% url 'challenges:dashboard' %}" variant="history">Back to Dashboard</c-link>
-    </c-button_row>
-{% endblock content %}
+{% endblock orange_content %}

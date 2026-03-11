@@ -1,10 +1,10 @@
-{% extends "admin/base_site.html" %}
+{% extends "orange_team/base.html" %}
 {% load cotton %}
-{% block title %}
-    {{ orange_check.title }}
-{% endblock title %}
-{% block content %}
-    <c-page_header title="{{ orange_check.title }}" parent_url="{% url 'challenges:check_list' %}" parent_label="Checks">
+{% block orange_title %}
+    {{ orange_check.title }} - Orange Team
+{% endblock orange_title %}
+{% block orange_content %}
+    <c-page_header title="{{ orange_check.title }}">
     <c-slot name="subtitle">
     {% if orange_check.status == "draft" %}
         <c-badge variant="neutral">Draft</c-badge>
@@ -137,7 +137,4 @@
         {% endif %}
         </c-module>
     {% endif %}
-    <c-button_row>
-    <c-link href="{% url 'challenges:check_list' %}" variant="history">Back to Checks</c-link>
-    </c-button_row>
-{% endblock content %}
+{% endblock orange_content %}

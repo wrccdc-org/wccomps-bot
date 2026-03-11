@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block title %}
+    {% block orange_title %}
+        Orange Team
+    {% endblock orange_title %}
+{% endblock title %}
+{% block content %}
+    {% load cotton %}
+    {% if is_lead %}
+        <c-nav>
+        <c-nav_item name="dashboard" href="{% url 'challenges:dashboard' %}">Dashboard</c-nav_item>
+        <c-nav_item name="checkins" href="{% url 'challenges:team_checkins' %}">Team Check-ins</c-nav_item>
+        <c-nav_item name="review" href="{% url 'challenges:review_queue' %}">Review Queue</c-nav_item>
+        <c-nav_item name="checks" href="{% url 'challenges:check_list' %}">Manage Checks</c-nav_item>
+        </c-nav>
+    {% endif %}
+    {% block orange_content %}
+    {% endblock orange_content %}
+{% endblock content %}

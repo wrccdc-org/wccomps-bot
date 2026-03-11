@@ -15,6 +15,10 @@ fail() {
 step() { echo "  ✓ $*"; }
 cleanup_test_db() { docker compose -f docker-compose.test.yml down -v || true; }
 remote() { ssh "$REMOTE_HOST" "cd $REMOTE_PATH && $1"; }
+test_db_healthy() {
+    docker compose -f docker-compose.test.yml ps --format json 2>/dev/null \
+        | grep -q '"healthy"' 2>/dev/null
+}
 
 # Suppress stderr noise (progress bars, docker lifecycle) — errors go via stdout
 exec 3>&2 2>/dev/null
@@ -33,28 +37,41 @@ uv lock --upgrade --quiet
 uv sync --quiet
 step "deps"
 
-# Auto-fix formatting first (must complete before lint checks)
+# Auto-fix formatting (ruff=Python, djlint=HTML — no overlap, safe to parallel)
+uv run djlint web/templates --reformat --quiet &
+PID_DJFMT=$!
 uv run ruff format . --quiet
 uv run ruff check --fix --quiet . || true
-uv run djlint web/templates --reformat --quiet
+wait $PID_DJFMT
 
 # Auto-commit any formatting changes so deployed code matches a commit
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     git add -u && git commit -m "autoformat" --quiet
 fi
 
+# Start test DB in background during lint phase (overlaps ~7s of DB startup with ~10s of lint)
+PID_TESTDB=0
+if command -v docker &>/dev/null; then
+    {
+        if ! test_db_healthy; then
+            docker compose -f docker-compose.test.yml up -d --wait || exit 1
+        fi
+    } &
+    PID_TESTDB=$!
+fi
+
 # Run all lint checks in parallel
 RUFF_RC=0 DJLINT_RC=0 MYPY_RC=0
 
 uv run ruff check . --quiet > /tmp/deploy_ruff 2>&1 || RUFF_RC=$?
-{ uv run djlint web/templates --lint --quiet > /tmp/deploy_djlint 2>&1 || DJLINT_RC=$?; } &
+{ uv run djlint web/templates --lint --quiet > /tmp/deploy_djlint 2>&1; } &
 PID_DJLINT=$!
-{ DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy \
-    > /tmp/deploy_mypy 2>&1 || MYPY_RC=$?; } &
+{ DJANGO_SETTINGS_MODULE=wccomps.settings uv run mypy > /tmp/deploy_mypy 2>&1; } &
 PID_MYPY=$!
 
-wait $PID_DJLINT
-wait $PID_MYPY
+# wait returns the subshell's exit status (|| prevents set -e from killing the script)
+wait $PID_DJLINT || DJLINT_RC=$?
+wait $PID_MYPY || MYPY_RC=$?
 
 [ $RUFF_RC -ne 0 ] && fail "ruff" "$(cat /tmp/deploy_ruff)"
 step "ruff"
@@ -63,10 +80,8 @@ step "djlint"
 [ $MYPY_RC -ne 0 ] && fail "mypy" "$(cat /tmp/deploy_mypy)"
 step "mypy"
 
-if command -v docker &>/dev/null; then
-    cleanup_test_db
-    docker compose -f docker-compose.test.yml up -d --wait \
-        || fail "test db"
+if [ "$PID_TESTDB" -ne 0 ]; then
+    wait $PID_TESTDB || fail "test db"
 
     if [ -f .env.test ]; then
         set -a; source .env.test; set +a
@@ -78,20 +93,32 @@ if command -v docker &>/dev/null; then
     export DB_USER="${TEST_DB_USER:-test_user}"
     export DB_PASSWORD="${TEST_DB_PASSWORD:-test_password}"
 
-    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
-        uv run python manage.py migrate --noinput --verbosity 0); then
-        cleanup_test_db; fail "migrate" "$OUT"
-    fi
+    # Run migrate, makemigrations check, and collectstatic in parallel
+    # (makemigrations --check doesn't need DB; collectstatic doesn't need DB)
+    MIGRATE_RC=0 MAKEMIG_RC=0 STATIC_RC=0
 
-    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
-        uv run python manage.py makemigrations --check --dry-run --verbosity 0); then
-        cleanup_test_db; fail "migrate — unapplied model changes detected"
-    fi
+    { cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py migrate --noinput --verbosity 0 \
+        > /tmp/deploy_migrate 2>&1; } &
+    PID_MIGRATE=$!
 
-    if ! OUT=$(cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
-        uv run python manage.py collectstatic --noinput --verbosity 0); then
-        cleanup_test_db; fail "collectstatic" "$OUT"
-    fi
+    { cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py makemigrations --check --dry-run --verbosity 0 \
+        > /tmp/deploy_makemig 2>&1; } &
+    PID_MAKEMIG=$!
+
+    { cd web && DJANGO_SETTINGS_MODULE=wccomps.settings \
+        uv run python manage.py collectstatic --noinput --verbosity 0 \
+        > /tmp/deploy_static 2>&1; } &
+    PID_STATIC=$!
+
+    wait $PID_MIGRATE || MIGRATE_RC=$?
+    wait $PID_MAKEMIG || MAKEMIG_RC=$?
+    wait $PID_STATIC || STATIC_RC=$?
+
+    [ $MIGRATE_RC -ne 0 ] && { cleanup_test_db; fail "migrate" "$(cat /tmp/deploy_migrate)"; }
+    [ $MAKEMIG_RC -ne 0 ] && { cleanup_test_db; fail "migrate — unapplied model changes detected"; }
+    [ $STATIC_RC -ne 0 ] && { cleanup_test_db; fail "collectstatic" "$(cat /tmp/deploy_static)"; }
     step "migrate"
 
     if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m "not browser"); then
@@ -121,7 +148,8 @@ p.stop()
         echo "  · browser    skipped (no playwright browser)"
     fi
 
-    cleanup_test_db
+    # Leave test DB running — next deploy reuses it via test_db_healthy() check.
+    # To reclaim resources: docker compose -f docker-compose.test.yml down -v
 else
     echo "  · tests      skipped (no docker)"
 fi
