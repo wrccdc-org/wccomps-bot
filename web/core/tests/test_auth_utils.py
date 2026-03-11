@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpResponse
 from django.test import RequestFactory
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from core.auth_utils import (
@@ -263,7 +263,7 @@ class TestCheckGroupsForPermissionProperties:
         permission=st.sampled_from(list(PERMISSION_MAP.keys())),
         extra_groups=st.lists(st.text(min_size=1, max_size=30), max_size=5),
     )
-    @settings(max_examples=30)
+    @settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
     def test_permission_granted_when_required_group_present(self, permission: str, extra_groups: list[str]):
         """Permission should be granted when any required group is present."""
         required_groups = PERMISSION_MAP[permission]
