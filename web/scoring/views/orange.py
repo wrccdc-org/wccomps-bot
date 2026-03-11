@@ -3,7 +3,6 @@
 import contextlib
 from typing import cast
 
-from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
@@ -25,19 +24,15 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Review page for orange team checks."""
     from challenges.models import OrangeCheck
-    from django.core.paginator import Paginator
     from django.db.models import Q
 
+    from core.utils import filter_sort_paginate
     from team.models import Team
 
     status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
     check_filter = request.GET.get("check", "")
     search_query = request.GET.get("search", "").strip()
-    sort_by = request.GET.get("sort", "-created_at")
-    if sort_by == "default":
-        sort_by = ""
-    page = request.GET.get("page", "1")
 
     base_query = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by", "orange_check")
 
@@ -59,25 +54,21 @@ def review_orange(request: HttpRequest) -> HttpResponse:
     if search_query:
         base_query = base_query.filter(Q(description__icontains=search_query))
 
-    valid_sort_fields = [
-        "created_at",
-        "-created_at",
-        "team__team_number",
-        "-team__team_number",
-        "points_awarded",
-        "-points_awarded",
-    ]
-    if sort_by and sort_by not in valid_sort_fields:
-        sort_by = "-created_at"
-    if sort_by:
-        base_query = base_query.order_by(sort_by)
-
-    paginator = Paginator(base_query, 50)
-    try:
-        page_num = int(page)
-    except ValueError:
-        page_num = 1
-    page_obj = paginator.get_page(page_num)
+    result = filter_sort_paginate(
+        request,
+        base_query,
+        valid_sort_fields=[
+            "created_at",
+            "-created_at",
+            "team__team_number",
+            "-team__team_number",
+            "points_awarded",
+            "-points_awarded",
+        ],
+        default_sort="-created_at",
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
     total_checks = OrangeTeamScore.objects.count()
     pending_count = OrangeTeamScore.objects.filter(is_approved=False).count()
@@ -117,26 +108,22 @@ def submit_orange_check(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
     """Bulk approve orange team checks."""
-    adjustment_ids = request.POST.getlist("adjustment_ids")
+    from core.utils import bulk_approve
 
-    if not adjustment_ids:
-        messages.info(request, "No checks selected")
-        return redirect("scoring:review_orange")
+    user = cast(User, request.user)
+    now = timezone.now()
 
-    # Convert to integers and filter valid IDs
-    valid_ids = []
-    for adj_id in adjustment_ids:
-        try:
-            valid_ids.append(int(adj_id))
-        except ValueError, TypeError:
-            continue
+    def approve(score: OrangeTeamScore) -> None:
+        score.is_approved = True
+        score.approved_at = now
+        score.approved_by = user
+        score.save()
 
-    # Bulk update adjustments
-    count = OrangeTeamScore.objects.filter(id__in=valid_ids).update(
-        is_approved=True,
-        approved_at=timezone.now(),
-        approved_by=cast(User, request.user),
+    return bulk_approve(
+        request,
+        field_name="adjustment_ids",
+        queryset=OrangeTeamScore.objects.all(),
+        redirect_url="scoring:review_orange",
+        item_label="check",
+        on_item=approve,
     )
-
-    messages.success(request, f"Approved {count} check(s)")
-    return redirect("scoring:review_orange")

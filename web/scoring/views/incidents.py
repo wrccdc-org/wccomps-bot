@@ -201,17 +201,13 @@ def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> Ht
 )
 def review_incidents(request: HttpRequest) -> HttpResponse:
     """Review and match incident reports (gold team)."""
-    from django.core.paginator import Paginator
+    from core.utils import filter_sort_paginate
 
     # Get filter parameters
     status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
     box_filter = request.GET.get("box", "")
     search_query = request.GET.get("search", "").strip()
-    sort_by = request.GET.get("sort", "-created_at")
-    if sort_by == "default":
-        sort_by = ""
-    page = request.GET.get("page", "1")
 
     base_query = IncidentReport.objects.select_related("team").prefetch_related("screenshots")
 
@@ -235,27 +231,21 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
             Q(attack_description__icontains=search_query) | Q(affected_service__icontains=search_query)
         )
 
-    # Validate and apply sort
-    valid_sort_fields = [
-        "created_at",
-        "-created_at",
-        "team__team_number",
-        "-team__team_number",
-        "attack_detected_at",
-        "-attack_detected_at",
-    ]
-    if sort_by and sort_by not in valid_sort_fields:
-        sort_by = "-created_at"
-    if sort_by:
-        base_query = base_query.order_by(sort_by)
-
-    # Pagination
-    paginator = Paginator(base_query, 50)
-    try:
-        page_num = int(page)
-    except ValueError:
-        page_num = 1
-    page_obj = paginator.get_page(page_num)
+    result = filter_sort_paginate(
+        request,
+        base_query,
+        valid_sort_fields=[
+            "created_at",
+            "-created_at",
+            "team__team_number",
+            "-team__team_number",
+            "attack_detected_at",
+            "-attack_detected_at",
+        ],
+        default_sort="-created_at",
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
     # Stats (unfiltered counts)
     total_incidents = IncidentReport.objects.count()
@@ -293,39 +283,25 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def bulk_approve_incidents(request: HttpRequest) -> HttpResponse:
     """Bulk approve incident reports."""
+    from core.utils import bulk_approve
+
     user = cast(User, request.user)
-    incident_ids = request.POST.getlist("incident_ids")
-
-    if not incident_ids:
-        messages.info(request, "No incidents selected for approval")
-        return redirect("scoring:review_incidents")
-
-    valid_ids = []
-    for iid in incident_ids:
-        try:
-            valid_ids.append(int(iid))
-        except ValueError, TypeError:
-            continue
-
-    if not valid_ids:
-        messages.warning(request, "No valid incident IDs provided")
-        return redirect("scoring:review_incidents")
-
     now = timezone.now()
-    approved_count = 0
-    for incident in IncidentReport.objects.filter(id__in=valid_ids, is_approved=False):
+
+    def approve(incident: IncidentReport) -> None:
         incident.is_approved = True
         incident.approved_by = user
         incident.approved_at = now
         incident.save()
-        approved_count += 1
 
-    if approved_count > 0:
-        messages.success(request, f"Successfully approved {approved_count} incident(s)")
-    else:
-        messages.info(request, "No unapproved incidents found to approve")
-
-    return redirect("scoring:review_incidents")
+    return bulk_approve(
+        request,
+        field_name="incident_ids",
+        queryset=IncidentReport.objects.filter(is_approved=False),
+        redirect_url="scoring:review_incidents",
+        item_label="incident",
+        on_item=approve,
+    )
 
 
 @require_permission(

@@ -42,27 +42,7 @@
                 </div>
             </div>
         </div>
-        <!-- Progress bar -->
-        <template x-if="hasProgress">
-            <div class="mt-10 mb-10">
-                <div class="d-flex justify-between mb-5">
-                    <span class="text-sm" x-text="progressStep"></span>
-                    <span class="text-sm" x-text="progressText"></span>
-                </div>
-                <div class="progress-bar"
-                     role="progressbar"
-                     :aria-valuenow="progressCurrent"
-                     aria-valuemin="0"
-                     :aria-valuemax="progressTotal">
-                    <div class="progress-bar__fill"
-                         :class="progressBarClass"
-                         :style="progressStyle"></div>
-                </div>
-                <template x-if="hasFailures">
-                    <div class="text-sm text-warning mt-5" x-text="failedText"></div>
-                </template>
-            </div>
-        </template>
+        <c-progress_bar class="mt-10 mb-10" />
         <!-- Toast -->
         <template x-if="message">
             <div x-transition class="mb-10">

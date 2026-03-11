@@ -5,7 +5,6 @@ from typing import cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -25,15 +24,13 @@ logger = logging.getLogger(__name__)
 )
 def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     """Review resolved tickets for point approval."""
+    from core.utils import filter_sort_paginate
+
     # Get filter parameters
     status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
     search_query = request.GET.get("search", "").strip()
     category_filter = request.GET.get("category", "")
-    sort_by = request.GET.get("sort", "-resolved_at")
-    if sort_by == "default":
-        sort_by = ""
-    page = request.GET.get("page", "1")
 
     # Build query - only show resolved tickets
     query = Ticket.objects.filter(status="resolved").select_related("team", "approved_by")
@@ -62,38 +59,36 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
             | Q(service_name__icontains=search_query)
         )
 
-    # Validate and apply sort
-    valid_sort_fields = [
-        "resolved_at",
-        "-resolved_at",
-        "points_charged",
-        "-points_charged",
-        "team__team_number",
-        "-team__team_number",
-        "category",
-        "-category",
-    ]
-    if sort_by and sort_by not in valid_sort_fields:
-        sort_by = "-resolved_at"
+    result = filter_sort_paginate(
+        request,
+        query,
+        valid_sort_fields=[
+            "resolved_at",
+            "-resolved_at",
+            "points_charged",
+            "-points_charged",
+            "team__team_number",
+            "-team__team_number",
+            "category",
+            "-category",
+        ],
+        default_sort="-resolved_at",
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
-    if sort_by:
-        query = query.order_by(sort_by)
-
-    # Enrich tickets with category info
-    tickets_with_info = []
-    for ticket in query:
+    # Enrich only the current page with category info
+    enriched = []
+    for ticket in page_obj.object_list:
         cat_info = get_category_config(ticket.category_id) or {}
-        tickets_with_info.append(
+        enriched.append(
             {
                 "ticket": ticket,
                 "category_name": cat_info.get("display_name", "Unknown"),
                 "expected_points": cat_info.get("points", 0),
             }
         )
-
-    # Paginate
-    paginator = Paginator(tickets_with_info, 50)
-    page_obj = paginator.get_page(page)
+    page_obj.object_list = enriched
 
     context = {
         "page_obj": page_obj,
@@ -183,31 +178,13 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
     """Bulk approve selected ticket points."""
     user = cast(User, request.user)
     authentik_username = user.username
-    ticket_ids = request.POST.getlist("ticket_ids")
-
-    if not ticket_ids:
-        messages.info(request, "No tickets selected for approval")
-        return redirect("ops_review_tickets")
-
-    valid_ids = []
-    for tid in ticket_ids:
-        try:
-            valid_ids.append(int(tid))
-        except ValueError, TypeError:
-            continue
-
-    if not valid_ids:
-        messages.warning(request, "No valid ticket IDs provided")
-        return redirect("ops_review_tickets")
-
     now = timezone.now()
-    approved_count = 0
-    for ticket in Ticket.objects.filter(id__in=valid_ids, is_approved=False, status="resolved"):
+
+    def approve(ticket: Ticket) -> None:
         ticket.is_approved = True
         ticket.approved_by = user
         ticket.approved_at = now
         ticket.save()
-
         TicketHistory.objects.create(
             ticket=ticket,
             action="points_verified",
@@ -217,12 +194,16 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
                 "batch": True,
             },
         )
-        approved_count += 1
 
-    if approved_count > 0:
-        messages.success(request, f"Successfully approved {approved_count} ticket(s)")
-    else:
-        messages.info(request, "No unapproved tickets found to approve")
+    from core.utils import bulk_approve
 
-    logger.info(f"Batch approved {approved_count} tickets by {authentik_username}")
-    return redirect("ops_review_tickets")
+    result = bulk_approve(
+        request,
+        field_name="ticket_ids",
+        queryset=Ticket.objects.filter(is_approved=False, status="resolved"),
+        redirect_url="ops_review_tickets",
+        item_label="ticket",
+        on_item=approve,
+    )
+    logger.info(f"Batch verified tickets by {authentik_username}")
+    return result

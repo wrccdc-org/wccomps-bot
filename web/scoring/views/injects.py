@@ -65,7 +65,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
                         },
                     )
                     grades_saved += 1
-                except ValueError, TypeError:
+                except (ValueError, TypeError):
                     pass
 
         if grades_saved:
@@ -245,47 +245,25 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:
     """Bulk approve inject grades (Gold Team)."""
+    from core.utils import bulk_approve
+
     user = cast(User, request.user)
+    now = timezone.now()
 
-    # Get grade IDs from POST data
-    grade_ids_raw = request.POST.getlist("grade_ids")
-
-    if not grade_ids_raw:
-        messages.info(request, "No grades selected for approval")
-        return redirect("scoring:inject_grades_review")
-
-    # Convert to integers and filter invalid IDs
-    grade_ids = []
-    for grade_id in grade_ids_raw:
-        try:
-            grade_ids.append(int(grade_id))
-        except ValueError, TypeError:
-            continue
-
-    if not grade_ids:
-        messages.warning(request, "Invalid grade IDs provided")
-        return redirect("scoring:inject_grades_review")
-
-    # Get grades to approve (only unapproved ones)
-    grades_to_approve = InjectScore.objects.filter(id__in=grade_ids, is_approved=False)
-
-    if not grades_to_approve.exists():
-        messages.warning(request, "No unapproved grades found with provided IDs")
-        return redirect("scoring:inject_grades_review")
-
-    # Approve grades
-    approval_time = timezone.now()
-    approved_count = 0
-
-    for grade in grades_to_approve:
+    def approve(grade: InjectScore) -> None:
         grade.is_approved = True
-        grade.approved_at = approval_time
+        grade.approved_at = now
         grade.approved_by = user
         grade.save()
-        approved_count += 1
 
-    messages.success(request, f"Successfully approved {approved_count} inject grades")
-    return redirect("scoring:inject_grades_review")
+    return bulk_approve(
+        request,
+        field_name="grade_ids",
+        queryset=InjectScore.objects.filter(is_approved=False),
+        redirect_url="scoring:inject_grades_review",
+        item_label="inject grade",
+        on_item=approve,
+    )
 
 
 # --- Inject Feedback Review (Gold Team) ---
@@ -384,35 +362,20 @@ def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def bulk_approve_inject_feedback(request: HttpRequest) -> HttpResponse:
     """Bulk approve feedback for multiple InjectScore records."""
+    from core.utils import bulk_approve
+
     user = cast(User, request.user)
-    score_ids_raw = request.POST.getlist("score_ids")
 
-    if not score_ids_raw:
-        messages.info(request, "No feedback selected for approval")
-        return redirect("scoring:review_inject_feedback")
-
-    score_ids = []
-    for sid in score_ids_raw:
-        try:
-            score_ids.append(int(sid))
-        except ValueError, TypeError:
-            continue
-
-    if not score_ids:
-        messages.warning(request, "Invalid score IDs provided")
-        return redirect("scoring:review_inject_feedback")
-
-    scores_to_approve = InjectScore.objects.filter(
-        id__in=score_ids,
-        feedback_approved=False,
-    )
-
-    approved_count = 0
-    for score in scores_to_approve:
+    def approve(score: InjectScore) -> None:
         score.feedback_approved = True
         score.feedback_approved_by = user
         score.save(update_fields=["feedback_approved", "feedback_approved_by"])
-        approved_count += 1
 
-    messages.success(request, f"Approved feedback for {approved_count} inject scores")
-    return redirect("scoring:review_inject_feedback")
+    return bulk_approve(
+        request,
+        field_name="score_ids",
+        queryset=InjectScore.objects.filter(feedback_approved=False),
+        redirect_url="scoring:review_inject_feedback",
+        item_label="feedback item",
+        on_item=approve,
+    )

@@ -1,7 +1,15 @@
 """Utility functions for WCComps core functionality."""
 
+from collections.abc import Callable
 from datetime import datetime
+from typing import TypedDict
 from zoneinfo import ZoneInfo
+
+from django.contrib import messages
+from django.core.paginator import Page, Paginator
+from django.db.models import QuerySet
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 
 from team.models import MAX_TEAMS, Team
 
@@ -62,3 +70,92 @@ def get_team_from_groups(
                 pass
 
     return None, None, False
+
+
+class FilterSortPage(TypedDict):
+    """Result of filter_sort_paginate()."""
+
+    page_obj: Page[object]
+    current_sort: str
+
+
+def filter_sort_paginate(
+    request: HttpRequest,
+    queryset: QuerySet,  # type: ignore[type-arg]
+    *,
+    valid_sort_fields: list[str],
+    default_sort: str = "-created_at",
+    page_size: int = 50,
+) -> FilterSortPage:
+    """Validate sort field, apply ordering, and paginate a queryset.
+
+    Reads ``sort`` and ``page`` from ``request.GET``.  The caller is
+    responsible for applying all domain-specific filters to *queryset*
+    before calling this helper.
+    """
+    sort_by = request.GET.get("sort", default_sort)
+
+    if sort_by == "default":
+        sort_by = ""
+
+    if sort_by and sort_by not in valid_sort_fields:
+        sort_by = default_sort
+
+    if sort_by:
+        queryset = queryset.order_by(sort_by)
+
+    page_str = request.GET.get("page", "1")
+    try:
+        page_num = int(page_str)
+    except (TypeError, ValueError):
+        page_num = 1
+
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page_num)
+
+    return FilterSortPage(page_obj=page_obj, current_sort=sort_by)
+
+
+def bulk_approve(  # type: ignore[explicit-any]
+    request: HttpRequest,
+    *,
+    field_name: str,
+    queryset: QuerySet,  # type: ignore[type-arg]
+    redirect_url: str,
+    item_label: str,
+    on_item: Callable[..., None],
+) -> HttpResponse:
+    """Extract IDs from POST, apply per-item approval, redirect with message.
+
+    The caller provides a pre-filtered *queryset* and an *on_item* callback
+    that mutates and saves each instance.
+    """
+    raw_ids = request.POST.getlist(field_name)
+
+    if not raw_ids:
+        messages.info(request, f"No {item_label}s selected for approval")
+        return redirect(redirect_url)
+
+    valid_ids: list[int] = []
+    for raw_id in raw_ids:
+        try:
+            valid_ids.append(int(raw_id))
+        except (ValueError, TypeError):
+            continue
+
+    if not valid_ids:
+        messages.warning(request, f"No valid {item_label} IDs provided")
+        return redirect(redirect_url)
+
+    items = queryset.filter(id__in=valid_ids)
+    count = 0
+    for item in items:
+        on_item(item)
+        count += 1
+
+    if count > 0:
+        messages.success(request, f"Successfully approved {count} {item_label}(s)")
+    else:
+        messages.info(request, f"No unapproved {item_label}s found to approve")
+
+    return redirect(redirect_url)

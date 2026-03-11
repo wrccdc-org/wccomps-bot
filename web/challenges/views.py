@@ -392,7 +392,7 @@ def followup_create(request: HttpRequest) -> HttpResponse:
 
     try:
         minutes = int(minutes_str)
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         messages.error(request, "Invalid minutes value.")
         return redirect("challenges:dashboard")
 

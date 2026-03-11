@@ -6,7 +6,6 @@ from datetime import timedelta
 from typing import cast
 
 from django.contrib.auth.models import User
-from django.core.paginator import Paginator
 from django.db.models import Count, Max, Q
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
@@ -38,20 +37,18 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
     if not is_ops and not is_team:
         return HttpResponseForbidden("You do not have permission to view tickets.")
 
+    from core.utils import filter_sort_paginate
+
     # Get filter parameters (always)
     status_filter = request.GET.get("status", "all") or "all"
     category_filter = request.GET.get("category", "all") or "all"
     search_query = request.GET.get("search", "").strip()
-    sort_by = request.GET.get("sort", "-created_at")
-    if sort_by == "default":
-        sort_by = ""
-    page_size_str = request.GET.get("page_size", "50")
-    page = request.GET.get("page", "1")
 
     # Ops-only filter parameters
     team_filter = request.GET.get("team", "") if is_ops else ""
     assignee_filter = request.GET.get("assignee", "") if is_ops else ""
 
+    page_size_str = request.GET.get("page_size", "50")
     try:
         page_size = int(page_size_str)
         if page_size not in [25, 50, 100, 200]:
@@ -110,30 +107,31 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
             with contextlib.suppress(ValueError):
                 query = query.filter(assigned_to_id=int(assignee_filter))
 
-    # Validate and apply sort
-    valid_sort_fields = [
-        "created_at",
-        "-created_at",
-        "status",
-        "-status",
-        "team__team_number",
-        "-team__team_number",
-        "category",
-        "-category",
-        "assigned_to__username",
-        "-assigned_to__username",
-    ]
-    if sort_by and sort_by not in valid_sort_fields:
-        sort_by = "-created_at"
+    result = filter_sort_paginate(
+        request,
+        query,
+        valid_sort_fields=[
+            "created_at",
+            "-created_at",
+            "status",
+            "-status",
+            "team__team_number",
+            "-team__team_number",
+            "category",
+            "-category",
+            "assigned_to__username",
+            "-assigned_to__username",
+        ],
+        default_sort="-created_at",
+        page_size=page_size,
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
-    if sort_by:
-        query = query.order_by(sort_by)
-
-    # Enrich tickets with category info and stale status
+    # Enrich only the current page with category info and stale status
     thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
-
-    tickets_with_info = []
-    for ticket in query:
+    enriched = []
+    for ticket in page_obj.object_list:
         cat_info = get_category_config(ticket.category_id) or {}
         is_stale = (
             is_ops
@@ -141,7 +139,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
             and ticket.assigned_at is not None
             and ticket.assigned_at < thirty_minutes_ago
         )
-        tickets_with_info.append(
+        enriched.append(
             {
                 "ticket": ticket,
                 "category_name": cat_info.get("display_name", "Unknown"),
@@ -149,10 +147,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
                 "status_display": ticket.status.upper().replace("_", " "),
             }
         )
-
-    # Paginate
-    paginator = Paginator(tickets_with_info, page_size)
-    page_obj = paginator.get_page(page)
+    page_obj.object_list = enriched
 
     # Get unique assignees for filter dropdown (ops only)
     assignees = User.objects.filter(assigned_tickets__isnull=False).distinct().order_by("username") if is_ops else []
@@ -195,7 +190,7 @@ def ticket_notifications(request: HttpRequest) -> JsonResponse:
 
     try:
         since_id = int(request.GET.get("since_id", "0"))
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         since_id = 0
 
     open_count = Ticket.objects.filter(status="open").count()

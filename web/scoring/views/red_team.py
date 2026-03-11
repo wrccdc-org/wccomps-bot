@@ -56,7 +56,7 @@ def _normalize_red_score_post(post_data: QueryDict) -> QueryDict:
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
     """Gold team review page for red team findings."""
-    from django.core.paginator import Paginator
+    from core.utils import filter_sort_paginate
 
     # Get filter parameters
     status_filter = request.GET.get("status", "pending") or "pending"
@@ -64,10 +64,6 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
     search_query = request.GET.get("search", "").strip()
-    sort_by = request.GET.get("sort", "-created_at")
-    if sort_by == "default":
-        sort_by = ""
-    page = request.GET.get("page", "1")
 
     base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
 
@@ -99,20 +95,14 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     # Apply distinct to avoid duplicates from M2M joins
     base_query = base_query.distinct()
 
-    # Validate and apply sort
-    valid_sort_fields = ["created_at", "-created_at", "attack_type__name", "-attack_type__name"]
-    if sort_by and sort_by not in valid_sort_fields:
-        sort_by = "-created_at"
-    if sort_by:
-        base_query = base_query.order_by(sort_by)
-
-    # Pagination
-    paginator = Paginator(base_query, 50)
-    try:
-        page_num = int(page)
-    except ValueError:
-        page_num = 1
-    page_obj = paginator.get_page(page_num)
+    result = filter_sort_paginate(
+        request,
+        base_query,
+        valid_sort_fields=["created_at", "-created_at", "attack_type__name", "-attack_type__name"],
+        default_sort="-created_at",
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
     # Stats (unfiltered counts)
     total_findings = RedTeamScore.objects.count()
@@ -163,17 +153,13 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 )
 def red_team_scores(request: HttpRequest) -> HttpResponse:
     """Red team view of all findings (read-only, can delete/leave own)."""
-    from django.core.paginator import Paginator
+    from core.utils import filter_sort_paginate
 
     # Get filter parameters
     status_filter = request.GET.get("status", "all") or "all"
     team_filter = request.GET.get("team", "")
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
-    sort_by = request.GET.get("sort", "-created_at")
-    if sort_by == "default":
-        sort_by = ""
-    page = request.GET.get("page", "1")
 
     base_query = RedTeamScore.objects.prefetch_related("affected_teams", "screenshots").select_related("submitted_by")
 
@@ -196,20 +182,20 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
     if submitter_filter:
         base_query = base_query.filter(submitted_by_id=int(submitter_filter))
 
-    # Apply sorting
-    if sort_by and sort_by.lstrip("-") in ["created_at", "points_per_team"]:
-        base_query = base_query.order_by(sort_by)
-    elif sort_by:
-        base_query = base_query.order_by("-created_at")
-        sort_by = "-created_at"
-
-    # Paginate
-    paginator = Paginator(base_query.distinct(), 25)
-    try:
-        page_num = int(page)
-    except ValueError:
-        page_num = 1
-    page_obj = paginator.get_page(page_num)
+    result = filter_sort_paginate(
+        request,
+        base_query.distinct(),
+        valid_sort_fields=[
+            "created_at",
+            "-created_at",
+            "points_per_team",
+            "-points_per_team",
+        ],
+        default_sort="-created_at",
+        page_size=25,
+    )
+    page_obj = result["page_obj"]
+    sort_by = result["current_sort"]
 
     # Get available teams, attack types, and submitters for filter dropdowns
     available_teams = Team.objects.filter(red_team_scores__isnull=False).distinct().order_by("team_number")
@@ -246,46 +232,25 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def bulk_approve_red_scores(request: HttpRequest) -> HttpResponse:
     """Bulk approve red team findings (Gold Team only)."""
+    from core.utils import bulk_approve
+
     user = cast(User, request.user)
-
-    # Get finding IDs from POST data
-    finding_ids = request.POST.getlist("finding_ids")
-
-    if not finding_ids:
-        messages.info(request, "No findings selected for approval")
-        return redirect("scoring:red_team_portal")
-
-    # Convert to integers and filter out invalid values
-    valid_ids = []
-    for fid in finding_ids:
-        try:
-            valid_ids.append(int(fid))
-        except ValueError, TypeError:
-            continue
-
-    if not valid_ids:
-        messages.warning(request, "No valid finding IDs provided")
-        return redirect("scoring:red_team_portal")
-
-    # Approve findings that are not already approved
-    findings_to_approve = RedTeamScore.objects.filter(id__in=valid_ids, is_approved=False)
-
-    approved_count = 0
     now = timezone.now()
 
-    for finding in findings_to_approve:
+    def approve(finding: RedTeamScore) -> None:
         finding.is_approved = True
         finding.approved_at = now
         finding.approved_by = user
         finding.save()
-        approved_count += 1
 
-    if approved_count > 0:
-        messages.success(request, f"Successfully approved {approved_count} finding(s)")
-    else:
-        messages.info(request, "No unapproved findings found to approve")
-
-    return redirect("scoring:red_team_portal")
+    return bulk_approve(
+        request,
+        field_name="finding_ids",
+        queryset=RedTeamScore.objects.filter(is_approved=False),
+        redirect_url="scoring:red_team_portal",
+        item_label="finding",
+        on_item=approve,
+    )
 
 
 @require_permission("red_team", error_message="Only Red Team members can submit findings")

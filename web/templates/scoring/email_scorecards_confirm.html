@@ -13,24 +13,8 @@
             {% if teams_without_email %}{{ teams_without_email }} team(s) will be skipped (no contact email).{% endif %}
             </c-alert>
         </div>
-        <!-- Progress bar -->
-        <div x-show="loading" x-cloak class="mt-10 mb-10">
-            <div class="d-flex justify-between mb-5">
-                <span class="text-sm" x-text="progressStep"></span>
-                <span class="text-sm" x-text="progressText"></span>
-            </div>
-            <div class="progress-bar"
-                 role="progressbar"
-                 :aria-valuenow="progressCurrent"
-                 aria-valuemin="0"
-                 :aria-valuemax="progressTotal">
-                <div class="progress-bar__fill"
-                     :class="progressBarClass"
-                     :style="progressStyle"></div>
-            </div>
-            <div x-show="hasFailures"
-                 class="text-sm text-warning mt-5"
-                 x-text="failedText"></div>
+        <div x-show="loading" x-cloak>
+            <c-progress_bar class="mt-10 mb-10" />
         </div>
         <!-- Result message -->
         <div x-show="done" x-cloak x-transition class="mb-10">
