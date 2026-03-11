@@ -71,4 +71,5 @@ def create_orange_score_from_assignment(
         is_approved=True,
         approved_by=approver,
         approved_at=timezone.now(),
+        orange_check=assignment.orange_check,
     )

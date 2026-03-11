@@ -747,6 +747,14 @@ class OrangeTeamScore(models.Model):
         related_name="orange_scores_approved",
         help_text="User who approved this check",
     )
+    orange_check = models.ForeignKey(
+        "challenges.OrangeCheck",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orange_scores",
+        help_text="Orange check this score was created from (null for manual adjustments)",
+    )
 
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
