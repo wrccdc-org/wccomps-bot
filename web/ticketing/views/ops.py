@@ -11,6 +11,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_http_methods
 
 from core.auth_utils import has_permission, require_permission
 from core.tickets_config import get_all_categories, get_category_config
@@ -26,29 +27,25 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     user = cast(User, request.user)
 
     # Get filter parameters
-    verified_filter = request.GET.get("verified", "unverified") or "unverified"
+    status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
     search_query = request.GET.get("search", "").strip()
+    category_filter = request.GET.get("category", "")
     sort_by = request.GET.get("sort", "-resolved_at")
     if sort_by == "default":
         sort_by = ""
-    page_size_str = request.GET.get("page_size", "50")
     page = request.GET.get("page", "1")
-
-    try:
-        page_size = int(page_size_str)
-        if page_size not in [25, 50, 100, 200]:
-            page_size = 50
-    except ValueError:
-        page_size = 50
 
     # Build query - only show resolved tickets
     query = Ticket.objects.filter(status="resolved").select_related("team", "approved_by")
 
-    if verified_filter == "verified":
+    if status_filter == "approved":
         query = query.filter(is_approved=True)
-    elif verified_filter == "unverified":
+    elif status_filter == "pending":
         query = query.filter(is_approved=False)
+
+    if category_filter:
+        query = query.filter(category_id=category_filter)
 
     if team_filter:
         try:
@@ -96,17 +93,18 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         )
 
     # Paginate
-    paginator = Paginator(tickets_with_info, page_size)
+    paginator = Paginator(tickets_with_info, 50)
     page_obj = paginator.get_page(page)
 
     context = {
         "page_obj": page_obj,
-        "verified_filter": verified_filter,
+        "status_filter": status_filter,
         "team_filter": team_filter,
+        "category_filter": category_filter,
         "search_query": search_query,
         "sort_by": sort_by,
-        "page_size": page_size,
         "categories": get_all_categories(),
+        "has_pending": Ticket.objects.filter(status="resolved", is_approved=False).exists(),
         "show_ops_nav": True,
     }
 
@@ -177,26 +175,36 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
 
 @require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can batch verify tickets")
+@require_http_methods(["POST"])
 def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
-    """Batch verify all unverified resolved ticket points (admin only)."""
-    if request.method != "POST":
-        return HttpResponse("Method not allowed", status=405)
-
+    """Bulk approve selected ticket points."""
     user = cast(User, request.user)
     authentik_username = user.username
+    ticket_ids = request.POST.getlist("ticket_ids")
 
-    # Get all unverified resolved tickets
-    unverified_tickets = Ticket.objects.filter(status="resolved", is_approved=False).select_related("team")
+    if not ticket_ids:
+        messages.info(request, "No tickets selected for approval")
+        return redirect("ops_review_tickets")
 
-    verified_count = 0
-    for ticket in unverified_tickets:
-        # Mark as verified
+    valid_ids = []
+    for tid in ticket_ids:
+        try:
+            valid_ids.append(int(tid))
+        except (ValueError, TypeError):
+            continue
+
+    if not valid_ids:
+        messages.warning(request, "No valid ticket IDs provided")
+        return redirect("ops_review_tickets")
+
+    now = timezone.now()
+    approved_count = 0
+    for ticket in Ticket.objects.filter(id__in=valid_ids, is_approved=False, status="resolved"):
         ticket.is_approved = True
         ticket.approved_by = user
-        ticket.approved_at = timezone.now()
+        ticket.approved_at = now
         ticket.save()
 
-        # Create history entry
         TicketHistory.objects.create(
             ticket=ticket,
             action="points_verified",
@@ -206,8 +214,12 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
                 "batch": True,
             },
         )
+        approved_count += 1
 
-        verified_count += 1
+    if approved_count > 0:
+        messages.success(request, f"Successfully approved {approved_count} ticket(s)")
+    else:
+        messages.info(request, "No unapproved tickets found to approve")
 
-    logger.info(f"Batch verified {verified_count} tickets by {authentik_username}")
+    logger.info(f"Batch approved {approved_count} tickets by {authentik_username}")
     return redirect("ops_review_tickets")

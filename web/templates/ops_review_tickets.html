@@ -1,115 +1,59 @@
 {% extends "scoring/base.html" %}
-{% load static cotton %}
+{% load cotton %}
 {% block title %}
-    Review Tickets - WCComps
-{% endblock title %}
-{% block scoring_title %}
     Review Tickets
-{% endblock scoring_title %}
+{% endblock title %}
 {% block scoring_content %}
-    <div id="content-main">
-        <c-page_header title="Review Tickets" />
-        <c-module filtered="true" id="changelist">
-        <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_review_tickets' %}" hx_target="#review-tickets-content" hx_swap="outerHTML" hx_push_url="true">
-        <c-slot name="actions">
-        <form method="post"
-              action="{% url 'ops_batch_verify_tickets' %}"
-              class="d-inline"
-              onsubmit="return confirm('Are you sure you want to approve ALL unverified resolved tickets? This will mark all unverified resolved tickets as approved.')">
-            {% csrf_token %}
-            <c-button type="submit" variant="primary">Approve All Unverified</c-button>
-        </form>
-        </c-slot>
-        <c-filter_field label="Search" id="id_search" min_width="200px">
-        <input type="text"
-               name="search"
-               id="id_search"
-               value="{{ search_query }}"
-               placeholder="Search... (press / to focus)"
-               aria-label="Search tickets"
-               accesskey="/">
-        </c-filter_field>
-        <c-filter_field label="Verification Status" id="id_verified">
-        <select name="verified"
-                id="id_verified"
-                aria-label="Filter by verification status">
-            <option value="unverified"
-                    {% if verified_filter == 'unverified' %}selected{% endif %}>Unverified Only</option>
-            <option value="verified"
-                    {% if verified_filter == 'verified' %}selected{% endif %}>Verified Only</option>
-            <option value="all" {% if verified_filter == 'all' %}selected{% endif %}>All</option>
-        </select>
-        </c-filter_field>
-        <c-filter_field label="Team Number" id="id_team">
-        <input type="number"
-               name="team"
-               id="id_team"
-               value="{{ team_filter }}"
-               placeholder="Team #"
-               aria-label="Filter by team number">
-        </c-filter_field>
-        <c-filter_field label="Results Per Page" id="id_page_size">
-        <select name="page_size" id="id_page_size" aria-label="Results per page">
-            <option value="25" {% if page_size == 25 %}selected{% endif %}>25</option>
-            <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-            <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-        </select>
-        </c-filter_field>
-        </c-filter_toolbar>
-        <c-review_tickets_table :page_obj="page_obj" :verified_filter="verified_filter" :team_filter="team_filter" :search_query="search_query" :sort_by="sort_by" :page_size="page_size" />
-        </c-module>
-    </div>
     <script>
-        function showVerificationDialog(event, ticketNumber, currentPoints, expectedPoints) {
-            event.preventDefault();
-
-            // Hide any previous inline error for this ticket
-            const errorEl = document.getElementById(`error_${ticketNumber}`);
-            if (errorEl) errorEl.classList.add('d-none');
-
-            let adjustedPoints = currentPoints;
-            let notes = '';
-
-            if (currentPoints !== expectedPoints) {
-                const confirmation = confirm(
-                    `Ticket ${ticketNumber}\n\n` +
-                    `Current points: ${currentPoints}\n` +
-                    `Expected points: ${expectedPoints}\n\n` +
-                    `Points differ from expected value. Would you like to adjust?`
-                );
-
-                if (confirmation) {
-                    const newPoints = prompt(`Enter adjusted points for ${ticketNumber}:`, currentPoints);
-                    if (newPoints === null) {
-                        return false;
-                    }
-                    adjustedPoints = parseInt(newPoints);
-                    if (isNaN(adjustedPoints)) {
-                        if (errorEl) errorEl.classList.remove('d-none');
-                        return false;
-                    }
-                }
-
-                notes = prompt(`Optional verification notes for ${ticketNumber}:`, '');
-                if (notes === null) {
-                    return false;
-                }
-            } else {
-                const confirmation = confirm(
-                    `Verify ticket ${ticketNumber} for ${currentPoints} points?`
-                );
-
-                if (!confirmation) {
-                    return false;
-                }
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('ticketsBulkSelect', () => ({
+            selected: [],
+            selectableIds: [],
+            submitting: false,
+            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-ticket-id]')).map(el => el.dataset.ticketId); },
+            get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
+            get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
+            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
+            submitBulk() {
+                if (this.submitting) return;
+                if (this.selected.length === 0) { alert('Please select at least one ticket to approve'); return; }
+                if (confirm('Approve ' + this.selected.length + ' ticket(s)? This action cannot be undone.')) { this.submitting = true; this.$refs.bulkForm.submit(); }
             }
-
-            document.getElementById(`points_${ticketNumber}`).value = adjustedPoints;
-            document.getElementById(`notes_${ticketNumber}`).value = notes;
-
-            event.target.submit();
-            return true;
-        }
+        }));
+    });
     </script>
+    <c-page_header title="Review Tickets" />
+    <c-module filtered="true" id="changelist">
+    <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'ops_review_tickets' %}" hx_target="#review-tickets-content" hx_swap="outerHTML" hx_push_url="true">
+    {% if has_pending %}
+        <c-slot name="actions">
+        <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-approve-tickets'))" variant="primary">Approve Selected</c-button>
+        </c-slot>
+    {% endif %}
+    <c-filter_field label="Status" id="id_status">
+    <select name="status" id="id_status" aria-label="Filter by status">
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved Only</option>
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+    </select>
+    </c-filter_field>
+    <c-filter_field label="Team" id="id_team">
+    <input type="number" name="team" id="id_team" value="{{ team_filter }}" placeholder="Team #" aria-label="Filter by team number">
+    </c-filter_field>
+    <c-filter_field label="Category" id="id_category">
+    <select name="category" id="id_category" aria-label="Filter by category">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if category_filter == cat.id %}selected{% endif %}>
+                {{ cat.display_name }}
+            </option>
+        {% endfor %}
+    </select>
+    </c-filter_field>
+    <c-filter_field label="Search" id="id_search" min_width="180px">
+    <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Search..." aria-label="Search tickets">
+    </c-filter_field>
+    </c-filter_toolbar>
+    <c-review_tickets_table :page_obj="page_obj" :status_filter="status_filter" :team_filter="team_filter" :category_filter="category_filter" :search_query="search_query" :sort_by="sort_by" />
+    </c-module>
 {% endblock scoring_content %}

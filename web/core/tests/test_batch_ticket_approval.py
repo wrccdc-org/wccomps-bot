@@ -166,10 +166,10 @@ class TestBatchTicketApproval:
         response = client.get("/ops/tickets/batch-verify-points/")
         assert response.status_code == 405
 
-    def test_batch_approve_all_unverified_resolved_tickets(
+    def test_batch_approve_selected_tickets(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
     ) -> None:
-        """Test admin can batch approve all unverified resolved tickets."""
+        """Test admin can batch approve selected unverified resolved tickets."""
         team1, team2, tickets = setup_resolved_tickets
         client = Client()
         client.force_login(setup_users_and_auth["admin_user"])
@@ -186,7 +186,9 @@ class TestBatchTicketApproval:
         open_tickets = Ticket.objects.filter(status="open")
         assert open_tickets.count() == 1
 
-        response = client.post("/ops/tickets/batch-verify-points/")
+        # Submit with all 3 unverified ticket IDs
+        ticket_ids = [str(t.id) for t in tickets[:3]]  # tickets 1, 2, 3
+        response = client.post("/ops/tickets/batch-verify-points/", {"ticket_ids": ticket_ids})
 
         # Should redirect to review page
         assert response.status_code == 302
@@ -221,7 +223,9 @@ class TestBatchTicketApproval:
         initial_history_count = TicketHistory.objects.filter(action="points_verified").count()
         assert initial_history_count == 0
 
-        response = client.post("/ops/tickets/batch-verify-points/")
+        # Submit with all 3 unverified ticket IDs
+        ticket_ids = [str(t.id) for t in tickets[:3]]
+        response = client.post("/ops/tickets/batch-verify-points/", {"ticket_ids": ticket_ids})
         assert response.status_code == 302
 
         # Check history entries created
@@ -235,22 +239,16 @@ class TestBatchTicketApproval:
             assert entry.details["batch"] is True
             assert "points_charged" in entry.details
 
-    def test_batch_approve_with_no_unverified_tickets(
+    def test_batch_approve_with_no_tickets_selected(
         self, setup_teams: tuple[Team, Team], setup_users_and_auth: dict[str, Any]
     ) -> None:
-        """Test batch approve handles case with no unverified tickets."""
+        """Test batch approve handles case with no tickets selected."""
         client = Client()
         client.force_login(setup_users_and_auth["admin_user"])
-
-        # No tickets in database
-        assert Ticket.objects.filter(status="resolved", is_approved=False).count() == 0
 
         response = client.post("/ops/tickets/batch-verify-points/")
         assert response.status_code == 302
         assert response["Location"] == "/ops/review-tickets/"
-
-        # Should complete successfully with no changes
-        assert Ticket.objects.filter(is_approved=True).count() == 0
 
     def test_batch_approve_only_affects_resolved_tickets(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
@@ -260,7 +258,7 @@ class TestBatchTicketApproval:
         client = Client()
 
         # Create additional tickets in different states
-        Ticket.objects.create(
+        claimed_ticket = Ticket.objects.create(
             ticket_number="T001-004",
             team=team1,
             category=TicketCategory.objects.get(pk=6),
@@ -269,7 +267,7 @@ class TestBatchTicketApproval:
             is_approved=False,
         )
 
-        Ticket.objects.create(
+        cancelled_ticket = Ticket.objects.create(
             ticket_number="T001-005",
             team=team1,
             category=TicketCategory.objects.get(pk=6),
@@ -279,20 +277,23 @@ class TestBatchTicketApproval:
         )
 
         client.force_login(setup_users_and_auth["admin_user"])
-        response = client.post("/ops/tickets/batch-verify-points/")
+
+        # Submit all ticket IDs including non-resolved ones
+        all_ids = [str(t.id) for t in tickets] + [str(claimed_ticket.id), str(cancelled_ticket.id)]
+        response = client.post("/ops/tickets/batch-verify-points/", {"ticket_ids": all_ids})
         assert response.status_code == 302
 
         # Verify only resolved tickets were affected
-        claimed_ticket = Ticket.objects.get(ticket_number="T001-004")
+        claimed_ticket.refresh_from_db()
         assert claimed_ticket.is_approved is False
 
-        cancelled_ticket = Ticket.objects.get(ticket_number="T001-005")
+        cancelled_ticket.refresh_from_db()
         assert cancelled_ticket.is_approved is False
 
         open_ticket = Ticket.objects.get(ticket_number="T001-003")
         assert open_ticket.is_approved is False
 
-        # Resolved tickets should be verified
+        # Resolved tickets should be verified (3 newly + 1 already, but ticket4 was already approved so not re-approved)
         resolved_verified = Ticket.objects.filter(status="resolved", is_approved=True).count()
         assert resolved_verified == 4  # 3 newly verified + 1 already verified
 
@@ -310,7 +311,11 @@ class TestBatchTicketApproval:
         original_verified_by = already_verified.approved_by
 
         client.force_login(setup_users_and_auth["admin_user"])
-        response = client.post("/ops/tickets/batch-verify-points/")
+
+        # Submit the already-verified ticket ID
+        response = client.post(
+            "/ops/tickets/batch-verify-points/", {"ticket_ids": [str(already_verified.id)]}
+        )
         assert response.status_code == 302
 
         # Check that already verified ticket was not modified
@@ -319,32 +324,41 @@ class TestBatchTicketApproval:
         assert already_verified.approved_at == original_verified_at
         assert already_verified.approved_by == original_verified_by
 
-    def test_batch_approve_groups_by_category_in_response(
+    def test_batch_approve_selected_subset(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
     ) -> None:
-        """Test batch approve provides summary grouped by category."""
+        """Test batch approve only approves selected tickets, not all pending."""
         team1, team2, tickets = setup_resolved_tickets
         client = Client()
         client.force_login(setup_users_and_auth["admin_user"])
 
-        response = client.post("/ops/tickets/batch-verify-points/", follow=True)
-        assert response.status_code == 200
+        # Only select ticket 1 (T001-001)
+        response = client.post(
+            "/ops/tickets/batch-verify-points/", {"ticket_ids": [str(tickets[0].id)]}
+        )
+        assert response.status_code == 302
 
-        # Check that we get back to the review page
-        assert b"Review Tickets" in response.content or b"Review Ticket Points" in response.content
+        # Only ticket 1 should be approved
+        tickets[0].refresh_from_db()
+        assert tickets[0].is_approved is True
 
-        # Verify the action completed
-        unverified_count = Ticket.objects.filter(status="resolved", is_approved=False).count()
-        assert unverified_count == 0
+        # Tickets 2 and 3 should still be pending
+        tickets[1].refresh_from_db()
+        assert tickets[1].is_approved is False
+        tickets[2].refresh_from_db()
+        assert tickets[2].is_approved is False
 
-    def test_approve_all_button_visible_on_review_page(
+        # Only 1 history entry created
+        assert TicketHistory.objects.filter(action="points_verified").count() == 1
+
+    def test_approve_selected_button_visible_on_review_page(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
     ) -> None:
-        """Test Approve All button is visible on review tickets page."""
+        """Test Approve Selected button is visible on review tickets page."""
         client = Client()
         client.force_login(setup_users_and_auth["admin_user"])
 
         response = client.get("/ops/review-tickets/")
         assert response.status_code == 200
-        assert b"Approve All Unverified" in response.content
+        assert b"Approve Selected" in response.content
         assert b"/ops/tickets/batch-verify-points/" in response.content
