@@ -8,17 +8,23 @@ Standardize the five review/scoring pages (red team scores, orange adjustments, 
 
 ### Field Renames
 
-**IncidentReport** — rename three fields:
+**IncidentReport** — rename four fields:
 - `gold_team_reviewed` → `is_approved`
-- `reviewed_by` → `approved_by`
+- `reviewed_by` → `approved_by` (update `related_name` from `"incidents_reviewed"` to `"incidents_approved"`)
 - `reviewed_at` → `approved_at`
+- `reviewer_notes` → `approval_notes`
 
-**Ticket** — rename three fields:
+**Ticket** — rename four fields:
 - `points_verified` → `is_approved`
-- `points_verified_by` → `approved_by`
+- `points_verified_by` → `approved_by` (update `related_name` from `"verified_tickets"` to `"approved_tickets"`)
 - `points_verified_at` → `approved_at`
+- `verification_notes` → `approval_notes`
 
 All references in views, templates, services, and tests must be updated to match.
+
+**Migration notes:**
+- `IncidentReport` has a DB index on `gold_team_reviewed` that will be updated automatically by the rename migration.
+- Use `RenameField` operations to preserve data (not remove + add).
 
 ### New Field
 
@@ -40,13 +46,15 @@ All references in views, templates, services, and tests must be updated to match
 
 ## Permissions
 
-| Page | Permission Check | Notes |
-|------|-----------------|-------|
-| Red Team | `red_team` OR `gold_team` | Explicit OR — `red_team` map doesn't include GoldTeam |
-| Orange | `orange_team` | Map already includes GoldTeam |
-| Incidents | `white_team` | Map already includes GoldTeam |
-| Injects | `white_team` | Map already includes GoldTeam |
-| Tickets | `ticketing_admin` OR `gold_team` | Explicit OR — `ticketing_admin` map doesn't include GoldTeam |
+These are intentional permission expansions from the current state. Currently all five pages require `gold_team` only (except incidents which also allows `white_team`). The new permissions allow team leads to approve their own team's work.
+
+| Page | Permission Check | Change from current |
+|------|-----------------|---------------------|
+| Red Team | `red_team` OR `gold_team` | Adds red team access (explicit OR — `red_team` map doesn't include GoldTeam) |
+| Orange | `orange_team` | Adds orange team access (map already includes GoldTeam) |
+| Incidents | `white_team` | No change — simplifies redundant `gold_team, white_team` to just `white_team` since map includes GoldTeam |
+| Injects | `white_team` | Adds white team access (map already includes GoldTeam) |
+| Tickets | `ticketing_admin` OR `gold_team` | Adds gold team access (explicit OR — `ticketing_admin` map doesn't include GoldTeam) |
 
 ## Unified Page Structure
 
@@ -71,7 +79,7 @@ Four filters in consistent order:
    - Tickets: Category (dropdown)
 4. **Search** — free-text search across relevant fields
 
-Query parameter names: `status`, `team`, `sort`, `search`, plus domain-specific param.
+Query parameter names: `status`, `team`, `sort`, `search`, plus domain-specific param (`attack_type`, `check`, `box`, `inject`, `category`).
 
 ### 3. Table
 Consistent column ordering:
