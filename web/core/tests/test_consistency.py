@@ -131,27 +131,6 @@ class TestSharedJSUtilities:
             pytest.fail("Inline TextDecoder (use wcStream() from utils.js):\n" + "\n".join(lines))
 
 
-class TestProgressBarComponent:
-    """Enforce use of <c-progress_bar /> instead of inline progress bar HTML."""
-
-    def test_no_inline_progress_bar(self) -> None:
-        """Templates must use <c-progress_bar />, not inline progress markup."""
-        violations: list[tuple[str, int]] = []
-
-        for path in _get_template_files():
-            # The component definition itself is exempt
-            if "cotton" in path.parts:
-                continue
-            content = path.read_text()
-            for match in re.finditer(r'x-text="progressStep"', content):
-                line = content[: match.start()].count("\n") + 1
-                violations.append((_relative(path), line))
-
-        if violations:
-            lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail("Inline progress bar HTML (use <c-progress_bar /> component):\n" + "\n".join(lines))
-
-
 class TestBulkSelectMixin:
     """Enforce use of bulkSelectMixin() from utils.js."""
 

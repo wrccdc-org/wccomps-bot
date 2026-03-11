@@ -40,11 +40,16 @@ def is_pdf_template(path: Path) -> bool:
     return "pdf" in path.name.lower() or "scorecard" in path.name.lower()
 
 
-def extends_django_admin_base(path: Path) -> bool:
-    """Check if template extends Django's admin base (not our custom base with Cotton)."""
-    content = path.read_text()
-    # These templates extend Django's admin base, not our custom base
-    return bool(re.search(r'{%\s*extends\s+["\']admin/base_site\.html["\']', content))
+def is_non_cotton_admin_template(path: Path) -> bool:
+    """Check if template is a Django admin override without Cotton (raw admin markup)."""
+    if "admin" not in path.parts:
+        return False
+    return not has_cotton_load(path.read_text())
+
+
+def is_registration_template(path: Path) -> bool:
+    """Check if template is a registration template (out of scope for Cotton enforcement)."""
+    return "registration" in path.parts
 
 
 class TestCottonImports:
@@ -159,29 +164,44 @@ class TestTemplateBlockNames:
 
 
 class TestCottonComponentUsage:
-    """Tests to ensure Cotton components are used instead of raw HTML patterns."""
+    """Tests to ensure Cotton components are used instead of raw HTML patterns.
+
+    Every cotton component with a detectable CSS class is listed here.
+    When you create a new cotton component, add its raw HTML pattern
+    to RAW_HTML_PATTERNS so that future templates are forced to use it.
+    """
 
     RAW_HTML_PATTERNS = [
-        # Badges - should use <c-badge>
-        # Matches: <span class="badge ..."> but not inside Alpine templates
-        (
-            r'<span[^>]*class="[^"]*\bbadge\b[^"]*"[^>]*>',
-            "raw badge span",
-            "<c-badge>",
-        ),
-        # Stats cards - should use <c-stats_card>
-        (
-            r'<div[^>]*class="[^"]*\bstats-card\b[^"]*"[^>]*>',
-            "raw stats-card div",
-            "<c-stats_card>",
-        ),
-        # Empty state - should use <c-empty_state>
-        (
-            r'<div[^>]*class="[^"]*\bempty-state\b[^"]*"[^>]*>',
-            "raw empty-state div",
-            "<c-empty_state>",
-        ),
+        # --- Existing ---
+        (r'<span[^>]*class="[^"]*\bbadge\b[^"]*"[^>]*>', "raw badge span", "<c-badge>"),
+        (r'<div[^>]*class="[^"]*\bstats-card\b[^"]*"[^>]*>', "raw stats-card div", "<c-stats_card>"),
+        (r'<div[^>]*class="[^"]*\bempty-state\b[^"]*"[^>]*>', "raw empty-state div", "<c-empty_state>"),
+        # --- Layout ---
+        (r'<div[^>]*class="[^"]*\bmodule(?![\w-])[^"]*"[^>]*>', "raw module div", "<c-module>"),
+        (r'<div[^>]*class="[^"]*\bsubmit-row\b[^"]*"[^>]*>', "raw submit-row div", "<c-button_row>"),
+        (r'<div[^>]*class="[^"]*\baction-box\b[^"]*"[^>]*>', "raw action-box div", "<c-action_box>"),
+        (r'<div[^>]*class="[^"]*\binfo-box\b[^"]*"[^>]*>', "raw info-box div", "<c-info_box>"),
+        # --- Feedback ---
+        (r'<div[^>]*class="[^"]*\balert\b[^"]*"[^>]*>', "raw alert div", "<c-alert>"),
+        (r'<div[^>]*class="[^"]*\bprogress-bar\b[^"]*"[^>]*>', "raw progress-bar div", "<c-progress_bar>"),
+        # --- Forms ---
+        (r'<div[^>]*class="[^"]*\bform-row\b[^"]*"[^>]*>', "raw form-row div", "<c-form_field>"),
+        (r'<div[^>]*class="[^"]*\bfilter-field\b[^"]*"[^>]*>', "raw filter-field div", "<c-filter_field>"),
+        # --- Data display ---
+        (r'<dl[^>]*class="[^"]*\bdetail-list\b[^"]*"[^>]*>', "raw detail-list dl", "<c-detail_grid>"),
     ]
+
+    # Known violations that haven't been migrated yet.
+    # Key: (relative_path, pattern description) → reason.
+    # Remove entries as violations are fixed.
+    KNOWN_VIOLATIONS: dict[tuple[str, str], str] = {
+        # Alpine dynamic :class — cotton can't do runtime variant switching
+        ("scoring/email_scorecards_confirm.html", "raw alert div"): "Alpine dynamic :class variant",
+        # Checkbox rows not yet converted to c-form_field
+        ("admin/broadcast.html", "raw form-row div"): "checkbox not yet converted",
+        ("orange_team/check_detail.html", "raw form-row div"): "not yet converted",
+        ("orange_team/check_form.html", "raw form-row div"): "not yet converted",
+    }
 
     # Patterns that indicate incorrect component usage
     INVALID_COMPONENT_PATTERNS = [
@@ -220,32 +240,50 @@ class TestCottonComponentUsage:
         templates_with_issues: list[tuple[str, str, int, str]] = []
 
         for template_path in get_all_template_files():
-            # Skip cotton component definitions (they define the components)
             if is_cotton_component(template_path):
                 continue
-            # Skip email templates
             if is_email_template(template_path):
                 continue
-            # Skip PDF templates
             if is_pdf_template(template_path):
                 continue
-            # Skip templates extending Django admin base (don't use Cotton)
-            if extends_django_admin_base(template_path):
+            if is_non_cotton_admin_template(template_path):
+                continue
+            if is_registration_template(template_path):
                 continue
 
             content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
+            relative_path = str(template_path.relative_to(TEMPLATES_DIR))
 
             for pattern, description, suggestion in self.RAW_HTML_PATTERNS:
                 for match in re.finditer(pattern, content, re.IGNORECASE | re.DOTALL):
+                    if (relative_path, description) in self.KNOWN_VIOLATIONS:
+                        continue
                     line_num = content[: match.start()].count("\n") + 1
-                    templates_with_issues.append((str(relative_path), description, line_num, suggestion))
+                    templates_with_issues.append((relative_path, description, line_num, suggestion))
 
         if templates_with_issues:
             issue_lines = [
                 f"  - {path}:{line} {desc} -> use {sug}" for path, desc, line, sug in sorted(templates_with_issues)
             ]
             pytest.fail("Templates using raw HTML instead of Cotton components:\n" + "\n".join(issue_lines))
+
+    def test_known_violations_are_not_stale(self) -> None:
+        """KNOWN_VIOLATIONS entries must still exist — remove fixed ones."""
+        stale: list[str] = []
+        for (rel_path, description), reason in self.KNOWN_VIOLATIONS.items():
+            path = TEMPLATES_DIR / rel_path
+            if not path.exists():
+                stale.append(f"  - {rel_path}: file deleted")
+                continue
+            content = path.read_text()
+            # Find the matching pattern
+            for pattern, desc, _ in self.RAW_HTML_PATTERNS:
+                if desc == description:
+                    if not re.search(pattern, content, re.IGNORECASE | re.DOTALL):
+                        stale.append(f"  - {rel_path}: '{description}' no longer matches")
+                    break
+        if stale:
+            pytest.fail("Stale KNOWN_VIOLATIONS entries (violation was fixed, remove entry):\n" + "\n".join(stale))
 
 
 class TestDetailGridUsage:
