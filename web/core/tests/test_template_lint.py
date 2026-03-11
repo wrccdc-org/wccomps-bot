@@ -270,7 +270,7 @@ class TestCottonComponentUsage:
     def test_known_violations_are_not_stale(self) -> None:
         """KNOWN_VIOLATIONS entries must still exist — remove fixed ones."""
         stale: list[str] = []
-        for (rel_path, description), reason in self.KNOWN_VIOLATIONS.items():
+        for rel_path, description in self.KNOWN_VIOLATIONS:
             path = TEMPLATES_DIR / rel_path
             if not path.exists():
                 stale.append(f"  - {rel_path}: file deleted")
