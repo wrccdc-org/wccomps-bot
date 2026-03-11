@@ -255,7 +255,7 @@ Note: Does not support `href` or `disabled` props. Use `<c-link>` for link-style
 |---------|------------|-------|
 | `default` | Standard button | Secondary actions |
 | `primary` | Blue background (uses Django admin `.default` class) | Primary actions |
-| `danger` | Red background (#ba2121) | Destructive actions |
+| `danger` | Orange background (--warning-fg) | Destructive actions |
 | `cancel` | Cancel link style | Cancel/back actions |
 
 ---

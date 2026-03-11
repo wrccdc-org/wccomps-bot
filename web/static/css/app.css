@@ -159,7 +159,7 @@ nav[role="navigation"] {
 }
 
 .button.deletelink {
-    background: var(--delete-button-bg);
+    background: var(--warning-fg);
     color: #fff;
     border: none;
     opacity: 1;
@@ -169,6 +169,15 @@ nav[role="navigation"] {
     font-size: 14px;
     text-indent: 0;
     background-image: none;
+}
+
+/* Override Django admin's default red deletelink styling for danger links */
+a.deletelink {
+    color: var(--warning-fg);
+}
+a.deletelink:hover {
+    color: var(--warning-fg);
+    filter: brightness(0.85);
 }
 
 /* Team status in mappings page */
@@ -440,6 +449,9 @@ nav[role="navigation"] {
 }
 .results {
     overflow-x: auto;
+}
+.results table {
+    width: 100%;
 }
 .action-box-warning {
     background: var(--warning-alert-bg);

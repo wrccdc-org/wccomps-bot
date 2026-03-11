@@ -28,7 +28,8 @@
                     <strong>{{ score.rank }}</strong>
                 </td>
                 <td>
-                    <a href="{% url 'leaderboard_scorecard' score.team.team_number %}">Team {{ score.team.team_number }}</a>
+                    <a href="{% url 'leaderboard_scorecard' score.team.team_number %}"
+                       title="View scorecard">Team {{ score.team.team_number }}</a>
                 </td>
                 <td class="text-right">{{ score.service_points|floatformat:0 }}</td>
                 <td class="text-right">{{ score.inject_points|floatformat:0 }}</td>
@@ -71,10 +72,10 @@
         </c-empty_state>
     {% endif %}
     <c-button_row class="mt-10 justify-end">
-    <c-link href="{% url 'scoring:export_scorecards' %}" variant="default">Download All PDFs</c-link>
-    <c-link href="{% url 'scoring:api_scores' %}" variant="default">JSON</c-link>
+    <c-link href="{% url 'scoring:export_scorecards' %}" variant="default" class="button">Download All PDFs</c-link>
+    <c-link href="{% url 'scoring:api_scores' %}" variant="default" class="button">JSON</c-link>
     {% if is_gold_team or is_admin %}
-        <c-link href="{% url 'scoring:email_scorecards' %}" variant="default">Email All Scorecards</c-link>
+        <c-link href="{% url 'scoring:email_scorecards' %}" variant="default" class="button">Email All Scorecards</c-link>
         <form method="post" action="{% url 'scoring:sync_scores' %}" class="m-0">
             {% csrf_token %}
             <c-button type="submit" variant="default">Sync Service Scores</c-button>
