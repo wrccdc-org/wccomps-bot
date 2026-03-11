@@ -334,7 +334,7 @@
                 const response = await fetch('{% url "scoring:ip_pool_create" %}', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-CSRFToken': getCSRFToken(),
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: formData,

@@ -23,11 +23,10 @@
                 const met = e.target.checked;
                 this.saving = true;
                 this.saveError = '';
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
                 try {
                     const resp = await fetch(this._saveUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
                         body: JSON.stringify({criterion_id: criterionId, met: met})
                     });
                     if (resp.ok) {
