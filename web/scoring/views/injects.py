@@ -116,6 +116,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     inject_filter = request.GET.get("inject", "")
     team_filter = request.GET.get("team", "")
     show_outliers_only = request.GET.get("outliers") == "1"
+    search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "inject_name")
     if sort_by == "default":
         sort_by = ""
@@ -135,6 +136,14 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
 
     if team_filter:
         base_query = base_query.filter(team__id=team_filter)
+
+    if search_query:
+        from django.db.models import Q
+
+        base_query = base_query.filter(
+            Q(inject_name__icontains=search_query)
+            | Q(inject_id__icontains=search_query)
+        )
 
     # Calculate outliers for each inject before filtering
     # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
@@ -223,6 +232,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         "selected_team": team_filter,
         "show_outliers_only": show_outliers_only,
         "status_filter": status_filter,
+        "search_query": search_query,
         "sort_by": sort_by,
     }
 

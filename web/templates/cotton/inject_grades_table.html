@@ -31,11 +31,11 @@
                                    @click="toggleAll"
                                    title="Select all">
                         </th>
-                        <c-table_header sort_field="inject_name" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Inject</c-table_header>
-                        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Team</c-table_header>
-                        <c-table_header sort_field="points_awarded" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Points</c-table_header>
+                        <c-table_header sort_field="inject_name" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&search={{ search_query }}">Inject</c-table_header>
+                        <c-table_header sort_field="team__team_number" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&search={{ search_query }}">Team</c-table_header>
+                        <c-table_header sort_field="points_awarded" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&search={{ search_query }}">Points</c-table_header>
                         <c-table_header sortable="false">Max</c-table_header>
-                        <c-table_header sort_field="graded_at" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}">Graded</c-table_header>
+                        <c-table_header sort_field="graded_at" current_sort=sort_by query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&search={{ search_query }}">Graded</c-table_header>
                         <c-table_header sortable="false">Outlier</c-table_header>
                         <c-table_header sortable="false">Status</c-table_header>
                     </tr>
@@ -92,7 +92,7 @@
                     {% empty %}
                         <tr>
                             <td colspan="8">
-                                {% if selected_inject or selected_team or show_outliers_only or status_filter != 'pending' %}
+                                {% if selected_inject or selected_team or show_outliers_only or search_query or status_filter != 'pending' %}
                                     No grades match your filters. Try adjusting your filters or <a href="{% url 'scoring:inject_grades_review' %}">clearing all filters</a>
                                 {% else %}
                                     No pending grades. All inject grades have been approved.
@@ -104,5 +104,5 @@
             </table>
         </div>
     </form>
-    <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&sort={{ sort_by }}" />
+    <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&inject={{ selected_inject }}&team={{ selected_team }}&outliers={{ show_outliers_only|yesno:'1,' }}&search={{ search_query }}&sort={{ sort_by }}" />
 </div>
