@@ -44,7 +44,7 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         query = query.filter(is_approved=False)
 
     if category_filter:
-        query = query.filter(category_id=category_filter)
+        query = query.filter(category_id=int(category_filter))
 
     if team_filter:
         try:
