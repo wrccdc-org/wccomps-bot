@@ -62,6 +62,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
+    search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
     if sort_by == "default":
         sort_by = ""
@@ -72,7 +73,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     # Apply status filter
     if status_filter == "pending":
         base_query = base_query.filter(is_approved=False)
-    elif status_filter == "reviewed":
+    elif status_filter == "approved":
         base_query = base_query.filter(is_approved=True)
 
     # Apply other filters
@@ -84,6 +85,15 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
 
     if submitter_filter:
         base_query = base_query.filter(submitted_by__id=submitter_filter)
+
+    if search_query:
+        from django.db.models import Q
+
+        base_query = base_query.filter(
+            Q(attack_type__name__icontains=search_query)
+            | Q(notes__icontains=search_query)
+            | Q(affected_service__icontains=search_query)
+        )
 
     # Apply distinct to avoid duplicates from M2M joins
     base_query = base_query.distinct()
@@ -106,7 +116,7 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
     # Stats (unfiltered counts)
     total_findings = RedTeamScore.objects.count()
     pending_count = RedTeamScore.objects.filter(is_approved=False).count()
-    reviewed_count = total_findings - pending_count
+    approved_count = total_findings - pending_count
 
     # Get available teams, attack types, and submitters for filter dropdowns
     available_teams = Team.objects.filter(red_team_scores__isnull=False).distinct().order_by("team_number")
@@ -125,7 +135,8 @@ def red_team_portal(request: HttpRequest) -> HttpResponse:
         "pending_findings": pending_findings,
         "total_findings": total_findings,
         "pending_count": pending_count,
-        "reviewed_count": reviewed_count,
+        "approved_count": approved_count,
+        "search_query": search_query,
         "available_teams": available_teams,
         "available_attack_types": available_attack_types,
         "available_submitters": available_submitters,
@@ -158,6 +169,7 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
     team_filter = request.GET.get("team", "")
     attack_type_filter = request.GET.get("attack_type", "")
     submitter_filter = request.GET.get("submitter", "")
+    search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
     if sort_by == "default":
         sort_by = ""
@@ -168,7 +180,7 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
     # Apply status filter
     if status_filter == "pending":
         base_query = base_query.filter(is_approved=False)
-    elif status_filter == "reviewed":
+    elif status_filter == "approved":
         base_query = base_query.filter(is_approved=True)
     # "all" shows everything
 

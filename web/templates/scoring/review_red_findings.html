@@ -34,8 +34,8 @@
     <select name="status" id="id_status" aria-label="Filter by status">
         <option value="pending"
                 {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
-        <option value="reviewed"
-                {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
+        <option value="approved"
+                {% if status_filter == 'approved' %}selected{% endif %}>Approved Only</option>
         <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
     </select>
     </c-filter_field>
@@ -73,6 +73,14 @@
             </option>
         {% endfor %}
     </select>
+    </c-filter_field>
+    <c-filter_field label="Search" id="id_search" min_width="180px">
+    <input type="text"
+           name="search"
+           id="id_search"
+           value="{{ search_query }}"
+           placeholder="Search..."
+           aria-label="Search findings">
     </c-filter_field>
     </c-filter_toolbar>
     <c-red_findings_table :findings="findings" :page_obj="page_obj" :status_filter="status_filter" :selected_team="selected_team" :selected_attack_type="selected_attack_type" :selected_submitter="selected_submitter" :sort_by="sort_by" :is_gold_team="is_gold_team" />

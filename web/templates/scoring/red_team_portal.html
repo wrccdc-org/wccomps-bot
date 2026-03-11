@@ -34,8 +34,8 @@
     <select name="status" id="id_status" aria-label="Filter by status">
         <option value="pending"
                 {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
-        <option value="reviewed"
-                {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed Only</option>
+        <option value="approved"
+                {% if status_filter == 'approved' %}selected{% endif %}>Approved Only</option>
         <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
     </select>
     </c-filter_field>

@@ -40,11 +40,11 @@
                             </th>
                         {% endif %}
                         <c-table_header sortable="false">ID</c-table_header>
-                        <c-table_header sort_field="attack_type__name" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Attack Type</c-table_header>
+                        <c-table_header sort_field="attack_type__name" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}&search={{ search_query }}">Attack Type</c-table_header>
                         <c-table_header sortable="false">Box</c-table_header>
                         <c-table_header sortable="false">Service</c-table_header>
                         <c-table_header sortable="false">Teams</c-table_header>
-                        <c-table_header sort_field="created_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}">Submitted</c-table_header>
+                        <c-table_header sort_field="created_at" current_sort=sort_by query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}&search={{ search_query }}">Submitted</c-table_header>
                         <c-table_header sortable="false">Evidence</c-table_header>
                         {% if is_gold_team %}<c-table_header sortable="false">Points</c-table_header>{% endif %}
                         <c-table_header sortable="false">Status</c-table_header>
@@ -105,7 +105,7 @@
                             {% endif %}
                             <td class="field-status">
                                 {% if finding.is_approved %}
-                                    <c-badge variant="resolved"><span aria-hidden="true">✓</span> Reviewed</c-badge>
+                                    <c-badge variant="resolved"><span aria-hidden="true">✓</span> Approved</c-badge>
                                 {% else %}
                                     <c-badge variant="claimed"><span aria-hidden="true">⏳</span> Pending</c-badge>
                                 {% endif %}
@@ -139,7 +139,7 @@
                                 {% if selected_team or selected_attack_type or selected_submitter or status_filter != 'pending' %}
                                     No findings match your filters. Try <a href="{% url 'scoring:red_team_portal' %}">clearing all filters</a>
                                 {% else %}
-                                    No findings to review. Red team must be on a coffee break.
+                                    No pending findings. All red team findings have been approved.
                                 {% endif %}
                             </td>
                         </tr>
@@ -148,5 +148,5 @@
             </table>
         </div>
     </form>
-    <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}&sort={{ sort_by }}" />
+    <c-pagination :page_obj="page_obj" query_params="&status={{ status_filter }}&team={{ selected_team }}&attack_type={{ selected_attack_type }}&submitter={{ selected_submitter }}&sort={{ sort_by }}&search={{ search_query }}" />
 </div>
