@@ -45,11 +45,8 @@ from .leaderboard import (
     scorecard_pdf,
 )
 from .orange import (
-    approve_orange_adjustment,
     bulk_approve_orange_adjustments,
-    bulk_reject_orange_adjustments,
     orange_team_portal,
-    reject_orange_adjustment,
     review_orange,
     submit_orange_check,
 )
@@ -100,10 +97,7 @@ __all__ = [
     "orange_team_portal",
     "review_orange",
     "submit_orange_check",
-    "approve_orange_adjustment",
-    "reject_orange_adjustment",
     "bulk_approve_orange_adjustments",
-    "bulk_reject_orange_adjustments",
     # incidents
     "submit_incident_report",
     "incident_list",

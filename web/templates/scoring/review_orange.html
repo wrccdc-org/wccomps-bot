@@ -1,115 +1,67 @@
 {% extends "scoring/base.html" %}
+{% load cotton %}
 {% block title %}
     Review Orange Team Checks
 {% endblock title %}
 {% block scoring_content %}
-    {% load cotton %}
     <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('orangeBulkSelect', () => ({
             selected: [],
             selectableIds: [],
-            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('input[name="adjustment_ids"]')).map(el => el.value); },
+            submitting: false,
+            init() { this.selectableIds = Array.from(this.$el.querySelectorAll('[data-check-id]')).map(el => el.dataset.checkId); },
             get allSelected() { return this.selected.length === this.selectableIds.length && this.selectableIds.length > 0; },
             get someSelected() { return this.selected.length > 0 && this.selected.length < this.selectableIds.length; },
-            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; }
+            toggleAll() { this.selected = this.allSelected ? [] : [...this.selectableIds]; },
+            submitBulk() {
+                if (this.submitting) return;
+                if (this.selected.length === 0) { alert('Please select at least one check to approve'); return; }
+                if (confirm('Approve ' + this.selected.length + ' check(s)? This action cannot be undone.')) { this.submitting = true; this.$refs.bulkForm.submit(); }
+            }
         }));
     });
     </script>
-    <c-page_header title="Review Orange Team Checks" subtitle="Approve or reject orange team checks" />
-    {% if messages %}
-        {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
-    {% endif %}
-    <c-module>
-    {% if bonuses %}
-        <c-slot name="toolbar">
-        <c-button type="submit" form="bulk-approve-form" variant="primary">Approve Selected</c-button>
+    <c-page_header title="Review Orange Team Checks" />
+    <c-module filtered="true" id="changelist">
+    <c-filter_toolbar form_id="changelist-filter" hx_get="{% url 'scoring:review_orange' %}" hx_target="#review-orange-content" hx_swap="outerHTML" hx_push_url="true">
+    {% if has_pending %}
+        <c-slot name="actions">
+        <c-button type="button" onclick="document.dispatchEvent(new CustomEvent('bulk-approve-orange'))" variant="primary">Approve Selected</c-button>
         </c-slot>
-        <form id="bulk-approve-form"
-              method="post"
-              action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
-              x-data="orangeBulkSelect">
-            {% csrf_token %}
-            <c-table id="orange_checks" aria_label="Orange team checks">
-            <c-slot name="headers">
-            <tr>
-                <th scope="col" class="w-40">
-                    <input type="checkbox"
-                           :checked="allSelected"
-                           :indeterminate="someSelected"
-                           @click="toggleAll"
-                           aria-label="Select all checks">
-                </th>
-                <c-table_header sortable="false">ID</c-table_header>
-                <c-table_header sortable="false">Team</c-table_header>
-                <c-table_header sortable="false">Description</c-table_header>
-                <c-table_header sortable="false" class="text-right">Points</c-table_header>
-                <c-table_header sortable="false">Status</c-table_header>
-                <c-table_header sortable="false">Submitted</c-table_header>
-                <c-table_header sortable="false">Actions</c-table_header>
-            </tr>
-            </c-slot>
-            {% for bonus in bonuses %}
-                <tr>
-                    <td>
-                        <input type="checkbox"
-                               name="adjustment_ids"
-                               value="{{ bonus.id }}"
-                               x-model="selected"
-                               aria-label="Select check {{ bonus.id }}">
-                    </td>
-                    <td>
-                        <strong>#{{ bonus.id }}</strong>
-                    </td>
-                    <td>Team {{ bonus.team.team_number }}</td>
-                    <td>{{ bonus.description|truncatechars:60 }}</td>
-                    <td class="text-right">
-                        <c-score_value :value="bonus.points_awarded" format="signed" />
-                    </td>
-                    <td>
-                        {% if bonus.is_approved %}
-                            <c-badge variant="resolved">Approved</c-badge>
-                            {% if bonus.approved_by %}
-                                <br>
-                                <small class="text-muted">by {{ bonus.approved_by.username }}</small>
-                            {% endif %}
-                        {% else %}
-                            <c-badge variant="claimed">Pending</c-badge>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <small>{{ bonus.created_at|date:"m/d H:i" }}</small>
-                        <br>
-                        <small class="text-muted">by {{ bonus.submitted_by.username }}</small>
-                    </td>
-                    <td>
-                        <div class="d-flex gap-10">
-                            <c-button type="submit" form="approve-{{ bonus.id }}" variant="primary">Approve</c-button>
-                            <c-button type="submit" form="reject-{{ bonus.id }}" variant="danger">Reject</c-button>
-                        </div>
-                    </td>
-                </tr>
-            {% endfor %}
-            </c-table>
-        </form>
-        {% for bonus in bonuses %}
-            <form id="approve-{{ bonus.id }}"
-                  method="post"
-                  action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
-                  onsubmit="return confirm('Approve this check?')"
-                  hidden>
-                {% csrf_token %}
-            </form>
-            <form id="reject-{{ bonus.id }}"
-                  method="post"
-                  action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"
-                  onsubmit="return confirm('Reject this check? This cannot be undone.')"
-                  hidden>
-                {% csrf_token %}
-            </form>
-        {% endfor %}
-    {% else %}
-        <c-empty_state title="No checks to review" description="No orange team checks have been submitted yet" />
     {% endif %}
+    <c-filter_field label="Status" id="id_status">
+    <select name="status" id="id_status" aria-label="Filter by status">
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Only</option>
+        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved Only</option>
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+    </select>
+    </c-filter_field>
+    <c-filter_field label="Team" id="id_team">
+    <select name="team" id="id_team" aria-label="Filter by team">
+        <option value="">All Teams</option>
+        {% for team in available_teams %}
+            <option value="{{ team.id }}" {% if selected_team == team.id|stringformat:"s" %}selected{% endif %}>
+                Team {{ team.team_number }}
+            </option>
+        {% endfor %}
+    </select>
+    </c-filter_field>
+    <c-filter_field label="Check" id="id_check">
+    <select name="check" id="id_check" aria-label="Filter by check">
+        <option value="">All Checks</option>
+        <option value="manual" {% if selected_check == 'manual' %}selected{% endif %}>Manual</option>
+        {% for check in available_checks %}
+            <option value="{{ check.id }}" {% if selected_check == check.id|stringformat:"s" %}selected{% endif %}>
+                {{ check.title }}
+            </option>
+        {% endfor %}
+    </select>
+    </c-filter_field>
+    <c-filter_field label="Search" id="id_search" min_width="180px">
+    <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Search..." aria-label="Search checks">
+    </c-filter_field>
+    </c-filter_toolbar>
+    <c-review_orange_table :page_obj="page_obj" :status_filter="status_filter" :selected_team="selected_team" :selected_check="selected_check" :search_query="search_query" :sort_by="sort_by" />
     </c-module>
 {% endblock scoring_content %}
