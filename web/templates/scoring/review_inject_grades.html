@@ -72,7 +72,12 @@
         </select>
         </c-filter_field>
         <c-filter_field label="Search" id="id_search" min_width="180px">
-        <input type="text" name="search" id="id_search" value="{{ search_query }}" placeholder="Search..." aria-label="Search grades">
+        <input type="text"
+               name="search"
+               id="id_search"
+               value="{{ search_query }}"
+               placeholder="Search..."
+               aria-label="Search grades">
         </c-filter_field>
         </c-filter_toolbar>
         <c-inject_grades_table :page_obj="page_obj" :status_filter="status_filter" :selected_inject="selected_inject" :selected_team="selected_team" :show_outliers_only="show_outliers_only" :search_query="search_query" :sort_by="sort_by" />

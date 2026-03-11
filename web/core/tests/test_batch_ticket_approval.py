@@ -313,9 +313,7 @@ class TestBatchTicketApproval:
         client.force_login(setup_users_and_auth["admin_user"])
 
         # Submit the already-verified ticket ID
-        response = client.post(
-            "/ops/tickets/batch-verify-points/", {"ticket_ids": [str(already_verified.id)]}
-        )
+        response = client.post("/ops/tickets/batch-verify-points/", {"ticket_ids": [str(already_verified.id)]})
         assert response.status_code == 302
 
         # Check that already verified ticket was not modified
@@ -333,9 +331,7 @@ class TestBatchTicketApproval:
         client.force_login(setup_users_and_auth["admin_user"])
 
         # Only select ticket 1 (T001-001)
-        response = client.post(
-            "/ops/tickets/batch-verify-points/", {"ticket_ids": [str(tickets[0].id)]}
-        )
+        response = client.post("/ops/tickets/batch-verify-points/", {"ticket_ids": [str(tickets[0].id)]})
         assert response.status_code == 302
 
         # Only ticket 1 should be approved

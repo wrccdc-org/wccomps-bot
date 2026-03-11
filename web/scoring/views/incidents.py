@@ -232,8 +232,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
         from django.db.models import Q
 
         base_query = base_query.filter(
-            Q(attack_description__icontains=search_query)
-            | Q(affected_service__icontains=search_query)
+            Q(attack_description__icontains=search_query) | Q(affected_service__icontains=search_query)
         )
 
     # Validate and apply sort
@@ -305,7 +304,7 @@ def bulk_approve_incidents(request: HttpRequest) -> HttpResponse:
     for iid in incident_ids:
         try:
             valid_ids.append(int(iid))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     if not valid_ids:

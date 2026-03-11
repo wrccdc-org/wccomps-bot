@@ -140,10 +140,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     if search_query:
         from django.db.models import Q
 
-        base_query = base_query.filter(
-            Q(inject_name__icontains=search_query)
-            | Q(inject_id__icontains=search_query)
-        )
+        base_query = base_query.filter(Q(inject_name__icontains=search_query) | Q(inject_id__icontains=search_query))
 
     # Calculate outliers for each inject before filtering
     # Dynamically add is_outlier and std_devs_from_mean attrs to grade objects
