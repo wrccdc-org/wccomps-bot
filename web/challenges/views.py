@@ -471,7 +471,7 @@ def export_scores(request: HttpRequest) -> HttpResponse:
     )
 
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="orange_scores.csv"'
+    response["Content-Disposition"] = 'attachment; filename="orange_checks.csv"'
     writer = csv.writer(response)
     writer.writerow(
         [
