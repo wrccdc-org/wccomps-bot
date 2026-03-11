@@ -8,7 +8,7 @@
         <c-page_header title="Incident Report #{{ incident.id }}" parent_url="{% url 'scoring:incident_list' %}" parent_label="Incidents" />
         <c-module>
         <c-slot name="toolbar">
-        {% if incident.gold_team_reviewed %}
+        {% if incident.is_approved %}
             <c-badge variant="resolved">Reviewed</c-badge>
         {% else %}
             <c-badge variant="claimed">Pending Review</c-badge>
@@ -79,11 +79,11 @@
             <c-empty_state title="No screenshots" description="No screenshots were attached to this report" />
         {% endif %}
         </c-fieldset>
-        {% if incident.gold_team_reviewed %}
+        {% if incident.is_approved %}
             <c-fieldset heading="Review Status">
             <c-detail_grid>
-            <c-detail_row label="Reviewed By">{{ incident.reviewed_by.username }}</c-detail_row>
-            <c-detail_row label="Reviewed At">{{ incident.reviewed_at|date:"Y-m-d H:i:s" }}</c-detail_row>
+            <c-detail_row label="Reviewed By">{{ incident.approved_by.username }}</c-detail_row>
+            <c-detail_row label="Reviewed At">{{ incident.approved_at|date:"Y-m-d H:i:s" }}</c-detail_row>
             {% if incident.matched_to_red_score %}
                 <c-detail_row label="Matched To">Red Team Finding #{{ incident.matched_to_red_score.id }}</c-detail_row>
             {% endif %}
@@ -100,7 +100,7 @@
             <c-button type="submit" variant="danger" ::disabled="submitting">Delete Report</c-button>
             </c-form>
         {% endif %}
-        {% if is_gold_team and not incident.gold_team_reviewed %}
+        {% if is_gold_team and not incident.is_approved %}
             <c-link href="{% url 'scoring:match_incident' incident.id %}" variant="primary">Review Now</c-link>
         {% endif %}
         <c-link href="{% url 'scoring:submit_incident_report' %}" variant="default">Submit Another</c-link>

@@ -143,7 +143,7 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
             return redirect("leaderboard_page")
 
     # Check if user can delete this incident
-    can_delete = incident.submitted_by == user and not incident.gold_team_reviewed
+    can_delete = incident.submitted_by == user and not incident.is_approved
 
     context = {
         "incident": incident,
@@ -165,7 +165,7 @@ def delete_incident_report(request: HttpRequest, incident_id: int) -> HttpRespon
         return redirect("scoring:view_incident_report", incident_id=incident_id)
 
     # Cannot delete if already reviewed
-    if incident.gold_team_reviewed:
+    if incident.is_approved:
         messages.error(request, "Cannot delete an incident report that has already been reviewed")
         return redirect("scoring:view_incident_report", incident_id=incident_id)
 
@@ -216,9 +216,9 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
     # Apply status filter
     if status_filter == "pending":
-        base_query = base_query.filter(gold_team_reviewed=False)
+        base_query = base_query.filter(is_approved=False)
     elif status_filter == "reviewed":
-        base_query = base_query.filter(gold_team_reviewed=True)
+        base_query = base_query.filter(is_approved=True)
 
     # Apply other filters
     if team_filter:
@@ -251,7 +251,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
     # Stats (unfiltered counts)
     total_incidents = IncidentReport.objects.count()
-    reviewed_count = IncidentReport.objects.filter(gold_team_reviewed=True).count()
+    reviewed_count = IncidentReport.objects.filter(is_approved=True).count()
     pending_count = total_incidents - reviewed_count
 
     # Get available teams for filter dropdown
@@ -292,9 +292,9 @@ def match_incident(request: HttpRequest, incident_id: int) -> HttpResponse:
 
         if form.is_valid():
             incident = form.save(commit=False)
-            incident.gold_team_reviewed = True
-            incident.reviewed_by = cast(User, request.user)
-            incident.reviewed_at = timezone.now()
+            incident.is_approved = True
+            incident.approved_by = cast(User, request.user)
+            incident.approved_at = timezone.now()
             incident.save()
 
             messages.success(request, f"Incident #{incident.id} reviewed and {incident.points_returned} points awarded")

@@ -156,7 +156,7 @@ def _serialize_incidents_csv() -> str:
         ]
     )
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
+        "team", "submitted_by", "approved_by", "matched_to_red_score"
     ).order_by("-created_at")
     for incident in incidents:
         writer.writerow(
@@ -171,10 +171,10 @@ def _serialize_incidents_csv() -> str:
                 incident.attack_detected_at.isoformat(),
                 incident.attack_mitigated,
                 incident.points_returned,
-                incident.gold_team_reviewed,
+                incident.is_approved,
                 incident.matched_to_red_score.id if incident.matched_to_red_score else "",
-                incident.reviewed_by.username if incident.reviewed_by else "",
-                incident.reviewed_at.isoformat() if incident.reviewed_at else "",
+                incident.approved_by.username if incident.approved_by else "",
+                incident.approved_at.isoformat() if incident.approved_at else "",
                 incident.submitted_by.username if incident.submitted_by else "",
                 incident.created_at.isoformat(),
             ]
@@ -185,7 +185,7 @@ def _serialize_incidents_csv() -> str:
 def _serialize_incidents_json() -> str:
     """Serialize incident reports to a JSON string."""
     incidents = IncidentReport.objects.select_related(
-        "team", "submitted_by", "reviewed_by", "matched_to_red_score"
+        "team", "submitted_by", "approved_by", "matched_to_red_score"
     ).order_by("-created_at")
     data = [
         {
@@ -200,10 +200,10 @@ def _serialize_incidents_json() -> str:
             "attack_detected_at": incident.attack_detected_at.isoformat(),
             "attack_mitigated": incident.attack_mitigated,
             "points_returned": str(incident.points_returned),
-            "gold_team_reviewed": incident.gold_team_reviewed,
+            "is_approved": incident.is_approved,
             "matched_to_red_score_id": (incident.matched_to_red_score.id if incident.matched_to_red_score else None),
-            "reviewed_by": incident.reviewed_by.username if incident.reviewed_by else None,
-            "reviewed_at": incident.reviewed_at.isoformat() if incident.reviewed_at else None,
+            "approved_by": incident.approved_by.username if incident.approved_by else None,
+            "approved_at": incident.approved_at.isoformat() if incident.approved_at else None,
             "submitted_by": incident.submitted_by.username if incident.submitted_by else None,
             "created_at": incident.created_at.isoformat(),
         }

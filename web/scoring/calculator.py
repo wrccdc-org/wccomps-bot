@@ -132,7 +132,7 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
     red_raw = get_approved_red_deductions(team)
     recovery_raw = IncidentReport.objects.filter(
         team=team,
-        gold_team_reviewed=True,
+        is_approved=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
     scaled_service = service_raw * svc_mod

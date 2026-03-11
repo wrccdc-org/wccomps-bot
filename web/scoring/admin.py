@@ -130,7 +130,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
     ]
     list_filter = [
         "team",
-        "gold_team_reviewed",
+        "is_approved",
         "attack_mitigated",
         "attack_detected_at",
     ]
@@ -161,12 +161,12 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
             "Gold Team Review",
             {
                 "fields": [
-                    "gold_team_reviewed",
+                    "is_approved",
                     "matched_to_red_score",
                     "points_returned",
-                    "reviewer_notes",
-                    "reviewed_by",
-                    "reviewed_at",
+                    "approval_notes",
+                    "approved_by",
+                    "approved_at",
                 ]
             },
         ),
@@ -188,7 +188,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
 
     @admin.display(description="Status")
     def reviewed_status(self, obj: IncidentReport) -> str:
-        if obj.gold_team_reviewed:
+        if obj.is_approved:
             return format_html('<span style="color: green;">✓ Reviewed</span>')
         return format_html('<span style="color: orange;">Pending</span>')
 

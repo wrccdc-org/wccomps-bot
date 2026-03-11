@@ -32,7 +32,7 @@
                     <td>{{ incident.affected_boxes_display|default:"N/A" }}</td>
                     <td>{{ incident.attack_description|truncatewords:10 }}</td>
                     <td>
-                        {% if incident.gold_team_reviewed %}
+                        {% if incident.is_approved %}
                             <c-badge variant="resolved">Reviewed</c-badge>
                         {% else %}
                             <c-badge variant="claimed">Pending</c-badge>

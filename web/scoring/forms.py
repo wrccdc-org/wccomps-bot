@@ -409,10 +409,10 @@ class IncidentMatchForm(forms.ModelForm[IncidentReport]):
         fields = [
             "matched_to_red_score",
             "points_returned",
-            "reviewer_notes",
+            "approval_notes",
         ]
         widgets = {
-            "reviewer_notes": forms.Textarea(attrs={"rows": 3}),
+            "approval_notes": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(

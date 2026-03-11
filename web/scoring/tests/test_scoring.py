@@ -498,22 +498,22 @@ class TestIncidentFindingMatching:
         )
 
         assert incident.matched_to_red_score is None
-        assert incident.gold_team_reviewed is False
-        assert incident.reviewed_by is None
-        assert incident.reviewed_at is None
+        assert incident.is_approved is False
+        assert incident.approved_by is None
+        assert incident.approved_at is None
 
         incident.matched_to_red_score = red_finding
-        incident.gold_team_reviewed = True
-        incident.reviewed_by = user
-        incident.reviewed_at = "2025-01-01T13:00:00Z"
+        incident.is_approved = True
+        incident.approved_by = user
+        incident.approved_at = "2025-01-01T13:00:00Z"
         incident.points_returned = Decimal("40.00")
         incident.save()
 
         incident.refresh_from_db()
         assert incident.matched_to_red_score == red_finding
-        assert incident.gold_team_reviewed is True
-        assert incident.reviewed_by == user
-        assert incident.reviewed_at is not None
+        assert incident.is_approved is True
+        assert incident.approved_by == user
+        assert incident.approved_at is not None
         assert incident.points_returned == Decimal("40.00")
 
     def test_incident_can_be_rejected_without_match(self, create_user_with_groups) -> None:
@@ -531,18 +531,18 @@ class TestIncidentFindingMatching:
         )
 
         incident.matched_to_red_score = None
-        incident.gold_team_reviewed = True
-        incident.reviewed_by = user
-        incident.reviewed_at = "2025-01-01T13:00:00Z"
+        incident.is_approved = True
+        incident.approved_by = user
+        incident.approved_at = "2025-01-01T13:00:00Z"
         incident.points_returned = Decimal("0.00")
-        incident.reviewer_notes = "False positive - normal scanning traffic"
+        incident.approval_notes = "False positive - normal scanning traffic"
         incident.save()
 
         incident.refresh_from_db()
         assert incident.matched_to_red_score is None
-        assert incident.gold_team_reviewed is True
-        assert incident.reviewed_by == user
-        assert incident.reviewed_at is not None
+        assert incident.is_approved is True
+        assert incident.approved_by == user
+        assert incident.approved_at is not None
         assert incident.points_returned == Decimal("0.00")
 
     def test_only_reviewed_incidents_count_for_scoring(self, create_user_with_groups) -> None:
@@ -567,9 +567,9 @@ class TestIncidentFindingMatching:
             source_ip="10.0.0.5",
             destination_ip="10.100.11.22",
             attack_detected_at="2025-01-01T12:00:00Z",
-            gold_team_reviewed=True,
-            reviewed_by=user,
-            reviewed_at="2025-01-01T13:00:00Z",
+            is_approved=True,
+            approved_by=user,
+            approved_at="2025-01-01T13:00:00Z",
             points_returned=Decimal("40.00"),
         )
 
@@ -693,9 +693,9 @@ class TestIncidentFindingMatching:
             attack_detected_at="2025-01-01T12:00:00Z",
         )
 
-        assert incident.reviewed_by is None
-        assert incident.reviewed_at is None
-        assert incident.gold_team_reviewed is False
+        assert incident.approved_by is None
+        assert incident.approved_at is None
+        assert incident.is_approved is False
 
 
 class ScalingContextTests(TestCase):
@@ -871,10 +871,10 @@ class TestIncidentListView:
             attack_description="Detected attack",
             source_ip="10.0.0.5",
             attack_detected_at="2025-01-01T12:00:00Z",
-            gold_team_reviewed=True,
+            is_approved=True,
             matched_to_red_score=red_finding,
             points_returned=Decimal("24.00"),
-            reviewed_by=gold_user,
+            approved_by=gold_user,
         )
 
         client = Client()

@@ -527,7 +527,7 @@ class IncidentReport(models.Model):
     evidence_notes = models.TextField(blank=True)
 
     # Gold team review
-    gold_team_reviewed = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)
     matched_to_red_score = models.ForeignKey(
         RedTeamScore,
         on_delete=models.SET_NULL,
@@ -542,15 +542,15 @@ class IncidentReport(models.Model):
         default=Decimal("0"),
         help_text="Points awarded for detecting/reporting this incident",
     )
-    reviewer_notes = models.TextField(blank=True)
-    reviewed_by = models.ForeignKey(
+    approval_notes = models.TextField(blank=True)
+    approved_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="incidents_reviewed",
+        related_name="incidents_approved",
     )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     # Audit
     created_at = models.DateTimeField(auto_now_add=True)
@@ -563,7 +563,7 @@ class IncidentReport(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["team"]),
-            models.Index(fields=["gold_team_reviewed"]),
+            models.Index(fields=["is_approved"]),
         ]
 
     def __str__(self) -> str:

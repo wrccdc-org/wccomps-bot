@@ -90,10 +90,10 @@
         ">
         {{ form.points_returned }}
         </c-form_field>
-        <c-form_field label="{{ form.reviewer_notes.label }}" id="{{ form.reviewer_notes.id_for_label }}" help_text="{{ form.reviewer_notes.help_text }}" error="
-        {% for e in form.reviewer_notes.errors %}{{ e }}{% endfor %}
+        <c-form_field label="{{ form.approval_notes.label }}" id="{{ form.approval_notes.id_for_label }}" help_text="{{ form.approval_notes.help_text }}" error="
+        {% for e in form.approval_notes.errors %}{{ e }}{% endfor %}
         ">
-        {{ form.reviewer_notes }}
+        {{ form.approval_notes }}
         </c-form_field>
         </c-fieldset>
         <div class="text-muted text-sm">

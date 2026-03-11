@@ -119,12 +119,12 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         affected_service="HTTP",
         attack_detected_at=timezone.now(),
         attack_mitigated=True,
-        gold_team_reviewed=True,
+        is_approved=True,
         matched_to_red_score=red_team_findings[0],
         points_returned=Decimal("30.00"),
         submitted_by=admin_user,
-        reviewed_by=admin_user,
-        reviewed_at=timezone.now(),
+        approved_by=admin_user,
+        approved_at=timezone.now(),
         evidence_notes="Found in access logs",
     )
     incidents.append(incident1)
@@ -138,7 +138,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
         affected_service="PostgreSQL",
         attack_detected_at=timezone.now(),
         attack_mitigated=False,
-        gold_team_reviewed=False,
+        is_approved=False,
         points_returned=Decimal("0.00"),
         submitted_by=admin_user,
     )
@@ -554,10 +554,10 @@ class TestIncidentsExport:
             "attack_detected_at",
             "attack_mitigated",
             "points_returned",
-            "gold_team_reviewed",
+            "is_approved",
             "matched_to_red_score_id",
-            "reviewed_by",
-            "reviewed_at",
+            "approved_by",
+            "approved_at",
             "submitted_by",
             "created_at",
         ]
@@ -578,7 +578,7 @@ class TestIncidentsExport:
         sql_incident = next((i for i in incidents if "SQL injection" in i["attack_description"]), None)
         assert sql_incident is not None, "SQL injection incident not found"
         assert sql_incident["source_ip"] == "10.0.0.1"
-        assert sql_incident["gold_team_reviewed"] is True
+        assert sql_incident["is_approved"] is True
         assert sql_incident["points_returned"] == "30.00"
 
 
