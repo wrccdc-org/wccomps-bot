@@ -47,7 +47,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
         status="resolved",
         resolved_at=timezone.now(),
         points_charged=60,
-        points_verified=False,
+        is_approved=False,
     )
 
     ticket2 = Ticket.objects.create(
@@ -59,7 +59,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
         status="resolved",
         resolved_at=timezone.now(),
         points_charged=10,
-        points_verified=False,
+        is_approved=False,
     )
 
     ticket3 = Ticket.objects.create(
@@ -71,7 +71,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
         status="resolved",
         resolved_at=timezone.now(),
         points_charged=100,
-        points_verified=False,
+        is_approved=False,
     )
 
     # Create already verified ticket
@@ -84,7 +84,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
         status="resolved",
         resolved_at=timezone.now(),
         points_charged=0,
-        points_verified=True,
+        is_approved=True,
     )
 
     # Create open ticket (should not be affected)
@@ -96,7 +96,7 @@ def setup_resolved_tickets(setup_teams: tuple[Team, Team]) -> tuple[Team, Team, 
         description="Test description",
         status="open",
         points_charged=0,
-        points_verified=False,
+        is_approved=False,
     )
 
     return team1, team2, [ticket1, ticket2, ticket3, ticket4, ticket5]
@@ -175,11 +175,11 @@ class TestBatchTicketApproval:
         client.force_login(setup_users_and_auth["admin_user"])
 
         # Verify initial state - 3 unverified resolved tickets
-        unverified_resolved = Ticket.objects.filter(status="resolved", points_verified=False)
+        unverified_resolved = Ticket.objects.filter(status="resolved", is_approved=False)
         assert unverified_resolved.count() == 3
 
         # Already verified ticket
-        verified_tickets = Ticket.objects.filter(points_verified=True)
+        verified_tickets = Ticket.objects.filter(is_approved=True)
         assert verified_tickets.count() == 1
 
         # Open ticket should exist
@@ -193,22 +193,22 @@ class TestBatchTicketApproval:
         assert response["Location"] == "/ops/review-tickets/"
 
         # Verify all resolved tickets are now verified
-        unverified_resolved = Ticket.objects.filter(status="resolved", points_verified=False)
+        unverified_resolved = Ticket.objects.filter(status="resolved", is_approved=False)
         assert unverified_resolved.count() == 0
 
-        verified_resolved = Ticket.objects.filter(status="resolved", points_verified=True)
+        verified_resolved = Ticket.objects.filter(status="resolved", is_approved=True)
         assert verified_resolved.count() == 4  # 3 newly verified + 1 already verified
 
         # Open ticket should remain unverified
         open_ticket = Ticket.objects.get(status="open")
-        assert open_ticket.points_verified is False
+        assert open_ticket.is_approved is False
 
         # Check that all newly verified tickets have correct metadata
         for ticket_number in ["T001-001", "T001-002", "T002-001"]:
             ticket = Ticket.objects.get(ticket_number=ticket_number)
-            assert ticket.points_verified is True
-            assert ticket.points_verified_by == setup_users_and_auth["admin_user"]
-            assert ticket.points_verified_at is not None
+            assert ticket.is_approved is True
+            assert ticket.approved_by == setup_users_and_auth["admin_user"]
+            assert ticket.approved_at is not None
 
     def test_batch_approve_creates_history_entries(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
@@ -243,14 +243,14 @@ class TestBatchTicketApproval:
         client.force_login(setup_users_and_auth["admin_user"])
 
         # No tickets in database
-        assert Ticket.objects.filter(status="resolved", points_verified=False).count() == 0
+        assert Ticket.objects.filter(status="resolved", is_approved=False).count() == 0
 
         response = client.post("/ops/tickets/batch-verify-points/")
         assert response.status_code == 302
         assert response["Location"] == "/ops/review-tickets/"
 
         # Should complete successfully with no changes
-        assert Ticket.objects.filter(points_verified=True).count() == 0
+        assert Ticket.objects.filter(is_approved=True).count() == 0
 
     def test_batch_approve_only_affects_resolved_tickets(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
@@ -266,7 +266,7 @@ class TestBatchTicketApproval:
             category=TicketCategory.objects.get(pk=6),
             title="Claimed Ticket",
             status="claimed",
-            points_verified=False,
+            is_approved=False,
         )
 
         Ticket.objects.create(
@@ -275,7 +275,7 @@ class TestBatchTicketApproval:
             category=TicketCategory.objects.get(pk=6),
             title="Cancelled Ticket",
             status="cancelled",
-            points_verified=False,
+            is_approved=False,
         )
 
         client.force_login(setup_users_and_auth["admin_user"])
@@ -284,16 +284,16 @@ class TestBatchTicketApproval:
 
         # Verify only resolved tickets were affected
         claimed_ticket = Ticket.objects.get(ticket_number="T001-004")
-        assert claimed_ticket.points_verified is False
+        assert claimed_ticket.is_approved is False
 
         cancelled_ticket = Ticket.objects.get(ticket_number="T001-005")
-        assert cancelled_ticket.points_verified is False
+        assert cancelled_ticket.is_approved is False
 
         open_ticket = Ticket.objects.get(ticket_number="T001-003")
-        assert open_ticket.points_verified is False
+        assert open_ticket.is_approved is False
 
         # Resolved tickets should be verified
-        resolved_verified = Ticket.objects.filter(status="resolved", points_verified=True).count()
+        resolved_verified = Ticket.objects.filter(status="resolved", is_approved=True).count()
         assert resolved_verified == 4  # 3 newly verified + 1 already verified
 
     def test_batch_approve_preserves_existing_verified_tickets(
@@ -305,9 +305,9 @@ class TestBatchTicketApproval:
 
         # Get the already verified ticket
         already_verified = Ticket.objects.get(ticket_number="T002-002")
-        assert already_verified.points_verified is True
-        original_verified_at = already_verified.points_verified_at
-        original_verified_by = already_verified.points_verified_by
+        assert already_verified.is_approved is True
+        original_verified_at = already_verified.approved_at
+        original_verified_by = already_verified.approved_by
 
         client.force_login(setup_users_and_auth["admin_user"])
         response = client.post("/ops/tickets/batch-verify-points/")
@@ -315,9 +315,9 @@ class TestBatchTicketApproval:
 
         # Check that already verified ticket was not modified
         already_verified.refresh_from_db()
-        assert already_verified.points_verified is True
-        assert already_verified.points_verified_at == original_verified_at
-        assert already_verified.points_verified_by == original_verified_by
+        assert already_verified.is_approved is True
+        assert already_verified.approved_at == original_verified_at
+        assert already_verified.approved_by == original_verified_by
 
     def test_batch_approve_groups_by_category_in_response(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
@@ -334,7 +334,7 @@ class TestBatchTicketApproval:
         assert b"Review Tickets" in response.content or b"Review Ticket Points" in response.content
 
         # Verify the action completed
-        unverified_count = Ticket.objects.filter(status="resolved", points_verified=False).count()
+        unverified_count = Ticket.objects.filter(status="resolved", is_approved=False).count()
         assert unverified_count == 0
 
     def test_approve_all_button_visible_on_review_page(

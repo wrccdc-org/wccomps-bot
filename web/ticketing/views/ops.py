@@ -53,12 +53,12 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
         page_size = 50
 
     # Build query - only show resolved tickets
-    query = Ticket.objects.filter(status="resolved").select_related("team", "points_verified_by")
+    query = Ticket.objects.filter(status="resolved").select_related("team", "approved_by")
 
     if verified_filter == "verified":
-        query = query.filter(points_verified=True)
+        query = query.filter(is_approved=True)
     elif verified_filter == "unverified":
-        query = query.filter(points_verified=False)
+        query = query.filter(is_approved=False)
 
     if team_filter:
         try:
@@ -151,7 +151,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     # Get form data
     points_adjustment_str = request.POST.get("points_adjustment", "").strip()
-    verification_notes = request.POST.get("verification_notes", "").strip()
+    approval_notes = request.POST.get("verification_notes", "").strip()
 
     # Parse points adjustment if provided
     if points_adjustment_str:
@@ -163,10 +163,10 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
             return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Mark as verified
-    ticket.points_verified = True
-    ticket.points_verified_by = user
-    ticket.points_verified_at = timezone.now()
-    ticket.verification_notes = verification_notes
+    ticket.is_approved = True
+    ticket.approved_by = user
+    ticket.approved_at = timezone.now()
+    ticket.approval_notes = approval_notes
     ticket.save()
 
     # Create history entry
@@ -176,7 +176,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
         details={
             "verified_by": authentik_username,
             "points_charged": ticket.points_charged,
-            "verification_notes": verification_notes,
+            "approval_notes": approval_notes,
         },
     )
 
@@ -200,14 +200,14 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
         return HttpResponse("Access denied - requires ticketing admin role", status=403)
 
     # Get all unverified resolved tickets
-    unverified_tickets = Ticket.objects.filter(status="resolved", points_verified=False).select_related("team")
+    unverified_tickets = Ticket.objects.filter(status="resolved", is_approved=False).select_related("team")
 
     verified_count = 0
     for ticket in unverified_tickets:
         # Mark as verified
-        ticket.points_verified = True
-        ticket.points_verified_by = user
-        ticket.points_verified_at = timezone.now()
+        ticket.is_approved = True
+        ticket.approved_by = user
+        ticket.approved_at = timezone.now()
         ticket.save()
 
         # Create history entry

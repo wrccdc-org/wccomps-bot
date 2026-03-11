@@ -104,17 +104,17 @@ class Ticket(models.Model):
     duration_notes = models.TextField(blank=True)
     points_charged = models.IntegerField(default=0)
 
-    # Point verification (admin review)
-    points_verified = models.BooleanField(default=False)
-    points_verified_by = models.ForeignKey(
+    # Approval (admin review)
+    is_approved = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
         "auth.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="verified_tickets",
+        related_name="approved_tickets",
     )
-    points_verified_at = models.DateTimeField(null=True, blank=True)
-    verification_notes = models.TextField(blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approval_notes = models.TextField(blank=True)
 
     # Discord integration
     discord_thread_id = models.BigIntegerField(unique=True, null=True, blank=True)

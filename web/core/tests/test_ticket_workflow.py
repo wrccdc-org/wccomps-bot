@@ -91,7 +91,7 @@ class TestTicketWorkflow:
         assert ticket.assigned_to is None
         assert ticket.resolved_by is None
         assert ticket.points_charged == 0
-        assert ticket.points_verified is False
+        assert ticket.is_approved is False
 
     def test_step2_support_claims_ticket(self, setup_team, setup_users):
         """Step 2: Support claims ticket - verify claim state."""
@@ -175,7 +175,7 @@ class TestTicketWorkflow:
         assert ticket.resolved_by == support_user
         assert ticket.resolved_at is not None
         assert ticket.points_charged == 60
-        assert ticket.points_verified is False
+        assert ticket.is_approved is False
 
         # Verify history entry was created
         history = TicketHistory.objects.filter(ticket=ticket, action="resolved").first()
@@ -201,14 +201,14 @@ class TestTicketWorkflow:
             resolved_at=timezone.now(),
             resolution_notes="Provided firewall assistance",
             points_charged=100,
-            points_verified=False,
+            is_approved=False,
         )
 
         # Admin verifies points
-        ticket.points_verified = True
-        ticket.points_verified_by = users["admin"]
-        ticket.points_verified_at = timezone.now()
-        ticket.verification_notes = "Appropriate point charge for consultation"
+        ticket.is_approved = True
+        ticket.approved_by = users["admin"]
+        ticket.approved_at = timezone.now()
+        ticket.approval_notes = "Appropriate point charge for consultation"
         ticket.save()
 
         # Create history entry
@@ -220,10 +220,10 @@ class TestTicketWorkflow:
 
         # Verify points verification was recorded
         ticket.refresh_from_db()
-        assert ticket.points_verified is True
-        assert ticket.points_verified_by == users["admin"]
-        assert ticket.points_verified_at is not None
-        assert ticket.verification_notes == "Appropriate point charge for consultation"
+        assert ticket.is_approved is True
+        assert ticket.approved_by == users["admin"]
+        assert ticket.approved_at is not None
+        assert ticket.approval_notes == "Appropriate point charge for consultation"
 
         # Verify history entry was created
         history = TicketHistory.objects.filter(ticket=ticket, action="points_verified").first()
@@ -289,13 +289,13 @@ class TestTicketWorkflow:
         ticket.refresh_from_db()
         assert ticket.status == "resolved"
         assert ticket.points_charged == 10
-        assert ticket.points_verified is False
+        assert ticket.is_approved is False
 
         # Step 4: Admin verifies points
-        ticket.points_verified = True
-        ticket.points_verified_by = users["admin"]
-        ticket.points_verified_at = timezone.now()
-        ticket.verification_notes = "Points verified"
+        ticket.is_approved = True
+        ticket.approved_by = users["admin"]
+        ticket.approved_at = timezone.now()
+        ticket.approval_notes = "Points verified"
         ticket.save()
 
         TicketHistory.objects.create(
@@ -305,15 +305,15 @@ class TestTicketWorkflow:
         )
 
         ticket.refresh_from_db()
-        assert ticket.points_verified is True
-        assert ticket.points_verified_by == users["admin"]
+        assert ticket.is_approved is True
+        assert ticket.approved_by == users["admin"]
 
         # Verify data integrity throughout workflow
         assert ticket.ticket_number == "T001-005"
         assert ticket.team == team
         assert ticket.status == "resolved"
         assert ticket.points_charged == 10
-        assert ticket.points_verified is True
+        assert ticket.is_approved is True
 
         # Verify all history entries exist
         history_entries = TicketHistory.objects.filter(ticket=ticket).order_by("timestamp")
@@ -344,7 +344,7 @@ class TestTicketWorkflow:
             title="Resolved but not verified",
             status="resolved",
             points_charged=50,
-            points_verified=False,
+            is_approved=False,
             resolved_at=timezone.now(),
         )
 
@@ -355,9 +355,9 @@ class TestTicketWorkflow:
             title="Resolved and verified",
             status="resolved",
             points_charged=30,
-            points_verified=True,
-            points_verified_by=users["admin"],
-            points_verified_at=timezone.now(),
+            is_approved=True,
+            approved_by=users["admin"],
+            approved_at=timezone.now(),
             resolved_at=timezone.now(),
         )
 
@@ -366,10 +366,10 @@ class TestTicketWorkflow:
         assert open_ticket in open_tickets
         assert resolved_unverified not in open_tickets
 
-        unverified_resolved = Ticket.objects.filter(status="resolved", points_verified=False)
+        unverified_resolved = Ticket.objects.filter(status="resolved", is_approved=False)
         assert resolved_unverified in unverified_resolved
         assert resolved_verified not in unverified_resolved
 
-        verified_tickets = Ticket.objects.filter(points_verified=True)
+        verified_tickets = Ticket.objects.filter(is_approved=True)
         assert resolved_verified in verified_tickets
         assert resolved_unverified not in verified_tickets
