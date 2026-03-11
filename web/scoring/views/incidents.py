@@ -207,6 +207,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
     status_filter = request.GET.get("status", "pending") or "pending"
     team_filter = request.GET.get("team", "")
     box_filter = request.GET.get("box", "")
+    search_query = request.GET.get("search", "").strip()
     sort_by = request.GET.get("sort", "-created_at")
     if sort_by == "default":
         sort_by = ""
@@ -217,7 +218,7 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
     # Apply status filter
     if status_filter == "pending":
         base_query = base_query.filter(is_approved=False)
-    elif status_filter == "reviewed":
+    elif status_filter == "approved":
         base_query = base_query.filter(is_approved=True)
 
     # Apply other filters
@@ -226,6 +227,14 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
     if box_filter:
         base_query = base_query.filter(affected_boxes__contains=[box_filter])
+
+    if search_query:
+        from django.db.models import Q
+
+        base_query = base_query.filter(
+            Q(attack_description__icontains=search_query)
+            | Q(affected_service__icontains=search_query)
+        )
 
     # Validate and apply sort
     valid_sort_fields = [
@@ -251,8 +260,8 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
 
     # Stats (unfiltered counts)
     total_incidents = IncidentReport.objects.count()
-    reviewed_count = IncidentReport.objects.filter(is_approved=True).count()
-    pending_count = total_incidents - reviewed_count
+    approved_count = IncidentReport.objects.filter(is_approved=True).count()
+    pending_count = total_incidents - approved_count
 
     # Get available teams for filter dropdown
     available_teams = Team.objects.filter(incident_reports__isnull=False).distinct().order_by("team_number")
@@ -260,13 +269,15 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
     context = {
         "page_obj": page_obj,
         "total_incidents": total_incidents,
-        "reviewed_count": reviewed_count,
+        "approved_count": approved_count,
         "pending_count": pending_count,
         "available_teams": available_teams,
         "selected_team": team_filter,
         "selected_box": box_filter,
+        "search_query": search_query,
         "status_filter": status_filter,
         "sort_by": sort_by,
+        "has_pending": pending_count > 0,
     }
 
     # Return partial for htmx requests
@@ -274,6 +285,48 @@ def review_incidents(request: HttpRequest) -> HttpResponse:
         return render(request, "cotton/review_incidents_table.html", context)
 
     return render(request, "scoring/review_incidents.html", context)
+
+
+@require_permission(
+    "gold_team", "white_team", error_message="Only Gold Team or White Team members can approve incidents"
+)
+@transaction.atomic
+@require_http_methods(["POST"])
+def bulk_approve_incidents(request: HttpRequest) -> HttpResponse:
+    """Bulk approve incident reports."""
+    user = cast(User, request.user)
+    incident_ids = request.POST.getlist("incident_ids")
+
+    if not incident_ids:
+        messages.info(request, "No incidents selected for approval")
+        return redirect("scoring:review_incidents")
+
+    valid_ids = []
+    for iid in incident_ids:
+        try:
+            valid_ids.append(int(iid))
+        except (ValueError, TypeError):
+            continue
+
+    if not valid_ids:
+        messages.warning(request, "No valid incident IDs provided")
+        return redirect("scoring:review_incidents")
+
+    now = timezone.now()
+    approved_count = 0
+    for incident in IncidentReport.objects.filter(id__in=valid_ids, is_approved=False):
+        incident.is_approved = True
+        incident.approved_by = user
+        incident.approved_at = now
+        incident.save()
+        approved_count += 1
+
+    if approved_count > 0:
+        messages.success(request, f"Successfully approved {approved_count} incident(s)")
+    else:
+        messages.info(request, "No unapproved incidents found to approve")
+
+    return redirect("scoring:review_incidents")
 
 
 @require_permission(

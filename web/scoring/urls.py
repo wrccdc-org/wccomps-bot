@@ -43,6 +43,7 @@ urlpatterns = [
     path("injects/bulk-approve/", views.inject_grades_bulk_approve, name="inject_grades_bulk_approve"),
     # Incident Review
     path("incidents/", views.review_incidents, name="review_incidents"),
+    path("incidents/bulk-approve/", views.bulk_approve_incidents, name="bulk_approve_incidents"),
     path("incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
     # Orange Review
     path("orange/", views.review_orange, name="review_orange"),

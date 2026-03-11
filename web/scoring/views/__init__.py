@@ -16,6 +16,7 @@ from .export import (
     stream_email_scorecards,
 )
 from .incidents import (
+    bulk_approve_incidents,
     delete_incident_report,
     incident_list,
     incident_screenshot_download,
@@ -105,6 +106,7 @@ __all__ = [
     "delete_incident_report",
     "incident_screenshot_download",
     "review_incidents",
+    "bulk_approve_incidents",
     "match_incident",
     # injects
     "inject_grading",
