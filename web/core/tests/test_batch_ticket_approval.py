@@ -138,23 +138,23 @@ class TestBatchTicketApproval:
     def test_batch_approve_requires_ticketing_admin_permission(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]
     ) -> None:
-        """Test only ticketing admins can batch approve ticket points."""
+        """Test only ticketing admins or gold team can batch approve ticket points."""
         client = Client()
 
-        # Support user should be denied
+        # Support user should be denied (302 redirect from decorator)
         client.force_login(setup_users_and_auth["support_user"])
         response = client.post("/ops/tickets/batch-verify-points/")
-        assert response.status_code == 403
+        assert response.status_code == 302
 
         # Team user should be denied
         client.force_login(setup_users_and_auth["team_user"])
         response = client.post("/ops/tickets/batch-verify-points/")
-        assert response.status_code == 403
+        assert response.status_code == 302
 
-        # General admin (non-ticketing) should be denied
+        # General admin (non-ticketing, non-gold) should be denied
         client.force_login(setup_users_and_auth["general_admin"])
         response = client.post("/ops/tickets/batch-verify-points/")
-        assert response.status_code == 403
+        assert response.status_code == 302
 
     def test_batch_approve_requires_post_method(
         self, setup_resolved_tickets: tuple[Team, Team, list[Ticket]], setup_users_and_auth: dict[str, Any]

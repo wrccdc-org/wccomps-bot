@@ -15,8 +15,8 @@ urlpatterns = [
     path("red-team/", views.submit_red_score, name="submit_red_score"),
     path("red-team/scores/", views.red_team_scores, name="red_team_scores"),
     path("red-team/score/<int:finding_id>/", views.view_red_score, name="view_red_score"),
-    # Gold Team Review
-    path("gold-team/red-scores/", views.red_team_portal, name="red_team_portal"),
+    # Red Team Review
+    path("red/", views.red_team_portal, name="red_team_portal"),
     path("red-team/<int:finding_id>/delete/", views.delete_red_score, name="delete_red_score"),
     path("red-team/<int:finding_id>/leave/", views.leave_red_score, name="leave_red_score"),
     path("red-team/bulk-approve/", views.bulk_approve_red_scores, name="bulk_approve_red_scores"),
@@ -41,14 +41,14 @@ urlpatterns = [
     path("orange-team/bulk-approve/", views.bulk_approve_orange_adjustments, name="bulk_approve_orange_adjustments"),
     path("orange-team/bulk-reject/", views.bulk_reject_orange_adjustments, name="bulk_reject_orange_adjustments"),
     # Inject Grading (White/Gold Team)
-    path("injects/", views.inject_grading, name="inject_grading"),
-    path("injects/review/", views.inject_grades_review, name="inject_grades_review"),
+    path("injects/grading/", views.inject_grading, name="inject_grading"),
+    path("injects/", views.inject_grades_review, name="inject_grades_review"),
     path("injects/bulk-approve/", views.inject_grades_bulk_approve, name="inject_grades_bulk_approve"),
-    # Gold Team - Incident Review
-    path("gold-team/incidents/", views.review_incidents, name="review_incidents"),
-    path("gold-team/incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
-    # Gold Team - Orange Review
-    path("gold-team/orange/", views.review_orange, name="review_orange"),
+    # Incident Review
+    path("incidents/", views.review_incidents, name="review_incidents"),
+    path("incidents/<int:incident_id>/match/", views.match_incident, name="match_incident"),
+    # Orange Review
+    path("orange/", views.review_orange, name="review_orange"),
     # Gold Team - Inject Feedback Review
     path("gold-team/inject-feedback/", views.review_inject_feedback, name="review_inject_feedback"),
     path("gold-team/inject-feedback/save/", views.save_inject_feedback, name="save_inject_feedback"),

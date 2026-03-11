@@ -46,7 +46,7 @@ PAGES: list[PageDef] = [
     ),
     PageDef(
         url_name="ops_review_tickets",
-        allowed_roles=["ticketing_admin", "admin"],
+        allowed_roles=["ticketing_admin", "gold_team", "admin"],
         denied_roles=["blue_team", "red_team", "ticketing_support", "unauthenticated"],
     ),
     # =========================================================================
@@ -129,8 +129,8 @@ PAGES: list[PageDef] = [
     ),
     PageDef(
         url_name="scoring:red_team_portal",
-        allowed_roles=["gold_team", "admin"],
-        denied_roles=["blue_team", "red_team", "unauthenticated"],
+        allowed_roles=["red_team", "gold_team", "admin"],
+        denied_roles=["blue_team", "unauthenticated"],
     ),
     PageDef(
         url_name="scoring:ip_pool_list",
@@ -161,8 +161,8 @@ PAGES: list[PageDef] = [
     # =========================================================================
     PageDef(
         url_name="scoring:review_orange",
-        allowed_roles=["gold_team", "admin"],
-        denied_roles=["blue_team", "red_team", "orange_team", "unauthenticated"],
+        allowed_roles=["orange_team", "gold_team", "admin"],
+        denied_roles=["blue_team", "red_team", "unauthenticated"],
     ),
     # =========================================================================
     # Scoring — Injects (White Team)
@@ -170,8 +170,8 @@ PAGES: list[PageDef] = [
     # scoring:inject_grading removed — depends on Quotient API
     PageDef(
         url_name="scoring:inject_grades_review",
-        allowed_roles=["gold_team", "admin"],
-        denied_roles=["blue_team", "red_team", "white_team", "unauthenticated"],
+        allowed_roles=["white_team", "gold_team", "admin"],
+        denied_roles=["blue_team", "red_team", "unauthenticated"],
     ),
     PageDef(
         url_name="scoring:review_inject_feedback",

@@ -50,8 +50,8 @@ def _normalize_red_score_post(post_data: QueryDict) -> QueryDict:
 
 
 @require_permission(
-    "gold_team",
-    error_message="Only Gold Team members can review findings",
+    "red_team", "gold_team",
+    error_message="Only Red Team or Gold Team members can review findings",
 )
 def red_team_portal(request: HttpRequest) -> HttpResponse:
     """Gold team review page for red team findings."""
@@ -226,8 +226,8 @@ def red_team_scores(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission(
-    "gold_team",
-    "Only Gold Team members can bulk approve findings",
+    "red_team", "gold_team",
+    error_message="Only Red Team or Gold Team members can approve findings",
 )
 @transaction.atomic
 @require_http_methods(["POST"])

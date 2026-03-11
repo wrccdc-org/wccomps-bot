@@ -103,7 +103,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/inject_grading.html", context)
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can review inject grades")
+@require_permission("white_team", error_message="Only White Team or Gold Team members can review inject grades")
 def inject_grades_review(request: HttpRequest) -> HttpResponse:
     """Review and approve inject grades (Gold Team)."""
     import statistics
@@ -233,7 +233,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_inject_grades.html", context)
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can approve inject grades")
+@require_permission("white_team", error_message="Only White Team or Gold Team members can approve inject grades")
 @transaction.atomic
 @require_http_methods(["POST"])
 def inject_grades_bulk_approve(request: HttpRequest) -> HttpResponse:

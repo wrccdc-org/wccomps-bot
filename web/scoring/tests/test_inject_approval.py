@@ -47,15 +47,15 @@ class TestInjectScoresReviewAccess:
 
         assert response.status_code == 200
 
-    def test_white_team_denied_access(self, create_user_with_groups: Callable[..., User]) -> None:
-        """White Team members should be denied access (only Gold Team can approve)."""
+    def test_white_team_can_access_review(self, create_user_with_groups: Callable[..., User]) -> None:
+        """White Team members should be able to access inject grades review."""
         user = create_user_with_groups("white_user", ["WCComps_WhiteTeam"])
         client = Client()
         client.force_login(user)
 
         response = client.get(reverse("scoring:inject_grades_review"))
 
-        assert response.status_code == 302  # Redirected with error message
+        assert response.status_code == 200
 
     def test_red_team_denied_access(self, create_user_with_groups: Callable[..., User]) -> None:
         """Red Team members should be denied access."""
@@ -510,8 +510,8 @@ class TestBulkApproval:
         assert grade1.is_approved is True
         assert grade2.is_approved is False
 
-    def test_bulk_approve_requires_gold_team_or_admin(self, create_user_with_groups: Callable[..., User]) -> None:
-        """Only Gold Team or Admin can bulk approve grades."""
+    def test_white_team_can_bulk_approve(self, create_user_with_groups: Callable[..., User]) -> None:
+        """White Team can bulk approve inject grades."""
         white_user = create_user_with_groups("white_user", ["WCComps_WhiteTeam"])
         grader = User.objects.create_user(username="grader", password="test123")
 
@@ -536,11 +536,10 @@ class TestBulkApproval:
             },
         )
 
-        # Should be denied access
-        assert response.status_code == 302  # Redirect with error
+        assert response.status_code == 302  # Redirect after approval
 
         grade.refresh_from_db()
-        assert grade.is_approved is False  # Should not be approved
+        assert grade.is_approved is True  # White team can now approve
 
     def test_bulk_approve_invalid_grade_ids(self, create_user_with_groups: Callable[..., User]) -> None:
         """Should handle invalid grade IDs gracefully."""

@@ -308,18 +308,18 @@ class BulkOrangeApprovalTests(TestCase):
         self.adj1.refresh_from_db()
         self.assertTrue(self.adj1.is_approved)
 
-    def test_non_gold_team_cannot_bulk_approve(self) -> None:
-        """Non-Gold Team members cannot bulk approve."""
+    def test_orange_team_can_bulk_approve(self) -> None:
+        """Orange Team members can bulk approve their own checks."""
         self.client.login(username="orange", password="test123")
         url = reverse("scoring:bulk_approve_orange_adjustments")
 
         response = self.client.post(url, {"adjustment_ids": [self.adj1.id, self.adj2.id]})
 
-        self.assertIn(response.status_code, [302, 403])
+        self.assertEqual(response.status_code, 302)
         self.adj1.refresh_from_db()
         self.adj2.refresh_from_db()
-        self.assertFalse(self.adj1.is_approved)
-        self.assertFalse(self.adj2.is_approved)
+        self.assertTrue(self.adj1.is_approved)
+        self.assertTrue(self.adj2.is_approved)
 
     def test_bulk_approve_only_accepts_post(self) -> None:
         """Bulk approve endpoint only accepts POST requests."""

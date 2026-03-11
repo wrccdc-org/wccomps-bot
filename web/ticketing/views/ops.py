@@ -12,28 +12,18 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from core.auth_utils import has_permission
+from core.auth_utils import has_permission, require_permission
 from core.tickets_config import get_all_categories, get_category_config
 from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
 
 
+@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can review tickets")
 def ops_review_tickets(request: HttpRequest) -> HttpResponse:
-    """Review resolved tickets for point verification (admin only)."""
+    """Review resolved tickets for point approval."""
     # Get user's permissions
     user = cast(User, request.user)
-
-    # Check if user is ticketing admin
-    if not has_permission(user, "ticketing_admin"):
-        return render(
-            request,
-            "error.html",
-            {
-                "error": "Access denied",
-                "message": "You do not have permission to review tickets. This requires ticketing admin role.",
-            },
-        )
 
     # Get filter parameters
     verified_filter = request.GET.get("verified", "unverified") or "unverified"
@@ -127,6 +117,7 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
     return render(request, "ops_review_tickets.html", context)
 
 
+@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can verify tickets")
 def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     """Verify ticket points (admin only)."""
     if request.method != "POST":
@@ -134,9 +125,6 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
 
     user = cast(User, request.user)
     authentik_username = user.username
-
-    if not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied - requires ticketing admin role", status=403)
 
     # Get ticket
     try:
@@ -188,6 +176,7 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
     return redirect("ops_review_tickets")
 
 
+@require_permission("ticketing_admin", "gold_team", error_message="Only Ticketing Admins or Gold Team can batch verify tickets")
 def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
     """Batch verify all unverified resolved ticket points (admin only)."""
     if request.method != "POST":
@@ -195,9 +184,6 @@ def ops_batch_verify_tickets(request: HttpRequest) -> HttpResponse:
 
     user = cast(User, request.user)
     authentik_username = user.username
-
-    if not has_permission(user, "ticketing_admin"):
-        return HttpResponse("Access denied - requires ticketing admin role", status=403)
 
     # Get all unverified resolved tickets
     unverified_tickets = Ticket.objects.filter(status="resolved", is_approved=False).select_related("team")

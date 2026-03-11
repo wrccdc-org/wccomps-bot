@@ -20,11 +20,11 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
     return redirect("challenges:dashboard")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can review orange team checks")
+@require_permission("orange_team", error_message="Only Orange Team or Gold Team members can review checks")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Gold team review page for orange team checks."""
-    bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
-    return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
+    checks = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
+    return render(request, "scoring/review_orange.html", {"checks": checks})
 
 
 def submit_orange_check(request: HttpRequest) -> HttpResponse:
@@ -64,7 +64,7 @@ def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpRe
     return redirect("scoring:orange_team_portal")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can bulk approve orange team checks")
+@require_permission("orange_team", error_message="Only Orange Team or Gold Team members can approve checks")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
