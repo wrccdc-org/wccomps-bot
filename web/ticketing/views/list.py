@@ -190,7 +190,7 @@ def ticket_notifications(request: HttpRequest) -> JsonResponse:
 
     try:
         since_id = int(request.GET.get("since_id", "0"))
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         since_id = 0
 
     open_count = Ticket.objects.filter(status="open").count()

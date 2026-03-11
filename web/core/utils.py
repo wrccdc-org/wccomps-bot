@@ -107,7 +107,7 @@ def filter_sort_paginate(
     page_str = request.GET.get("page", "1")
     try:
         page_num = int(page_str)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         page_num = 1
 
     paginator = Paginator(queryset, page_size)
@@ -140,7 +140,7 @@ def bulk_approve(  # type: ignore[explicit-any]
     for raw_id in raw_ids:
         try:
             valid_ids.append(int(raw_id))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
 
     if not valid_ids:

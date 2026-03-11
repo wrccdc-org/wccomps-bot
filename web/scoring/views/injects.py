@@ -65,7 +65,7 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
                         },
                     )
                     grades_saved += 1
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     pass
 
         if grades_saved:

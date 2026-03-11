@@ -79,10 +79,7 @@ class TestSharedJSUtilities:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline X-CSRFToken header (use getCSRFToken() from utils.js):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline X-CSRFToken header (use getCSRFToken() from utils.js):\n" + "\n".join(lines))
 
     def test_no_inline_csrf_from_dom(self) -> None:
         """Templates must not read CSRF token from DOM elements."""
@@ -99,10 +96,7 @@ class TestSharedJSUtilities:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline CSRF from DOM (use getCSRFToken() from utils.js):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline CSRF from DOM (use getCSRFToken() from utils.js):\n" + "\n".join(lines))
 
     def test_no_inline_ndjson_reader(self) -> None:
         """Templates must use wcStream() from utils.js, not inline getReader()."""
@@ -118,10 +112,7 @@ class TestSharedJSUtilities:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline getReader() stream parsing (use wcStream() from utils.js):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline getReader() stream parsing (use wcStream() from utils.js):\n" + "\n".join(lines))
 
     def test_no_inline_text_decoder(self) -> None:
         """Templates must use wcStream() instead of inline TextDecoder."""
@@ -137,10 +128,7 @@ class TestSharedJSUtilities:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline TextDecoder (use wcStream() from utils.js):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline TextDecoder (use wcStream() from utils.js):\n" + "\n".join(lines))
 
 
 class TestProgressBarComponent:
@@ -161,10 +149,7 @@ class TestProgressBarComponent:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline progress bar HTML (use <c-progress_bar /> component):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline progress bar HTML (use <c-progress_bar /> component):\n" + "\n".join(lines))
 
 
 class TestBulkSelectMixin:
@@ -184,10 +169,7 @@ class TestBulkSelectMixin:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Inline selectableIds definition (use bulkSelectMixin() from utils.js):\n"
-                + "\n".join(lines)
-            )
+            pytest.fail("Inline selectableIds definition (use bulkSelectMixin() from utils.js):\n" + "\n".join(lines))
 
 
 # ---------------------------------------------------------------------------
@@ -217,10 +199,7 @@ class TestPythonExceptionSyntax:
 
         if violations:
             lines = [f"  - {p}:{ln}" for p, ln in sorted(violations)]
-            pytest.fail(
-                "Python 2 exception syntax 'except A, B:' "
-                "(use 'except (A, B):' instead):\n" + "\n".join(lines)
-            )
+            pytest.fail("Python 2 exception syntax 'except A, B:' (use 'except (A, B):' instead):\n" + "\n".join(lines))
 
 
 class TestFilterSortPaginate:
