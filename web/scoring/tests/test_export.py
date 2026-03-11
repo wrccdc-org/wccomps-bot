@@ -149,7 +149,7 @@ def incident_reports(test_teams, admin_user, red_team_findings):
 
 @pytest.fixture
 def orange_adjustments(test_teams, admin_user):
-    """Create orange team adjustments for testing."""
+    """Create orange team checks for testing."""
     adjustments = []
 
     # Adjustment 1: Approved bonus
@@ -267,7 +267,7 @@ class TestExportPermissions:
         assert response.status_code == 302
 
     def test_non_admin_user_cannot_access_orange_adjustments_export(self, regular_user):
-        """Non-admin users should get 403 for orange adjustments export."""
+        """Non-admin users should get 403 for orange checks export."""
         client = Client()
         client.force_login(regular_user)
 
@@ -583,7 +583,7 @@ class TestIncidentsExport:
 
 
 class TestOrangeAdjustmentsExport:
-    """Test orange team adjustments export."""
+    """Test orange team checks export."""
 
     def test_csv_export_contains_all_required_headers(self, admin_user, orange_adjustments):
         """CSV export should contain all required headers."""
@@ -635,7 +635,7 @@ class TestOrangeAdjustmentsExport:
 
         response = client.get(reverse("scoring:export_orange_adjustments"), {"format": "json"})
         data = json.loads(response.content)
-        adjustments = data["orange_adjustments"]
+        adjustments = data["orange_checks"]
 
         assert len(adjustments) == 2
 

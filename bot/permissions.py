@@ -213,7 +213,7 @@ async def is_orange_team_async(interaction: discord.Interaction) -> bool:
 
 
 async def check_orange_team(interaction: discord.Interaction) -> bool:
-    """Check if user is member of OrangeTeam (scoring adjustments)."""
+    """Check if user is member of OrangeTeam (orange team checks)."""
     has_permission = await is_orange_team_async(interaction)
     if not has_permission:
         await interaction.response.send_message(

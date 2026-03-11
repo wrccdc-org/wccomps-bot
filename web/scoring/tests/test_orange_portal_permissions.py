@@ -35,7 +35,7 @@ class OrangeTeamPortalRedirectTests(TestCase):
         self.assertEqual(response.url, reverse("challenges:dashboard"))
 
     def test_submit_orange_bonus_redirects(self) -> None:
-        """Submit orange bonus redirects to challenges dashboard."""
+        """Submit orange check redirects to challenges dashboard."""
         self.client.login(username="orange1", password="test123")
         response = self.client.get(reverse("scoring:submit_orange_bonus"))
         self.assertEqual(response.status_code, 302)

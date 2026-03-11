@@ -72,7 +72,7 @@ def get_approved_inject_total(team: Team, event: Event | None = None) -> Decimal
 
 
 def get_approved_orange_total(team: Team, event: Event | None = None) -> Decimal:
-    """Get total approved orange team scores for a team, optionally scoped to event."""
+    """Get total approved orange team checks for a team, optionally scoped to event."""
     filters = {"team": team, "is_approved": True}
     if event:
         filters["event"] = event

@@ -1,6 +1,6 @@
 {% extends "scoring/base.html" %}
 {% block title %}
-    Review Orange Team
+    Review Orange Team Checks
 {% endblock title %}
 {% block scoring_content %}
     {% load cotton %}
@@ -16,7 +16,7 @@
         }));
     });
     </script>
-    <c-page_header title="Review Orange Team Adjustments" subtitle="Approve or reject customer service bonuses and penalties" />
+    <c-page_header title="Review Orange Team Checks" subtitle="Approve or reject orange team checks" />
     {% if messages %}
         {% for message in messages %}<c-alert variant="{{ message.tags }}">{{ message }}</c-alert>{% endfor %}
     {% endif %}
@@ -30,7 +30,7 @@
               action="{% url 'scoring:bulk_approve_orange_adjustments' %}"
               x-data="orangeBulkSelect">
             {% csrf_token %}
-            <c-table id="orange_adjustments" aria_label="Orange team point adjustments">
+            <c-table id="orange_checks" aria_label="Orange team checks">
             <c-slot name="headers">
             <tr>
                 <th scope="col" class="w-40">
@@ -38,7 +38,7 @@
                            :checked="allSelected"
                            :indeterminate="someSelected"
                            @click="toggleAll"
-                           aria-label="Select all adjustments">
+                           aria-label="Select all checks">
                 </th>
                 <c-table_header sortable="false">ID</c-table_header>
                 <c-table_header sortable="false">Team</c-table_header>
@@ -56,7 +56,7 @@
                                name="adjustment_ids"
                                value="{{ bonus.id }}"
                                x-model="selected"
-                               aria-label="Select adjustment {{ bonus.id }}">
+                               aria-label="Select check {{ bonus.id }}">
                     </td>
                     <td>
                         <strong>#{{ bonus.id }}</strong>
@@ -96,20 +96,20 @@
             <form id="approve-{{ bonus.id }}"
                   method="post"
                   action="{% url 'scoring:approve_orange_adjustment' bonus.id %}"
-                  onsubmit="return confirm('Approve this adjustment?')"
+                  onsubmit="return confirm('Approve this check?')"
                   hidden>
                 {% csrf_token %}
             </form>
             <form id="reject-{{ bonus.id }}"
                   method="post"
                   action="{% url 'scoring:reject_orange_adjustment' bonus.id %}"
-                  onsubmit="return confirm('Reject this adjustment? This cannot be undone.')"
+                  onsubmit="return confirm('Reject this check? This cannot be undone.')"
                   hidden>
                 {% csrf_token %}
             </form>
         {% endfor %}
     {% else %}
-        <c-empty_state title="No adjustments to review" description="No orange team adjustments have been submitted yet" />
+        <c-empty_state title="No checks to review" description="No orange team checks have been submitted yet" />
     {% endif %}
     </c-module>
 {% endblock scoring_content %}

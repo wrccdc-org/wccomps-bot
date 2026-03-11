@@ -1,4 +1,4 @@
-"""Tests for OrangeTeamScore approval tracking fields."""
+"""Tests for orange team check approval tracking fields."""
 
 from decimal import Decimal
 

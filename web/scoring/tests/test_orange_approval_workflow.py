@@ -1,7 +1,7 @@
 """
-Tests for Orange Team adjustment approval workflow (FEAT-4).
+Tests for Orange Team check approval workflow (FEAT-4).
 
-The approval/rejection views are still active for legacy OrangeTeamScore records.
+The approval/rejection views are still active for OrangeTeamScore records.
 The old portal UI tests have been removed since the portal now redirects
 to the challenges dashboard.
 """
@@ -19,7 +19,7 @@ from team.models import Team
 
 
 class IndividualOrangeApprovalTests(TestCase):
-    """Test individual approval/rejection of Orange adjustments."""
+    """Test individual approval/rejection of orange team checks."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -191,7 +191,7 @@ class IndividualOrangeApprovalTests(TestCase):
 
 
 class BulkOrangeApprovalTests(TestCase):
-    """Test bulk approval/rejection of Orange adjustments."""
+    """Test bulk approval/rejection of orange team checks."""
 
     def setUp(self) -> None:
         """Set up test data."""

@@ -166,7 +166,7 @@
                 {% endwith %}
                 {% with ora_rank=stats.category_ranks.orange %}
                     <tr>
-                        <td>Orange (scaled)</td>
+                        <td>Orange Checks (scaled)</td>
                         <td class="text-right">{{ score.orange_points|floatformat:0 }}</td>
                         {% if ora_rank %}
                             <td class="text-right">#{{ ora_rank.rank }} of {{ stats.team_count }}</td>
@@ -264,10 +264,10 @@
             Red values shown as total deductions (lower is better).
             {% if scaling %}
                 <br>
-                Scoring weights: Service {{ scaling.service_weight|floatformat:0 }}%, Inject {{ scaling.inject_weight|floatformat:0 }}%, Orange {{ scaling.orange_weight|floatformat:0 }}%.
+                Scoring weights: Service {{ scaling.service_weight|floatformat:0 }}%, Inject {{ scaling.inject_weight|floatformat:0 }}%, Orange Checks {{ scaling.orange_weight|floatformat:0 }}%.
                 Service: {{ scaling.service_raw|floatformat:0 }} raw × {{ scaling.svc_modifier|floatformat:2 }}
                 | Inject: {{ scaling.inject_raw|floatformat:0 }} raw × {{ scaling.inj_modifier|floatformat:2 }}
-                | Orange: {{ scaling.orange_raw|floatformat:0 }} raw × {{ scaling.ora_modifier|floatformat:2 }}
+                | Orange Checks: {{ scaling.orange_raw|floatformat:0 }} raw × {{ scaling.ora_modifier|floatformat:2 }}
             {% endif %}
         </p>
         {% if stats.service_stats %}

@@ -42,7 +42,7 @@ def export_incidents(request: HttpRequest) -> HttpResponse:
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_orange_adjustments(request: HttpRequest) -> HttpResponse:
-    """Export orange team adjustments (admin only)."""
+    """Export orange team checks (admin only)."""
     from ..export import export_orange_adjustments_csv, export_orange_adjustments_json
 
     export_format = request.GET.get("format", "csv").lower()

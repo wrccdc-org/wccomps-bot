@@ -59,7 +59,7 @@ def create_orange_score_from_assignment(
     assignment: OrangeAssignment,
     approver: User,
 ) -> OrangeTeamScore:
-    """Create an OrangeTeamScore record from an approved assignment.
+    """Create an OrangeTeamScore record from an approved orange team check.
 
     Returns the created OrangeTeamScore instance.
     """

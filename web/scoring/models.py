@@ -50,7 +50,7 @@ class ScoringTemplate(models.Model):
         decimal_places=2,
         default=Decimal("20"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-        help_text="Percentage weight for orange team adjustments",
+        help_text="Percentage weight for orange team checks",
     )
 
     # Maximum possible raw points in each category
@@ -73,7 +73,7 @@ class ScoringTemplate(models.Model):
         decimal_places=2,
         default=Decimal("160"),
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Maximum possible raw orange team points",
+        help_text="Maximum possible raw orange team check points",
     )
 
     def clean(self) -> None:
@@ -700,7 +700,7 @@ class InjectScore(models.Model):
 
 
 class OrangeTeamScore(models.Model):
-    """Orange team point adjustments for customer service evaluation (positive or negative)."""
+    """Orange team checks for customer service evaluation (positive or negative)."""
 
     event = models.ForeignKey(
         "registration.Event",
@@ -721,8 +721,8 @@ class OrangeTeamScore(models.Model):
         related_name="orange_scores_submitted",
     )
 
-    # Point adjustment details
-    description = models.TextField(help_text="Description of why points are adjusted (positive or negative)")
+    # Check details
+    description = models.TextField(help_text="Description of the orange team check")
     points_awarded = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -732,12 +732,12 @@ class OrangeTeamScore(models.Model):
     # Approval tracking
     is_approved = models.BooleanField(
         default=False,
-        help_text="Whether this bonus has been approved",
+        help_text="Whether this check has been approved",
     )
     approved_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="When this bonus was approved",
+        help_text="When this check was approved",
     )
     approved_by = models.ForeignKey(
         User,
@@ -745,7 +745,7 @@ class OrangeTeamScore(models.Model):
         null=True,
         blank=True,
         related_name="orange_scores_approved",
-        help_text="User who approved this bonus",
+        help_text="User who approved this check",
     )
 
     # Audit
@@ -754,8 +754,8 @@ class OrangeTeamScore(models.Model):
 
     class Meta:
         db_table = "orange_team_bonus"
-        verbose_name = "Orange Team Adjustment"
-        verbose_name_plural = "Orange Team Adjustments"
+        verbose_name = "Orange Team Check"
+        verbose_name_plural = "Orange Team Checks"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:

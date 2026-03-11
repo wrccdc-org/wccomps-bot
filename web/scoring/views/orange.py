@@ -1,4 +1,4 @@
-"""Orange team portal, review, approve/reject views."""
+"""Orange team check review, approve/reject views."""
 
 from typing import cast
 
@@ -20,9 +20,9 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
     return redirect("challenges:dashboard")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can review orange team")
+@require_permission("gold_team", error_message="Only Gold Team members can review orange team checks")
 def review_orange(request: HttpRequest) -> HttpResponse:
-    """Gold team review page for orange team."""
+    """Gold team review page for orange team checks."""
     bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by")
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
@@ -32,11 +32,11 @@ def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
     return redirect("challenges:dashboard")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can approve adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can approve orange team checks")
 @transaction.atomic
 @require_http_methods(["POST"])
 def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
-    """Approve individual Orange adjustment."""
+    """Approve individual orange team check."""
     adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = True
@@ -44,15 +44,15 @@ def approve_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpR
     adjustment.approved_by = cast(User, request.user)
     adjustment.save()
 
-    messages.success(request, f"Adjustment #{adjustment.id} approved")
+    messages.success(request, f"Check #{adjustment.id} approved")
     return redirect("scoring:orange_team_portal")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can reject adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can reject orange team checks")
 @transaction.atomic
 @require_http_methods(["POST"])
 def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpResponse:
-    """Reject individual Orange adjustment."""
+    """Reject individual orange team check."""
     adjustment = get_object_or_404(OrangeTeamScore, id=adjustment_id)
 
     adjustment.is_approved = False
@@ -60,19 +60,19 @@ def reject_orange_adjustment(request: HttpRequest, adjustment_id: int) -> HttpRe
     adjustment.approved_by = None
     adjustment.save()
 
-    messages.success(request, f"Adjustment #{adjustment.id} rejected")
+    messages.success(request, f"Check #{adjustment.id} rejected")
     return redirect("scoring:orange_team_portal")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can bulk approve adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can bulk approve orange team checks")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
-    """Bulk approve Orange adjustments."""
+    """Bulk approve orange team checks."""
     adjustment_ids = request.POST.getlist("adjustment_ids")
 
     if not adjustment_ids:
-        messages.info(request, "No adjustments selected")
+        messages.info(request, "No checks selected")
         return redirect("scoring:orange_team_portal")
 
     # Convert to integers and filter valid IDs
@@ -90,19 +90,19 @@ def bulk_approve_orange_adjustments(request: HttpRequest) -> HttpResponse:
         approved_by=cast(User, request.user),
     )
 
-    messages.success(request, f"Approved {count} adjustment(s)")
+    messages.success(request, f"Approved {count} check(s)")
     return redirect("scoring:orange_team_portal")
 
 
-@require_permission("gold_team", error_message="Only Gold Team members can bulk reject adjustments")
+@require_permission("gold_team", error_message="Only Gold Team members can bulk reject orange team checks")
 @transaction.atomic
 @require_http_methods(["POST"])
 def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
-    """Bulk reject Orange adjustments."""
+    """Bulk reject orange team checks."""
     adjustment_ids = request.POST.getlist("adjustment_ids")
 
     if not adjustment_ids:
-        messages.info(request, "No adjustments selected")
+        messages.info(request, "No checks selected")
         return redirect("scoring:orange_team_portal")
 
     # Convert to integers and filter valid IDs
@@ -120,5 +120,5 @@ def bulk_reject_orange_adjustments(request: HttpRequest) -> HttpResponse:
         approved_by=None,
     )
 
-    messages.success(request, f"Rejected {count} adjustment(s)")
+    messages.success(request, f"Rejected {count} check(s)")
     return redirect("scoring:orange_team_portal")

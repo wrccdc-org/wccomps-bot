@@ -374,7 +374,7 @@ class TestScorecardScalingContext:
         content = response.content.decode()
         assert "Service 40%" in content
         assert "Inject 40%" in content
-        assert "Orange 20%" in content
+        assert "Orange Checks 20%" in content
 
 
 class TestScorecardPdf:

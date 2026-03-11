@@ -237,12 +237,12 @@ def _get_incidents_json_content() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Orange adjustments
+# Orange checks
 # ---------------------------------------------------------------------------
 
 
 def _serialize_orange_adjustments_csv() -> str:
-    """Serialize orange team adjustments to a CSV string."""
+    """Serialize orange team checks to a CSV string."""
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(
@@ -277,7 +277,7 @@ def _serialize_orange_adjustments_csv() -> str:
 
 
 def _serialize_orange_adjustments_json() -> str:
-    """Serialize orange team adjustments to a JSON string."""
+    """Serialize orange team checks to a JSON string."""
     bonuses = OrangeTeamScore.objects.select_related("team", "submitted_by", "approved_by").order_by("-created_at")
     data = [
         {
@@ -294,30 +294,30 @@ def _serialize_orange_adjustments_json() -> str:
         }
         for bonus in bonuses
     ]
-    return json.dumps({"orange_adjustments": data}, indent=2)
+    return json.dumps({"orange_checks": data}, indent=2)
 
 
 def export_orange_adjustments_csv() -> HttpResponse:
-    """Export orange team adjustments to CSV format."""
+    """Export orange team checks to CSV format."""
     response = HttpResponse(_serialize_orange_adjustments_csv(), content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="orange_adjustments.csv"'
+    response["Content-Disposition"] = 'attachment; filename="orange_checks.csv"'
     return response
 
 
 def export_orange_adjustments_json() -> HttpResponse:
-    """Export orange team adjustments to JSON format."""
+    """Export orange team checks to JSON format."""
     response = HttpResponse(_serialize_orange_adjustments_json(), content_type="application/json")
-    response["Content-Disposition"] = 'attachment; filename="orange_adjustments.json"'
+    response["Content-Disposition"] = 'attachment; filename="orange_checks.json"'
     return response
 
 
 def _get_orange_adjustments_csv_content() -> str:
-    """Get orange team adjustments as CSV string."""
+    """Get orange team checks as CSV string."""
     return _serialize_orange_adjustments_csv()
 
 
 def _get_orange_adjustments_json_content() -> str:
-    """Get orange team adjustments as JSON string."""
+    """Get orange team checks as JSON string."""
     return _serialize_orange_adjustments_json()
 
 
@@ -519,8 +519,8 @@ def export_all_zip() -> HttpResponse:
         zip_file.writestr("red_findings.json", _get_red_scores_json_content())
         zip_file.writestr("incidents.csv", _get_incidents_csv_content())
         zip_file.writestr("incidents.json", _get_incidents_json_content())
-        zip_file.writestr("orange_adjustments.csv", _get_orange_adjustments_csv_content())
-        zip_file.writestr("orange_adjustments.json", _get_orange_adjustments_json_content())
+        zip_file.writestr("orange_checks.csv", _get_orange_adjustments_csv_content())
+        zip_file.writestr("orange_checks.json", _get_orange_adjustments_json_content())
         zip_file.writestr("inject_grades.csv", _get_inject_grades_csv_content())
         zip_file.writestr("inject_grades.json", _get_inject_grades_json_content())
         zip_file.writestr("final_scores.csv", _get_final_scores_csv_content())

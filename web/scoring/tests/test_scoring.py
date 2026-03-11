@@ -143,7 +143,7 @@ class ScoringFormulaTests(TestCase):
         self.assertLess(scores["total_score"], Decimal("0"))
 
     def test_unapproved_scores_excluded(self) -> None:
-        """Unapproved inject grades, red findings, and orange bonuses are not counted."""
+        """Unapproved inject grades, red findings, and orange team checks are not counted."""
         InjectScore.objects.create(
             team=self.team1,
             inject_id="INJ-X",

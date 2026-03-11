@@ -374,7 +374,7 @@ class IncidentReportForm(forms.ModelForm[IncidentReport]):
 
 
 class OrangeTeamScoreForm(forms.ModelForm[OrangeTeamScore]):
-    """Form for orange team to award or deduct points."""
+    """Form for orange team checks."""
 
     class Meta:
         model = OrangeTeamScore

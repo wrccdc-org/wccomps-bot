@@ -406,7 +406,7 @@ def followup_dismiss(request: HttpRequest, followup_id: int) -> HttpResponse:
 
 @require_permission("gold_team", error_message="Only leads can approve assignments")
 def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse:
-    """Approve a submitted assignment, creating an OrangeTeamScore record."""
+    """Approve a submitted orange team check, creating an OrangeTeamScore record."""
     if request.method != "POST":
         return redirect("challenges:dashboard")
 
