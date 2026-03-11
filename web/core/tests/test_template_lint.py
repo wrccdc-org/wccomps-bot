@@ -169,7 +169,63 @@ class TestCottonComponentUsage:
     Every cotton component with a detectable CSS class is listed here.
     When you create a new cotton component, add its raw HTML pattern
     to RAW_HTML_PATTERNS so that future templates are forced to use it.
+
+    test_all_cotton_components_registered ensures this list stays
+    exhaustive — adding a new .html file to cotton/ without registering
+    it here will fail the build.
     """
+
+    COTTON_DIR = TEMPLATES_DIR / "cotton"
+
+    # Every .html file in cotton/ must appear in exactly one of these sets.
+    # Adding a new component without updating these sets fails the build.
+
+    # Components whose primary CSS class is enforced by RAW_HTML_PATTERNS.
+    ENFORCED_COMPONENTS = {
+        "action_box.html",      # action-box
+        "alert.html",           # alert
+        "badge.html",           # badge
+        "button_row.html",      # submit-row
+        "detail_grid.html",     # detail-list
+        "empty_state.html",     # empty-state
+        "filter_field.html",    # filter-field
+        "form_field.html",      # form-row
+        "info_box.html",        # info-box
+        "module.html",          # module
+        "progress_bar.html",    # progress-bar (child element)
+        "stats_card.html",      # stats-card
+    }
+
+    # Components without a unique detectable CSS class (with reason).
+    EXEMPT_COMPONENTS = {
+        "button.html",          # class varies by variant prop
+        "detail_row.html",      # fragment (dt/dd siblings, no wrapper)
+        "fieldset.html",        # shares 'module' class with c-module
+        "filter_toolbar.html",  # 'toolbar' too generic
+        "form.html",            # semantic <form> tag only
+        "image_grid.html",      # image-grid class, not widely used yet
+        "link.html",            # class varies by variant prop
+        "nav.html",             # semantic <nav> tag, no class
+        "nav_item.html",        # nav-item on <a>, low violation risk
+        "page_header.html",     # breadcrumbs class, low violation risk
+        "pagination.html",      # paginator class used for simple counts too
+        "score_value.html",     # variant-based classes (score-positive/negative/zero)
+        "table.html",           # results wrapper, low violation risk
+        "table_header.html",    # semantic <th>, conditional sortable class
+        "toast.html",           # toast-position, component-internal only
+    }
+
+    # Page-specific partials (not reusable UI components).
+    PARTIAL_TEMPLATES = {
+        "inject_grading_content.html",
+        "inject_grades_table.html",
+        "red_findings_table.html",
+        "registration_review_table.html",
+        "review_incidents_table.html",
+        "review_orange_table.html",
+        "review_tickets_table.html",
+        "ticket_list_table.html",
+    }
 
     RAW_HTML_PATTERNS = [
         # --- Existing ---
@@ -284,6 +340,31 @@ class TestCottonComponentUsage:
                     break
         if stale:
             pytest.fail("Stale KNOWN_VIOLATIONS entries (violation was fixed, remove entry):\n" + "\n".join(stale))
+
+    def test_all_cotton_components_registered(self) -> None:
+        """Every cotton component must be registered for enforcement or exempted.
+
+        Adding a new .html file to cotton/ without updating ENFORCED_COMPONENTS,
+        EXEMPT_COMPONENTS, or PARTIAL_TEMPLATES will fail this test.
+        """
+        actual = {f.name for f in self.COTTON_DIR.glob("*.html")}
+        registered = self.ENFORCED_COMPONENTS | self.EXEMPT_COMPONENTS | self.PARTIAL_TEMPLATES
+        unregistered = actual - registered
+
+        if unregistered:
+            pytest.fail(
+                "Unregistered cotton component(s) — add its CSS class to RAW_HTML_PATTERNS + "
+                "ENFORCED_COMPONENTS, or add to EXEMPT_COMPONENTS/PARTIAL_TEMPLATES with reason:\n"
+                + "\n".join(f"  - cotton/{n}" for n in sorted(unregistered))
+            )
+
+        # Also catch stale entries for deleted components
+        deleted = registered - actual
+        if deleted:
+            pytest.fail(
+                "Stale component registration (file deleted, remove entry):\n"
+                + "\n".join(f"  - cotton/{n}" for n in sorted(deleted))
+            )
 
 
 class TestDetailGridUsage:
