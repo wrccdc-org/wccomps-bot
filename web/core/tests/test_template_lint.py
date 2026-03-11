@@ -182,37 +182,37 @@ class TestCottonComponentUsage:
 
     # Components whose primary CSS class is enforced by RAW_HTML_PATTERNS.
     ENFORCED_COMPONENTS = {
-        "action_box.html",      # action-box
-        "alert.html",           # alert
-        "badge.html",           # badge
-        "button_row.html",      # submit-row
-        "detail_grid.html",     # detail-list
-        "empty_state.html",     # empty-state
-        "filter_field.html",    # filter-field
-        "form_field.html",      # form-row
-        "info_box.html",        # info-box
-        "module.html",          # module
-        "progress_bar.html",    # progress-bar (child element)
-        "stats_card.html",      # stats-card
+        "action_box.html",  # action-box
+        "alert.html",  # alert
+        "badge.html",  # badge
+        "button_row.html",  # submit-row
+        "detail_grid.html",  # detail-list
+        "empty_state.html",  # empty-state
+        "filter_field.html",  # filter-field
+        "form_field.html",  # form-row
+        "info_box.html",  # info-box
+        "module.html",  # module
+        "progress_bar.html",  # progress-bar (child element)
+        "stats_card.html",  # stats-card
     }
 
     # Components without a unique detectable CSS class (with reason).
     EXEMPT_COMPONENTS = {
-        "button.html",          # class varies by variant prop
-        "detail_row.html",      # fragment (dt/dd siblings, no wrapper)
-        "fieldset.html",        # shares 'module' class with c-module
+        "button.html",  # class varies by variant prop
+        "detail_row.html",  # fragment (dt/dd siblings, no wrapper)
+        "fieldset.html",  # shares 'module' class with c-module
         "filter_toolbar.html",  # 'toolbar' too generic
-        "form.html",            # semantic <form> tag only
-        "image_grid.html",      # image-grid class, not widely used yet
-        "link.html",            # class varies by variant prop
-        "nav.html",             # semantic <nav> tag, no class
-        "nav_item.html",        # nav-item on <a>, low violation risk
-        "page_header.html",     # breadcrumbs class, low violation risk
-        "pagination.html",      # paginator class used for simple counts too
-        "score_value.html",     # variant-based classes (score-positive/negative/zero)
-        "table.html",           # results wrapper, low violation risk
-        "table_header.html",    # semantic <th>, conditional sortable class
-        "toast.html",           # toast-position, component-internal only
+        "form.html",  # semantic <form> tag only
+        "image_grid.html",  # image-grid class, not widely used yet
+        "link.html",  # class varies by variant prop
+        "nav.html",  # semantic <nav> tag, no class
+        "nav_item.html",  # nav-item on <a>, low violation risk
+        "page_header.html",  # breadcrumbs class, low violation risk
+        "pagination.html",  # paginator class used for simple counts too
+        "score_value.html",  # variant-based classes (score-positive/negative/zero)
+        "table.html",  # results wrapper, low violation risk
+        "table_header.html",  # semantic <th>, conditional sortable class
+        "toast.html",  # toast-position, component-internal only
     }
 
     # Page-specific partials (not reusable UI components).
