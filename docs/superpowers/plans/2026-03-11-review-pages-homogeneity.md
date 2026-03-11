@@ -233,7 +233,11 @@ Replace field name references.
 
 - [ ] **Step 8: Update `web/challenges/views.py` and `web/challenges/models.py`**
 
-Replace any references to `gold_team_reviewed`, `reviewed_by`, `reviewed_at`.
+**IMPORTANT:** The `reviewed_by` and `reviewed_at` fields on `OrangeAssignment` in `challenges/models.py` are DIFFERENT fields and must NOT be renamed. Only rename references that specifically access `IncidentReport.gold_team_reviewed`, `IncidentReport.reviewed_by`, `IncidentReport.reviewed_at`, or `IncidentReport.reviewer_notes`. Search carefully — `challenges/views.py` may reference `gold_team_reviewed` on incident objects passed from scoring views.
+
+- [ ] **Step 8b: Update `docs/api.md`**
+
+Replace `"gold_team_reviewed"`, `"reviewed_by"`, `"reviewed_at"` with `"is_approved"`, `"approved_by"`, `"approved_at"` in API documentation. Note: this changes the documented API response format.
 
 - [ ] **Step 9: Update test files**
 
@@ -250,8 +254,8 @@ Expected: All tests pass.
 
 - [ ] **Step 11: Commit**
 
+Stage all modified files explicitly (do NOT use `git add -A`), then commit:
 ```
-git add -A
 git commit -m "Update all IncidentReport field references to new names"
 ```
 
@@ -280,7 +284,7 @@ All references:
 
 - [ ] **Step 2: Update `web/ticketing/templatetags/ticket_filters.py`**
 
-Replace any `points_verified` references.
+Check for `points_verified` or `verification_notes` references. Note: existing `TicketHistory` records in the DB still use `"verification_notes"` and `"points_verified"` as JSON dict keys — the templatetag may need to handle both old and new key names for backward compatibility with existing history records.
 
 - [ ] **Step 3: Update templates**
 
@@ -302,8 +306,8 @@ Expected: All tests pass.
 
 - [ ] **Step 6: Commit**
 
+Stage all modified files explicitly (do NOT use `git add -A`), then commit:
 ```
-git add -A
 git commit -m "Update all Ticket field references to new names"
 ```
 
@@ -416,14 +420,22 @@ def ops_review_tickets(request: HttpRequest) -> HttpResponse:
 
 Also update `ops_verify_ticket` (line 130) and `ops_batch_verify_tickets` (line 191) similarly.
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 5: Update permission tests**
+
+Permission tests will fail because we're expanding access. Update:
+- `web/scoring/tests/test_permissions.py` — update tests that assert gold_team-only access to review pages
+- `web/scoring/tests/test_bulk_approve_red_findings.py` — this explicitly tests that red_team users CANNOT access `red_team_portal`; update to allow red_team access
+- `web/scoring/tests/test_orange_portal_permissions.py` — update for orange_team access
+- Any other permission tests that assert the old restrictions
+
+- [ ] **Step 6: Run tests**
 
 Run: `cd web && DB_HOST=localhost DB_PORT=5433 DB_USER=test_user DB_PASSWORD=test_password DB_NAME=wccomps_test uv run pytest -x`
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```
-git add web/scoring/views/red_team.py web/scoring/views/orange.py web/scoring/views/injects.py web/ticketing/views/ops.py
+git add web/scoring/views/red_team.py web/scoring/views/orange.py web/scoring/views/injects.py web/ticketing/views/ops.py web/scoring/tests/ web/core/tests/
 git commit -m "Update review page permissions per design spec"
 ```
 
@@ -434,14 +446,21 @@ git commit -m "Update review page permissions per design spec"
 ### Task 8: Update red team review terminology and filters
 
 **Files:**
-- Modify: `web/scoring/views/red_team.py:56-145`
+- Modify: `web/scoring/views/red_team.py:56-145` (red_team_portal)
+- Modify: `web/scoring/views/red_team.py:152-225` (red_team_scores — also has "reviewed" terminology)
 - Modify: `web/templates/scoring/review_red_findings.html`
+- Modify: `web/templates/scoring/red_team_portal.html` (red team's own view — also has "reviewed" filter)
 - Modify: `web/templates/cotton/red_findings_table.html`
 
-- [ ] **Step 1: Update status filter values in view**
+- [ ] **Step 1: Update status filter values in both views**
 
-In `web/scoring/views/red_team.py`, the `red_team_portal` function:
+In `web/scoring/views/red_team.py`:
+
+In `red_team_portal` function:
 - Line 75: Change `status_filter == "reviewed"` → `status_filter == "approved"`
+
+In `red_team_scores` function:
+- Line 172: Change `status_filter == "reviewed"` → `status_filter == "approved"`
 - Add search filter support:
 
 ```python
@@ -467,6 +486,8 @@ Rename context key `"reviewed_count"` → `"approved_count"`.
 
 In `web/templates/scoring/review_red_findings.html`:
 - Line 37-38: Change status option `value="reviewed"` text from "Reviewed Only" → "Approved Only", condition from `status_filter == 'reviewed'` → `status_filter == 'approved'`
+
+Also update `web/templates/scoring/red_team_portal.html` (the red team's own view template) with the same status filter terminology change.
 - Add search filter field after the Submitter filter (before closing `</c-filter_toolbar>`):
 
 ```html
@@ -801,16 +822,17 @@ Create `web/templates/cotton/review_orange_table.html`:
 
 - [ ] **Step 5: Remove reject views and URLs**
 
-Remove `reject_orange_adjustment` and `bulk_reject_orange_adjustments` from `web/scoring/views/orange.py`.
+Remove `reject_orange_adjustment`, `bulk_reject_orange_adjustments`, and `approve_orange_adjustment` from `web/scoring/views/orange.py`.
 
-Remove the corresponding URL patterns from `web/scoring/urls.py` (lines 40, 42):
+Remove the corresponding URL patterns from `web/scoring/urls.py` (lines 39-42):
 ```python
 # Remove these:
+path("orange-team/<int:adjustment_id>/approve/", ...),
 path("orange-team/<int:adjustment_id>/reject/", ...),
 path("orange-team/bulk-reject/", ...),
 ```
 
-Also remove the individual `approve_orange_adjustment` view and URL (lines 38-39) since approval is now bulk-only.
+**Also update `web/scoring/views/__init__.py`**: Remove the imports and `__all__` entries for the deleted views (`approve_orange_adjustment`, `reject_orange_adjustment`, `bulk_reject_orange_adjustments`).
 
 - [ ] **Step 6: Run tests**
 
