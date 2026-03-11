@@ -3,8 +3,8 @@
 {# Props: icon (optional emoji/character), title (required), description (optional secondary text) #}
 <c-vars icon title description />
 <div {{ attrs }} class="text-center p-20 text-muted">
-    {% if icon %}<div class="text-3xl mb-15">{{ icon }}</div>{% endif %}
+    {% if icon %}<div class="text-xl mb-15">{{ icon }}</div>{% endif %}
     <div class="text-xl font-semibold text-dark mb-8">{{ title }}</div>
-    {% if description %}<div class="text-md text-muted mb-20 max-w-400 mx-auto">{{ description }}</div>{% endif %}
+    {% if description %}<div class="text-md text-muted mb-20 max-w-400">{{ description }}</div>{% endif %}
     {% if slot %}<div class="mt-20">{{ slot }}</div>{% endif %}
 </div>

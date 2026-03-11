@@ -509,8 +509,8 @@ nav[role="navigation"] {
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 
 /* Container widths */
-.max-w-400 { max-width: 400px; }
-.max-w-800 { max-width: 800px; }
+.max-w-400 { max-width: 400px; margin: 0 auto; }
+.max-w-800 { max-width: 800px; margin: 0 auto; }
 
 
 /* Detail list - definition list styling */
