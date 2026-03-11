@@ -35,7 +35,7 @@ urlpatterns = [
     path("incident/screenshot/<int:screenshot_id>/", views.incident_screenshot_download, name="incident_screenshot"),
     # Orange Team
     path("orange-team/", views.orange_team_portal, name="orange_team_portal"),
-    path("orange-team/submit/", views.submit_orange_bonus, name="submit_orange_bonus"),
+    path("orange-team/submit/", views.submit_orange_check, name="submit_orange_check"),
     path("orange-team/<int:adjustment_id>/approve/", views.approve_orange_adjustment, name="approve_orange_adjustment"),
     path("orange-team/<int:adjustment_id>/reject/", views.reject_orange_adjustment, name="reject_orange_adjustment"),
     path("orange-team/bulk-approve/", views.bulk_approve_orange_adjustments, name="bulk_approve_orange_adjustments"),

@@ -51,7 +51,7 @@ from .orange import (
     orange_team_portal,
     reject_orange_adjustment,
     review_orange,
-    submit_orange_bonus,
+    submit_orange_check,
 )
 from .red_team import (
     _normalize_red_score_post,
@@ -99,7 +99,7 @@ __all__ = [
     # orange
     "orange_team_portal",
     "review_orange",
-    "submit_orange_bonus",
+    "submit_orange_check",
     "approve_orange_adjustment",
     "reject_orange_adjustment",
     "bulk_approve_orange_adjustments",

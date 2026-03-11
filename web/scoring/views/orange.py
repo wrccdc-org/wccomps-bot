@@ -27,7 +27,7 @@ def review_orange(request: HttpRequest) -> HttpResponse:
     return render(request, "scoring/review_orange.html", {"bonuses": bonuses})
 
 
-def submit_orange_bonus(request: HttpRequest) -> HttpResponse:
+def submit_orange_check(request: HttpRequest) -> HttpResponse:
     """Redirect to new orange team dashboard."""
     return redirect("challenges:dashboard")
 
