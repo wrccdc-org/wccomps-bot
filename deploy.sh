@@ -121,14 +121,8 @@ if [ "$PID_TESTDB" -ne 0 ]; then
     [ $STATIC_RC -ne 0 ] && { cleanup_test_db; fail "collectstatic" "$(cat /tmp/deploy_static)"; }
     step "migrate"
 
-    if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m "not browser"); then
-        cleanup_test_db; fail "tests" "$OUT"
-    fi
-
-    SUMMARY=$(echo "$OUT" | grep . | tail -1)
-    step "tests      $SUMMARY"
-
-    # Browser tests (Playwright) — skip if no browser is installed
+    # Check for playwright browser availability before starting tests
+    HAS_BROWSER=false
     if uv run python -c "
 from playwright.sync_api import sync_playwright
 p = sync_playwright().start()
@@ -139,10 +133,28 @@ except Exception:
 b.close()
 p.stop()
 " 2>/dev/null; then
-        if ! OUT=$(PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m browser); then
-            cleanup_test_db; fail "browser tests" "$OUT"
-        fi
-        BSUMMARY=$(echo "$OUT" | grep . | tail -1)
+        HAS_BROWSER=true
+    fi
+
+    # Run unit and browser tests in parallel
+    TEST_RC=0 BROWSER_RC=0
+    { PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m "not browser" > /tmp/deploy_tests 2>&1; } &
+    PID_TESTS=$!
+
+    if $HAS_BROWSER; then
+        { PYTHONPATH="$(pwd)/web:$(pwd)" uv run pytest -q -m browser -n0 > /tmp/deploy_browser 2>&1; } &
+        PID_BROWSER=$!
+    fi
+
+    wait $PID_TESTS || TEST_RC=$?
+    [ $TEST_RC -ne 0 ] && { cleanup_test_db; fail "tests" "$(cat /tmp/deploy_tests)"; }
+    SUMMARY=$(grep . /tmp/deploy_tests | tail -1)
+    step "tests      $SUMMARY"
+
+    if $HAS_BROWSER; then
+        wait $PID_BROWSER || BROWSER_RC=$?
+        [ $BROWSER_RC -ne 0 ] && { cleanup_test_db; fail "browser tests" "$(cat /tmp/deploy_browser)"; }
+        BSUMMARY=$(grep . /tmp/deploy_browser | tail -1)
         step "browser    $BSUMMARY"
     else
         echo "  · browser    skipped (no playwright browser)"
