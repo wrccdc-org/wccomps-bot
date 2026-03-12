@@ -158,7 +158,7 @@ nav[role="navigation"] {
     color: #fff;
 }
 
-.button.deletelink {
+a.button.deletelink {
     background: var(--warning-fg);
     color: #fff;
     border: none;
