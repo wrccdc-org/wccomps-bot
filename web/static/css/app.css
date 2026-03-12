@@ -171,7 +171,8 @@ a.deletelink:hover {
 
 .button.deletelink,
 .button.deletelink:link,
-.button.deletelink:visited {
+.button.deletelink:visited,
+.button.deletelink:hover {
     background: var(--warning-fg);
     color: #fff;
     border: none;
