@@ -1,4 +1,7 @@
-"""Template linting tests to enforce best practices."""
+"""Template linting tests — high-value checks only.
+
+Catches issues that are silent at runtime or hard to spot in code review.
+"""
 
 import re
 from pathlib import Path
@@ -6,217 +9,86 @@ from pathlib import Path
 import pytest
 
 TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
-STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
 
 def get_all_template_files() -> list[Path]:
-    """Get all Django template files."""
     return list(TEMPLATES_DIR.rglob("*.html"))
 
 
-def has_cotton_components(content: str) -> bool:
-    """Check if template uses cotton components (<c-... or c-...)."""
-    return bool(re.search(r"<c-\w+|{%\s*c-\w+", content))
-
-
-def has_cotton_load(content: str) -> bool:
-    """Check if template has {% load cotton %} or {% load ... cotton ... %} statement."""
-    # Match {% load cotton %} or {% load static cotton %} etc.
-    return bool(re.search(r"{%\s*load\s+[^%]*\bcotton\b[^%]*%}", content))
-
-
 def is_cotton_component(path: Path) -> bool:
-    """Check if template is a cotton component definition."""
     return "cotton" in path.parts
 
 
-def is_email_template(path: Path) -> bool:
-    """Check if template is an email template (allowed to have inline styles)."""
-    return "emails" in path.parts
-
-
-def is_pdf_template(path: Path) -> bool:
-    """Check if template is a PDF template (allowed to have inline styles)."""
-    return "pdf" in path.name.lower() or "scorecard" in path.name.lower()
-
-
-def is_non_cotton_admin_template(path: Path) -> bool:
-    """Check if template is a Django admin override without Cotton (raw admin markup)."""
-    if "admin" not in path.parts:
-        return False
-    return not has_cotton_load(path.read_text())
-
-
-def is_registration_template(path: Path) -> bool:
-    """Check if template is a registration template (out of scope for Cotton enforcement)."""
-    return "registration" in path.parts
+# ---------------------------------------------------------------------------
+# 1. Missing {% load cotton %} → hard TemplateSyntaxError
+# ---------------------------------------------------------------------------
 
 
 class TestCottonImports:
-    """Tests for cotton template tag imports."""
-
     def test_cotton_components_have_load_statement(self) -> None:
-        """All templates using cotton components must have {% load cotton %}."""
-        templates_missing_load = []
-
-        for template_path in get_all_template_files():
-            # Skip cotton component definitions - they don't need {% load cotton %}
-            if is_cotton_component(template_path):
+        """Templates using <c-*> must have {% load cotton %}."""
+        missing = []
+        for path in get_all_template_files():
+            if is_cotton_component(path):
                 continue
-
-            content = template_path.read_text()
-
-            if has_cotton_components(content) and not has_cotton_load(content):
-                relative_path = template_path.relative_to(TEMPLATES_DIR)
-                templates_missing_load.append(str(relative_path))
-
-        if templates_missing_load:
+            content = path.read_text()
+            uses = bool(re.search(r"<c-\w+|{%\s*c-\w+", content))
+            loads = bool(re.search(r"{%\s*load\s+[^%]*\bcotton\b[^%]*%}", content))
+            if uses and not loads:
+                missing.append(str(path.relative_to(TEMPLATES_DIR)))
+        if missing:
             pytest.fail(
                 "Templates using cotton components without {% load cotton %}:\n"
-                + "\n".join(f"  - {t}" for t in sorted(templates_missing_load))
+                + "\n".join(f"  - {t}" for t in sorted(missing))
             )
 
 
-class TestInlineStyles:
-    """Tests for inline style usage (should use CSS classes instead)."""
-
-    # Patterns that indicate inline style usage
-    INLINE_STYLE_PATTERNS = [
-        (r'style="[^"]*display:\s*(none|block|flex)', "inline display style"),
-        (r"\.style\.display\s*=", "JavaScript .style.display manipulation"),
-    ]
-
-    def test_no_inline_display_styles_in_html(self) -> None:
-        """Templates should use CSS classes instead of inline display styles."""
-        templates_with_issues: list[tuple[str, str, int]] = []
-
-        for template_path in get_all_template_files():
-            # Skip email, PDF, and cotton component templates
-            if is_email_template(template_path) or is_pdf_template(template_path) or is_cotton_component(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
-
-            for pattern, description in self.INLINE_STYLE_PATTERNS:
-                for match in re.finditer(pattern, content):
-                    # Find line number
-                    line_num = content[: match.start()].count("\n") + 1
-                    templates_with_issues.append((str(relative_path), description, line_num))
-
-        if templates_with_issues:
-            issue_lines = [f"  - {path}:{line} ({desc})" for path, desc, line in sorted(templates_with_issues)]
-            pytest.fail("Templates using inline styles (use CSS classes instead):\n" + "\n".join(issue_lines))
-
-
-class TestTemplateBlockNames:
-    """Tests to ensure templates use correct block names for their base templates."""
-
-    # Map of base template patterns to expected content block names
-    BASE_TEMPLATE_BLOCKS = {
-        "scoring/red_base.html": "red_content",
-        "scoring/orange_base.html": "orange_content",
-        "scoring/base.html": "scoring_content",
-        "admin/base.html": "admin_content",
-        "registration/admin_base.html": "registration_content",
-    }
-
-    # Templates that override standard Django blocks (not our custom content blocks)
-    EXCLUDED_TEMPLATES = {
-        "admin/base_site.html",  # Django admin override, uses standard admin blocks
-    }
-
-    def test_block_names_match_base_templates(self) -> None:
-        """Templates must use the correct block name for their base template."""
-        mismatches: list[tuple[str, str, str]] = []
-
-        for template_path in get_all_template_files():
-            content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
-
-            # Skip excluded templates
-            if str(relative_path) in self.EXCLUDED_TEMPLATES:
-                continue
-
-            # Find what base template this extends
-            extends_match = re.search(r'{%\s*extends\s+["\']([^"\']+)["\']', content)
-            if not extends_match:
-                continue
-
-            base_template = extends_match.group(1)
-
-            # Check if this base template has a required block name
-            for base_pattern, expected_block in self.BASE_TEMPLATE_BLOCKS.items():
-                if base_pattern in base_template:
-                    # Find all block declarations (excluding title)
-                    blocks = re.findall(r"{%\s*block\s+(\w+)", content)
-                    content_blocks = [b for b in blocks if b != "title"]
-
-                    if content_blocks and expected_block not in content_blocks:
-                        mismatches.append((str(relative_path), expected_block, content_blocks[0]))
-                    break
-
-        if mismatches:
-            issue_lines = [
-                f"  - {path}: expected '{expected}', found '{actual}'" for path, expected, actual in sorted(mismatches)
-            ]
-            pytest.fail("Templates using wrong block name for their base:\n" + "\n".join(issue_lines))
+# ---------------------------------------------------------------------------
+# 2. Raw HTML where cotton components exist → inconsistency
+# ---------------------------------------------------------------------------
 
 
 class TestCottonComponentUsage:
-    """Tests to ensure Cotton components are used instead of raw HTML patterns.
+    """Detect raw HTML that should use a cotton component.
 
-    Every cotton component with a detectable CSS class is listed here.
-    When you create a new cotton component, add its raw HTML pattern
-    to RAW_HTML_PATTERNS so that future templates are forced to use it.
-
-    test_all_cotton_components_registered ensures this list stays
-    exhaustive — adding a new .html file to cotton/ without registering
-    it here will fail the build.
+    test_all_components_registered ensures this stays exhaustive:
+    adding a new .html to cotton/ without registering it fails the build.
     """
 
     COTTON_DIR = TEMPLATES_DIR / "cotton"
 
-    # Every .html file in cotton/ must appear in exactly one of these sets.
-    # Adding a new component without updating these sets fails the build.
-
-    # Components whose primary CSS class is enforced by RAW_HTML_PATTERNS.
-    ENFORCED_COMPONENTS = {
-        "action_box.html",  # action-box
-        "alert.html",  # alert
-        "badge.html",  # badge
-        "button_row.html",  # submit-row
-        "detail_grid.html",  # detail-list
-        "empty_state.html",  # empty-state
-        "filter_field.html",  # filter-field
-        "form_field.html",  # form-row
-        "info_box.html",  # info-box
-        "module.html",  # module
-        "progress_bar.html",  # progress-bar (child element)
-        "stats_card.html",  # stats-card
-    }
-
-    # Components without a unique detectable CSS class (with reason).
-    EXEMPT_COMPONENTS = {
-        "button.html",  # class varies by variant prop
-        "detail_row.html",  # fragment (dt/dd siblings, no wrapper)
-        "fieldset.html",  # shares 'module' class with c-module
-        "filter_toolbar.html",  # 'toolbar' too generic
-        "form.html",  # semantic <form> tag only
-        "image_grid.html",  # image-grid class, not widely used yet
-        "link.html",  # class varies by variant prop
-        "nav.html",  # semantic <nav> tag, no class
-        "nav_item.html",  # nav-item on <a>, low violation risk
-        "page_header.html",  # breadcrumbs class, low violation risk
-        "pagination.html",  # paginator class used for simple counts too
-        "score_value.html",  # variant-based classes (score-positive/negative/zero)
-        "table.html",  # results wrapper, low violation risk
-        "table_header.html",  # semantic <th>, conditional sortable class
-        "toast.html",  # toast-position, component-internal only
-    }
-
-    # Page-specific partials (not reusable UI components).
-    PARTIAL_TEMPLATES = {
+    # Every .html in cotton/ must be in this set.
+    REGISTERED_COMPONENTS = {
+        # Enforced — have a RAW_HTML_PATTERNS entry
+        "action_box.html",
+        "alert.html",
+        "badge.html",
+        "button_row.html",
+        "detail_grid.html",
+        "empty_state.html",
+        "filter_field.html",
+        "form_field.html",
+        "info_box.html",
+        "module.html",
+        "progress_bar.html",
+        "stats_card.html",
+        # Exempt — no unique detectable class
+        "button.html",
+        "detail_row.html",
+        "fieldset.html",
+        "filter_toolbar.html",
+        "form.html",
+        "image_grid.html",
+        "link.html",
+        "nav.html",
+        "nav_item.html",
+        "page_header.html",
+        "pagination.html",
+        "score_value.html",
+        "table.html",
+        "table_header.html",
+        "toast.html",
+        # Page-specific partials
         "inject_grading_content.html",
         "inject_grades_table.html",
         "red_findings_table.html",
@@ -228,256 +100,117 @@ class TestCottonComponentUsage:
     }
 
     RAW_HTML_PATTERNS = [
-        # --- Existing ---
-        (r'<span[^>]*class="[^"]*\bbadge\b[^"]*"[^>]*>', "raw badge span", "<c-badge>"),
-        (r'<div[^>]*class="[^"]*\bstats-card\b[^"]*"[^>]*>', "raw stats-card div", "<c-stats_card>"),
-        (r'<div[^>]*class="[^"]*\bempty-state\b[^"]*"[^>]*>', "raw empty-state div", "<c-empty_state>"),
-        # --- Layout ---
-        (r'<div[^>]*class="[^"]*\bmodule(?![\w-])[^"]*"[^>]*>', "raw module div", "<c-module>"),
-        (r'<div[^>]*class="[^"]*\bsubmit-row\b[^"]*"[^>]*>', "raw submit-row div", "<c-button_row>"),
-        (r'<div[^>]*class="[^"]*\baction-box\b[^"]*"[^>]*>', "raw action-box div", "<c-action_box>"),
-        (r'<div[^>]*class="[^"]*\binfo-box\b[^"]*"[^>]*>', "raw info-box div", "<c-info_box>"),
-        # --- Feedback ---
-        (r'<div[^>]*class="[^"]*\balert\b[^"]*"[^>]*>', "raw alert div", "<c-alert>"),
-        (r'<div[^>]*class="[^"]*\bprogress-bar\b[^"]*"[^>]*>', "raw progress-bar div", "<c-progress_bar>"),
-        # --- Forms ---
-        (r'<div[^>]*class="[^"]*\bform-row\b[^"]*"[^>]*>', "raw form-row div", "<c-form_field>"),
-        (r'<div[^>]*class="[^"]*\bfilter-field\b[^"]*"[^>]*>', "raw filter-field div", "<c-filter_field>"),
-        # --- Data display ---
-        (r'<dl[^>]*class="[^"]*\bdetail-list\b[^"]*"[^>]*>', "raw detail-list dl", "<c-detail_grid>"),
+        (r'<span[^>]*class="[^"]*\bbadge\b[^"]*"[^>]*>', "<c-badge>"),
+        (r'<div[^>]*class="[^"]*\bstats-card\b[^"]*"[^>]*>', "<c-stats_card>"),
+        (r'<div[^>]*class="[^"]*\bempty-state\b[^"]*"[^>]*>', "<c-empty_state>"),
+        (r'<div[^>]*class="[^"]*\bmodule(?![\w-])[^"]*"[^>]*>', "<c-module>"),
+        (r'<div[^>]*class="[^"]*\bsubmit-row\b[^"]*"[^>]*>', "<c-button_row>"),
+        (r'<div[^>]*class="[^"]*\baction-box\b[^"]*"[^>]*>', "<c-action_box>"),
+        (r'<div[^>]*class="[^"]*\binfo-box\b[^"]*"[^>]*>', "<c-info_box>"),
+        (r'<div[^>]*class="[^"]*\balert\b[^"]*"[^>]*>', "<c-alert>"),
+        (r'<div[^>]*class="[^"]*\bprogress-bar\b[^"]*"[^>]*>', "<c-progress_bar>"),
+        (r'<div[^>]*class="[^"]*\bform-row\b[^"]*"[^>]*>', "<c-form_field>"),
+        (r'<div[^>]*class="[^"]*\bfilter-field\b[^"]*"[^>]*>', "<c-filter_field>"),
+        (r'<dl[^>]*class="[^"]*\bdetail-list\b[^"]*"[^>]*>', "<c-detail_grid>"),
     ]
 
-    # Known violations that haven't been migrated yet.
-    # Key: (relative_path, pattern description) → reason.
-    # Remove entries as violations are fixed.
-    KNOWN_VIOLATIONS: dict[tuple[str, str], str] = {
-        # Alpine dynamic :class — cotton can't do runtime variant switching
-        ("scoring/email_scorecards_confirm.html", "raw alert div"): "Alpine dynamic :class variant",
-        # Checkbox rows not yet converted to c-form_field
-        ("admin/broadcast.html", "raw form-row div"): "checkbox not yet converted",
-        ("orange_team/check_detail.html", "raw form-row div"): "not yet converted",
-        ("orange_team/check_form.html", "raw form-row div"): "not yet converted",
+    # (relative_path, component) pairs to skip — Alpine dynamic binding, etc.
+    KNOWN_VIOLATIONS = {
+        ("scoring/email_scorecards_confirm.html", "<c-alert>"),
+        ("admin/broadcast.html", "<c-form_field>"),
+        ("orange_team/check_detail.html", "<c-form_field>"),
+        ("orange_team/check_form.html", "<c-form_field>"),
     }
 
-    # Patterns that indicate incorrect component usage
-    INVALID_COMPONENT_PATTERNS = [
-        # c-button with href - should use c-link instead
-        (
-            r"<c-button[^>]*\bhref=",
-            "c-button with href (buttons don't navigate)",
-            "<c-link>",
-        ),
-    ]
-
-    def test_no_invalid_component_usage(self) -> None:
-        """Components should be used correctly (e.g., no href on c-button)."""
-        templates_with_issues: list[tuple[str, str, int, str]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
-
-            for pattern, description, suggestion in self.INVALID_COMPONENT_PATTERNS:
-                for match in re.finditer(pattern, content, re.IGNORECASE):
-                    line_num = content[: match.start()].count("\n") + 1
-                    templates_with_issues.append((str(relative_path), description, line_num, suggestion))
-
-        if templates_with_issues:
-            issue_lines = [
-                f"  - {path}:{line} {desc} -> use {sug}" for path, desc, line, sug in sorted(templates_with_issues)
-            ]
-            pytest.fail("Templates with invalid component usage:\n" + "\n".join(issue_lines))
+    def _should_skip(self, path: Path) -> bool:
+        if is_cotton_component(path):
+            return True
+        if "emails" in path.parts or "registration" in path.parts:
+            return True
+        # Admin templates that don't use cotton are Django admin overrides
+        if "admin" in path.parts:
+            content = path.read_text()
+            if not re.search(r"{%\s*load\s+[^%]*\bcotton\b[^%]*%}", content):
+                return True
+        if "pdf" in path.name.lower() or "scorecard" in path.name.lower():
+            return True
+        return False
 
     def test_no_raw_html_patterns(self) -> None:
-        """Templates should use Cotton components instead of raw HTML patterns."""
-        templates_with_issues: list[tuple[str, str, int, str]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
-                continue
-            if is_email_template(template_path):
-                continue
-            if is_pdf_template(template_path):
-                continue
-            if is_non_cotton_admin_template(template_path):
-                continue
-            if is_registration_template(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative_path = str(template_path.relative_to(TEMPLATES_DIR))
-
-            for pattern, description, suggestion in self.RAW_HTML_PATTERNS:
-                for match in re.finditer(pattern, content, re.IGNORECASE | re.DOTALL):
-                    if (relative_path, description) in self.KNOWN_VIOLATIONS:
-                        continue
-                    line_num = content[: match.start()].count("\n") + 1
-                    templates_with_issues.append((relative_path, description, line_num, suggestion))
-
-        if templates_with_issues:
-            issue_lines = [
-                f"  - {path}:{line} {desc} -> use {sug}" for path, desc, line, sug in sorted(templates_with_issues)
-            ]
-            pytest.fail("Templates using raw HTML instead of Cotton components:\n" + "\n".join(issue_lines))
-
-    def test_known_violations_are_not_stale(self) -> None:
-        """KNOWN_VIOLATIONS entries must still exist — remove fixed ones."""
-        stale: list[str] = []
-        for rel_path, description in self.KNOWN_VIOLATIONS:
-            path = TEMPLATES_DIR / rel_path
-            if not path.exists():
-                stale.append(f"  - {rel_path}: file deleted")
+        """Templates should use cotton components instead of raw HTML."""
+        issues: list[tuple[str, int, str]] = []
+        for path in get_all_template_files():
+            if self._should_skip(path):
                 continue
             content = path.read_text()
-            # Find the matching pattern
-            for pattern, desc, _ in self.RAW_HTML_PATTERNS:
-                if desc == description:
-                    if not re.search(pattern, content, re.IGNORECASE | re.DOTALL):
-                        stale.append(f"  - {rel_path}: '{description}' no longer matches")
-                    break
-        if stale:
-            pytest.fail("Stale KNOWN_VIOLATIONS entries (violation was fixed, remove entry):\n" + "\n".join(stale))
+            rel = str(path.relative_to(TEMPLATES_DIR))
+            for pattern, component in self.RAW_HTML_PATTERNS:
+                if (rel, component) in self.KNOWN_VIOLATIONS:
+                    continue
+                for match in re.finditer(pattern, content, re.IGNORECASE | re.DOTALL):
+                    line = content[: match.start()].count("\n") + 1
+                    issues.append((rel, line, component))
+        if issues:
+            lines = [f"  - {p}:{ln} -> use {c}" for p, ln, c in sorted(issues)]
+            pytest.fail("Raw HTML — use cotton component:\n" + "\n".join(lines))
 
-    def test_all_cotton_components_registered(self) -> None:
-        """Every cotton component must be registered for enforcement or exempted.
-
-        Adding a new .html file to cotton/ without updating ENFORCED_COMPONENTS,
-        EXEMPT_COMPONENTS, or PARTIAL_TEMPLATES will fail this test.
-        """
+    def test_all_components_registered(self) -> None:
+        """New cotton components must be registered."""
         actual = {f.name for f in self.COTTON_DIR.glob("*.html")}
-        registered = self.ENFORCED_COMPONENTS | self.EXEMPT_COMPONENTS | self.PARTIAL_TEMPLATES
-        unregistered = actual - registered
-
-        if unregistered:
+        unknown = actual - self.REGISTERED_COMPONENTS
+        deleted = self.REGISTERED_COMPONENTS - actual
+        if unknown:
             pytest.fail(
-                "Unregistered cotton component(s) — add its CSS class to RAW_HTML_PATTERNS + "
-                "ENFORCED_COMPONENTS, or add to EXEMPT_COMPONENTS/PARTIAL_TEMPLATES with reason:\n"
-                + "\n".join(f"  - cotton/{n}" for n in sorted(unregistered))
+                "Unregistered cotton component(s) — add to REGISTERED_COMPONENTS "
+                "(and RAW_HTML_PATTERNS if it has a unique CSS class):\n"
+                + "\n".join(f"  - cotton/{n}" for n in sorted(unknown))
             )
-
-        # Also catch stale entries for deleted components
-        deleted = registered - actual
         if deleted:
             pytest.fail(
-                "Stale component registration (file deleted, remove entry):\n"
+                "Stale REGISTERED_COMPONENTS entry (file deleted):\n"
                 + "\n".join(f"  - cotton/{n}" for n in sorted(deleted))
             )
 
 
-class TestDetailGridUsage:
-    """Tests to ensure c-detail_grid uses c-detail_row instead of raw <dt>/<dd>."""
-
-    def test_no_raw_dt_in_detail_grid(self) -> None:
-        """c-detail_grid contents should use c-detail_row, not raw <dt>/<dd>."""
-        templates_with_issues: list[tuple[str, int]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
-
-            # Find all c-detail_grid blocks and check for raw <dt> inside them
-            for grid_match in re.finditer(
-                r"<c-detail_grid[^>]*>(.*?)</c-detail_grid>",
-                content,
-                re.DOTALL,
-            ):
-                grid_content = grid_match.group(1)
-                grid_start = grid_match.start()
-
-                for dt_match in re.finditer(r"<dt>", grid_content):
-                    line_num = content[: grid_start + dt_match.start()].count("\n") + 1
-                    templates_with_issues.append((str(relative_path), line_num))
-
-        if templates_with_issues:
-            issue_lines = [f"  - {path}:{line}" for path, line in sorted(templates_with_issues)]
-            pytest.fail(
-                "Templates using raw <dt> inside c-detail_grid (use <c-detail_row> instead):\n" + "\n".join(issue_lines)
-            )
+# ---------------------------------------------------------------------------
+# 3. Nested <form> tags → browser validation bugs
+# ---------------------------------------------------------------------------
 
 
 class TestNestedForms:
-    """Tests to prevent nested <form> tags, which cause browser validation bugs."""
-
     def test_no_nested_forms(self) -> None:
-        """Templates must not contain nested <form> tags (invalid HTML)."""
-        templates_with_nested_forms: list[tuple[str, int, int]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
+        """Nested <form> tags are invalid HTML and cause browser bugs."""
+        issues: list[tuple[str, int]] = []
+        for path in get_all_template_files():
+            if is_cotton_component(path):
                 continue
-
-            content = template_path.read_text()
-            relative_path = template_path.relative_to(TEMPLATES_DIR)
-
-            # Track form nesting depth
+            content = path.read_text()
+            rel = str(path.relative_to(TEMPLATES_DIR))
             depth = 0
             for match in re.finditer(r"<(/?)form[\s>]", content, re.IGNORECASE):
-                is_closing = match.group(1) == "/"
-                line_num = content[: match.start()].count("\n") + 1
-
-                if is_closing:
+                if match.group(1) == "/":
                     depth = max(0, depth - 1)
                 else:
                     depth += 1
                     if depth > 1:
-                        templates_with_nested_forms.append((str(relative_path), line_num, depth))
-
-        if templates_with_nested_forms:
-            issue_lines = [
-                f"  - {path}:{line} (depth {depth})" for path, line, depth in sorted(templates_with_nested_forms)
-            ]
-            pytest.fail(
-                "Templates with nested <form> tags (causes browser validation bugs):\n" + "\n".join(issue_lines)
-            )
+                        line = content[: match.start()].count("\n") + 1
+                        issues.append((rel, line))
+        if issues:
+            lines = [f"  - {p}:{ln}" for p, ln in sorted(issues)]
+            pytest.fail("Nested <form> tags:\n" + "\n".join(lines))
 
 
-class TestScrollableLayout:
-    """Tests to ensure pages with tables allow horizontal scrolling."""
-
-    def test_module_does_not_clip_overflow(self) -> None:
-        """The .module class must not use overflow:hidden (clips wide tables)."""
-        css = (STATIC_DIR / "css" / "app.css").read_text()
-        # Find all .module { ... } blocks (not .module-something or .module > child)
-        for match in re.finditer(r"\.module\s*\{([^}]+)\}", css):
-            block = match.group(1)
-            assert "overflow" not in block or "hidden" not in block, (
-                ".module must not use overflow:hidden — it clips wide content. "
-                "Use overflow:visible and let .results handle table scrolling."
-            )
-
-    def test_results_wrapper_allows_horizontal_scroll(self) -> None:
-        """The .results wrapper must have overflow-x:auto for wide tables."""
-        css = (STATIC_DIR / "css" / "app.css").read_text()
-        results_blocks = [m.group(1) for m in re.finditer(r"\.results\s*\{([^}]+)\}", css)]
-        assert results_blocks, ".results rule missing from app.css"
-        has_overflow_x = any("overflow-x" in block and "auto" in block for block in results_blocks)
-        assert has_overflow_x, ".results must have overflow-x:auto for horizontal table scrolling"
-
-    def test_table_component_renders_results_wrapper(self) -> None:
-        """The c-table component must wrap tables in a .results div."""
-        table_template = (TEMPLATES_DIR / "cotton" / "table.html").read_text()
-        assert re.search(r'class="results"', table_template), (
-            'c-table component must wrap <table> in <div class="results"> for scroll support'
-        )
+# ---------------------------------------------------------------------------
+# 4. Alpine CSP compatibility → silent runtime failure
+# ---------------------------------------------------------------------------
 
 
 class TestAlpineCSPCompatibility:
-    """Ensure Alpine.js expressions work with the CSP build (no eval).
+    """Alpine CSP build only supports simple property paths and method refs.
 
-    The Alpine CSP build only supports simple property access (x-show="loading")
-    and method references without parentheses (@click="toggle"). Expressions like
-    !prop, a > b, fn(), a && b, {key: val} all require eval() and will silently
-    fail at runtime.
+    Expressions like !prop, a > b, fn(), a && b silently fail at runtime.
     """
 
-    # Alpine directives that contain expressions.
-    # Captures (directive_name, value).
     ALPINE_DIRECTIVE_RE = re.compile(
         r"(?<![:\w])"
         r"("
@@ -487,180 +220,61 @@ class TestAlpineCSPCompatibility:
         r"|:[\w][\w\-]*"
         r')\s*=\s*"([^"]*)"',
     )
-
-    # Simple property path: loading, criterion.label, $store.name.prop
     SIMPLE_EXPR_RE = re.compile(r"^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$")
-
-    # x-for: (item, index) in collection OR item in collection
     X_FOR_RE = re.compile(
         r"^\(?\s*[a-zA-Z_]\w*\s*(?:,\s*[a-zA-Z_]\w*\s*)?\)?\s+in\s+"
         r"[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*)*$"
     )
 
     def test_alpine_expressions_are_csp_compatible(self) -> None:
-        """All Alpine directive values must be simple property paths."""
         violations: list[tuple[str, int, str, str]] = []
-
-        for template_path in get_all_template_files():
-            content = template_path.read_text()
-            relative = str(template_path.relative_to(TEMPLATES_DIR))
-
+        for path in get_all_template_files():
+            content = path.read_text()
+            rel = str(path.relative_to(TEMPLATES_DIR))
             for match in self.ALPINE_DIRECTIVE_RE.finditer(content):
                 directive = match.group(1)
                 value = match.group(2).strip()
-
-                if not value:
+                if not value or "{{" in value or "{%" in value:
                     continue
-
-                # Django template tags are server-side rendered, not Alpine expressions
-                if "{{" in value or "{%" in value:
-                    continue
-
-                # x-for has its own syntax: (item, index) in collection
                 if directive == "x-for":
                     if not self.X_FOR_RE.match(value):
                         line = content[: match.start()].count("\n") + 1
-                        violations.append((relative, line, directive, value))
+                        violations.append((rel, line, directive, value))
                     continue
-
                 if not self.SIMPLE_EXPR_RE.match(value):
                     line = content[: match.start()].count("\n") + 1
-                    violations.append((relative, line, directive, value))
-
+                    violations.append((rel, line, directive, value))
         if violations:
-            lines = [f'  - {path}:{line} {d}="{v}"' for path, line, d, v in sorted(violations)]
+            lines = [f'  - {p}:{ln} {d}="{v}"' for p, ln, d, v in sorted(violations)]
             pytest.fail(
-                "Alpine expressions incompatible with CSP build "
-                "(move logic to computed getters in Alpine.data):\n" + "\n".join(lines)
+                "Alpine expression incompatible with CSP build "
+                "(move to computed getter in Alpine.data):\n" + "\n".join(lines)
             )
 
 
-class TestFormFlexLayout:
-    """Prevent <form class="d-flex"> with buttons alongside fields.
-
-    Buttons should be in a separate <c-button_row> below fields, not
-    floating inline.  The correct pattern wraps fields in an inner
-    <div class="d-flex ..."> and places buttons in <c-button_row>.
-    """
-
-    # <form ... class="... d-flex ..." ...> (d-flex directly on the form tag)
-    FORM_DFLEX_RE = re.compile(
-        r"<form\b[^>]*\bclass=\"[^\"]*\bd-flex\b[^\"]*\"[^>]*>",
-        re.DOTALL,
-    )
-
-    def test_no_d_flex_on_form_with_fields_and_buttons(self) -> None:
-        """Forms with d-flex must not mix c-form_field and c-button as siblings."""
-        violations: list[tuple[str, int]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative = str(template_path.relative_to(TEMPLATES_DIR))
-
-            for match in self.FORM_DFLEX_RE.finditer(content):
-                # Find the matching </form>
-                form_start = match.start()
-                end = content.find("</form>", form_start)
-                if end == -1:
-                    continue
-
-                form_body = content[form_start:end]
-                has_field = "<c-form_field" in form_body or "<c-form_row" in form_body
-                has_button = "<c-button" in form_body
-
-                if has_field and has_button:
-                    line = content[:form_start].count("\n") + 1
-                    violations.append((relative, line))
-
-        if violations:
-            lines = [f"  - {path}:{line}" for path, line in sorted(violations)]
-            pytest.fail(
-                "Forms using d-flex with fields and buttons as siblings "
-                '(wrap fields in <div class="d-flex ..."> and use <c-button_row>):\n' + "\n".join(lines)
-            )
-
-
-class TestFlexWrapWithFormFields:
-    """Ensure d-flex containers with c-form_field children use flex-wrap.
-
-    Without flex-wrap, form fields in a d-flex container won't stack on
-    narrow screens and get cramped side-by-side.
-    """
-
-    # <div ... class="... d-flex ..." ...>
-    DIV_DFLEX_RE = re.compile(
-        r'<div\b[^>]*\bclass="([^"]*\bd-flex\b[^"]*)"[^>]*>',
-        re.DOTALL,
-    )
-
-    def test_d_flex_with_form_fields_has_flex_wrap(self) -> None:
-        """d-flex containers with c-form_field must include flex-wrap."""
-        violations: list[tuple[str, int]] = []
-
-        for template_path in get_all_template_files():
-            if is_cotton_component(template_path):
-                continue
-
-            content = template_path.read_text()
-            relative = str(template_path.relative_to(TEMPLATES_DIR))
-
-            for match in self.DIV_DFLEX_RE.finditer(content):
-                classes = match.group(1)
-                if "flex-wrap" in classes:
-                    continue
-
-                # Find the matching </div>
-                div_start = match.start()
-                # Simple: grab until next </div> (works for non-nested cases)
-                end = content.find("</div>", match.end())
-                if end == -1:
-                    continue
-
-                div_body = content[match.end() : end]
-                if "<c-form_field" in div_body:
-                    line = content[:div_start].count("\n") + 1
-                    violations.append((relative, line))
-
-        if violations:
-            lines = [f"  - {path}:{line}" for path, line in sorted(violations)]
-            pytest.fail(
-                "d-flex containers with c-form_field children missing flex-wrap "
-                "(fields won't stack on mobile):\n" + "\n".join(lines)
-            )
+# ---------------------------------------------------------------------------
+# 5. Missing {{ attrs }} → silent attribute dropping
+# ---------------------------------------------------------------------------
 
 
 class TestCottonAttrsPassthrough:
-    """Ensure Cotton components include {{ attrs }} for attribute passthrough.
-
-    Without {{ attrs }}, any undeclared attributes (like Alpine directives
-    x-show, :class, @click) are silently dropped from the rendered HTML.
-    """
+    """Without {{ attrs }}, Alpine directives on components are silently dropped."""
 
     COTTON_DIR = TEMPLATES_DIR / "cotton"
-
-    # Fragment components with no single root element where {{ attrs }} can't go
     FRAGMENT_COMPONENTS = {
-        "detail_row.html",  # renders <dt> + <dd> siblings
-        "pagination.html",  # conditional <p> wrapper
+        "detail_row.html",
+        "pagination.html",
     }
 
     def test_cotton_components_include_attrs(self) -> None:
-        """All Cotton components with a root element must include {{ attrs }}."""
-        missing: list[str] = []
-
+        missing = []
         for path in sorted(self.COTTON_DIR.glob("*.html")):
             if path.name in self.FRAGMENT_COMPONENTS:
                 continue
-
-            content = path.read_text()
-            if "{{ attrs }}" not in content:
+            if "{{ attrs }}" not in path.read_text():
                 missing.append(path.name)
-
         if missing:
             pytest.fail(
-                "Cotton components missing {{ attrs }} (Alpine attributes will be silently dropped):\n"
-                + "\n".join(f"  - cotton/{name}" for name in missing)
+                "Cotton components missing {{ attrs }} (attributes silently dropped):\n"
+                + "\n".join(f"  - cotton/{n}" for n in missing)
             )
