@@ -132,9 +132,7 @@ class TestCottonComponentUsage:
             content = path.read_text()
             if not re.search(r"{%\s*load\s+[^%]*\bcotton\b[^%]*%}", content):
                 return True
-        if "pdf" in path.name.lower() or "scorecard" in path.name.lower():
-            return True
-        return False
+        return "pdf" in path.name.lower() or "scorecard" in path.name.lower()
 
     def test_no_raw_html_patterns(self) -> None:
         """Templates should use cotton components instead of raw HTML."""
