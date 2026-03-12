@@ -161,17 +161,19 @@ nav[role="navigation"] {
 /* Override Django admin's default red deletelink styling */
 a.deletelink,
 a.deletelink:link,
-a.deletelink:visited {
+a.deletelink:visited,
+a.deletelink:focus,
+a.deletelink:hover {
     color: var(--warning-fg);
 }
 a.deletelink:hover {
-    color: var(--warning-fg);
     filter: brightness(0.85);
 }
 
 .button.deletelink,
 .button.deletelink:link,
 .button.deletelink:visited,
+.button.deletelink:focus,
 .button.deletelink:hover {
     background: var(--warning-fg);
     color: #fff;
