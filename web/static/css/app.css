@@ -169,7 +169,9 @@ a.deletelink:hover {
     filter: brightness(0.85);
 }
 
-.button.deletelink {
+.button.deletelink,
+.button.deletelink:link,
+.button.deletelink:visited {
     background: var(--warning-fg);
     color: #fff;
     border: none;
