@@ -228,7 +228,7 @@ class QuotientClient:
 
             return infrastructure
 
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, QuotientAPIError) as e:
             logger.exception(f"Failed to fetch infrastructure from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -278,7 +278,7 @@ class QuotientClient:
             logger.info(f"Fetched scores for {len(scores)} teams")
             return scores
 
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, QuotientAPIError) as e:
             logger.exception(f"Failed to fetch scores from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -332,7 +332,7 @@ class QuotientClient:
             logger.info(f"Fetched {len(injects)} injects")
             return injects
 
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, QuotientAPIError) as e:
             logger.exception(f"Failed to fetch injects from Quotient: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -384,7 +384,7 @@ class QuotientClient:
             logger.info(f"Fetched service export for {len(exports)} teams")
             return exports
 
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, QuotientAPIError) as e:
             logger.exception(f"Failed to fetch service export: {e}")
             return None
         except (KeyError, ValueError) as e:
@@ -427,7 +427,7 @@ class QuotientClient:
             logger.info(f"Fetched uptimes for {len(result)} teams")
             return result
 
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, QuotientAPIError) as e:
             logger.exception(f"Failed to fetch uptimes: {e}")
             return None
         except (KeyError, ValueError) as e:
