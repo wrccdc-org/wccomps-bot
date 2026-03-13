@@ -17,6 +17,9 @@ from team.models import Team
 
 from ..models import InjectScore
 
+MIN_GRADES_FOR_OUTLIER = 3
+OUTLIER_Z_SCORE_THRESHOLD = 1.5
+
 
 @require_permission("white_team", "gold_team", error_message="Only White/Gold Team members can access inject grading")
 @transaction.atomic
@@ -150,7 +153,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
         inject_grades_map[grade.inject_id].append(grade)
 
     for grades in inject_grades_map.values():
-        if len(grades) >= 3:
+        if len(grades) >= MIN_GRADES_FOR_OUTLIER:
             points_list = [float(g.points_awarded) for g in grades]
             mean = statistics.mean(points_list)
             try:
@@ -158,7 +161,7 @@ def inject_grades_review(request: HttpRequest) -> HttpResponse:
                 for grade in grades:
                     points = float(grade.points_awarded)
                     z_score = abs(points - mean) / std_dev if std_dev > 0 else 0
-                    grade.is_outlier = z_score > 1.5
+                    grade.is_outlier = z_score > OUTLIER_Z_SCORE_THRESHOLD
                     grade.std_devs_from_mean = z_score
             except statistics.StatisticsError:
                 for grade in grades:

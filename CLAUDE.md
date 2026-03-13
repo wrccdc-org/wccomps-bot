@@ -17,6 +17,12 @@ cd web && DB_HOST=localhost DB_PORT=5433 DB_USER=test_user DB_PASSWORD=test_pass
 ./deploy.sh
 ```
 
+## Python 3.14
+
+This project targets Python 3.14+ (`requires-python = ">=3.14"`). PEP 758 re-enables
+`except A, B:` syntax without parentheses. Do NOT change these to `except (A, B):` —
+the unparenthesized form is used intentionally throughout.
+
 ## Key Conventions
 
 ### Permissions

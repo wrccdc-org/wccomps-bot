@@ -1,6 +1,7 @@
 """Score calculation logic for competitions."""
 
 from decimal import ROUND_HALF_UP, Decimal
+from typing import TypedDict
 
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum
@@ -18,9 +19,33 @@ from .models import (
     ServiceScore,
 )
 
-# Type alias for score breakdown dictionaries
-ScoreBreakdown = dict[str, Decimal]
-DetailedScoreBreakdown = dict[str, Decimal]
+
+class ScoreBreakdown(TypedDict):
+    """Score breakdown returned by calculate_team_score()."""
+
+    service_points: Decimal
+    inject_points: Decimal
+    orange_points: Decimal
+    red_deductions: Decimal
+    sla_penalties: Decimal
+    point_adjustments: Decimal
+    incident_recovery_points: Decimal
+    total_score: Decimal
+
+
+class DetailedScoreBreakdown(ScoreBreakdown):
+    """Extended breakdown including raw scores, modifiers, and weights."""
+
+    service_raw: Decimal
+    inject_raw: Decimal
+    orange_raw: Decimal
+    svc_modifier: Decimal
+    inj_modifier: Decimal
+    ora_modifier: Decimal
+    service_weight: Decimal
+    inject_weight: Decimal
+    orange_weight: Decimal
+
 
 SCORE_COMPONENT_FIELDS = (
     "service_points",
@@ -170,12 +195,12 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
 
 def _has_scoring_activity(scores: ScoreBreakdown) -> bool:
     """Check if a team has any scoring activity (any non-zero component)."""
-    return any(scores[key] != 0 for key in SCORE_COMPONENT_FIELDS)
+    return any(scores[key] != 0 for key in SCORE_COMPONENT_FIELDS)  # type: ignore[literal-required]
 
 
 def _score_defaults(scores: ScoreBreakdown, *, rank: int | None) -> dict[str, Decimal | int | None]:
     """Build FinalScore defaults dict from a score breakdown."""
-    defaults: dict[str, Decimal | int | None] = {field: scores[field] for field in SCORE_COMPONENT_FIELDS}
+    defaults: dict[str, Decimal | int | None] = {field: scores[field] for field in SCORE_COMPONENT_FIELDS}  # type: ignore[literal-required]
     defaults["total_score"] = scores["total_score"]
     defaults["rank"] = rank
     return defaults

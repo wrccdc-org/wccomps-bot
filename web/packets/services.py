@@ -110,8 +110,10 @@ class PacketDistributionService:
     def _ensure_team_credentials(self, event: Event, team: Team) -> EventTeamAssignment:
         """Ensure an EventTeamAssignment with credentials exists for this team+event.
 
-        Creates TeamRegistration and EventTeamAssignment if needed,
-        generates and sets password in Authentik if not yet generated.
+        Side effects (on first call per team+event):
+            - Creates TeamRegistration from SchoolInfo
+            - Creates EventTeamAssignment
+            - Generates password and sets it in Authentik via API
         """
         assignment = EventTeamAssignment.objects.filter(event=event, team=team).first()
 

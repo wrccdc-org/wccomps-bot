@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import TypedDict
+from typing import NamedTuple, TypedDict
 from zoneinfo import ZoneInfo
 
 from django.contrib import messages
@@ -42,9 +42,17 @@ def ndjson_progress(step: str, current: int, total: int, ok: bool = True) -> str
     return json.dumps({"step": step, "current": current, "total": total, "ok": ok}) + "\n"
 
 
+class TeamGroupInfo(NamedTuple):
+    """Result of get_team_from_groups()."""
+
+    team: Team | None
+    team_number: int | None
+    is_team_account: bool
+
+
 def get_team_from_groups(
     groups: list[str],
-) -> tuple[Team | None, int | None, bool]:
+) -> TeamGroupInfo:
     """
     Extract team information from Authentik groups.
 
@@ -52,10 +60,7 @@ def get_team_from_groups(
         groups: List of Authentik group names
 
     Returns:
-        tuple: (team, team_number, is_team_account)
-            - team: Team model instance or None
-            - team_number: Team number (1-50) or None
-            - is_team_account: Boolean indicating if user is in a team group
+        TeamGroupInfo(team, team_number, is_team_account)
     """
 
     from core.permission_constants import extract_team_number
@@ -65,11 +70,11 @@ def get_team_from_groups(
         if team_number is not None and 1 <= team_number <= MAX_TEAMS:
             try:
                 team = Team.objects.get(team_number=team_number)
-                return team, team_number, True
+                return TeamGroupInfo(team, team_number, True)
             except Team.DoesNotExist:
                 pass
 
-    return None, None, False
+    return TeamGroupInfo(None, None, False)
 
 
 class FilterSortPage(TypedDict):

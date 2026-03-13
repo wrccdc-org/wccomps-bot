@@ -18,6 +18,9 @@ from ticketing.models import Ticket
 
 logger = logging.getLogger(__name__)
 
+VALID_PAGE_SIZES = [25, 50, 100, 200]
+STALE_TICKET_MINUTES = 30
+
 
 def ticket_list(request: HttpRequest) -> HttpResponse:
     """Unified ticket list view for both team members and ops staff."""
@@ -51,7 +54,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
     page_size_str = request.GET.get("page_size", "50")
     try:
         page_size = int(page_size_str)
-        if page_size not in [25, 50, 100, 200]:
+        if page_size not in VALID_PAGE_SIZES:
             page_size = 50
     except ValueError:
         page_size = 50
@@ -129,7 +132,7 @@ def ticket_list(request: HttpRequest) -> HttpResponse:
     sort_by = result["current_sort"]
 
     # Enrich only the current page with category info and stale status
-    thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
+    thirty_minutes_ago = timezone.now() - timedelta(minutes=STALE_TICKET_MINUTES)
     enriched = []
     for ticket in page_obj.object_list:
         cat_info = get_category_config(ticket.category_id) or {}

@@ -5,10 +5,102 @@ import re
 
 import discord
 from django.conf import settings
+from django.utils import timezone
 
+from core.models import AuditLog
 from team.models import Team
 
 logger = logging.getLogger(__name__)
+
+
+# -- Standalone helpers (used by multiple cogs) --
+
+
+async def delete_team_infrastructure(guild: discord.Guild, team: Team, reason: str) -> list[str]:
+    """Delete a team's Discord category, channels, and role. Clears DB IDs.
+
+    Returns list of deleted item types (e.g. ["category", "role"]).
+    """
+    deleted_items: list[str] = []
+
+    if team.discord_category_id:
+        category = guild.get_channel(team.discord_category_id)
+        if category and isinstance(category, discord.CategoryChannel):
+            for channel in category.channels:
+                try:
+                    await channel.delete(reason=reason)
+                except Exception as e:
+                    logger.exception(f"Failed to delete channel {channel.name}: {e}")
+
+            try:
+                await category.delete(reason=reason)
+                deleted_items.append("category")
+            except Exception as e:
+                logger.exception(f"Failed to delete category: {e}")
+
+    if team.discord_role_id:
+        role = guild.get_role(team.discord_role_id)
+        if role:
+            try:
+                await role.delete(reason=reason)
+                deleted_items.append("role")
+            except Exception as e:
+                logger.exception(f"Failed to delete role: {e}")
+
+    team.discord_role_id = None
+    team.discord_category_id = None
+    await team.asave()
+
+    return deleted_items
+
+
+async def unlink_team_members(
+    guild: discord.Guild,
+    team: Team,
+    admin_user: str,
+    reason: str,
+    audit_reason: str,
+) -> int:
+    """Unlink all active Discord members from a team.
+
+    Removes team role and Blueteam role, deactivates DiscordLinks, creates
+    per-member audit log entries.  Returns count of unlinked members.
+    """
+    from bot.utils import remove_blueteam_role, safe_remove_role
+
+    members = [m async for m in team.members.filter(is_active=True).select_related("user")]
+    unlinked_count = 0
+
+    for link in members:
+        member = guild.get_member(link.discord_id)
+
+        if member:
+            if team.discord_role_id:
+                role = guild.get_role(team.discord_role_id)
+                if role:
+                    await safe_remove_role(member, role, reason=reason)
+
+            await remove_blueteam_role(member, guild, reason=reason)
+
+        link.is_active = False
+        link.unlinked_at = timezone.now()
+        await link.asave()
+        unlinked_count += 1
+
+        await AuditLog.objects.acreate(
+            action="user_unlinked",
+            admin_user=admin_user,
+            target_entity="discord_link",
+            target_id=link.discord_id,
+            details={
+                "discord_username": str(member) if member else f"ID:{link.discord_id}",
+                "team_name": team.team_name,
+                "authentik_username": link.user.username,
+                "reason": audit_reason,
+            },
+        )
+
+    return unlinked_count
 
 
 class DiscordManager:

@@ -41,7 +41,7 @@ def api_team_detail(request: HttpRequest, team_number: int) -> JsonResponse:
         {
             "team": f"Team {team.team_number}",
             "team_number": team.team_number,
-            "scores": {k: float(v) for k, v in scores.items()},
+            "scores": {k: float(v) for k, v in scores.items()},  # type: ignore[arg-type]
         }
     )
 

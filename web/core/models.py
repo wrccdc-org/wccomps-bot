@@ -58,6 +58,13 @@ class AuditLog(models.Model):
 class DiscordTask(models.Model):
     """Task queue for Discord API operations (rate limit resilience).
 
+    Adding a new task type? Update all of:
+      1. TASK_TYPE_CHOICES below
+      2. required_keys in clean()
+      3. Payload schema in this docstring
+      4. Factory classmethod on this class
+      5. Handler + dispatch entry in bot/discord_queue.py
+
     Payload schemas by task_type (validated by clean()):
         create_thread:           {"ticket_id": int, "ticket_number": str,
                                   "team_number": int, "category": str, "title": str}
@@ -380,6 +387,6 @@ class CompetitionConfig(models.Model):
 
     @classmethod
     def get_config(cls) -> CompetitionConfig:
-        """Get or create singleton config instance."""
+        """Get or create the singleton config instance (pk=1). Never create additional rows."""
         config, _ = cls.objects.get_or_create(pk=1)
         return config

@@ -1,4 +1,8 @@
-"""Ticketing utilities for atomic ticket creation and lifecycle management."""
+"""Ticketing utilities for atomic ticket creation and lifecycle management.
+
+Each sync function has an async variant with 'a' prefix (e.g., acreate_ticket_atomic)
+created via _make_async(). New lifecycle functions should follow this pattern.
+"""
 
 import functools
 from collections.abc import Awaitable, Callable
@@ -188,6 +192,10 @@ def resolve_ticket_atomic(
 ) -> tuple[Ticket | None, str | None]:
     """
     Resolve a ticket atomically.
+
+    Side effects:
+        - If the ticket has a Discord thread, schedules archiving 60s later
+          via thread_archive_scheduled_at.
 
     Args:
         ticket_id: ID of ticket to resolve

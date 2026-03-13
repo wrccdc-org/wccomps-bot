@@ -116,16 +116,6 @@ def export_red_scores_json() -> HttpResponse:
     return response
 
 
-def _get_red_scores_csv_content() -> str:
-    """Get red team findings as CSV string."""
-    return _serialize_red_scores_csv()
-
-
-def _get_red_scores_json_content() -> str:
-    """Get red team findings as JSON string."""
-    return _serialize_red_scores_json()
-
-
 # ---------------------------------------------------------------------------
 # Incidents
 # ---------------------------------------------------------------------------
@@ -226,16 +216,6 @@ def export_incidents_json() -> HttpResponse:
     return response
 
 
-def _get_incidents_csv_content() -> str:
-    """Get incidents as CSV string."""
-    return _serialize_incidents_csv()
-
-
-def _get_incidents_json_content() -> str:
-    """Get incidents as JSON string."""
-    return _serialize_incidents_json()
-
-
 # ---------------------------------------------------------------------------
 # Orange checks
 # ---------------------------------------------------------------------------
@@ -309,16 +289,6 @@ def export_orange_adjustments_json() -> HttpResponse:
     response = HttpResponse(_serialize_orange_adjustments_json(), content_type="application/json")
     response["Content-Disposition"] = 'attachment; filename="orange_checks.json"'
     return response
-
-
-def _get_orange_adjustments_csv_content() -> str:
-    """Get orange team checks as CSV string."""
-    return _serialize_orange_adjustments_csv()
-
-
-def _get_orange_adjustments_json_content() -> str:
-    """Get orange team checks as JSON string."""
-    return _serialize_orange_adjustments_json()
 
 
 # ---------------------------------------------------------------------------
@@ -405,16 +375,6 @@ def export_inject_grades_json() -> HttpResponse:
     return response
 
 
-def _get_inject_grades_csv_content() -> str:
-    """Get inject grades as CSV string."""
-    return _serialize_inject_grades_csv()
-
-
-def _get_inject_grades_json_content() -> str:
-    """Get inject grades as JSON string."""
-    return _serialize_inject_grades_json()
-
-
 # ---------------------------------------------------------------------------
 # Final scores
 # ---------------------------------------------------------------------------
@@ -495,16 +455,6 @@ def export_final_scores_json() -> HttpResponse:
     return response
 
 
-def _get_final_scores_csv_content() -> str:
-    """Get final scores as CSV string."""
-    return _serialize_final_scores_csv()
-
-
-def _get_final_scores_json_content() -> str:
-    """Get final scores as JSON string."""
-    return _serialize_final_scores_json()
-
-
 # ---------------------------------------------------------------------------
 # ZIP of all exports
 # ---------------------------------------------------------------------------
@@ -515,16 +465,16 @@ def export_all_zip() -> HttpResponse:
     zip_buffer = BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("red_findings.csv", _get_red_scores_csv_content())
-        zip_file.writestr("red_findings.json", _get_red_scores_json_content())
-        zip_file.writestr("incidents.csv", _get_incidents_csv_content())
-        zip_file.writestr("incidents.json", _get_incidents_json_content())
-        zip_file.writestr("orange_checks.csv", _get_orange_adjustments_csv_content())
-        zip_file.writestr("orange_checks.json", _get_orange_adjustments_json_content())
-        zip_file.writestr("inject_grades.csv", _get_inject_grades_csv_content())
-        zip_file.writestr("inject_grades.json", _get_inject_grades_json_content())
-        zip_file.writestr("final_scores.csv", _get_final_scores_csv_content())
-        zip_file.writestr("final_scores.json", _get_final_scores_json_content())
+        zip_file.writestr("red_findings.csv", _serialize_red_scores_csv())
+        zip_file.writestr("red_findings.json", _serialize_red_scores_json())
+        zip_file.writestr("incidents.csv", _serialize_incidents_csv())
+        zip_file.writestr("incidents.json", _serialize_incidents_json())
+        zip_file.writestr("orange_checks.csv", _serialize_orange_adjustments_csv())
+        zip_file.writestr("orange_checks.json", _serialize_orange_adjustments_json())
+        zip_file.writestr("inject_grades.csv", _serialize_inject_grades_csv())
+        zip_file.writestr("inject_grades.json", _serialize_inject_grades_json())
+        zip_file.writestr("final_scores.csv", _serialize_final_scores_csv())
+        zip_file.writestr("final_scores.json", _serialize_final_scores_json())
 
     zip_buffer.seek(0)
     timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")

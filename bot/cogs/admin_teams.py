@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from django.utils import timezone
 
+from bot.discord_manager import delete_team_infrastructure, unlink_team_members
 from bot.permissions import check_admin
 from bot.utils import (
     get_team_or_respond,
@@ -261,89 +262,17 @@ class AdminTeamsCog(commands.Cog):
             await interaction.response.send_message("This command must be used in a guild", ephemeral=True)
             return
 
-        removed_items = []
+        unlinked_count = await unlink_team_members(
+            guild,
+            team,
+            str(interaction.user),
+            reason=f"Team {team_number} removed by {interaction.user}",
+            audit_reason="team_removed",
+        )
 
-        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
-        unlinked_count = 0
-
-        # Remove roles BEFORE deactivating links
-        for link in members:
-            member = guild.get_member(link.discord_id)
-
-            # Remove team role and Blueteam role if member is in server
-            if member:
-                roles_to_remove = []
-                if team.discord_role_id:
-                    role = guild.get_role(team.discord_role_id)
-                    if role and role in member.roles:
-                        roles_to_remove.append(role)
-
-                if roles_to_remove:
-                    for role in roles_to_remove:
-                        await safe_remove_role(
-                            member,
-                            role,
-                            reason=f"Team {team_number} removed by {interaction.user}",
-                        )
-
-                await remove_blueteam_role(
-                    member,
-                    guild,
-                    reason=f"Team {team_number} removed by {interaction.user}",
-                )
-
-            # Deactivate link after roles removed
-            link.is_active = False
-            link.unlinked_at = timezone.now()
-            await link.asave()
-            unlinked_count += 1
-
-            # Create individual audit log for each unlink
-            await AuditLog.objects.acreate(
-                action="user_unlinked",
-                admin_user=str(interaction.user),
-                target_entity="discord_link",
-                target_id=link.discord_id,
-                details={
-                    "discord_username": str(member) if member else f"ID:{link.discord_id}",
-                    "team_name": team.team_name,
-                    "authentik_username": link.user.username,
-                    "reason": "team_removed",
-                },
-            )
-
-        # Delete category and all channels
-        if team.discord_category_id:
-            category = guild.get_channel(team.discord_category_id)
-            if category and isinstance(category, discord.CategoryChannel):
-                # Delete all channels in category first
-                for channel in category.channels:
-                    try:
-                        await channel.delete(reason=f"Team {team_number} removed by {interaction.user}")
-                    except Exception as e:
-                        logger.exception(f"Failed to delete channel {channel.name}: {e}")
-
-                # Delete category
-                try:
-                    await category.delete(reason=f"Team {team_number} removed by {interaction.user}")
-                    removed_items.append("category")
-                except Exception as e:
-                    logger.exception(f"Failed to delete category: {e}")
-
-        # Delete role
-        if team.discord_role_id:
-            role = guild.get_role(team.discord_role_id)
-            if role:
-                try:
-                    await role.delete(reason=f"Team {team_number} removed by {interaction.user}")
-                    removed_items.append("role")
-                except Exception as e:
-                    logger.exception(f"Failed to delete role: {e}")
-
-        # Clear Discord IDs from database
-        team.discord_role_id = None
-        team.discord_category_id = None
-        await team.asave()
+        removed_items = await delete_team_infrastructure(
+            guild, team, reason=f"Team {team_number} removed by {interaction.user}"
+        )
 
         # Create audit log
         await AuditLog.objects.acreate(
@@ -406,48 +335,13 @@ class AdminTeamsCog(commands.Cog):
         results = []
         guild = interaction.guild
 
-        members = [m async for m in team.members.filter(is_active=True).select_related("user")]
-        unlinked_count = 0
-
-        for link in members:
-            member = guild.get_member(link.discord_id)
-
-            # Remove roles if member is in server
-            if member:
-                if team.discord_role_id:
-                    role = guild.get_role(team.discord_role_id)
-                    if role and role in member.roles:
-                        await safe_remove_role(
-                            member,
-                            role,
-                            reason=f"Team {team_number} reset by {interaction.user}",
-                        )
-
-                await remove_blueteam_role(
-                    member,
-                    guild,
-                    reason=f"Team {team_number} reset by {interaction.user}",
-                )
-
-            # Deactivate link
-            link.is_active = False
-            link.unlinked_at = timezone.now()
-            await link.asave()
-            unlinked_count += 1
-
-            # Create individual audit log for each unlink
-            await AuditLog.objects.acreate(
-                action="user_unlinked",
-                admin_user=str(interaction.user),
-                target_entity="discord_link",
-                target_id=link.discord_id,
-                details={
-                    "discord_username": str(member) if member else f"ID:{link.discord_id}",
-                    "team_name": team.team_name,
-                    "authentik_username": link.user.username,
-                    "reason": "team_reset",
-                },
-            )
+        unlinked_count = await unlink_team_members(
+            guild,
+            team,
+            str(interaction.user),
+            reason=f"Team {team_number} reset by {interaction.user}",
+            audit_reason="team_reset",
+        )
 
         results.append(f"✓ Unlinked {unlinked_count} Discord user(s)")
 
@@ -476,39 +370,9 @@ class AdminTeamsCog(commands.Cog):
 
         # Step 4: Optionally recreate channels and role
         if recreate_channels:
-            # Delete existing infrastructure
-            deleted_items = []
-
-            # Delete category and channels
-            if team.discord_category_id:
-                category = guild.get_channel(team.discord_category_id)
-                if category and isinstance(category, discord.CategoryChannel):
-                    for channel in category.channels:
-                        try:
-                            await channel.delete(reason=f"Team {team_number} reset by {interaction.user}")
-                        except Exception as e:
-                            logger.exception(f"Failed to delete channel {channel.name}: {e}")
-
-                    try:
-                        await category.delete(reason=f"Team {team_number} reset by {interaction.user}")
-                        deleted_items.append("category")
-                    except Exception as e:
-                        logger.exception(f"Failed to delete category: {e}")
-
-            # Delete role
-            if team.discord_role_id:
-                role = guild.get_role(team.discord_role_id)
-                if role:
-                    try:
-                        await role.delete(reason=f"Team {team_number} reset by {interaction.user}")
-                        deleted_items.append("role")
-                    except Exception as e:
-                        logger.exception(f"Failed to delete role: {e}")
-
-            # Clear Discord IDs
-            team.discord_role_id = None
-            team.discord_category_id = None
-            await team.asave()
+            deleted_items = await delete_team_infrastructure(
+                guild, team, reason=f"Team {team_number} reset by {interaction.user}"
+            )
 
             if deleted_items:
                 results.append(f"✓ Deleted {', '.join(deleted_items)}")
@@ -743,39 +607,7 @@ class AdminTeamsCog(commands.Cog):
                 failed_count += 1
                 continue
 
-            # Delete existing infrastructure if present
-            deleted_items = []
-
-            # Delete category and channels
-            if team.discord_category_id:
-                category = guild.get_channel(team.discord_category_id)
-                if category and isinstance(category, discord.CategoryChannel):
-                    for channel in category.channels:
-                        try:
-                            await channel.delete(reason=f"Bulk recreate by {interaction.user}")
-                        except Exception as e:
-                            logger.exception(f"Failed to delete channel {channel.name}: {e}")
-
-                    try:
-                        await category.delete(reason=f"Bulk recreate by {interaction.user}")
-                        deleted_items.append("category")
-                    except Exception as e:
-                        logger.exception(f"Failed to delete category: {e}")
-
-            # Delete role
-            if team.discord_role_id:
-                role = guild.get_role(team.discord_role_id)
-                if role:
-                    try:
-                        await role.delete(reason=f"Bulk recreate by {interaction.user}")
-                        deleted_items.append("role")
-                    except Exception as e:
-                        logger.exception(f"Failed to delete role: {e}")
-
-            # Clear Discord IDs
-            team.discord_role_id = None
-            team.discord_category_id = None
-            await team.asave()
+            await delete_team_infrastructure(guild, team, reason=f"Bulk recreate by {interaction.user}")
 
             # Recreate infrastructure
             role, category = await discord_manager.setup_team_infrastructure(team_number)
