@@ -592,35 +592,27 @@ nav[role="navigation"] {
    ALERT COMPONENT STYLES
    ============================================ */
 .alert {
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 4px;
+    display: block;
+    font-weight: 400;
+    font-size: 0.8125rem;
+    padding: 10px 10px 10px 40px;
+    margin: 0 0 10px 0;
+    background: var(--message-success-bg) url(../admin/img/icon-yes.svg) 15px 12px no-repeat;
+    background-size: 16px auto;
+    color: var(--body-fg);
+    word-break: break-word;
 }
 .alert--error {
-    background: var(--danger-bg);
-    border-left: 4px solid var(--error-fg, #ba2121);
-    color: var(--error-fg, #ba2121);
+    background: var(--message-error-bg) url(../admin/img/icon-no.svg) 15px 12px no-repeat;
+    background-size: 16px auto;
 }
 .alert--warning {
-    background: var(--warning-alert-bg);
-    border-left: 4px solid var(--warning-alert-border);
-    color: var(--warning-alert-fg);
+    background: var(--message-warning-bg) url(../admin/img/icon-alert.svg) 15px 14px no-repeat;
+    background-size: 14px auto;
 }
-.alert--success {
-    background: var(--success-bg);
-    border-left: 4px solid var(--success-fg);
-    color: var(--success-fg);
-}
-.alert--info {
-    background: var(--info-bg);
-    border-left: 4px solid var(--info-fg);
-    color: var(--info-fg);
-}
-.alert--default {
-    background: var(--darkened-bg, #f5f5f5);
-    border-left: 4px solid var(--body-quiet-color, #999);
-    color: var(--body-fg, #333);
-}
+.alert--success {}
+.alert--info {}
+.alert--default {}
 
 /* ============================================
    PROGRESS BAR

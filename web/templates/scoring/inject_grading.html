@@ -20,10 +20,7 @@
     {% endif %}
     <c-module>
     {% if not quotient_available %}
-        <c-alert variant="error">
-        <strong>Connection Error</strong>
-        <p class="mb-0">Unable to connect to Quotient. Check the API URL and credentials.</p>
-        </c-alert>
+        <c-empty_state title="Quotient Unavailable" description="Unable to connect to the scoring engine. Check the API URL and credentials." />
     {% elif no_injects %}
         <c-empty_state title="No injects" description="No injects are configured in Quotient yet." />
     {% else %}
