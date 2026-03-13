@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
@@ -226,13 +226,10 @@ class TestAdminCommands:
         mock_remove_blueteam.side_effect = track_blueteam_removal
 
         callback = AdminTeamsCog.admin_remove_team.callback
-        with patch_globals(
-            callback,
-            {
-                "safe_remove_role": mock_safe_remove_role,
-                "remove_blueteam_role": mock_remove_blueteam,
-                "log_to_ops_channel": AsyncMock(),
-            },
+        with (
+            patch("bot.utils.safe_remove_role", mock_safe_remove_role),
+            patch("bot.utils.remove_blueteam_role", mock_remove_blueteam),
+            patch_globals(callback, {"log_to_ops_channel": AsyncMock()}),
         ):
             cog = AdminTeamsCog(mock_bot)
             await cog.admin_remove_team.callback(cog, mock_interaction, team_number=team_number)
