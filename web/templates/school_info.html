@@ -10,7 +10,7 @@
         <c-slot name="toolbar">
         <c-link href="{% url 'school_info_export' %}">Export CSV</c-link>
         <c-link href="{% url 'school_info_import' %}" variant="add">Import from CSV</c-link>
-        <c-link href="{% url 'school_info_clear' %}" variant="danger">Clear All</c-link>
+        <c-link href="{% url 'school_info_clear' %}">Clear All</c-link>
         </c-slot>
         <c-table id="result_list" class="w-full" aria_label="School information for all teams">
         <c-slot name="headers">
