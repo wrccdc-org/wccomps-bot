@@ -6,7 +6,7 @@
 {% block content %}
     <c-page_header title="Leaderboard" />
     <c-module>
-    <c-slot name="title">Live Scores</c-slot>
+    <c-slot name="title">Leaderboard</c-slot>
     {% if scores %}
         <c-table id="result_list" aria_label="Score leaderboard">
         <c-slot name="headers">
@@ -53,9 +53,9 @@
         </c-table>
         <p class="text-muted text-sm mt-10">Last updated: {{ scores.0.calculated_at|date:"Y-m-d H:i:s" }}</p>
     {% else %}
-        <c-empty_state title="No live scores yet">
+        <c-empty_state title="No scores yet">
         {% if is_gold_team or is_admin %}
-            <ol class="mt-5 mb-10">
+            <ol class="mt-5 mb-10 d-inline-block text-left">
                 <li>
                     Sync metadata from Quotient on the <a href="{% url 'admin_competition' %}">Competition</a> page
                 </li>
