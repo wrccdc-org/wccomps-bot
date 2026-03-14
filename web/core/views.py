@@ -204,6 +204,52 @@ def school_info(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission("gold_team")
+def school_info_export(request: HttpRequest) -> HttpResponse:
+    """Export all school information as CSV."""
+    import csv
+
+    records = SchoolInfo.objects.select_related("team").order_by("team__team_number")
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="school_info.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["team_number", "team_name", "school_name", "contact_email", "secondary_email", "notes"])
+
+    for si in records:
+        writer.writerow(
+            [
+                si.team.team_number,
+                si.team.team_name,
+                si.school_name,
+                si.contact_email,
+                si.secondary_email or "",
+                si.notes or "",
+            ]
+        )
+
+    return response
+
+
+@require_permission("gold_team")
+def school_info_clear(request: HttpRequest) -> HttpResponse:
+    """Clear all school information records."""
+    count = SchoolInfo.objects.count()
+
+    if request.method == "POST":
+        deleted, _ = SchoolInfo.objects.all().delete()
+        logger.info(f"Cleared {deleted} school info records by {request.user.username}")
+        messages.success(request, f"Cleared {deleted} school info record(s).")
+        return redirect("school_info")
+
+    return render(
+        request,
+        "school_info_clear.html",
+        {"count": count, "show_ops_nav": True},
+    )
+
+
+@require_permission("gold_team")
 def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     """Edit school information for a team (GoldTeam only)."""
     user = cast(User, request.user)

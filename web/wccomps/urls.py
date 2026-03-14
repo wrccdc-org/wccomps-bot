@@ -21,6 +21,8 @@ urlpatterns = [
     path("packet/", include("packets.urls_team")),
     path("packets/", include("packets.urls_admin")),
     path("ops/school-info/", views.school_info, name="school_info"),
+    path("ops/school-info/export/", views.school_info_export, name="school_info_export"),
+    path("ops/school-info/clear/", views.school_info_clear, name="school_info_clear"),
     path(
         "ops/school-info/import/",
         views.school_info_import,
