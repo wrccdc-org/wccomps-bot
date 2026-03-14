@@ -158,7 +158,8 @@ nav[role="navigation"] {
     color: #fff;
 }
 
-.btn-danger {
+.btn-danger,
+a.btn-danger {
     background: var(--warning-fg);
     color: #fff;
     border: none;
