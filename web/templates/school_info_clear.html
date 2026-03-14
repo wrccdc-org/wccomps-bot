@@ -7,7 +7,7 @@
     <c-page_header title="Clear School Information" parent_url="{% url 'school_info' %}" parent_label="School Information" />
     <c-module>
     <c-alert variant="warning">
-    Are you sure you want to delete all {{ count }} school info record(s)? This cannot be undone.
+    Are you sure you want to delete all {{ count }} school info record(s) and reset team names? This cannot be undone.
     </c-alert>
     <form method="post">
         {% csrf_token %}

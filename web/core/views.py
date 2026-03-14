@@ -238,8 +238,9 @@ def school_info_clear(request: HttpRequest) -> HttpResponse:
 
     if request.method == "POST":
         deleted, _ = SchoolInfo.objects.all().delete()
-        logger.info(f"Cleared {deleted} school info records by {request.user.username}")
-        messages.success(request, f"Cleared {deleted} school info record(s).")
+        Team.objects.filter(is_active=True).exclude(team_name="").update(team_name="")
+        logger.info(f"Cleared {deleted} school info records and team names by {request.user.username}")
+        messages.success(request, f"Cleared {deleted} school info record(s) and reset team names.")
         return redirect("school_info")
 
     return render(
