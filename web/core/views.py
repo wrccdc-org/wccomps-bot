@@ -244,7 +244,9 @@ def school_info_clear(request: HttpRequest) -> HttpResponse:
         EventTeamAssignment.objects.all().delete()
         TeamRegistration.objects.all().delete()
         logger.info(f"Cleared school info, team names, registrations, and event assignments by {request.user.username}")
-        messages.success(request, f"Cleared {deleted} school info record(s), team names, registrations, and event assignments.")
+        messages.success(
+            request, f"Cleared {deleted} school info record(s), team names, registrations, and event assignments."
+        )
         return redirect("school_info")
 
     return render(
