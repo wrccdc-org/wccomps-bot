@@ -158,22 +158,6 @@ nav[role="navigation"] {
     color: #fff;
 }
 
-.btn-danger,
-a.btn-danger {
-    background: var(--warning-fg);
-    color: #fff;
-    border: none;
-    opacity: 1;
-    width: auto;
-    height: auto;
-    padding: 10px 15px;
-    font-size: 14px;
-    text-indent: 0;
-    background-image: none;
-}
-.btn-danger:hover {
-    filter: brightness(0.85);
-}
 
 /* Team status in mappings page */
 .field-status > div:first-child {
