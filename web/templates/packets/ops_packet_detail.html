@@ -79,8 +79,8 @@
                 <tr>
                     <form method="post"
                           action="{% url 'packet_resend_team' packet.id dist.team.id %}"
-                          x-data="{ submitting: false }"
-                          @submit="submitting = true"
+                          x-data="submitOnce"
+                          @submit="onSubmit"
                           class="m-0">
                         {% csrf_token %}
                         <td>Team {{ dist.team.team_number }}</td>
@@ -157,6 +157,10 @@
     </div>
     <script>
     document.addEventListener('alpine:init', () => {
+        Alpine.data('submitOnce', () => ({
+            submitting: false,
+            onSubmit() { this.submitting = true; },
+        }));
         Alpine.data('packetAdmin', () => ({
             ...streamMixin('{% url "packet_action" packet.id %}'),
 
