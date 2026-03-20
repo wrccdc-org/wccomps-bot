@@ -29,6 +29,10 @@
                             <span class="text-muted">|</span>
                             <span>{{ active_stats.sent }} sent</span>
                         {% endif %}
+                        {% if active_stats.pending and active_packet.status == "distributing" %}
+                            <span class="text-muted">|</span>
+                            <span class="text-warning">{{ active_stats.pending }} pending</span>
+                        {% endif %}
                         {% if active_stats.failed > 0 %}
                             <span class="text-muted">|</span>
                             <span class="text-danger">{{ active_stats.failed }} failed</span>
@@ -42,6 +46,11 @@
                         {% if active_packet.status == "draft" %}
                             <c-button variant="primary" @click="distributePacket" ::disabled="loading">
                             Distribute
+                            </c-button>
+                        {% endif %}
+                        {% if active_stats.pending > 0 and active_packet.status == "distributing" %}
+                            <c-button variant="warning" @click="retryPending" ::disabled="loading">
+                            Retry Pending
                             </c-button>
                         {% endif %}
                         {% if active_stats.failed > 0 %}
@@ -140,12 +149,14 @@
                 resendFailed() {
                     if (confirm('Resend to all failed teams?')) this.doStreamAction('resend_failed');
                 },
+                retryPending() {
+                    if (confirm('Retry all pending distributions?')) this.doStreamAction('resend_pending');
+                },
                 cancelPacket() {
                     if (confirm('Cancel this packet distribution?')) this.doStreamAction('cancel');
                 },
 
-                async doTestEmail() {
-                    const teamId = this.$refs.testTeam.value;
+                doTestEmail() {
                     const email = this.$refs.testEmail.value;
                     if (!email) {
                         this.message = 'Email address is required';
@@ -153,25 +164,10 @@
                         setTimeout(() => this.message = '', 3000);
                         return;
                     }
-
-                    this.loading = true;
-                    this.message = '';
-                    try {
-                        await wcStream(
-                            '{% url "packet_action" active_packet.id %}',
-                            { action: 'test_email', team_id: teamId, email },
-                            () => {},
-                            (msg) => {
-                                this.message = msg.message;
-                                this.messageType = msg.success ? 'success' : 'error';
-                            },
-                        );
-                    } catch (e) {
-                        this.message = 'Request failed: ' + e.message;
-                        this.messageType = 'error';
-                    }
-                    this.loading = false;
-                    setTimeout(() => this.message = '', 5000);
+                    this.doStreamAction('test_email', {
+                        team_id: this.$refs.testTeam.value,
+                        email,
+                    });
                 }
             }));
         });

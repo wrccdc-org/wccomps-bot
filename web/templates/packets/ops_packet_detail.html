@@ -16,6 +16,10 @@
                     <span>{{ stats.total }} teams</span>
                     <span class="text-muted">|</span>
                     <span>{{ stats.sent }} sent</span>
+                    {% if stats.pending and packet.status == "distributing" %}
+                        <span class="text-muted">|</span>
+                        <span class="text-warning">{{ stats.pending }} pending</span>
+                    {% endif %}
                     {% if stats.failed > 0 %}
                         <span class="text-muted">|</span>
                         <span class="text-danger">{{ stats.failed }} failed</span>
@@ -27,6 +31,11 @@
                     {% if packet.status == "draft" %}
                         <c-button variant="primary" @click="distributePacket" ::disabled="loading">
                         Distribute
+                        </c-button>
+                    {% endif %}
+                    {% if stats.pending > 0 and packet.status == "distributing" %}
+                        <c-button variant="warning" @click="retryPending" ::disabled="loading">
+                        Retry Pending
                         </c-button>
                     {% endif %}
                     {% if stats.failed > 0 %}
@@ -70,6 +79,8 @@
                 <tr>
                     <form method="post"
                           action="{% url 'packet_resend_team' packet.id dist.team.id %}"
+                          x-data="{ submitting: false }"
+                          @submit="submitting = true"
                           class="m-0">
                         {% csrf_token %}
                         <td>Team {{ dist.team.team_number }}</td>
@@ -98,7 +109,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <c-button type="submit" variant="default">Resend</c-button>
+                            <c-button type="submit" variant="default" ::disabled="submitting">Resend</c-button>
                         </td>
                     </form>
                 </tr>
@@ -155,12 +166,14 @@
             resendFailed() {
                 if (confirm('Resend to all failed teams?')) this.doStreamAction('resend_failed');
             },
+            retryPending() {
+                if (confirm('Retry all pending distributions?')) this.doStreamAction('resend_pending');
+            },
             cancelPacket() {
                 if (confirm('Cancel this packet distribution?')) this.doStreamAction('cancel');
             },
 
-            async doTestEmail() {
-                const teamId = this.$refs.testTeam.value;
+            doTestEmail() {
                 const email = this.$refs.testEmail.value;
                 if (!email) {
                     this.message = 'Email address is required';
@@ -168,25 +181,10 @@
                     setTimeout(() => this.message = '', 3000);
                     return;
                 }
-
-                this.loading = true;
-                this.message = '';
-                try {
-                    await wcStream(
-                        '{% url "packet_action" packet.id %}',
-                        { action: 'test_email', team_id: teamId, email },
-                        () => {},
-                        (msg) => {
-                            this.message = msg.message;
-                            this.messageType = msg.success ? 'success' : 'error';
-                        },
-                    );
-                } catch (e) {
-                    this.message = 'Request failed: ' + e.message;
-                    this.messageType = 'error';
-                }
-                this.loading = false;
-                setTimeout(() => this.message = '', 5000);
+                this.doStreamAction('test_email', {
+                    team_id: this.$refs.testTeam.value,
+                    email,
+                });
             }
         }));
     });

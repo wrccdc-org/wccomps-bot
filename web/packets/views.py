@@ -304,6 +304,12 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
             content_type="application/x-ndjson",
         )
 
+    if action == "resend_pending":
+        return StreamingHttpResponse(
+            service.stream_retry_pending(packet),
+            content_type="application/x-ndjson",
+        )
+
     if action == "cancel":
         packet.status = "cancelled"
         packet.save(update_fields=["status", "updated_at"])
@@ -313,6 +319,8 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
         )
 
     if action == "test_email":
+        from core.utils import ndjson_progress
+
         email = request.POST.get("email", "").strip()
         team_id = request.POST.get("team_id", "").strip()
         if not email or not team_id:
@@ -321,18 +329,18 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
                 content_type="application/x-ndjson",
             )
         team = get_object_or_404(Team, id=team_id)
-        try:
-            service.send_test_packet_email(packet, team, email)
-            msg = f"Test email sent to {email} as Team {team.team_number}"
-            return StreamingHttpResponse(
-                iter([json.dumps({"done": True, "success": True, "message": msg}) + "\n"]),
-                content_type="application/x-ndjson",
-            )
-        except Exception as e:
-            return StreamingHttpResponse(
-                iter([json.dumps({"done": True, "success": False, "message": str(e)}) + "\n"]),
-                content_type="application/x-ndjson",
-            )
+
+        def _stream_test():  # type: ignore[return]
+            yield ndjson_progress(f"Sending test email to {email}...", 0, 1)
+            try:
+                service.send_test_packet_email(packet, team, email)
+                yield ndjson_progress("Sent", 1, 1)
+                msg = f"Test email sent to {email} as Team {team.team_number}"
+                yield json.dumps({"done": True, "success": True, "message": msg}) + "\n"
+            except Exception as e:
+                yield json.dumps({"done": True, "success": False, "message": str(e)}) + "\n"
+
+        return StreamingHttpResponse(_stream_test(), content_type="application/x-ndjson")
 
     return HttpResponse("Unknown action", status=400)
 

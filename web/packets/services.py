@@ -3,10 +3,11 @@
 import json
 import logging
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-from django.db import transaction
+from django.db import close_old_connections, transaction
 from django.template.loader import render_to_string
 from registration.models import Event, EventTeamAssignment, TeamRegistration
 
@@ -266,6 +267,33 @@ class PacketDistributionService:
                 f"Team {team.team_number} downloaded packet {packet.id} (download #{distribution.download_count})"
             )
 
+    def _send_one(self, dist: PacketDistribution) -> tuple[PacketDistribution, bool, str]:
+        """Send a single packet email (thread-safe). Returns (dist, success, error)."""
+        try:
+            self.send_packet_email(dist)
+            return dist, True, ""
+        except Exception as e:
+            logger.error(f"Failed to send packet email to team {dist.team.team_number}: {e}")
+            dist.mark_as_failed(str(e))
+            return dist, False, str(e)
+        finally:
+            close_old_connections()
+
+    def _stream_parallel_send(self, distributions: list[PacketDistribution]) -> Iterator[str]:
+        """Send emails in parallel, yielding progress as each completes."""
+        total = len(distributions)
+        completed = 0
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(self._send_one, dist): dist for dist in distributions}
+            for future in as_completed(futures):
+                dist, success, error = future.result()
+                completed += 1
+                if success:
+                    yield _progress(f"Sent to Team {dist.team.team_number}", completed, total)
+                else:
+                    yield _progress(f"Failed Team {dist.team.team_number}: {error}", completed, total, ok=False)
+
     def stream_distribute_packet(self, packet: Packet) -> Iterator[str]:
         """Distribute a packet with streaming progress."""
         if not packet.event:
@@ -287,16 +315,14 @@ class PacketDistributionService:
 
         sent = 0
         failed = 0
-        for i, dist in enumerate(distributions, 1):
-            try:
-                self.send_packet_email(dist)
+        for line in self._stream_parallel_send(distributions):
+            yield line
+            # Parse back to track counts
+            data = json.loads(line)
+            if data.get("ok", True):
                 sent += 1
-                yield _progress(f"Sent to Team {dist.team.team_number}", i, total)
-            except Exception as e:
-                logger.error(f"Failed to send packet email to team {dist.team.team_number}: {e}")
-                dist.mark_as_failed(str(e))
+            else:
                 failed += 1
-                yield _progress(f"Failed Team {dist.team.team_number}: {e}", i, total, ok=False)
 
         if failed == 0:
             packet.mark_as_completed()
@@ -312,38 +338,33 @@ class PacketDistributionService:
             + "\n"
         )
 
-    def stream_resend_failed(self, packet: Packet) -> Iterator[str]:
-        """Resend failed distributions with streaming progress."""
-        failed_dists = list(
-            PacketDistribution.objects.filter(packet=packet, email_status="failed").select_related("team")
+    def _stream_resend(self, packet: Packet, status_filter: str, label: str) -> Iterator[str]:
+        """Resend distributions matching a status filter, with parallel streaming progress."""
+        dists = list(
+            PacketDistribution.objects.filter(packet=packet, email_status=status_filter).select_related("team")
         )
-        total = len(failed_dists)
+        total = len(dists)
 
         if total == 0:
-            yield json.dumps({"done": True, "success": True, "message": "No failed distributions to resend"}) + "\n"
+            yield json.dumps({"done": True, "success": True, "message": f"No {label} distributions to resend"}) + "\n"
             return
 
         # Reset to pending
-        PacketDistribution.objects.filter(packet=packet, email_status="failed").update(
+        PacketDistribution.objects.filter(packet=packet, email_status=status_filter).update(
             email_status="pending", email_error_message=""
         )
-
-        # Re-fetch after update
-        for dist in failed_dists:
+        for dist in dists:
             dist.refresh_from_db()
 
         sent = 0
         still_failed = 0
-        for i, dist in enumerate(failed_dists, 1):
-            try:
-                self.send_packet_email(dist)
+        for line in self._stream_parallel_send(dists):
+            yield line
+            data = json.loads(line)
+            if data.get("ok", True):
                 sent += 1
-                yield _progress(f"Resent to Team {dist.team.team_number}", i, total)
-            except Exception as e:
-                logger.error(f"Failed to resend to team {dist.team.team_number}: {e}")
-                dist.mark_as_failed(str(e))
+            else:
                 still_failed += 1
-                yield _progress(f"Failed Team {dist.team.team_number}: {e}", i, total, ok=False)
 
         if still_failed == 0:
             packet.mark_as_completed()
@@ -358,3 +379,11 @@ class PacketDistributionService:
             )
             + "\n"
         )
+
+    def stream_resend_failed(self, packet: Packet) -> Iterator[str]:
+        """Resend failed distributions with streaming progress."""
+        yield from self._stream_resend(packet, "failed", "failed")
+
+    def stream_retry_pending(self, packet: Packet) -> Iterator[str]:
+        """Retry pending distributions (from interrupted sends) with streaming progress."""
+        yield from self._stream_resend(packet, "pending", "pending")
