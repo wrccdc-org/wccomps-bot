@@ -5,6 +5,7 @@ import io
 import json
 import mimetypes
 import re
+from collections.abc import Iterator
 from typing import TypedDict, cast
 
 from django.contrib import messages
@@ -330,7 +331,7 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
             )
         team = get_object_or_404(Team, id=team_id)
 
-        def _stream_test():  # type: ignore[return]
+        def _stream_test() -> Iterator[str]:
             yield ndjson_progress(f"Sending test email to {email}...", 0, 1)
             try:
                 service.send_test_packet_email(packet, team, email)
