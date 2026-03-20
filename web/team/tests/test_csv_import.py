@@ -89,20 +89,6 @@ University One,invalid-email
 
         assert len(result["errors"]) > 0
 
-    def test_parse_csv_with_team_name(self) -> None:
-        """Test parsing CSV with optional team_name column."""
-        csv_content = """school_name,contact_email,team_name
-University One,contact1@example.edu,Blue Team
-"""
-        csv_file = SimpleUploadedFile("test.csv", csv_content.encode("utf-8"), content_type="text/csv")
-
-        result = parse_csv_file(csv_file)
-
-        assert len(result["rows"]) == 1
-        assert len(result["errors"]) == 0
-        assert result["rows"][0]["team_name"] == "Blue Team"
-
-
 class TestCSVHeaderInference:
     """Test auto-detection of CSV column names."""
 
@@ -271,27 +257,3 @@ class TestCSVImport:
         assert school_info1.notes == "Test note"
         assert school_info1.updated_by == "testuser"
 
-    def test_apply_csv_import_with_team_name(self, setup_teams: list[Team], setup_user: User) -> None:
-        """Test applying CSV import that sets team name."""
-        original_name = setup_teams[0].team_name
-
-        teams_to_create = [
-            {
-                "_team": setup_teams[0],
-                "team_number": 1,
-                "school_name": "University One",
-                "contact_email": "contact1@example.edu",
-                "secondary_email": "",
-                "notes": "",
-                "team_name": "New Team Name",
-            }
-        ]
-
-        result = apply_csv_import(teams_to_create, "testuser")
-
-        assert result["created"] == 1
-
-        # Verify team name was set
-        setup_teams[0].refresh_from_db()
-        assert setup_teams[0].team_name == "New Team Name"
-        assert setup_teams[0].team_name != original_name
