@@ -645,8 +645,8 @@ class AdminCompetitionCog(commands.Cog):
                             except Exception as e:
                                 logger.warning(f"Could not remove {role.name} from {member}: {e}")
 
-                # Remove WRCCDC Room Judge role
-                room_judge_role = discord.utils.get(guild.roles, name="WRCCDC Room Judge")
+                # Remove WCComps Room Judge role
+                room_judge_role = discord.utils.get(guild.roles, name="WCComps Room Judge")
                 if room_judge_role:
                     for member in room_judge_role.members:
                         try:

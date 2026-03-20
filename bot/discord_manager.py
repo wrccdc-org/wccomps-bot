@@ -236,12 +236,12 @@ class DiscordManager:
 
             # Get specific roles by name
             white_team = discord.utils.get(self.guild.roles, name="White Team")
-            observers = discord.utils.get(self.guild.roles, name="WRCCDC Observers")
+            observers = discord.utils.get(self.guild.roles, name="WCComps Observers")
             orange_team = discord.utils.get(self.guild.roles, name="Orange Team")
             orange_team_guest = discord.utils.get(self.guild.roles, name="Orange Team Guest")
             black_team_guest = discord.utils.get(self.guild.roles, name="Black Team Guest")
-            room_judge = discord.utils.get(self.guild.roles, name="WRCCDC Room Judge")
-            operations_team = discord.utils.get(self.guild.roles, name="WRCCDC Operations Team")
+            room_judge = discord.utils.get(self.guild.roles, name="WCComps Room Judge")
+            operations_team = discord.utils.get(self.guild.roles, name="WCComps Operations Team")
             server_owners = discord.utils.get(self.guild.roles, name="WRCCDC Server Owners")
 
             # Default: hide from @everyone
@@ -263,7 +263,7 @@ class DiscordManager:
             if white_team:
                 overwrites[white_team] = discord.PermissionOverwrite(read_messages=True, connect=True)
 
-            # WRCCDC Observers: read only
+            # WCComps Observers: read only
             if observers:
                 overwrites[observers] = discord.PermissionOverwrite(
                     read_messages=True, send_messages=False, connect=False
@@ -287,11 +287,11 @@ class DiscordManager:
                     read_messages=True, send_messages=True, connect=True, speak=True
                 )
 
-            # WRCCDC Room Judge: read only
+            # WCComps Room Judge: read only
             if room_judge:
                 overwrites[room_judge] = discord.PermissionOverwrite(read_messages=True)
 
-            # WRCCDC Operations Team: full access
+            # WCComps Operations Team: full access
             if operations_team:
                 overwrites[operations_team] = discord.PermissionOverwrite(
                     read_messages=True, send_messages=True, connect=True, speak=True
