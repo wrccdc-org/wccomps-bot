@@ -89,6 +89,7 @@ University One,invalid-email
 
         assert len(result["errors"]) > 0
 
+
 class TestCSVHeaderInference:
     """Test auto-detection of CSV column names."""
 
@@ -256,4 +257,3 @@ class TestCSVImport:
         assert school_info1.secondary_email == "alt1@example.edu"
         assert school_info1.notes == "Test note"
         assert school_info1.updated_by == "testuser"
-
