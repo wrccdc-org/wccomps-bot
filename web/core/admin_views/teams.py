@@ -83,7 +83,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
 
     if action == "activate":
         team.is_active = True
-        team.save()
+        team.save(update_fields=["is_active"])
         AuditLog.objects.create(
             action="team_activated",
             admin_user=authentik_username,
@@ -95,7 +95,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
 
     elif action == "deactivate":
         team.is_active = False
-        team.save()
+        team.save(update_fields=["is_active"])
         AuditLog.objects.create(
             action="team_deactivated",
             admin_user=authentik_username,

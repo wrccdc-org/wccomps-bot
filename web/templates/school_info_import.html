@@ -56,10 +56,7 @@
                     </c-slot>
                     {% for row in preview_data.teams_to_create %}
                         <tr class="{% cycle 'row1' 'row2' %}">
-                            <td>
-                                Team {{ row.team_number }}
-                                {% if row.team_name %}- {{ row.team_name }}{% endif %}
-                            </td>
+                            <td>Team {{ row.team_number }}</td>
                             <td>{{ row.school_name }}</td>
                             <td>{{ row.contact_email }}</td>
                             <td>{{ row.secondary_email|default:"—" }}</td>
@@ -99,15 +96,12 @@
                     <li>
                         <strong>notes</strong> (optional) - Additional notes about the team
                     </li>
-                    <li>
-                        <strong>team_name</strong> (optional) - Set the team name
-                    </li>
                 </ul>
                 <h3 class="mt-20">Example CSV File</h3>
-                <pre class="code-block">school_name,contact_email,secondary_email,notes,team_name
-University of Example,coach@example.edu,assistant@example.edu,Main campus team,Example Blue
-Community College,contact@college.edu,,Remote team,
-Tech Institute,admin@techinst.edu,,,Tech Warriors</pre>
+                <pre class="code-block">school_name,contact_email,secondary_email,notes
+University of Example,coach@example.edu,assistant@example.edu,Main campus team
+Community College,contact@college.edu,,Remote team
+Tech Institute,admin@techinst.edu,,</pre>
                 <c-form enctype="multipart/form-data" class="mt-20">
                 {% csrf_token %}
                 <c-fieldset aligned="true">

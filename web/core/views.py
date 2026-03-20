@@ -240,12 +240,11 @@ def school_info_clear(request: HttpRequest) -> HttpResponse:
         from registration.models import EventTeamAssignment, TeamRegistration
 
         deleted, _ = SchoolInfo.objects.all().delete()
-        Team.objects.filter(is_active=True).exclude(team_name="").update(team_name="")
         EventTeamAssignment.objects.all().delete()
         TeamRegistration.objects.all().delete()
-        logger.info(f"Cleared school info, team names, registrations, and event assignments by {request.user.username}")
+        logger.info(f"Cleared school info, registrations, and event assignments by {request.user.username}")
         messages.success(
-            request, f"Cleared {deleted} school info record(s), team names, registrations, and event assignments."
+            request, f"Cleared {deleted} school info record(s), registrations, and event assignments."
         )
         return redirect("school_info")
 

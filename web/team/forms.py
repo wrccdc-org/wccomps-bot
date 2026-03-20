@@ -19,7 +19,7 @@ def _infer_header_mapping(fieldnames: list[str]) -> dict[str, str] | None:
     Detects email columns (contain 'email'), and assigns the remaining
     unmapped column as school_name. Returns None if headers already canonical.
     """
-    canonical = {"school_name", "contact_email", "secondary_email", "notes", "team_name"}
+    canonical = {"school_name", "contact_email", "secondary_email", "notes"}
     normalized = {f: f.strip().lower().replace(" ", "_") for f in fieldnames}
 
     # If headers already match canonical names, no inference needed
@@ -60,7 +60,6 @@ class CSVRowData(TypedDict, total=False):
     contact_email: str
     secondary_email: str
     notes: str
-    team_name: str
     team_number: int
     _team: Team
 
@@ -127,7 +126,7 @@ def parse_csv_file(csv_file: UploadedFile) -> CSVParseResult:
 
         # Validate headers
         required_headers = {"school_name", "contact_email"}
-        optional_headers = {"secondary_email", "notes", "team_name"}
+        optional_headers = {"secondary_email", "notes"}
         all_headers = required_headers | optional_headers
 
         if not reader.fieldnames:
@@ -197,11 +196,6 @@ def parse_csv_file(csv_file: UploadedFile) -> CSVParseResult:
             # Get notes (optional)
             notes = row.get("notes", "").strip()
             row_data["notes"] = notes
-
-            # Get team_name (optional)
-            team_name = row.get("team_name", "").strip()
-            if team_name:
-                row_data["team_name"] = team_name
 
             # Add row if no errors
             if row_errors:
@@ -305,11 +299,6 @@ def apply_csv_import(
             updated_by=updated_by,
         )
         created += 1
-
-        # Update team name if provided
-        if "team_name" in row and row["team_name"]:
-            team.team_name = row["team_name"]
-            team.save()
 
         # Auto-assign to active event
         if event:
