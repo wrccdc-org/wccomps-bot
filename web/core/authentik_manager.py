@@ -362,20 +362,27 @@ class AuthentikManager:
         logger.info(f"Disable applications complete: {success_count}/{len(app_slugs)} succeeded")
         return results
 
-    def update_user_discord_id(self, authentik_user_id: str, discord_id: int) -> bool:
+    def update_user_discord_id(self, username: str, discord_id: int) -> bool:
         """Store Discord ID in Authentik user attributes, preserving existing attributes.
 
         Args:
-            authentik_user_id: Authentik user UUID (pk)
+            username: Authentik username to look up
             discord_id: Discord user ID (snowflake)
         """
         try:
-            # First, get the current user to preserve existing attributes
+            # Look up user by username to get the integer PK
             response = self.client.get(
-                f"{self.base_url}/api/v3/core/users/{authentik_user_id}/",
+                f"{self.base_url}/api/v3/core/users/?username={quote(username, safe='')}",
             )
             response.raise_for_status()
-            user = response.json()
+            users = response.json().get("results", [])
+
+            if not users:
+                logger.warning(f"Authentik user not found for username {username}")
+                return False
+
+            user = users[0]
+            user_pk = user["pk"]
 
             # Update attributes (preserve existing, add discord_id)
             existing_attrs = user.get("attributes", {})
@@ -384,22 +391,22 @@ class AuthentikManager:
 
             # Update user with merged attributes
             response = self.client.patch(
-                f"{self.base_url}/api/v3/core/users/{authentik_user_id}/",
+                f"{self.base_url}/api/v3/core/users/{user_pk}/",
                 json={"attributes": attributes},
             )
             response.raise_for_status()
-            logger.info(f"Updated discord_id for Authentik user {authentik_user_id}")
+            logger.info(f"Updated discord_id for Authentik user {username} (pk={user_pk})")
             return True
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:
                 logger.exception(
-                    f"Authentik API token lacks permission to update user {authentik_user_id}. Error: {e.response.text}"
+                    f"Authentik API token lacks permission to update user {username}. Error: {e.response.text}"
                 )
             else:
                 logger.exception(f"Failed to update Authentik user discord_id: {e}")
             raise
         except Exception as e:
-            logger.exception(f"Failed to update discord_id for user {authentik_user_id}: {e}")
+            logger.exception(f"Failed to update discord_id for user {username}: {e}")
             return False
 
     def revoke_user_sessions(self, username: str) -> tuple[bool, str | None, int]:

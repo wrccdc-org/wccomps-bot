@@ -44,12 +44,16 @@ class TestUpdateUserDiscordId:
             return mgr
 
     def test_updates_user_with_discord_id(self, manager):
-        """Should update user attributes with discord_id."""
-        # Mock GET response (existing user)
+        """Should look up user by username, then PATCH with discord_id."""
+        # Mock GET response (user search by username)
         mock_get_response = MagicMock()
         mock_get_response.json.return_value = {
-            "pk": "user-uuid-123",
-            "attributes": {"existing_attr": "value"},
+            "results": [
+                {
+                    "pk": 42,
+                    "attributes": {"existing_attr": "value"},
+                }
+            ],
         }
         manager.client.get.return_value = mock_get_response
 
@@ -57,16 +61,17 @@ class TestUpdateUserDiscordId:
         mock_patch_response = MagicMock()
         manager.client.patch.return_value = mock_patch_response
 
-        result = manager.update_user_discord_id("user-uuid-123", 123456789)
+        result = manager.update_user_discord_id("testuser", 123456789)
 
         assert result is True
 
-        # Verify GET was called to fetch current user
+        # Verify GET searched by username
         manager.client.get.assert_called_once()
-        assert "user-uuid-123" in manager.client.get.call_args[0][0]
+        assert "username=testuser" in manager.client.get.call_args[0][0]
 
-        # Verify PATCH was called with merged attributes
+        # Verify PATCH used the integer PK
         manager.client.patch.assert_called_once()
+        assert "/42/" in manager.client.patch.call_args[0][0]
         call_kwargs = manager.client.patch.call_args[1]
         assert call_kwargs["json"]["attributes"]["discord_id"] == "123456789"
         assert call_kwargs["json"]["attributes"]["existing_attr"] == "value"
@@ -75,19 +80,34 @@ class TestUpdateUserDiscordId:
         """Should preserve existing user attributes when adding discord_id."""
         mock_get_response = MagicMock()
         mock_get_response.json.return_value = {
-            "pk": "user-uuid",
-            "attributes": {"role": "admin", "team": "gold"},
+            "results": [
+                {
+                    "pk": 7,
+                    "attributes": {"role": "admin", "team": "gold"},
+                }
+            ],
         }
         manager.client.get.return_value = mock_get_response
         manager.client.patch.return_value = MagicMock()
 
-        manager.update_user_discord_id("user-uuid", 999999999)
+        manager.update_user_discord_id("golduser", 999999999)
 
         call_kwargs = manager.client.patch.call_args[1]
         attrs = call_kwargs["json"]["attributes"]
         assert attrs["role"] == "admin"
         assert attrs["team"] == "gold"
         assert attrs["discord_id"] == "999999999"
+
+    def test_returns_false_when_user_not_found(self, manager):
+        """Should return False if username lookup returns no results."""
+        mock_get_response = MagicMock()
+        mock_get_response.json.return_value = {"results": []}
+        manager.client.get.return_value = mock_get_response
+
+        result = manager.update_user_discord_id("nonexistent", 123456789)
+
+        assert result is False
+        manager.client.patch.assert_not_called()
 
     def test_raises_on_403_error(self, manager):
         """Should raise on 403 Forbidden (permission issue)."""
@@ -100,7 +120,7 @@ class TestUpdateUserDiscordId:
         manager.client.get.return_value = mock_response
 
         with pytest.raises(httpx.HTTPStatusError):
-            manager.update_user_discord_id("user-uuid", 123456789)
+            manager.update_user_discord_id("someuser", 123456789)
 
     def test_raises_on_other_http_errors(self, manager):
         """Should raise on other HTTP errors."""
@@ -113,4 +133,4 @@ class TestUpdateUserDiscordId:
         manager.client.get.return_value = mock_response
 
         with pytest.raises(httpx.HTTPStatusError):
-            manager.update_user_discord_id("user-uuid", 123456789)
+            manager.update_user_discord_id("someuser", 123456789)

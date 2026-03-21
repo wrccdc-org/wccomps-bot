@@ -335,19 +335,21 @@ class TestAuthentikManager:
     def test_update_user_discord_id_success(self, manager: AuthentikManager) -> None:
         """Test successfully updating user's Discord ID."""
         mock_get_response = Mock()
-        mock_get_response.json.return_value = {"attributes": {"existing_key": "value"}}
+        mock_get_response.json.return_value = {
+            "results": [{"pk": 42, "attributes": {"existing_key": "value"}}],
+        }
 
         mock_patch_response = Mock()
 
         manager.client.get.return_value = mock_get_response
         manager.client.patch.return_value = mock_patch_response
 
-        result = manager.update_user_discord_id("user-123", 123456789)
+        result = manager.update_user_discord_id("testuser", 123456789)
 
         assert result is True
         manager.client.patch.assert_called_once()
         call_args = manager.client.patch.call_args
-        assert "user-123" in call_args[0][0]
+        assert "/42/" in call_args[0][0]
         assert call_args[1]["json"]["attributes"]["discord_id"] == "123456789"
         # Verify existing attributes are preserved
         assert call_args[1]["json"]["attributes"]["existing_key"] == "value"
@@ -356,7 +358,7 @@ class TestAuthentikManager:
         """Test handling failure when updating Discord ID."""
         manager.client.get.side_effect = httpx.ConnectError("Network error")
 
-        result = manager.update_user_discord_id("user-123", 123456789)
+        result = manager.update_user_discord_id("testuser", 123456789)
 
         assert result is False
 
