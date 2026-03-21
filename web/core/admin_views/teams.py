@@ -214,7 +214,7 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
 
     form = TeamsBulkActionForm(request.POST)
     if not form.is_valid():
-        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        error_msg = "; ".join(str(e) for errors in form.errors.values() for e in errors)
         return JsonResponse({"error": error_msg or "Invalid input"}, status=400)
 
     action = form.cleaned_data["action"]

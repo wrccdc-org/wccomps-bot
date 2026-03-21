@@ -1,7 +1,7 @@
 """Forms for scoring system."""
 
 import ipaddress
-from typing import cast
+from typing import Any, cast
 
 from django import forms
 from django.contrib.auth.models import User
@@ -458,7 +458,7 @@ class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
 class InjectGradingForm(forms.Form):
     inject_id = forms.CharField(max_length=100)
 
-    def __init__(self, *args: object, team_numbers: list[int] | None = None, **kwargs: object) -> None:
+    def __init__(self, *args: Any, team_numbers: list[int] | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if team_numbers:
             for num in team_numbers:

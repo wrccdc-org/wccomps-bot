@@ -285,7 +285,7 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
     if request.method == "POST":
         form = SchoolInfoEditForm(request.POST)
         if not form.is_valid():
-            error_msg = " ".join(e for errors in form.errors.values() for e in errors)
+            error_msg = " ".join(str(e) for errors in form.errors.values() for e in errors)
             return render(
                 request,
                 "school_info_edit.html",

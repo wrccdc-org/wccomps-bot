@@ -1,5 +1,7 @@
 """Django forms for orange team challenge views."""
 
+from typing import Any
+
 from django import forms
 from django.http import QueryDict
 
@@ -13,7 +15,7 @@ class OrangeCheckForm(forms.Form):
 class CheckAssignForm(forms.Form):
     user_ids = forms.TypedMultipleChoiceField(coerce=int)
 
-    def __init__(self, *args: object, choices: list[tuple[int, str]] | None = None, **kwargs: object) -> None:
+    def __init__(self, *args: Any, choices: list[tuple[int, str]] | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         if choices:
             self.fields["user_ids"].choices = choices

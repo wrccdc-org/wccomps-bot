@@ -189,7 +189,7 @@ def upload_packet(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = PacketUploadForm(request.POST, request.FILES)
         if not form.is_valid():
-            error_msg = " ".join(e for errors in form.errors.values() for e in errors)
+            error_msg = " ".join(str(e) for errors in form.errors.values() for e in errors)
             messages.error(request, error_msg)
             return render(request, "packets/ops_upload_packet.html", form_context)
 
@@ -280,7 +280,7 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
 
     form = PacketActionForm(request.POST)
     if not form.is_valid():
-        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        error_msg = "; ".join(str(e) for errors in form.errors.values() for e in errors)
         return StreamingHttpResponse(
             iter([json.dumps({"done": True, "success": False, "message": error_msg}) + "\n"]),
             content_type="application/x-ndjson",

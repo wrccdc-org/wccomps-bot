@@ -429,7 +429,7 @@ def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, aut
     """Handle reset_passwords action."""
     form = ResetPasswordsForm(request.POST)
     if not form.is_valid():
-        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        error_msg = "; ".join(str(e) for errors in form.errors.values() for e in errors)
         return JsonResponse({"error": error_msg}, status=400)
 
     team_numbers = form.cleaned_data["team_numbers"] or list(range(1, MAX_TEAMS + 1))
