@@ -10,7 +10,6 @@ from typing import TypedDict, cast
 
 from django.contrib import messages
 from django.contrib.auth.models import User
-from django.core.files.uploadedfile import UploadedFile
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBase, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -19,8 +18,8 @@ from registration.models import Event
 from core.auth_utils import get_user_team_number, require_permission
 from team.models import Team
 
-from .models import Packet, PacketDistribution
 from .forms import PacketActionForm, PacketResendForm, PacketUploadForm
+from .models import Packet, PacketDistribution
 from .services import PacketDistributionService
 
 

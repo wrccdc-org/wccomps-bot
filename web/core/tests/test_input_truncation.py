@@ -98,6 +98,4 @@ def test_oversized_input_no_500(url_name, form_data, client_fixture, extras, req
             form_data = {**form_data, "category": fixture_val.pk}
 
     response = http_client.post(reverse(url_name), form_data)
-    assert response.status_code != 500, (
-        f"POST {url_name} returned 500 with oversized field"
-    )
+    assert response.status_code != 500, f"POST {url_name} returned 500 with oversized field"

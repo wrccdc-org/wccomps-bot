@@ -11,12 +11,10 @@ from core.auth_utils import require_permission
 from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
-    parse_team_range,
 )
+from core.forms import TeamActionForm, TeamsBulkActionForm
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
-
-from core.forms import TeamActionForm, TeamsBulkActionForm
 
 from .competition import _has_admin_or_gold_access
 

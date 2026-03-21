@@ -21,7 +21,8 @@ class CategoryForm(forms.Form):
     display_name = forms.CharField(max_length=100)
     points = forms.IntegerField(initial=0)
     required_fields = forms.TypedMultipleChoiceField(
-        coerce=str, required=False,
+        coerce=str,
+        required=False,
         choices=[
             ("hostname", "Hostname"),
             ("ip_address", "IP Address"),
@@ -30,7 +31,8 @@ class CategoryForm(forms.Form):
         ],
     )
     optional_fields = forms.TypedMultipleChoiceField(
-        coerce=str, required=False,
+        coerce=str,
+        required=False,
         choices=[
             ("hostname", "Hostname"),
             ("ip_address", "IP Address"),
@@ -74,6 +76,7 @@ class ResetPasswordsForm(forms.Form):
 
 class ActionForm(forms.Form):
     """Simple action dispatcher form."""
+
     action = forms.CharField()
 
 

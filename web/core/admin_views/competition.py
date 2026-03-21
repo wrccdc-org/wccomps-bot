@@ -17,13 +17,11 @@ from scoring.quotient_sync import sync_quotient_metadata
 from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
-    parse_team_range,
 )
+from core.forms import ActionForm, ResetPasswordsForm, SetAppsForm, SetMaxMembersForm, SetTimeForm
 from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import ndjson_progress as _progress
 from team.models import MAX_TEAMS
-
-from core.forms import ActionForm, ResetPasswordsForm, SetAppsForm, SetMaxMembersForm, SetTimeForm
 
 from ..auth_utils import has_permission, require_permission
 from ..utils import parse_datetime_to_utc

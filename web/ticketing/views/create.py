@@ -82,9 +82,7 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
                     "service_choices": service_choices,
                     "box_names": box_names,
                     "box_ip_map": box_ip_map,
-                    "error": " ".join(
-                        err for errors in form.errors.values() for err in errors
-                    ),
+                    "error": " ".join(err for errors in form.errors.values() for err in errors),
                     "form_data": request.POST,
                 },
             )

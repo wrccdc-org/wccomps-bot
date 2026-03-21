@@ -11,6 +11,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from challenges.forms import AssignmentRejectForm, CheckAssignForm, FollowUpForm, OrangeCheckForm, extract_criteria
 from challenges.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
@@ -19,7 +20,6 @@ from challenges.models import (
     OrangeCheckIn,
     OrangeFollowUp,
 )
-from challenges.forms import AssignmentRejectForm, CheckAssignForm, FollowUpForm, OrangeCheckForm, extract_criteria
 from challenges.services import assign_teams_round_robin, create_orange_score_from_assignment
 from core.auth_utils import has_permission, require_permission
 from team.models import Team

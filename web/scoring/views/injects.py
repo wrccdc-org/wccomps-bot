@@ -1,6 +1,5 @@
 """Inject grading, review, and feedback views."""
 
-from decimal import Decimal
 from typing import cast
 
 from django.contrib import messages

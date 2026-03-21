@@ -65,7 +65,4 @@ def test_no_raw_post_access() -> None:
                 violations.append(f"  {rel}:{i}  {stripped.strip()}")
 
     if violations:
-        pytest.fail(
-            "Raw request.POST access found — use a Django form class instead:\n"
-            + "\n".join(violations)
-        )
+        pytest.fail("Raw request.POST access found — use a Django form class instead:\n" + "\n".join(violations))
