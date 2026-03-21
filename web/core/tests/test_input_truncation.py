@@ -15,8 +15,6 @@ pytestmark = pytest.mark.django_db
 OVERSIZED = "x" * 1000  # Well beyond any max_length in the codebase
 
 
-# (test_id, url_name, overrides, client_fixture, extra_fixtures)
-# "overrides" maps the field-under-test to OVERSIZED; remaining keys are valid defaults.
 TRUNCATION_CASES = [
     # ── Ticket creation ───────────────────────────────────────────────
     (
