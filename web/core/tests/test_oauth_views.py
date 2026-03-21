@@ -70,7 +70,9 @@ class TestLinkInitiate:
         response = client.get(f"/auth/link?token={token.token}")
         assert response.status_code == 302
         assert "/auth/login/" in response.url
-        assert f"token={token.token}" in response.url
+        from urllib.parse import unquote
+
+        assert f"token={token.token}" in unquote(response.url)
 
     def test_valid_token_stores_in_session(self):
         """Valid token should be stored in session for CSRF protection."""

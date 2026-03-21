@@ -94,7 +94,10 @@ def link_initiate(request: HttpRequest) -> HttpResponse:
     request.session["pending_link_discord_id"] = link_token.discord_id
 
     # Pass token through OAuth redirect via next parameter
-    return redirect(f"/auth/login/?next=/auth/link-callback?token={link_token.token}")
+    from urllib.parse import quote
+
+    next_url = quote(f"/auth/link-callback?token={link_token.token}", safe="")
+    return redirect(f"/auth/login/?next={next_url}")
 
 
 def link_callback(request: HttpRequest) -> HttpResponse:

@@ -16,8 +16,9 @@ from core.models import UserGroups
 
 @pytest.fixture
 def oauth_state_session(client: Client) -> tuple[Client, str]:
-    """Set up a client with valid OAuth state in session."""
-    # Visit login to set up state
+    """Set up a client with valid OAuth state from a login redirect."""
+    from urllib.parse import parse_qs, urlparse
+
     with patch("core.oauth._get_oauth_config") as mock_config:
         mock_config.return_value = {
             "client_id": "test-client-id",
@@ -30,9 +31,9 @@ def oauth_state_session(client: Client) -> tuple[Client, str]:
         response = client.get("/auth/login/")
         assert response.status_code == 302
 
-    pending = client.session.get("oauth_pending_states", [])
-    assert len(pending) == 1
-    state = pending[0]["state"]
+    # Extract the signed state from the redirect URL
+    parsed = urlparse(response.url)
+    state = parse_qs(parsed.query)["state"][0]
     return client, state
 
 
@@ -59,8 +60,12 @@ class TestOAuthLogin:
         assert "client_id=test-client-id" in response.url
         assert "scope=openid" in response.url
 
-    def test_login_stores_state_in_session(self):
-        """Login should store state in session for CSRF protection."""
+    def test_login_includes_signed_state_in_redirect(self):
+        """Login should include a signed state parameter in the redirect URL."""
+        from urllib.parse import parse_qs, urlparse
+
+        from django.core import signing
+
         client = Client()
         with patch("core.oauth._get_oauth_config") as mock_config:
             mock_config.return_value = {
@@ -71,14 +76,20 @@ class TestOAuthLogin:
                 "userinfo_endpoint": "https://auth.example.com/userinfo/",
                 "end_session_endpoint": "https://auth.example.com/end-session/",
             }
-            client.get("/auth/login/")
+            response = client.get("/auth/login/")
 
-        pending = client.session.get("oauth_pending_states", [])
-        assert len(pending) == 1
-        assert len(pending[0]["state"]) > 20  # Secure random
+        parsed = urlparse(response.url)
+        state = parse_qs(parsed.query)["state"][0]
+        state_data = signing.loads(state, max_age=300)
+        assert "n" in state_data  # Contains nonce
+        assert len(state_data["n"]) > 10  # Secure random nonce
 
-    def test_login_stores_next_url(self):
-        """Login should store next URL for post-login redirect."""
+    def test_login_encodes_next_url_in_state(self):
+        """Login should encode next URL in the signed state parameter."""
+        from urllib.parse import parse_qs, urlparse
+
+        from django.core import signing
+
         client = Client()
         with patch("core.oauth._get_oauth_config") as mock_config:
             mock_config.return_value = {
@@ -89,11 +100,12 @@ class TestOAuthLogin:
                 "userinfo_endpoint": "https://auth.example.com/userinfo/",
                 "end_session_endpoint": "https://auth.example.com/end-session/",
             }
-            client.get("/auth/login/?next=/dashboard/")
+            response = client.get("/auth/login/?next=/dashboard/")
 
-        pending = client.session.get("oauth_pending_states", [])
-        assert len(pending) == 1
-        assert pending[0]["next"] == "/dashboard/"
+        parsed = urlparse(response.url)
+        state = parse_qs(parsed.query)["state"][0]
+        state_data = signing.loads(state, max_age=300)
+        assert state_data["next"] == "/dashboard/"
 
     def test_login_without_client_id_shows_error(self):
         """Login without client ID configured should show error."""
@@ -273,16 +285,9 @@ class TestOAuthCallback:
         assert user.username == "newusername"
 
     def test_callback_rejects_invalid_state(self):
-        """Callback should reject request with invalid state."""
+        """Callback should reject request with forged/invalid state."""
         client = Client()
-        # Set up session with different state
-        session = client.session
-        session["oauth_pending_states"] = [
-            {"state": "correct-state", "created": "2025-01-01T00:00:00+00:00", "next": "/"},
-        ]
-        session.save()
-
-        response = client.get("/auth/callback/?code=test-code&state=wrong-state")
+        response = client.get("/auth/callback/?code=test-code&state=forged-state")
 
         assert response.status_code == 200  # Error page
         assert b"Security Error" in response.content
@@ -295,23 +300,25 @@ class TestOAuthCallback:
         assert response.status_code == 200  # Error page
         assert b"Session Expired" in response.content
 
-    def test_callback_rejects_expired_state(self, oauth_state_session):
+    def test_callback_rejects_expired_state(self):
         """Callback should reject expired state (>5 minutes)."""
-        client, state = oauth_state_session
+        from django.core import signing
 
-        # Set state creation time to 10 minutes ago
-        session = client.session
-        from datetime import timedelta
+        # Create a state that's already expired by using a short max_age
+        state = signing.dumps({"n": "test-nonce", "next": "/"})
 
-        from django.utils import timezone
+        client = Client()
+        # Passing max_age=0 won't help here — we need the state to actually be old.
+        # Instead, test by creating a state with a past timestamp via the signer.
+        from unittest.mock import patch as mock_patch
 
-        old_time = timezone.now() - timedelta(minutes=10)
-        session["oauth_pending_states"] = [
-            {"state": state, "created": old_time.isoformat(), "next": "/"},
-        ]
-        session.save()
+        import time
 
-        response = client.get(f"/auth/callback/?code=test-code&state={state}")
+        # Create state, then pretend time has passed
+        with mock_patch("django.core.signing.time.time", return_value=time.time() - 600):
+            expired_state = signing.dumps({"n": "test-nonce", "next": "/"})
+
+        response = client.get(f"/auth/callback/?code=test-code&state={expired_state}")
 
         assert response.status_code == 200  # Error page
         assert b"Session Expired" in response.content
@@ -366,17 +373,26 @@ class TestOAuthCallback:
         assert "_auth_user_id" in client.session
         assert str(user.id) == client.session["_auth_user_id"]
 
-    def test_callback_redirects_to_next_url(self, oauth_state_session):
-        """Callback should redirect to stored next URL."""
-        client, state = oauth_state_session
+    def test_callback_redirects_to_next_url(self):
+        """Callback should redirect to next URL encoded in the signed state."""
+        from urllib.parse import parse_qs, urlparse
 
-        # Set next URL in the pending state entry
-        session = client.session
-        pending = session.get("oauth_pending_states", [])
-        if pending:
-            pending[0]["next"] = "/my-dashboard/"
-            session["oauth_pending_states"] = pending
-        session.save()
+        client = Client()
+
+        # Initiate login with a specific next URL
+        with patch("core.oauth._get_oauth_config") as mock_config:
+            mock_config.return_value = {
+                "client_id": "test-client-id",
+                "client_secret": "test-secret",
+                "authorization_endpoint": "https://auth.example.com/authorize/",
+                "token_endpoint": "https://auth.example.com/token/",
+                "userinfo_endpoint": "https://auth.example.com/userinfo/",
+                "end_session_endpoint": "https://auth.example.com/end-session/",
+            }
+            response = client.get("/auth/login/?next=/my-dashboard/")
+
+        parsed = urlparse(response.url)
+        state = parse_qs(parsed.query)["state"][0]
 
         mock_token_response = MagicMock()
         mock_token_response.json.return_value = {"access_token": "test-token"}
@@ -413,6 +429,111 @@ class TestOAuthCallback:
 
         assert response.status_code == 302
         assert response.url == "/my-dashboard/"
+
+    def test_callback_preserves_next_url_with_query_params(self):
+        """Callback should preserve next URL containing query parameters (e.g. link token)."""
+        from urllib.parse import parse_qs, urlparse
+
+        client = Client()
+        next_url = "/auth/link-callback?token=abc123"
+
+        with patch("core.oauth._get_oauth_config") as mock_config:
+            mock_config.return_value = {
+                "client_id": "test-client-id",
+                "client_secret": "test-secret",
+                "authorization_endpoint": "https://auth.example.com/authorize/",
+                "token_endpoint": "https://auth.example.com/token/",
+                "userinfo_endpoint": "https://auth.example.com/userinfo/",
+                "end_session_endpoint": "https://auth.example.com/end-session/",
+            }
+            response = client.get(f"/auth/login/?next={next_url}")
+
+        parsed = urlparse(response.url)
+        state = parse_qs(parsed.query)["state"][0]
+
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+
+        mock_userinfo_response = MagicMock()
+        mock_userinfo_response.json.return_value = {
+            "sub": "link-test-id",
+            "preferred_username": "linkuser",
+            "groups": [],
+        }
+        mock_userinfo_response.raise_for_status = MagicMock()
+
+        with (
+            patch("core.oauth._get_oauth_config") as mock_config,
+            patch("core.oauth.httpx.Client") as mock_httpx,
+        ):
+            mock_config.return_value = {
+                "client_id": "test-client-id",
+                "client_secret": "test-secret",
+                "authorization_endpoint": "https://auth.example.com/authorize/",
+                "token_endpoint": "https://auth.example.com/token/",
+                "userinfo_endpoint": "https://auth.example.com/userinfo/",
+                "end_session_endpoint": "https://auth.example.com/end-session/",
+            }
+            mock_client = MagicMock()
+            mock_client.post.return_value = mock_token_response
+            mock_client.get.return_value = mock_userinfo_response
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_httpx.return_value = mock_client
+
+            response = client.get(f"/auth/callback/?code=test-code&state={state}")
+
+        assert response.status_code == 302
+        assert response.url == next_url
+
+    def test_callback_rejects_external_next_url(self):
+        """Callback should reject next URLs pointing to external hosts."""
+        from urllib.parse import parse_qs, urlparse
+
+        from django.core import signing
+
+        client = Client()
+
+        # Forge a signed state with an external next URL
+        state = signing.dumps({"n": "test-nonce", "next": "https://evil.com/steal"})
+
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+
+        mock_userinfo_response = MagicMock()
+        mock_userinfo_response.json.return_value = {
+            "sub": "redirect-test-id-2",
+            "preferred_username": "safeuser",
+            "groups": [],
+        }
+        mock_userinfo_response.raise_for_status = MagicMock()
+
+        with (
+            patch("core.oauth._get_oauth_config") as mock_config,
+            patch("core.oauth.httpx.Client") as mock_httpx,
+        ):
+            mock_config.return_value = {
+                "client_id": "test-client-id",
+                "client_secret": "test-secret",
+                "authorization_endpoint": "https://auth.example.com/authorize/",
+                "token_endpoint": "https://auth.example.com/token/",
+                "userinfo_endpoint": "https://auth.example.com/userinfo/",
+                "end_session_endpoint": "https://auth.example.com/end-session/",
+            }
+            mock_client = MagicMock()
+            mock_client.post.return_value = mock_token_response
+            mock_client.get.return_value = mock_userinfo_response
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_httpx.return_value = mock_client
+
+            response = client.get(f"/auth/callback/?code=test-code&state={state}")
+
+        # Should NOT redirect to the external URL
+        assert response.status_code == 302
+        assert "evil.com" not in response.url
 
 
 @pytest.mark.django_db

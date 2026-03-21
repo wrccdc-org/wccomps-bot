@@ -2,16 +2,15 @@
 
 import logging
 import secrets
-from datetime import UTC
 from urllib.parse import urlencode
 
 import httpx
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
+from django.core import signing
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from .auth_utils import get_role_based_landing_url
@@ -60,20 +59,17 @@ def oauth_login(request: HttpRequest) -> HttpResponse:
             status=500,
         )
 
-    # Generate state for CSRF protection
-    state = secrets.token_urlsafe(32)
-
     # Store next URL for redirect after login
     next_url = request.GET.get("next", "/")
     if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         next_url = "/"
 
-    # Store as list of pending states so concurrent OAuth flows (e.g. background
-    # notification polls triggering login redirects) don't clobber each other.
-    pending: list[dict[str, str]] = request.session.get("oauth_pending_states", [])
-    pending.append({"state": state, "created": timezone.now().isoformat(), "next": next_url})
-    # Keep only the 5 most recent to bound session size
-    request.session["oauth_pending_states"] = pending[-5:]
+    # Encode next URL and a nonce in a signed state parameter.
+    # The state travels through Authentik and back, so it works regardless
+    # of which browser/session completes the flow. The signature provides
+    # CSRF protection (can't be forged without SECRET_KEY), and signing.loads
+    # with max_age handles expiry.
+    state = signing.dumps({"n": secrets.token_urlsafe(16), "next": next_url})
 
     # Build authorization URL
     redirect_uri = request.build_absolute_uri("/auth/callback/")
@@ -110,11 +106,13 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
             {"error_title": "Login Failed", "error_message": "Please try again."},
         )
 
-    # Verify state parameter against list of pending states
-    state = request.GET.get("state")
-    pending: list[dict[str, str]] = request.session.get("oauth_pending_states", [])
-
-    if not state or not pending:
+    # Verify state parameter — the state is a signed token containing the
+    # nonce and next URL.  signing.loads verifies the HMAC signature (CSRF
+    # protection) and checks max_age (expiry).  Because the state is
+    # self-contained, it works even if the callback arrives in a different
+    # browser/session than the one that initiated the login.
+    raw_state = request.GET.get("state")
+    if not raw_state:
         logger.warning("OAuth state missing")
         return render(
             request,
@@ -122,44 +120,22 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
             {"error_title": "Session Expired", "error_message": "Please try again."},
         )
 
-    # Find matching state entry
-    from datetime import datetime
-
-    now = timezone.now()
-    matched_entry: dict[str, str] | None = None
-    for entry in pending:
-        if secrets.compare_digest(state, entry["state"]):
-            # Check expiry
-            created_time = datetime.fromisoformat(entry["created"])
-            if hasattr(created_time, "tzinfo") and created_time.tzinfo is None:
-                created_time = created_time.replace(tzinfo=UTC)
-            age = (now - created_time).total_seconds()
-            if age > STATE_EXPIRY_SECONDS:
-                logger.warning(f"OAuth state expired (age: {age}s)")
-                return render(
-                    request,
-                    "core/oauth_error.html",
-                    {"error_title": "Session Expired", "error_message": "Please try again."},
-                )
-            matched_entry = entry
-            break
-
-    if not matched_entry:
-        logger.warning("OAuth state mismatch")
+    try:
+        state_data = signing.loads(raw_state, max_age=STATE_EXPIRY_SECONDS)
+    except signing.SignatureExpired:
+        logger.warning("OAuth state expired")
+        return render(
+            request,
+            "core/oauth_error.html",
+            {"error_title": "Session Expired", "error_message": "Please try again."},
+        )
+    except signing.BadSignature:
+        logger.warning("OAuth state signature invalid")
         return render(
             request,
             "core/oauth_error.html",
             {"error_title": "Security Error", "error_message": "Please try again."},
         )
-
-    # Consume matched state and prune expired entries (single-use)
-    pending = [
-        e
-        for e in pending
-        if e is not matched_entry
-        and (now - datetime.fromisoformat(e["created"]).replace(tzinfo=UTC)).total_seconds() <= STATE_EXPIRY_SECONDS
-    ]
-    request.session["oauth_pending_states"] = pending
 
     # Get authorization code
     code = request.GET.get("code")
@@ -274,8 +250,10 @@ def oauth_callback(request: HttpRequest) -> HttpResponse:
     # Log user in
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
-    # Get next URL from the matched OAuth state entry
-    next_url = matched_entry.get("next", "/")
+    # Get next URL from the signed state (re-validate to defend in depth)
+    next_url = state_data.get("next", "/")
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = "/"
     if next_url == "/":
         next_url = get_role_based_landing_url(groups)
 
