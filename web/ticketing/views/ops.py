@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 
 from core.auth_utils import require_permission
 from core.tickets_config import get_all_categories, get_category_config
+from ticketing.forms import TicketVerifyForm
 from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
@@ -132,17 +133,16 @@ def ops_verify_ticket(request: HttpRequest, ticket_number: str) -> HttpResponse:
         return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Get form data
-    points_adjustment_str = request.POST.get("points_adjustment", "").strip()
-    approval_notes = request.POST.get("verification_notes", "").strip()
+    form = TicketVerifyForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Invalid points value. Must be a number.")
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
-    # Parse points adjustment if provided
-    if points_adjustment_str:
-        try:
-            adjusted_points = int(points_adjustment_str)
-            ticket.points_charged = adjusted_points
-        except ValueError:
-            messages.error(request, "Invalid points value. Must be a number.")
-            return redirect("ticket_detail", ticket_number=ticket_number)
+    points_adjustment = form.cleaned_data.get("points_adjustment")
+    approval_notes = form.cleaned_data.get("verification_notes", "")
+
+    if points_adjustment is not None:
+        ticket.points_charged = points_adjustment
 
     # Mark as verified
     ticket.is_approved = True

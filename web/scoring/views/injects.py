@@ -15,6 +15,7 @@ from django.views.decorators.http import require_http_methods
 from core.auth_utils import require_permission
 from team.models import Team
 
+from ..forms import ApproveInjectFeedbackForm, SaveInjectFeedbackForm
 from ..models import InjectScore
 
 MIN_GRADES_FOR_OUTLIER = 3
@@ -39,41 +40,46 @@ def inject_grading(request: HttpRequest) -> HttpResponse:
     inject_choices = [(str(i.inject_id), i.title) for i in injects]
     inject_lookup = {str(i.inject_id): i for i in injects}
 
-    # Get selected inject from query param or POST
-    selected_inject_id = request.GET.get("inject") or request.POST.get("inject_id")
-    selected_inject = inject_lookup.get(selected_inject_id) if selected_inject_id else None
+    # Get selected inject from query param
+    selected_inject_id = request.GET.get("inject")
 
     teams = Team.objects.filter(is_active=True).order_by("team_number")
 
-    if request.method == "POST" and selected_inject:
-        # Process grade submissions for all teams
-        grades_saved = 0
-        user = cast(User, request.user)
+    if request.method == "POST":
+        from ..forms import InjectGradingForm
 
-        for team in teams:
-            field_name = f"points_team_{team.team_number}"
-            points_value = request.POST.get(field_name, "").strip()
+        team_numbers = [t.team_number for t in teams]
+        grading_form = InjectGradingForm(request.POST, team_numbers=team_numbers)
+        if grading_form.is_valid():
+            selected_inject_id = selected_inject_id or grading_form.cleaned_data["inject_id"]
+            selected_inject = inject_lookup.get(selected_inject_id) if selected_inject_id else None
 
-            if points_value:
-                try:
-                    points = Decimal(points_value)
-                    InjectScore.objects.update_or_create(
-                        team=team,
-                        inject_id=selected_inject_id,
-                        defaults={
-                            "inject_name": selected_inject.title,
-                            "points_awarded": points,
-                            "graded_by": user,
-                            "graded_at": timezone.now(),
-                        },
-                    )
-                    grades_saved += 1
-                except ValueError, TypeError:
-                    pass
+            if selected_inject:
+                grades_saved = 0
+                user = cast(User, request.user)
 
-        if grades_saved:
-            messages.success(request, f"Saved {grades_saved} grades for {selected_inject.title}")
-        return redirect(f"{reverse('scoring:inject_grading')}?inject={selected_inject_id}")
+                for team in teams:
+                    field_name = f"points_team_{team.team_number}"
+                    points_value = grading_form.cleaned_data.get(field_name)
+
+                    if points_value is not None:
+                        InjectScore.objects.update_or_create(
+                            team=team,
+                            inject_id=selected_inject_id,
+                            defaults={
+                                "inject_name": selected_inject.title,
+                                "points_awarded": points_value,
+                                "graded_by": user,
+                                "graded_at": timezone.now(),
+                            },
+                        )
+                        grades_saved += 1
+
+                if grades_saved:
+                    messages.success(request, f"Saved {grades_saved} grades for {selected_inject.title}")
+            return redirect(f"{reverse('scoring:inject_grading')}?inject={selected_inject_id}")
+
+    selected_inject = inject_lookup.get(selected_inject_id) if selected_inject_id else None
 
     # Get existing grades for selected inject and merge with teams
     team_data = []
@@ -324,12 +330,13 @@ def review_inject_feedback(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["POST"])
 def save_inject_feedback(request: HttpRequest) -> HttpResponse:
     """Save edited feedback text for a single InjectScore."""
-    score_id = request.POST.get("score_id")
-    feedback_text = request.POST.get("feedback", "").strip()
-
-    if not score_id:
+    form = SaveInjectFeedbackForm(request.POST)
+    if not form.is_valid():
         messages.warning(request, "No score specified")
         return redirect("scoring:review_inject_feedback")
+
+    score_id = form.cleaned_data["score_id"]
+    feedback_text = form.cleaned_data.get("feedback", "")
 
     score = get_object_or_404(InjectScore, pk=score_id)
     score.feedback = feedback_text
@@ -345,12 +352,13 @@ def save_inject_feedback(request: HttpRequest) -> HttpResponse:
 def approve_inject_feedback(request: HttpRequest) -> HttpResponse:
     """Approve feedback for a single InjectScore."""
     user = cast(User, request.user)
-    score_id = request.POST.get("score_id")
 
-    if not score_id:
+    form = ApproveInjectFeedbackForm(request.POST)
+    if not form.is_valid():
         messages.warning(request, "No score specified")
         return redirect("scoring:review_inject_feedback")
 
+    score_id = form.cleaned_data["score_id"]
     score = get_object_or_404(InjectScore, pk=score_id)
     score.feedback_approved = True
     score.feedback_approved_by = user

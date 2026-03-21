@@ -3,6 +3,8 @@
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
+from core.forms import CategoryForm
+
 from ..auth_utils import require_permission
 
 
@@ -21,8 +23,8 @@ def admin_category_create(request: HttpRequest) -> HttpResponse:
     from ticketing.models import TicketCategory
 
     if request.method == "POST":
-        display_name = request.POST.get("display_name", "").strip()
-        if not display_name:
+        form = CategoryForm(request.POST)
+        if not form.is_valid():
             return render(
                 request,
                 "admin/category_form.html",
@@ -33,16 +35,16 @@ def admin_category_create(request: HttpRequest) -> HttpResponse:
             )
 
         TicketCategory.objects.create(
-            display_name=display_name,
-            points=int(request.POST.get("points", 0)),
-            required_fields=request.POST.getlist("required_fields"),
-            optional_fields=request.POST.getlist("optional_fields"),
-            variable_points="variable_points" in request.POST,
-            variable_cost_note=request.POST.get("variable_cost_note", ""),
-            min_points=int(request.POST.get("min_points", 0)),
-            max_points=int(request.POST.get("max_points", 0)),
-            user_creatable="user_creatable" in request.POST,
-            sort_order=int(request.POST.get("sort_order", 0)),
+            display_name=form.cleaned_data["display_name"],
+            points=form.cleaned_data["points"],
+            required_fields=form.cleaned_data.get("required_fields", []),
+            optional_fields=form.cleaned_data.get("optional_fields", []),
+            variable_points=form.cleaned_data["variable_points"],
+            variable_cost_note=form.cleaned_data.get("variable_cost_note", ""),
+            min_points=form.cleaned_data.get("min_points", 0),
+            max_points=form.cleaned_data.get("max_points", 0),
+            user_creatable=form.cleaned_data["user_creatable"],
+            sort_order=form.cleaned_data.get("sort_order", 0),
         )
         return redirect("admin_categories")
 
@@ -60,8 +62,8 @@ def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
         return HttpResponse("Category not found", status=404)
 
     if request.method == "POST":
-        display_name = request.POST.get("display_name", "").strip()
-        if not display_name:
+        form = CategoryForm(request.POST)
+        if not form.is_valid():
             return render(
                 request,
                 "admin/category_form.html",
@@ -72,16 +74,16 @@ def admin_category_edit(request: HttpRequest, category_id: int) -> HttpResponse:
                 },
             )
 
-        category.display_name = display_name
-        category.points = int(request.POST.get("points", 0))
-        category.required_fields = request.POST.getlist("required_fields")
-        category.optional_fields = request.POST.getlist("optional_fields")
-        category.variable_points = "variable_points" in request.POST
-        category.variable_cost_note = request.POST.get("variable_cost_note", "")
-        category.min_points = int(request.POST.get("min_points", 0))
-        category.max_points = int(request.POST.get("max_points", 0))
-        category.user_creatable = "user_creatable" in request.POST
-        category.sort_order = int(request.POST.get("sort_order", 0))
+        category.display_name = form.cleaned_data["display_name"]
+        category.points = form.cleaned_data["points"]
+        category.required_fields = form.cleaned_data.get("required_fields", [])
+        category.optional_fields = form.cleaned_data.get("optional_fields", [])
+        category.variable_points = form.cleaned_data["variable_points"]
+        category.variable_cost_note = form.cleaned_data.get("variable_cost_note", "")
+        category.min_points = form.cleaned_data.get("min_points", 0)
+        category.max_points = form.cleaned_data.get("max_points", 0)
+        category.user_creatable = form.cleaned_data["user_creatable"]
+        category.sort_order = form.cleaned_data.get("sort_order", 0)
         category.save()
         return redirect("admin_categories")
 

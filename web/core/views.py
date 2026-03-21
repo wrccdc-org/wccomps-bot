@@ -26,6 +26,7 @@ from .auth_utils import (
     get_role_based_landing_url,
     require_permission,
 )
+from .forms import SchoolInfoEditForm
 from .utils import get_team_from_groups
 
 
@@ -282,33 +283,23 @@ def school_info_edit(request: HttpRequest, team_number: int) -> HttpResponse:
         school_info = None
 
     if request.method == "POST":
-        school_name = request.POST.get("school_name", "").strip()
-        contact_email = request.POST.get("contact_email", "").strip()
-        secondary_email = request.POST.get("secondary_email", "").strip()
-        notes = request.POST.get("notes", "").strip()
-
-        # Validate required fields
-        if not school_name:
+        form = SchoolInfoEditForm(request.POST)
+        if not form.is_valid():
+            error_msg = " ".join(e for errors in form.errors.values() for e in errors)
             return render(
                 request,
                 "school_info_edit.html",
                 {
                     "team": team,
                     "school_info": school_info,
-                    "error": "School name is required.",
+                    "error": error_msg,
                 },
             )
 
-        if not contact_email:
-            return render(
-                request,
-                "school_info_edit.html",
-                {
-                    "team": team,
-                    "school_info": school_info,
-                    "error": "Contact email is required.",
-                },
-            )
+        school_name = form.cleaned_data["school_name"]
+        contact_email = form.cleaned_data["contact_email"]
+        secondary_email = form.cleaned_data.get("secondary_email", "")
+        notes = form.cleaned_data.get("notes", "")
 
         # Create or update school info
         if school_info:

@@ -20,6 +20,7 @@ from core.auth_utils import get_user_team_number, require_permission
 from team.models import Team
 
 from .models import Packet, PacketDistribution
+from .forms import PacketActionForm, PacketResendForm, PacketUploadForm
 from .services import PacketDistributionService
 
 
@@ -187,36 +188,23 @@ def upload_packet(request: HttpRequest) -> HttpResponse:
     form_context = {"events": events, "nav_active": "packets"}
 
     if request.method == "POST":
-        # Get form data
-        title = request.POST.get("title", "").strip()
-        notes = request.POST.get("notes", "").strip()
-        send_via_email = request.POST.get("send_via_email") == "on"
-        web_access_enabled = request.POST.get("web_access_enabled") == "on"
-        event_id = request.POST.get("event", "").strip()
-        team_extras_csv = request.POST.get("team_extras", "").strip()
-
-        # Validate
-        if not title:
-            messages.error(request, "Title is required.")
+        form = PacketUploadForm(request.POST, request.FILES)
+        if not form.is_valid():
+            error_msg = " ".join(e for errors in form.errors.values() for e in errors)
+            messages.error(request, error_msg)
             return render(request, "packets/ops_upload_packet.html", form_context)
 
-        # Get uploaded file
-        if "packet_file" not in request.FILES:
-            messages.error(request, "Please select a file to upload.")
-            return render(request, "packets/ops_upload_packet.html", form_context)
-
-        uploaded_file = cast(UploadedFile, request.FILES["packet_file"])
-
-        # Validate file size (max 25 MB)
-        max_size = 25 * 1024 * 1024
-        file_size = uploaded_file.size or 0
-        if file_size > max_size:
-            messages.error(request, "File size must not exceed 25 MB.")
-            return render(request, "packets/ops_upload_packet.html", form_context)
+        title = form.cleaned_data["title"]
+        notes = form.cleaned_data["notes"]
+        send_via_email = form.cleaned_data["send_via_email"]
+        web_access_enabled = form.cleaned_data["web_access_enabled"]
+        event_id = form.cleaned_data["event"]
+        team_extras_csv = form.cleaned_data["team_extras"]
+        uploaded_file = form.cleaned_data["packet_file"]
 
         # Read file data
         file_data = uploaded_file.read()
-        filename = uploaded_file.name or "unnamed"
+        filename = (uploaded_file.name or "unnamed")[:255]
         mime_type = uploaded_file.content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
         # Parse event
@@ -290,7 +278,16 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
         return HttpResponse("Access denied", status=403)
 
     packet = get_object_or_404(Packet, id=packet_id)
-    action = request.POST.get("action", "")
+
+    form = PacketActionForm(request.POST)
+    if not form.is_valid():
+        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        return StreamingHttpResponse(
+            iter([json.dumps({"done": True, "success": False, "message": error_msg}) + "\n"]),
+            content_type="application/x-ndjson",
+        )
+
+    action = form.cleaned_data["action"]
     service = PacketDistributionService()
 
     if action == "distribute":
@@ -322,13 +319,8 @@ def packet_action(request: HttpRequest, packet_id: int) -> HttpResponseBase:
     if action == "test_email":
         from core.utils import ndjson_progress
 
-        email = request.POST.get("email", "").strip()
-        team_id = request.POST.get("team_id", "").strip()
-        if not email or not team_id:
-            return StreamingHttpResponse(
-                iter([json.dumps({"done": True, "success": False, "message": "Email and team are required"}) + "\n"]),
-                content_type="application/x-ndjson",
-            )
+        email = form.cleaned_data["email"]
+        team_id = form.cleaned_data["team_id"]
         team = get_object_or_404(Team, id=team_id)
 
         def _stream_test() -> Iterator[str]:
@@ -360,12 +352,13 @@ def packet_resend_team(request: HttpRequest, packet_id: int, team_id: int) -> Ht
         messages.error(request, f"No distribution record for Team {team.team_number}.")
         return redirect("packet_detail", packet_id=packet_id)
 
-    primary_email = request.POST.get("primary_email", "").strip()
-    secondary_email = request.POST.get("secondary_email", "").strip()
-
-    if not primary_email:
-        messages.error(request, f"Primary email is required for Team {team.team_number}.")
+    form = PacketResendForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Valid primary email is required for Team {team.team_number}.")
         return redirect("packet_detail", packet_id=packet_id)
+
+    primary_email = form.cleaned_data["primary_email"]
+    secondary_email = form.cleaned_data.get("secondary_email", "")
 
     # Save email changes back to SchoolInfo
     school_info, _ = SchoolInfo.objects.get_or_create(

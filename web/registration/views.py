@@ -12,7 +12,7 @@ from django.utils import timezone
 from core.auth_utils import require_permission
 from team.models import Team
 
-from .forms import EventForm, RegistrationForm, SeasonForm
+from .forms import EventForm, RegistrationForm, RejectRegistrationForm, SeasonForm
 from .models import (
     Event,
     EventTeamAssignment,
@@ -140,10 +140,11 @@ def reject_registration(request: HttpRequest, registration_id: int) -> HttpRespo
     context = {"registration": registration, "subnav_active": "registrations"}
 
     if request.method == "POST":
-        reason = request.POST.get("reason", "").strip()
-        if not reason:
+        form = RejectRegistrationForm(request.POST)
+        if not form.is_valid():
             messages.error(request, "Please provide a reason for rejection.")
             return render(request, "registration/reject_confirm.html", context)
+        reason = form.cleaned_data["reason"]
 
         registration.reject(reason)
         messages.success(request, f"Registration for {registration.school_name} has been rejected.")

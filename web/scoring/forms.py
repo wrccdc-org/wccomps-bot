@@ -450,3 +450,25 @@ class ScoringTemplateForm(forms.ModelForm[ScoringTemplate]):
             "inject_max": forms.NumberInput(attrs=max_attrs),
             "orange_max": forms.NumberInput(attrs=max_attrs),
         }
+
+
+# --- Inject grading forms ---
+
+
+class InjectGradingForm(forms.Form):
+    inject_id = forms.CharField(max_length=100)
+
+    def __init__(self, *args: object, team_numbers: list[int] | None = None, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        if team_numbers:
+            for num in team_numbers:
+                self.fields[f"points_team_{num}"] = forms.DecimalField(required=False)
+
+
+class SaveInjectFeedbackForm(forms.Form):
+    score_id = forms.IntegerField()
+    feedback = forms.CharField(required=False)
+
+
+class ApproveInjectFeedbackForm(forms.Form):
+    score_id = forms.IntegerField()

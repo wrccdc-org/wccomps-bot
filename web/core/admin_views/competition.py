@@ -23,6 +23,8 @@ from core.models import AuditLog, CompetitionConfig, QueuedAnnouncement
 from core.utils import ndjson_progress as _progress
 from team.models import MAX_TEAMS
 
+from core.forms import ActionForm, ResetPasswordsForm, SetAppsForm, SetMaxMembersForm, SetTimeForm
+
 from ..auth_utils import has_permission, require_permission
 from ..utils import parse_datetime_to_utc
 
@@ -46,36 +48,35 @@ def _action_set_max_members(request: HttpRequest, config: CompetitionConfig, aut
     """Handle set_max_members action."""
     from team.models import Team
 
-    try:
-        max_members = int(request.POST.get("max_members", 10))
-        if max_members < 1 or max_members > 20:
-            return JsonResponse({"error": "Max members must be 1-20"}, status=400)
+    form = SetMaxMembersForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({"error": "Max members must be 1-20"}, status=400)
 
-        old_max = config.max_team_members
-        config.max_team_members = max_members
-        config.save()
+    max_members = form.cleaned_data["max_members"]
+    old_max = config.max_team_members
+    config.max_team_members = max_members
+    config.save()
 
-        Team.objects.update(max_members=max_members)
+    Team.objects.update(max_members=max_members)
 
-        AuditLog.objects.create(
-            action="max_team_members_updated",
-            admin_user=authentik_username,
-            target_entity="competition_config",
-            target_id=config.pk,
-            details={"old_max": old_max, "new_max": max_members},
-        )
+    AuditLog.objects.create(
+        action="max_team_members_updated",
+        admin_user=authentik_username,
+        target_entity="competition_config",
+        target_id=config.pk,
+        details={"old_max": old_max, "new_max": max_members},
+    )
 
-        return JsonResponse({"success": True, "message": f"Max members set to {max_members}"})
-    except ValueError:
-        return JsonResponse({"error": "Invalid number"}, status=400)
+    return JsonResponse({"success": True, "message": f"Max members set to {max_members}"})
 
 
 def _action_set_apps(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle set_apps action."""
-    app_slugs = request.POST.get("app_slugs", "").strip()
-    if not app_slugs:
+    form = SetAppsForm(request.POST)
+    if not form.is_valid():
         return JsonResponse({"error": "Please provide at least one app slug"}, status=400)
 
+    app_slugs = form.cleaned_data["app_slugs"]
     slugs = [s.strip() for s in app_slugs.split(",") if s.strip()]
     config.controlled_applications = slugs
     config.save()
@@ -93,11 +94,12 @@ def _action_set_apps(request: HttpRequest, config: CompetitionConfig, authentik_
 
 def _action_set_start_time(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle set_start_time action."""
-    datetime_str = request.POST.get("datetime", "").strip()
-    tz_name = request.POST.get("timezone", "America/Los_Angeles")
-
-    if not datetime_str:
+    form = SetTimeForm(request.POST)
+    if not form.is_valid():
         return JsonResponse({"error": "Please provide a datetime"}, status=400)
+
+    datetime_str = form.cleaned_data["datetime"]
+    tz_name = form.cleaned_data["timezone"]
 
     try:
         start_time = parse_datetime_to_utc(datetime_str, tz_name)
@@ -124,11 +126,12 @@ def _action_set_start_time(request: HttpRequest, config: CompetitionConfig, auth
 
 def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle set_end_time action."""
-    datetime_str = request.POST.get("datetime", "").strip()
-    tz_name = request.POST.get("timezone", "America/Los_Angeles")
-
-    if not datetime_str:
+    form = SetTimeForm(request.POST)
+    if not form.is_valid():
         return JsonResponse({"error": "Please provide a datetime"}, status=400)
+
+    datetime_str = form.cleaned_data["datetime"]
+    tz_name = form.cleaned_data["timezone"]
 
     try:
         end_time = parse_datetime_to_utc(datetime_str, tz_name)
@@ -426,12 +429,12 @@ def _action_wipe_competition(request: HttpRequest, config: CompetitionConfig, au
 
 def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle reset_passwords action."""
-    team_numbers_str = request.POST.get("team_numbers", "").strip()
+    form = ResetPasswordsForm(request.POST)
+    if not form.is_valid():
+        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        return JsonResponse({"error": error_msg}, status=400)
 
-    try:
-        team_numbers = parse_team_range(team_numbers_str) if team_numbers_str else list(range(1, MAX_TEAMS + 1))
-    except ValueError as e:
-        return JsonResponse({"error": str(e)}, status=400)
+    team_numbers = form.cleaned_data["team_numbers"] or list(range(1, MAX_TEAMS + 1))
 
     auth_manager = AuthentikManager()
     password_list = []
@@ -463,7 +466,7 @@ def _action_reset_passwords(request: HttpRequest, config: CompetitionConfig, aut
             "total_users": len(team_numbers),
             "success_count": len(password_list),
             "failed_count": len(failed_resets),
-            "team_numbers": team_numbers_str or "all",
+            "team_numbers": form.cleaned_data.get("team_numbers", "") or "all",
         },
     )
 
@@ -550,9 +553,10 @@ def admin_competition_action(request: HttpRequest) -> HttpResponseBase:
     if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
-    action = request.POST.get("action")
-    if not action:
+    form = ActionForm(request.POST)
+    if not form.is_valid():
         return JsonResponse({"error": "No action specified"}, status=400)
+    action = form.cleaned_data["action"]
     handler = _COMPETITION_ACTION_HANDLERS.get(action)
     if not handler:
         return JsonResponse({"error": "Unknown action"}, status=400)

@@ -13,6 +13,7 @@ from core.models import DiscordTask
 from core.tickets_config import TicketCategoryConfig, get_all_categories, get_category_config
 from core.utils import get_team_from_groups
 from team.models import Team
+from ticketing.forms import CreateTicketForm
 from ticketing.models import TicketCategory
 
 logger = logging.getLogger(__name__)
@@ -34,10 +35,10 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         teams = Team.objects.filter(is_active=True).order_by("team_number")
         # If admin submitted form with team selection, use that team
         if request.method == "POST":
-            team_id = request.POST.get("team_id")
-            if team_id:
-                with contextlib.suppress(Team.DoesNotExist, ValueError):
-                    team = Team.objects.get(id=team_id, is_active=True)
+            admin_form = CreateTicketForm(request.POST)
+            if admin_form.is_valid() and admin_form.cleaned_data.get("team_id"):
+                with contextlib.suppress(Team.DoesNotExist):
+                    team = Team.objects.get(id=admin_form.cleaned_data["team_id"], is_active=True)
 
     if not is_admin and not team:
         return render(
@@ -69,18 +70,31 @@ def create_ticket(request: HttpRequest) -> HttpResponse:
         logger.warning("Quotient API unavailable, ticket form will have limited functionality")
 
     if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        hostname = request.POST.get("hostname", "").strip()
-        ip_address = request.POST.get("ip_address", "").strip()
-        service_name = request.POST.get("service_name", "").strip()
+        form = CreateTicketForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                "create_ticket.html",
+                {
+                    "team": team,
+                    "teams": teams,
+                    "categories": get_all_categories(),
+                    "service_choices": service_choices,
+                    "box_names": box_names,
+                    "box_ip_map": box_ip_map,
+                    "error": " ".join(
+                        err for errors in form.errors.values() for err in errors
+                    ),
+                    "form_data": request.POST,
+                },
+            )
 
-        # Parse category as integer PK
-        category_id_str = request.POST.get("category", "")
-        try:
-            category_id = int(category_id_str)
-        except ValueError, TypeError:
-            category_id = 0
+        title = form.cleaned_data["title"]
+        description = form.cleaned_data["description"]
+        hostname = form.cleaned_data["hostname"]
+        ip_address = form.cleaned_data["ip_address"]
+        service_name = form.cleaned_data["service_name"]
+        category_id = form.cleaned_data["category"]
 
         # Admins must select a team
         if is_admin and not team:

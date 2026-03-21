@@ -46,7 +46,7 @@ def _save_attachment(ticket: Ticket, uploaded_file: UploadedFile | None, uploade
         TicketAttachment.objects.create(
             ticket=ticket,
             file_data=uploaded_file.read(),
-            filename=uploaded_file.name,
+            filename=uploaded_file.name[:255],
             mime_type=uploaded_file.content_type or "application/octet-stream",
             uploaded_by=uploaded_by,
         )

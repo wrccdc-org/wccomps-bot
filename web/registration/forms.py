@@ -237,3 +237,7 @@ class EventForm(forms.ModelForm[Event]):
             "end_time": forms.TimeInput(attrs={"type": "time"}),
             "registration_deadline": forms.DateTimeInput(attrs={"type": "datetime-local"}),
         }
+
+
+class RejectRegistrationForm(forms.Form):
+    reason = forms.CharField()

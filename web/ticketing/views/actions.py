@@ -15,6 +15,7 @@ from core.models import DiscordTask
 from core.tickets_config import get_category_config
 from core.utils import get_team_from_groups
 from team.models import DiscordLink
+from ticketing.forms import TicketChangeCategoryForm, TicketReassignForm, TicketReopenForm, TicketResolveForm
 from ticketing.models import Ticket, TicketCategory, TicketHistory
 
 logger = logging.getLogger(__name__)
@@ -208,10 +209,11 @@ def ticket_reassign(request: HttpRequest, ticket_number: str) -> HttpResponse:
         )
 
     # Get the new assignee from POST data
-    new_assignee_username = request.POST.get("new_assignee_username", "").strip()
-    if not new_assignee_username:
+    form = TicketReassignForm(request.POST)
+    if not form.is_valid():
         messages.error(request, "New assignee username is required")
         return redirect("ticket_detail", ticket_number=ticket_number)
+    new_assignee_username = form.cleaned_data["new_assignee_username"]
 
     # Find the user to assign
     new_assignee_user = User.objects.filter(username=new_assignee_username).first()
@@ -288,17 +290,13 @@ def ticket_resolve(request: HttpRequest, ticket_number: str) -> HttpResponse:
             status=403,
         )
 
-    resolution_notes = request.POST.get("resolution_notes", "").strip()
-    points_override_str = request.POST.get("points_override", "").strip()
+    form = TicketResolveForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Invalid form data. Check points value.")
+        return redirect("ticket_detail", ticket_number=ticket_number)
 
-    # Parse points override if provided
-    points_override = None
-    if points_override_str:
-        try:
-            points_override = int(points_override_str)
-        except ValueError:
-            messages.error(request, "Invalid points value. Must be a number.")
-            return redirect("ticket_detail", ticket_number=ticket_number)
+    resolution_notes = form.cleaned_data["resolution_notes"]
+    points_override = form.cleaned_data.get("points_override")
 
     # Use shared atomic resolve function
     from ticketing.utils import resolve_ticket_atomic
@@ -357,7 +355,9 @@ def ticket_reopen(request: HttpRequest, ticket_number: str) -> HttpResponse:
             status=404,
         )
 
-    reopen_reason = request.POST.get("reopen_reason", "").strip()
+    form = TicketReopenForm(request.POST)
+    form.is_valid()  # Always valid (optional field)
+    reopen_reason = form.cleaned_data.get("reopen_reason", "")
 
     # Use shared atomic reopen function
     from ticketing.utils import reopen_ticket_atomic
@@ -423,10 +423,11 @@ def ticket_change_category(request: HttpRequest, ticket_number: str) -> HttpResp
         return redirect("ticket_detail", ticket_number=ticket_number)
 
     # Get new category
-    try:
-        new_category_id = int(request.POST.get("new_category", "0"))
-    except ValueError, TypeError:
-        new_category_id = 0
+    form = TicketChangeCategoryForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Invalid category")
+        return redirect("ticket_detail", ticket_number=ticket_number)
+    new_category_id = form.cleaned_data["new_category"]
 
     if not TicketCategory.objects.filter(pk=new_category_id).exists():
         messages.error(request, "Invalid category")

@@ -19,6 +19,7 @@ from challenges.models import (
     OrangeCheckIn,
     OrangeFollowUp,
 )
+from challenges.forms import AssignmentRejectForm, CheckAssignForm, FollowUpForm, OrangeCheckForm, extract_criteria
 from challenges.services import assign_teams_round_robin, create_orange_score_from_assignment
 from core.auth_utils import has_permission, require_permission
 from team.models import Team
@@ -133,28 +134,16 @@ def check_list(request: HttpRequest) -> HttpResponse:
 def check_create(request: HttpRequest) -> HttpResponse:
     """Create a new orange check with criteria."""
     if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        scheduled_at = request.POST.get("scheduled_at", "").strip() or None
-
-        # Collect criteria from numbered form fields
-        criteria: list[dict[str, str | int]] = []
-        i = 0
-        while f"criterion_label_{i}" in request.POST:
-            label = request.POST.get(f"criterion_label_{i}", "").strip()
-            points_str = request.POST.get(f"criterion_points_{i}", "").strip()
-            if label and points_str:
-                try:
-                    points = int(points_str)
-                    criteria.append({"label": label, "points": points, "sort_order": i})
-                except ValueError:
-                    pass
-            i += 1
-
-        # Validate
-        if not title:
+        form = OrangeCheckForm(request.POST)
+        if not form.is_valid():
             messages.error(request, "Title is required.")
             return render(request, "orange_team/check_form.html", {"mode": "create", "is_lead": True})
+
+        title = form.cleaned_data["title"]
+        description = form.cleaned_data["description"]
+        scheduled_at = form.cleaned_data["scheduled_at"] or None
+
+        criteria = extract_criteria(request.POST)
         if not criteria:
             messages.error(request, "At least one criterion is required.")
             return render(request, "orange_team/check_form.html", {"mode": "create", "is_lead": True})
@@ -206,30 +195,20 @@ def check_edit(request: HttpRequest, check_id: int) -> HttpResponse:
     orange_check = get_object_or_404(OrangeCheck, pk=check_id)
 
     if request.method == "POST":
-        title = request.POST.get("title", "").strip()
-        description = request.POST.get("description", "").strip()
-        scheduled_at = request.POST.get("scheduled_at", "").strip() or None
-
-        criteria_data: list[dict[str, str | int]] = []
-        i = 0
-        while f"criterion_label_{i}" in request.POST:
-            label = request.POST.get(f"criterion_label_{i}", "").strip()
-            points_str = request.POST.get(f"criterion_points_{i}", "").strip()
-            if label and points_str:
-                try:
-                    points = int(points_str)
-                    criteria_data.append({"label": label, "points": points, "sort_order": i})
-                except ValueError:
-                    pass
-            i += 1
-
-        if not title:
+        form = OrangeCheckForm(request.POST)
+        if not form.is_valid():
             messages.error(request, "Title is required.")
             return render(
                 request,
                 "orange_team/check_form.html",
                 {"mode": "edit", "orange_check": orange_check, "is_lead": True},
             )
+
+        title = form.cleaned_data["title"]
+        description = form.cleaned_data["description"]
+        scheduled_at = form.cleaned_data["scheduled_at"] or None
+
+        criteria_data = extract_criteria(request.POST)
         if not criteria_data:
             messages.error(request, "At least one criterion is required.")
             return render(
@@ -301,12 +280,13 @@ def check_assign(request: HttpRequest, check_id: int) -> HttpResponse:
         return redirect("challenges:check_detail", check_id=check_id)
 
     orange_check = get_object_or_404(OrangeCheck.objects.prefetch_related("criteria"), pk=check_id)
-    user_ids = request.POST.getlist("user_ids")
-    if not user_ids:
+    checked_in = User.objects.filter(orange_checkins__is_active=True).distinct()
+    form = CheckAssignForm(request.POST, choices=[(u.pk, u.username) for u in checked_in])
+    if not form.is_valid():
         messages.error(request, "Select at least one user to assign.")
         return redirect("challenges:check_detail", check_id=check_id)
 
-    users = list(User.objects.filter(pk__in=user_ids))
+    users = list(User.objects.filter(pk__in=form.cleaned_data["user_ids"]))
     active_teams = list(Team.objects.filter(is_active=True).order_by("team_number"))
 
     if not active_teams:
@@ -386,17 +366,14 @@ def followup_create(request: HttpRequest) -> HttpResponse:
         return redirect("challenges:dashboard")
 
     user = cast(User, request.user)
-    assignment_id = request.POST.get("assignment_id")
-    minutes_str = request.POST.get("minutes", "15")
-    note = request.POST.get("note", "").strip()
-
-    try:
-        minutes = int(minutes_str)
-    except ValueError, TypeError:
-        messages.error(request, "Invalid minutes value.")
+    form = FollowUpForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Invalid form data.")
         return redirect("challenges:dashboard")
 
-    assignment = get_object_or_404(OrangeAssignment, pk=assignment_id, user=user)
+    minutes = form.cleaned_data["minutes"]
+    note = form.cleaned_data["note"]
+    assignment = get_object_or_404(OrangeAssignment, pk=form.cleaned_data["assignment_id"], user=user)
     OrangeFollowUp.objects.create(
         user=user,
         assignment=assignment,
@@ -463,7 +440,9 @@ def assignment_reject(request: HttpRequest, assignment_id: int) -> HttpResponse:
         messages.error(request, "Only submitted assignments can be rejected.")
         return redirect("challenges:review_queue")
 
-    notes = request.POST.get("notes", "").strip()
+    form = AssignmentRejectForm(request.POST)
+    form.is_valid()  # Always valid (optional field)
+    notes = form.cleaned_data.get("notes", "")
     assignment.status = "rejected"
     assignment.reviewed_by = user
     assignment.reviewed_at = timezone.now()

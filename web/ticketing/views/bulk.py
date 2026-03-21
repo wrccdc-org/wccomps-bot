@@ -10,6 +10,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 
 from core.auth_utils import get_authentik_id, has_permission
+from ticketing.forms import TicketBulkActionForm
 from ticketing.models import Ticket, TicketHistory
 
 logger = logging.getLogger(__name__)
@@ -27,11 +28,10 @@ def tickets_bulk_claim(request: HttpRequest) -> HttpResponse:
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
-    ticket_numbers = request.POST.get("ticket_numbers", "").split(",")
-    ticket_numbers = [tn.strip() for tn in ticket_numbers if tn.strip()]
-
-    if not ticket_numbers:
+    form = TicketBulkActionForm(request.POST)
+    if not form.is_valid():
         return HttpResponse("No tickets selected", status=400)
+    ticket_numbers = form.cleaned_data["ticket_numbers"]
 
     claimed_count = 0
     with transaction.atomic():
@@ -71,11 +71,10 @@ def tickets_bulk_resolve(request: HttpRequest) -> HttpResponse:
     if not (has_permission(user, "ticketing_support") or has_permission(user, "ticketing_admin")):
         return HttpResponse("Access denied", status=403)
 
-    ticket_numbers = request.POST.get("ticket_numbers", "").split(",")
-    ticket_numbers = [tn.strip() for tn in ticket_numbers if tn.strip()]
-
-    if not ticket_numbers:
+    form = TicketBulkActionForm(request.POST)
+    if not form.is_valid():
         return HttpResponse("No tickets selected", status=400)
+    ticket_numbers = form.cleaned_data["ticket_numbers"]
 
     resolved_count = 0
     with transaction.atomic():

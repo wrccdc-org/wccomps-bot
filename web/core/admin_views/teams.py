@@ -16,6 +16,8 @@ from core.authentik_utils import (
 from core.models import AuditLog, DiscordTask
 from team.models import DiscordLink, Team
 
+from core.forms import TeamActionForm, TeamsBulkActionForm
+
 from .competition import _has_admin_or_gold_access
 
 
@@ -79,7 +81,11 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
     except Team.DoesNotExist:
         return JsonResponse({"error": f"Team {team_number} not found"}, status=404)
 
-    action = request.POST.get("action")
+    form = TeamActionForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({"error": "Invalid action"}, status=400)
+
+    action = form.cleaned_data["action"]
 
     if action == "activate":
         team.is_active = True
@@ -106,12 +112,12 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
         return JsonResponse({"success": True, "message": f"Team {team_number} deactivated"})
 
     elif action == "unlink_user":
-        discord_id = request.POST.get("discord_id")
+        discord_id = form.cleaned_data.get("discord_id")
         if not discord_id:
             return JsonResponse({"error": "Discord ID required"}, status=400)
 
         try:
-            link = DiscordLink.objects.get(discord_id=int(discord_id), team=team, is_active=True)
+            link = DiscordLink.objects.get(discord_id=discord_id, team=team, is_active=True)
             link.is_active = False
             link.unlinked_at = timezone.now()
             link.save()
@@ -120,7 +126,7 @@ def admin_team_action(request: HttpRequest, team_number: int) -> HttpResponse:
                 action="user_unlinked",
                 admin_user=authentik_username,
                 target_entity="discord_link",
-                target_id=int(discord_id),
+                target_id=discord_id,
                 details={
                     "discord_username": link.discord_username,
                     "team_name": team.team_name,
@@ -208,16 +214,13 @@ def admin_teams_bulk_action(request: HttpRequest) -> HttpResponse:
     if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
-    action = request.POST.get("action")
-    team_numbers_str = request.POST.get("team_numbers", "").strip()
+    form = TeamsBulkActionForm(request.POST)
+    if not form.is_valid():
+        error_msg = "; ".join(e for errors in form.errors.values() for e in errors)
+        return JsonResponse({"error": error_msg or "Invalid input"}, status=400)
 
-    if not team_numbers_str:
-        return JsonResponse({"error": "Team numbers required"}, status=400)
-
-    try:
-        team_numbers = parse_team_range(team_numbers_str)
-    except ValueError as e:
-        return JsonResponse({"error": str(e)}, status=400)
+    action = form.cleaned_data["action"]
+    team_numbers = form.cleaned_data["team_numbers"]
 
     if action == "activate":
         updated = Team.objects.filter(team_number__in=team_numbers).update(is_active=True)

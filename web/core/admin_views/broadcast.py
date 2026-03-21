@@ -7,6 +7,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 
 from core.auth_utils import require_permission
+from core.forms import BroadcastForm
 from core.models import AuditLog, DiscordTask
 from team.models import Team
 
@@ -38,11 +39,12 @@ def admin_broadcast_action(request: HttpRequest) -> HttpResponse:
     if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
-    target = request.POST.get("target", "").strip()
-    message = request.POST.get("message", "").strip()
-
-    if not target or not message:
+    form = BroadcastForm(request.POST)
+    if not form.is_valid():
         return JsonResponse({"error": "Target and message required"}, status=400)
+
+    target = form.cleaned_data["target"]
+    message = form.cleaned_data["message"]
 
     # Create Discord task for bot to handle broadcast
     DiscordTask.create_broadcast_message(target=target, message=message, sender=authentik_username)
@@ -83,8 +85,7 @@ def admin_sync_roles_action(request: HttpRequest) -> HttpResponse:
     if not _has_admin_or_gold_access(user):
         return JsonResponse({"error": "Access denied"}, status=403)
 
-    # For now, force dry_run=True until we're confident the sync is working correctly
-    dry_run = True  # request.POST.get("dry_run", "true") == "true"
+    dry_run = True
 
     # Create a task for the bot to perform the sync
     task = DiscordTask.create_sync_roles(requested_by=authentik_username, dry_run=dry_run)

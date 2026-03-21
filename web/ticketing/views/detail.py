@@ -13,6 +13,7 @@ from core.auth_utils import get_authentik_groups, has_permission
 from core.models import DiscordTask
 from core.tickets_config import get_all_categories, get_category_config
 from core.utils import get_team_from_groups
+from ticketing.forms import TicketCommentForm
 from ticketing.models import Ticket, TicketAttachment, TicketComment, TicketHistory
 
 logger = logging.getLogger(__name__)
@@ -136,10 +137,11 @@ def ticket_comment(request: HttpRequest, ticket_number: str) -> HttpResponse:
         )
 
     # Get comment text
-    comment_text = request.POST.get("comment", "").strip()
-    if not comment_text:
+    form = TicketCommentForm(request.POST)
+    if not form.is_valid():
         messages.error(request, "Comment cannot be empty")
         return redirect("ticket_detail", ticket_number=ticket.ticket_number)
+    comment_text = form.cleaned_data["comment"]
 
     # Check rate limit
     from ticketing.models import CommentRateLimit
