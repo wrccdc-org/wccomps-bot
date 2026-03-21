@@ -310,9 +310,8 @@ class TestOAuthCallback:
         client = Client()
         # Passing max_age=0 won't help here — we need the state to actually be old.
         # Instead, test by creating a state with a past timestamp via the signer.
-        from unittest.mock import patch as mock_patch
-
         import time
+        from unittest.mock import patch as mock_patch
 
         # Create state, then pretend time has passed
         with mock_patch("django.core.signing.time.time", return_value=time.time() - 600):
@@ -489,7 +488,6 @@ class TestOAuthCallback:
 
     def test_callback_rejects_external_next_url(self):
         """Callback should reject next URLs pointing to external hosts."""
-        from urllib.parse import parse_qs, urlparse
 
         from django.core import signing
 
