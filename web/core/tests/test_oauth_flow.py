@@ -304,12 +304,8 @@ class TestOAuthCallback:
         """Callback should reject expired state (>5 minutes)."""
         from django.core import signing
 
-        # Create a state that's already expired by using a short max_age
-        state = signing.dumps({"n": "test-nonce", "next": "/"})
-
         client = Client()
-        # Passing max_age=0 won't help here — we need the state to actually be old.
-        # Instead, test by creating a state with a past timestamp via the signer.
+        # Create state with a past timestamp so it appears expired (>5 min old)
         import time
         from unittest.mock import patch as mock_patch
 
