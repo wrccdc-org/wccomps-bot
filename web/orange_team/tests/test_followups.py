@@ -5,8 +5,8 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
-from orange_team.models import OrangeAssignment, OrangeCheck, OrangeFollowUp
 from core.models import UserGroups
+from orange_team.models import OrangeAssignment, OrangeCheck, OrangeFollowUp
 from team.models import Team
 
 pytestmark = pytest.mark.django_db

@@ -23,8 +23,8 @@ def orange_team_portal(request: HttpRequest) -> HttpResponse:
 @require_permission("orange_team", error_message="Only Orange Team or Gold Team members can review checks")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Review page for orange team checks."""
-    from orange_team.models import OrangeCheck
     from django.db.models import Q
+    from orange_team.models import OrangeCheck
 
     from core.utils import filter_sort_paginate
     from team.models import Team

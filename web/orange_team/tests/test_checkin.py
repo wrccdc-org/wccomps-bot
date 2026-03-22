@@ -2,8 +2,8 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from orange_team.models import OrangeCheckIn
 from core.models import UserGroups
+from orange_team.models import OrangeCheckIn
 
 pytestmark = pytest.mark.django_db
 
