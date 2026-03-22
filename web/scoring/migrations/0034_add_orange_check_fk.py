@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('challenges', '0004_orangefollowup'),
+        ('orange_team', '0004_orangefollowup'),
         ('scoring', '0033_rename_incident_approval_fields'),
     ]
 
@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='orangeteamscore',
             name='orange_check',
-            field=models.ForeignKey(blank=True, help_text='Orange check this score was created from (null for manual adjustments)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='orange_scores', to='challenges.orangecheck'),
+            field=models.ForeignKey(blank=True, help_text='Orange check this score was created from (null for manual adjustments)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='orange_scores', to='orange_team.orangecheck'),
         ),
     ]

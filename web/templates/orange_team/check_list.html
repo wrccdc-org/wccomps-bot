@@ -10,7 +10,7 @@
     {% endif %}
     <c-module>
     <c-slot name="toolbar">
-    <c-link href="{% url 'challenges:check_create' %}" variant="add">Create Check</c-link>
+    <c-link href="{% url 'orange_team:check_create' %}" variant="add">Create Check</c-link>
     </c-slot>
     {% if checks %}
         <c-table id="check-list" aria_label="Orange team checks">
@@ -26,7 +26,7 @@
         {% for check in checks %}
             <tr>
                 <td>
-                    <strong><a href="{% url 'challenges:check_detail' check.pk %}">{{ check.title }}</a></strong>
+                    <strong><a href="{% url 'orange_team:check_detail' check.pk %}">{{ check.title }}</a></strong>
                 </td>
                 <td>
                     {% if check.status == "draft" %}

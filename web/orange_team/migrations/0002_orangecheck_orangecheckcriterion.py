@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('challenges', '0001_initial'),
+        ('orange_team', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                 ('label', models.CharField(max_length=200)),
                 ('points', models.PositiveIntegerField()),
                 ('sort_order', models.PositiveIntegerField(default=0)),
-                ('orange_check', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='criteria', to='challenges.orangecheck')),
+                ('orange_check', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='criteria', to='orange_team.orangecheck')),
             ],
             options={
                 'db_table': 'orange_check_criterion',

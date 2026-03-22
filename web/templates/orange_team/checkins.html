@@ -24,7 +24,7 @@
                 <td>{{ checkin.checked_in_at|date:"H:i" }}</td>
                 <td>
                     <form method="post"
-                          action="{% url 'challenges:admin_toggle_checkin' checkin.user.pk %}"
+                          action="{% url 'orange_team:admin_toggle_checkin' checkin.user.pk %}"
                           onsubmit="return confirm('Force check out this user?')">
                         {% csrf_token %}
                         <c-button type="submit" variant="danger">Check Out</c-button>

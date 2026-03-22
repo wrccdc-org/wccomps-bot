@@ -22,8 +22,8 @@
     {% endif %}
     <c-module>
     <c-slot name="toolbar">
-    <c-link href="{% url 'challenges:check_edit' orange_check.pk %}" variant="change">Edit</c-link>
-    <c-form action="{% url 'challenges:check_duplicate' orange_check.pk %}" class="d-inline">
+    <c-link href="{% url 'orange_team:check_edit' orange_check.pk %}" variant="change">Edit</c-link>
+    <c-form action="{% url 'orange_team:check_duplicate' orange_check.pk %}" class="d-inline">
     {% csrf_token %}
     <c-button type="submit" variant="default" ::disabled="submitting">Duplicate</c-button>
     </c-form>
@@ -116,7 +116,7 @@
         <c-module>
         <h2>Assign Users</h2>
         {% if checked_in_users %}
-            <c-form action="{% url 'challenges:check_assign' orange_check.pk %}">
+            <c-form action="{% url 'orange_team:check_assign' orange_check.pk %}">
             {% csrf_token %}
             <c-fieldset heading="Checked-In Users">
             {% for user in checked_in_users %}

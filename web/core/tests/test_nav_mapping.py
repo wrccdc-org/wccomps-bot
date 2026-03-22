@@ -8,7 +8,7 @@ from core.context_processors import NAV_MAPPING
 # App namespaces used in the project — URL names in NAV_MAPPING may be
 # registered under one of these prefixes (e.g. "submit_red_score" is
 # actually "scoring:submit_red_score").
-_APP_NAMESPACES = ("scoring", "challenges", "registration", "packets", "ticketing")
+_APP_NAMESPACES = ("scoring", "orange_team", "registration", "packets", "ticketing")
 
 
 def _is_resolvable(url_name: str) -> bool:

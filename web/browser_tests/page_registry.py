@@ -192,20 +192,20 @@ PAGES: list[PageDef] = [
         denied_roles=["blue_team", "red_team", "unauthenticated"],
     ),
     # =========================================================================
-    # Challenges (Orange Team)
+    # Orange Team
     # =========================================================================
     PageDef(
-        url_name="challenges:dashboard",
+        url_name="orange_team:dashboard",
         allowed_roles=["orange_team", "gold_team", "admin"],
         denied_roles=["blue_team", "red_team", "unauthenticated"],
     ),
     PageDef(
-        url_name="challenges:check_list",
+        url_name="orange_team:check_list",
         allowed_roles=["gold_team", "admin"],
         denied_roles=["blue_team", "red_team", "orange_team", "unauthenticated"],
     ),
     PageDef(
-        url_name="challenges:check_create",
+        url_name="orange_team:check_create",
         allowed_roles=["gold_team", "admin"],
         denied_roles=["blue_team", "red_team", "orange_team", "unauthenticated"],
     ),

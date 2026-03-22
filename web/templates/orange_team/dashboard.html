@@ -64,7 +64,7 @@
                 {% endif %}
             </div>
             <form method="post"
-                  action="{% url 'challenges:toggle_checkin' %}"
+                  action="{% url 'orange_team:toggle_checkin' %}"
                   {% if active_checkin %}onsubmit="return confirm('Check out? You will stop receiving assignments.')"{% endif %}>
                 {% csrf_token %}
                 {% if active_checkin %}
@@ -98,7 +98,7 @@
                 <td>{{ followup.note|default:"—" }}</td>
                 <td>
                     <form method="post"
-                          action="{% url 'challenges:followup_dismiss' followup.pk %}"
+                          action="{% url 'orange_team:followup_dismiss' followup.pk %}"
                           onsubmit="return confirm('Dismiss this reminder?')">
                         {% csrf_token %}
                         <c-button type="submit" variant="danger">Dismiss</c-button>
@@ -130,7 +130,7 @@
                 <tr x-data="assignmentRow"
                     data-score="{{ assignment.score|default:'0' }}"
                     data-max-score="{{ assignment.orange_check.max_score }}"
-                    data-save-url="{% url 'challenges:assignment_save' assignment.pk %}">
+                    data-save-url="{% url 'orange_team:assignment_save' assignment.pk %}">
                     <td>Team {{ assignment.team.team_number }}</td>
                     <td>
                         {% if assignment.status == "pending" %}
@@ -169,7 +169,7 @@
                     <td>
                         {% if assignment.status != "submitted" %}
                             <form method="post"
-                                  action="{% url 'challenges:assignment_submit' assignment.pk %}"
+                                  action="{% url 'orange_team:assignment_submit' assignment.pk %}"
                                   onsubmit="return confirm('Submit this assignment? You cannot edit criteria after submission.')">
                                 {% csrf_token %}
                                 <c-button type="submit" variant="primary">Submit</c-button>
@@ -180,7 +180,7 @@
                         <details>
                             <summary>Set Reminder</summary>
                             <form method="post"
-                                  action="{% url 'challenges:followup_create' %}"
+                                  action="{% url 'orange_team:followup_create' %}"
                                   class="d-flex gap-10 items-end">
                                 {% csrf_token %}
                                 <input type="hidden" name="assignment_id" value="{{ assignment.pk }}">

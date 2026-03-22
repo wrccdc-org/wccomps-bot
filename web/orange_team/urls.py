@@ -1,8 +1,8 @@
 from django.urls import path
 
-from challenges import views
+from orange_team import views
 
-app_name = "challenges"
+app_name = "orange_team"
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("check-in/", views.toggle_checkin, name="toggle_checkin"),

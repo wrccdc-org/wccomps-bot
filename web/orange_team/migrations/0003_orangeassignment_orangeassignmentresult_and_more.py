@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('challenges', '0002_orangecheck_orangecheckcriterion'),
+        ('orange_team', '0002_orangecheck_orangecheckcriterion'),
         ('team', '0006_migrate_helper_data'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('submitted_at', models.DateTimeField(blank=True, null=True)),
                 ('reviewed_at', models.DateTimeField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('orange_check', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='assignments', to='challenges.orangecheck')),
+                ('orange_check', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='assignments', to='orange_team.orangecheck')),
                 ('reviewed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reviewed_assignments', to=settings.AUTH_USER_MODEL)),
                 ('team', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='orange_assignments', to='team.team')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='orange_assignments', to=settings.AUTH_USER_MODEL)),
@@ -39,8 +39,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('met', models.BooleanField(default=False)),
-                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='challenges.orangeassignment')),
-                ('criterion', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='challenges.orangecheckcriterion')),
+                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='orange_team.orangeassignment')),
+                ('criterion', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='orange_team.orangecheckcriterion')),
             ],
             options={
                 'db_table': 'orange_assignment_result',

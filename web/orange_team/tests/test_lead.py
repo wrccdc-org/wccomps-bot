@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
-from challenges.models import (
+from orange_team.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
     OrangeCheck,

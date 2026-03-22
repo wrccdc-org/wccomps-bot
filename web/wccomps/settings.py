@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     "ticketing",
     "quotient",
     "scoring",
-    "challenges",
+    "orange_team",
     "packets",
     "registration",
 ]

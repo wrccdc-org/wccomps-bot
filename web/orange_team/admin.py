@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from challenges.models import (
+from orange_team.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
     OrangeCheck,

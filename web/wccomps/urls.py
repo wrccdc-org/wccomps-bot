@@ -43,7 +43,7 @@ urlpatterns = [
     path("leaderboard/team/<int:team_number>/", scorecard, name="leaderboard_scorecard"),
     path("leaderboard/team/<int:team_number>/pdf/", scorecard_pdf, name="leaderboard_scorecard_pdf"),
     path("scoring/", include("scoring.urls")),
-    path("orange-team/", include("challenges.urls")),
+    path("orange-team/", include("orange_team.urls")),
     path("register/", include("registration.urls")),
     # Ticketing routes (unified under /tickets/)
     path("tickets/", include("ticketing.urls")),

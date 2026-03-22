@@ -748,7 +748,7 @@ class OrangeTeamScore(models.Model):
         help_text="User who approved this check",
     )
     orange_check = models.ForeignKey(
-        "challenges.OrangeCheck",
+        "orange_team.OrangeCheck",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('challenges', '0003_orangeassignment_orangeassignmentresult_and_more'),
+        ('orange_team', '0003_orangeassignment_orangeassignmentresult_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 ('remind_at', models.DateTimeField()),
                 ('note', models.TextField(blank=True)),
                 ('dismissed', models.BooleanField(default=False)),
-                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='followups', to='challenges.orangeassignment')),
+                ('assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='followups', to='orange_team.orangeassignment')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='orange_followups', to=settings.AUTH_USER_MODEL)),
             ],
             options={

@@ -10,7 +10,7 @@
     {% endif %}
     <c-module>
     <c-slot name="toolbar">
-    <c-link href="{% url 'challenges:export_scores' %}" variant="default">Export CSV</c-link>
+    <c-link href="{% url 'orange_team:export_scores' %}" variant="default">Export CSV</c-link>
     </c-slot>
     {% if review_assignments %}
         <c-table id="review" aria_label="Assignments for review">
@@ -41,13 +41,13 @@
                     {% if assignment.status == "submitted" %}
                         <div class="d-flex gap-10">
                             <form method="post"
-                                  action="{% url 'challenges:assignment_approve' assignment.pk %}"
+                                  action="{% url 'orange_team:assignment_approve' assignment.pk %}"
                                   onsubmit="return confirm('Approve this assignment?')">
                                 {% csrf_token %}
                                 <c-button type="submit" variant="primary">Approve</c-button>
                             </form>
                             <form method="post"
-                                  action="{% url 'challenges:assignment_reject' assignment.pk %}"
+                                  action="{% url 'orange_team:assignment_reject' assignment.pk %}"
                                   onsubmit="return confirm('Reject this assignment?')">
                                 {% csrf_token %}
                                 <input type="text"

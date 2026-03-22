@@ -1,7 +1,7 @@
 """
 Tests for old Orange Team Portal redirect (formerly PERM-4).
 
-The old orange team portal now redirects to the challenges dashboard.
+The old orange team portal now redirects to the orange_team dashboard.
 These tests verify the redirect works correctly.
 """
 
@@ -13,7 +13,7 @@ from core.models import UserGroups
 
 
 class OrangeTeamPortalRedirectTests(TestCase):
-    """Test that old Orange Team portal redirects to challenges dashboard."""
+    """Test that old Orange Team portal redirects to orange_team dashboard."""
 
     def setUp(self) -> None:
         """Set up test data."""
@@ -28,22 +28,22 @@ class OrangeTeamPortalRedirectTests(TestCase):
         self.client = Client()
 
     def test_orange_team_portal_redirects(self) -> None:
-        """Orange Team portal redirects to challenges dashboard."""
+        """Orange Team portal redirects to orange_team dashboard."""
         self.client.login(username="orange1", password="test123")
         response = self.client.get(reverse("scoring:orange_team_portal"))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("challenges:dashboard"))
+        self.assertEqual(response.url, reverse("orange_team:dashboard"))
 
     def test_submit_orange_check_redirects(self) -> None:
-        """Submit orange check redirects to challenges dashboard."""
+        """Submit orange check redirects to orange_team dashboard."""
         self.client.login(username="orange1", password="test123")
         response = self.client.get(reverse("scoring:submit_orange_check"))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("challenges:dashboard"))
+        self.assertEqual(response.url, reverse("orange_team:dashboard"))
 
     def test_gold_team_portal_redirects(self) -> None:
         """Gold Team accessing old portal also redirects."""
         self.client.login(username="gold1", password="test123")
         response = self.client.get(reverse("scoring:orange_team_portal"))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("challenges:dashboard"))
+        self.assertEqual(response.url, reverse("orange_team:dashboard"))

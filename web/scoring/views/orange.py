@@ -17,13 +17,13 @@ from ..models import OrangeTeamScore
 
 def orange_team_portal(request: HttpRequest) -> HttpResponse:
     """Redirect to new orange team dashboard."""
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("orange_team", error_message="Only Orange Team or Gold Team members can review checks")
 def review_orange(request: HttpRequest) -> HttpResponse:
     """Review page for orange team checks."""
-    from challenges.models import OrangeCheck
+    from orange_team.models import OrangeCheck
     from django.db.models import Q
 
     from core.utils import filter_sort_paginate
@@ -100,7 +100,7 @@ def review_orange(request: HttpRequest) -> HttpResponse:
 
 def submit_orange_check(request: HttpRequest) -> HttpResponse:
     """Redirect to new orange team dashboard."""
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("orange_team", error_message="Only Orange Team or Gold Team members can approve checks")

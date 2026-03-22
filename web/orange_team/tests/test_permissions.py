@@ -1,4 +1,4 @@
-"""Permission tests for challenges views."""
+"""Permission tests for orange_team views."""
 
 import pytest
 from django.test import Client
@@ -11,7 +11,7 @@ class TestDashboardPermissions:
     """Dashboard requires orange_team or gold_team."""
 
     def test_unauthenticated_redirects(self, unauthenticated_client):
-        response = unauthenticated_client.get(reverse("challenges:dashboard"))
+        response = unauthenticated_client.get(reverse("orange_team:dashboard"))
         assert response.status_code == 302
 
     @pytest.mark.parametrize(
@@ -22,7 +22,7 @@ class TestDashboardPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("challenges:dashboard"))
+        response = client.get(reverse("orange_team:dashboard"))
         assert response.status_code == 302, f"{user_fixture} should be denied"
 
     @pytest.mark.parametrize("user_fixture", ["orange_team_user", "gold_team_user", "admin_user"])
@@ -30,7 +30,7 @@ class TestDashboardPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("challenges:dashboard"))
+        response = client.get(reverse("orange_team:dashboard"))
         assert response.status_code == 200, f"{user_fixture} should have access"
 
 
@@ -38,7 +38,7 @@ class TestCheckManagementPermissions:
     """Check management requires gold_team only."""
 
     def test_unauthenticated_redirects(self, unauthenticated_client):
-        response = unauthenticated_client.get(reverse("challenges:check_list"))
+        response = unauthenticated_client.get(reverse("orange_team:check_list"))
         assert response.status_code == 302
 
     @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ class TestCheckManagementPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("challenges:check_list"))
+        response = client.get(reverse("orange_team:check_list"))
         assert response.status_code == 302, f"{user_fixture} should be denied"
 
     @pytest.mark.parametrize("user_fixture", ["gold_team_user", "admin_user"])
@@ -57,5 +57,5 @@ class TestCheckManagementPermissions:
         user = request.getfixturevalue(user_fixture)
         client = Client()
         client.force_login(user)
-        response = client.get(reverse("challenges:check_list"))
+        response = client.get(reverse("orange_team:check_list"))
         assert response.status_code == 200, f"{user_fixture} should have access"

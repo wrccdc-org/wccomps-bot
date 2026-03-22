@@ -41,7 +41,7 @@ TRUNCATION_CASES = [
     # ── Orange check creation ─────────────────────────────────────────
     (
         "orange_check__title",
-        "challenges:check_create",
+        "orange_team:check_create",
         {
             "title": OVERSIZED,
             "description": "desc",
@@ -53,7 +53,7 @@ TRUNCATION_CASES = [
     ),
     (
         "orange_check__criterion_label",
-        "challenges:check_create",
+        "orange_team:check_create",
         {
             "title": "Test Check",
             "description": "desc",

@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from challenges.models import OrangeAssignment, OrangeCheck, OrangeCheckCriterion, OrangeCheckIn
+from orange_team.models import OrangeAssignment, OrangeCheck, OrangeCheckCriterion, OrangeCheckIn
 from core.models import UserGroups
 from team.models import Team
 

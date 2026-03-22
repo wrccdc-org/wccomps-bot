@@ -200,7 +200,7 @@ class TestIncidentSubmissionPermissions:
 
 
 class TestOrangeTeamPortalPermissions:
-    """Test that old Orange Team Portal redirects to challenges dashboard."""
+    """Test that old Orange Team Portal redirects to orange_team dashboard."""
 
     def test_unauthenticated_redirects_to_login(self, unauthenticated_client):
         """Unauthenticated users should be redirected to login."""
@@ -209,12 +209,12 @@ class TestOrangeTeamPortalPermissions:
         assert "/accounts/" in response.url or "login" in response.url
 
     def test_authenticated_user_redirects_to_dashboard(self, gold_team_user):
-        """Authenticated users are redirected to challenges dashboard."""
+        """Authenticated users are redirected to orange_team dashboard."""
         client = Client()
         client.force_login(gold_team_user)
         response = client.get(reverse("scoring:orange_team_portal"))
         assert response.status_code == 302
-        assert response.url == reverse("challenges:dashboard")
+        assert response.url == reverse("orange_team:dashboard")
 
 
 class TestInjectGradingPermissions:

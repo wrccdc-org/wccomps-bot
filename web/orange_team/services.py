@@ -1,4 +1,4 @@
-"""Business logic for the challenges (orange team) app."""
+"""Business logic for the orange team app."""
 
 import random
 
@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 from scoring.models import OrangeTeamScore
 
-from challenges.models import (
+from orange_team.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
     OrangeCheck,

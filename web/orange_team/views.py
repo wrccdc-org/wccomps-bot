@@ -11,8 +11,8 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from challenges.forms import AssignmentRejectForm, CheckAssignForm, FollowUpForm, OrangeCheckForm, extract_criteria
-from challenges.models import (
+from orange_team.forms import AssignmentRejectForm, CheckAssignForm, FollowUpForm, OrangeCheckForm, extract_criteria
+from orange_team.models import (
     OrangeAssignment,
     OrangeAssignmentResult,
     OrangeCheck,
@@ -20,7 +20,7 @@ from challenges.models import (
     OrangeCheckIn,
     OrangeFollowUp,
 )
-from challenges.services import assign_teams_round_robin, create_orange_score_from_assignment
+from orange_team.services import assign_teams_round_robin, create_orange_score_from_assignment
 from core.auth_utils import has_permission, require_permission
 from team.models import Team
 
@@ -62,7 +62,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 def toggle_checkin(request: HttpRequest) -> HttpResponse:
     """Toggle check-in/out for the current user."""
     if request.method != "POST":
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
     user = cast(User, request.user)
     active = OrangeCheckIn.objects.filter(user=user, is_active=True).first()
     if active:
@@ -71,14 +71,14 @@ def toggle_checkin(request: HttpRequest) -> HttpResponse:
         active.save()
     else:
         OrangeCheckIn.objects.create(user=user)
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("gold_team", error_message="Only leads can manage check-ins")
 def admin_toggle_checkin(request: HttpRequest, user_id: int) -> HttpResponse:
     """Toggle check-in/out for another user (lead only)."""
     if request.method != "POST":
-        return redirect("challenges:team_checkins")
+        return redirect("orange_team:team_checkins")
     target_user = User.objects.get(pk=user_id)
     active = OrangeCheckIn.objects.filter(user=target_user, is_active=True).first()
     if active:
@@ -87,7 +87,7 @@ def admin_toggle_checkin(request: HttpRequest, user_id: int) -> HttpResponse:
         active.save()
     else:
         OrangeCheckIn.objects.create(user=target_user)
-    return redirect("challenges:team_checkins")
+    return redirect("orange_team:team_checkins")
 
 
 @require_permission("gold_team", error_message="Only leads can view team check-ins")
@@ -165,7 +165,7 @@ def check_create(request: HttpRequest) -> HttpResponse:
                 )
 
         messages.success(request, f"Check '{title}' created with {len(criteria)} criteria.")
-        return redirect("challenges:check_list")
+        return redirect("orange_team:check_list")
 
     return render(request, "orange_team/check_form.html", {"mode": "create", "is_lead": True})
 
@@ -233,7 +233,7 @@ def check_edit(request: HttpRequest, check_id: int) -> HttpResponse:
                 )
 
         messages.success(request, f"Check '{title}' updated.")
-        return redirect("challenges:check_detail", check_id=orange_check.pk)
+        return redirect("orange_team:check_detail", check_id=orange_check.pk)
 
     existing_criteria = list(orange_check.criteria.values("label", "points"))
     return render(
@@ -252,7 +252,7 @@ def check_edit(request: HttpRequest, check_id: int) -> HttpResponse:
 def check_duplicate(request: HttpRequest, check_id: int) -> HttpResponse:
     """Duplicate a check and its criteria into a new draft."""
     if request.method != "POST":
-        return redirect("challenges:check_detail", check_id=check_id)
+        return redirect("orange_team:check_detail", check_id=check_id)
     original = get_object_or_404(OrangeCheck.objects.prefetch_related("criteria"), pk=check_id)
     user = cast(User, request.user)
     with transaction.atomic():
@@ -270,33 +270,33 @@ def check_duplicate(request: HttpRequest, check_id: int) -> HttpResponse:
                 sort_order=criterion.sort_order,
             )
     messages.success(request, f"Duplicated '{original.title}' as new draft.")
-    return redirect("challenges:check_detail", check_id=new_check.pk)
+    return redirect("orange_team:check_detail", check_id=new_check.pk)
 
 
 @require_permission("gold_team", error_message="Only leads can manage checks")
 def check_assign(request: HttpRequest, check_id: int) -> HttpResponse:
     """Assign checked-in users to score teams for a check."""
     if request.method != "POST":
-        return redirect("challenges:check_detail", check_id=check_id)
+        return redirect("orange_team:check_detail", check_id=check_id)
 
     orange_check = get_object_or_404(OrangeCheck.objects.prefetch_related("criteria"), pk=check_id)
     checked_in = User.objects.filter(orange_checkins__is_active=True).distinct()
     form = CheckAssignForm(request.POST, choices=[(u.pk, u.username) for u in checked_in])
     if not form.is_valid():
         messages.error(request, "Select at least one user to assign.")
-        return redirect("challenges:check_detail", check_id=check_id)
+        return redirect("orange_team:check_detail", check_id=check_id)
 
     users = list(User.objects.filter(pk__in=form.cleaned_data["user_ids"]))
     active_teams = list(Team.objects.filter(is_active=True).order_by("team_number"))
 
     if not active_teams:
         messages.error(request, "No active teams found.")
-        return redirect("challenges:check_detail", check_id=check_id)
+        return redirect("orange_team:check_detail", check_id=check_id)
 
     assign_teams_round_robin(orange_check, users, active_teams)
 
     messages.success(request, f"Assigned {len(active_teams)} teams across {len(users)} users.")
-    return redirect("challenges:check_detail", check_id=check_id)
+    return redirect("orange_team:check_detail", check_id=check_id)
 
 
 @require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
@@ -336,14 +336,14 @@ def assignment_save(request: HttpRequest, assignment_id: int) -> HttpResponse:
 def assignment_submit(request: HttpRequest, assignment_id: int) -> HttpResponse:
     """Submit a completed assignment for review."""
     if request.method != "POST":
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
 
     user = cast(User, request.user)
     assignment = get_object_or_404(OrangeAssignment, pk=assignment_id, user=user)
 
     if assignment.status in ("submitted", "approved"):
         messages.error(request, "Assignment already submitted.")
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
 
     assignment.score = assignment.calculate_score()
     assignment.status = "submitted"
@@ -356,20 +356,20 @@ def assignment_submit(request: HttpRequest, assignment_id: int) -> HttpResponse:
         f" - Team {assignment.team.team_number}"
         f" ({assignment.score}/{assignment.orange_check.max_score})",
     )
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
 def followup_create(request: HttpRequest) -> HttpResponse:
     """Create a follow-up reminder for an assignment."""
     if request.method != "POST":
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
 
     user = cast(User, request.user)
     form = FollowUpForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Invalid form data.")
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
 
     minutes = form.cleaned_data["minutes"]
     note = form.cleaned_data["note"]
@@ -381,27 +381,27 @@ def followup_create(request: HttpRequest) -> HttpResponse:
         note=note,
     )
     messages.success(request, f"Reminder set for {minutes} minutes.")
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("orange_team", "gold_team", error_message="Only Orange Team members can access this page")
 def followup_dismiss(request: HttpRequest, followup_id: int) -> HttpResponse:
     """Dismiss a follow-up reminder."""
     if request.method != "POST":
-        return redirect("challenges:dashboard")
+        return redirect("orange_team:dashboard")
 
     user = cast(User, request.user)
     followup = get_object_or_404(OrangeFollowUp, pk=followup_id, user=user)
     followup.dismissed = True
     followup.save()
-    return redirect("challenges:dashboard")
+    return redirect("orange_team:dashboard")
 
 
 @require_permission("gold_team", error_message="Only leads can approve assignments")
 def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse:
     """Approve a submitted orange team check, creating an OrangeTeamScore record."""
     if request.method != "POST":
-        return redirect("challenges:review_queue")
+        return redirect("orange_team:review_queue")
 
     user = cast(User, request.user)
     assignment = get_object_or_404(
@@ -411,7 +411,7 @@ def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse
 
     if assignment.status != "submitted":
         messages.error(request, "Only submitted assignments can be approved.")
-        return redirect("challenges:review_queue")
+        return redirect("orange_team:review_queue")
 
     assignment.status = "approved"
     assignment.reviewed_by = user
@@ -424,21 +424,21 @@ def assignment_approve(request: HttpRequest, assignment_id: int) -> HttpResponse
         request,
         f"Approved: {assignment.orange_check.title} - Team {assignment.team.team_number} ({assignment.score} pts)",
     )
-    return redirect("challenges:review_queue")
+    return redirect("orange_team:review_queue")
 
 
 @require_permission("gold_team", error_message="Only leads can reject assignments")
 def assignment_reject(request: HttpRequest, assignment_id: int) -> HttpResponse:
     """Reject a submitted assignment, sending it back to the teamer."""
     if request.method != "POST":
-        return redirect("challenges:review_queue")
+        return redirect("orange_team:review_queue")
 
     user = cast(User, request.user)
     assignment = get_object_or_404(OrangeAssignment, pk=assignment_id)
 
     if assignment.status != "submitted":
         messages.error(request, "Only submitted assignments can be rejected.")
-        return redirect("challenges:review_queue")
+        return redirect("orange_team:review_queue")
 
     form = AssignmentRejectForm(request.POST)
     form.is_valid()  # Always valid (optional field)
@@ -453,7 +453,7 @@ def assignment_reject(request: HttpRequest, assignment_id: int) -> HttpResponse:
         request,
         f"Rejected: {assignment.orange_check.title} - Team {assignment.team.team_number}",
     )
-    return redirect("challenges:review_queue")
+    return redirect("orange_team:review_queue")
 
 
 @require_permission("gold_team", error_message="Only leads can export scores")

@@ -48,7 +48,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "bulk_approve_orange_adjustments": ("orange", "portal"),
     "approve_orange_adjustment": ("orange", "portal"),
     "reject_orange_adjustment": ("orange", "portal"),
-    # Orange Team Challenges (challenges app)
+    # Orange Team Challenges (orange_team app)
     "dashboard": ("orange", "dashboard"),
     "team_checkins": ("orange", "checkins"),
     "review_queue": ("orange", "review"),
@@ -150,8 +150,8 @@ def _get_nav_active(request: HttpRequest) -> dict[str, str]:
         nav, subnav = NAV_MAPPING[url_name]
         return {"nav": nav, "subnav": subnav}
 
-    # Fallback for challenges app (covers dashboard, export_scores, etc.)
-    if app_name == "challenges":
+    # Fallback for orange_team app (covers dashboard, export_scores, etc.)
+    if app_name == "orange_team":
         return {"nav": "orange", "subnav": ""}
 
     # Fallback for admin

@@ -1,4 +1,4 @@
-"""Django forms for orange team challenge views."""
+"""Django forms for orange team views."""
 
 from typing import cast
 
