@@ -490,9 +490,9 @@ def _serialize_tickets_csv() -> str:
             "Created At",
         ]
     )
-    tickets = Ticket.objects.select_related(
-        "team", "category", "assigned_to", "resolved_by", "approved_by"
-    ).order_by("-created_at")
+    tickets = Ticket.objects.select_related("team", "category", "assigned_to", "resolved_by", "approved_by").order_by(
+        "-created_at"
+    )
     for ticket in tickets:
         writer.writerow(
             [
@@ -525,9 +525,9 @@ def _serialize_tickets_json() -> str:
     """Serialize tickets to a JSON string."""
     from ticketing.models import Ticket
 
-    tickets = Ticket.objects.select_related(
-        "team", "category", "assigned_to", "resolved_by", "approved_by"
-    ).order_by("-created_at")
+    tickets = Ticket.objects.select_related("team", "category", "assigned_to", "resolved_by", "approved_by").order_by(
+        "-created_at"
+    )
     data = [
         {
             "ticket_number": ticket.ticket_number,
