@@ -191,9 +191,9 @@
             <div class="mt-15">
                 <template x-for="(r, idx) in readinessResults" :key="idx">
                     <div class="d-flex items-center gap-10 py-5 border-bottom">
-                        <span x-show="r.isPass" class="text-success font-bold" aria-label="Pass">&#10003;</span>
-                        <span x-show="r.isFail" class="text-danger font-bold" aria-label="Fail">&#10007;</span>
-                        <span x-show="r.isWarn" class="text-warning font-bold" aria-label="Warning">&#9888;</span>
+                        <span x-show="r.isPass" class="text-success font-bold" aria-label="Pass">✓</span>
+                        <span x-show="r.isFail" class="text-danger font-bold" aria-label="Fail">✗</span>
+                        <span x-show="r.isWarn" class="text-warning font-bold" aria-label="Warning">⚠</span>
                         <span class="font-semibold" x-text="r.step"></span>
                         <span class="text-muted text-sm" x-text="r.detail"></span>
                         <template x-if="r.isLinkAction">
