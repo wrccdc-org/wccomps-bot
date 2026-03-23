@@ -136,6 +136,7 @@ NAV_MAPPING: dict[str, tuple[str, str]] = {
     "recalculate_scores": ("ops_admin", "config"),
     "export_index": ("ops_admin", "export"),
     "export_red_scores": ("ops_admin", "export"),
+    "export_tickets": ("ops_admin", "export"),
     "export_incidents": ("ops_admin", "export"),
 }
 

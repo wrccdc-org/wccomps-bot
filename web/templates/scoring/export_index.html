@@ -60,6 +60,16 @@
     </tr>
     <tr>
         <td>
+            <strong>Tickets</strong>
+        </td>
+        <td>All team tickets with status, assignments, and resolution details</td>
+        <td class="text-center">
+            <c-link href="{% url 'scoring:export_tickets' %}?format=csv" variant="default">CSV</c-link>
+            <c-link href="{% url 'scoring:export_tickets' %}?format=json" variant="default">JSON</c-link>
+        </td>
+    </tr>
+    <tr>
+        <td>
             <strong>Final Scores</strong>
         </td>
         <td>Calculated final scores with all component breakdowns</td>

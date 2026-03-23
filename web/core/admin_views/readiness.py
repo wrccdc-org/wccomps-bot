@@ -155,18 +155,18 @@ def _check_blueteam_bindings() -> CheckResult:
 # ---------------------------------------------------------------------------
 
 
-def _check_open_tickets() -> CheckResult:
-    """Check for open or claimed tickets."""
-    from ticketing.models import Ticket
+def _check_tickets_exist() -> CheckResult:
+    """Check that ticket categories have been created."""
+    from ticketing.models import TicketCategory
 
-    count = Ticket.objects.filter(status__in=["open", "claimed"]).count()
-    if count > 0:
+    count = TicketCategory.objects.count()
+    if count == 0:
         return (
-            "warn",
-            f"{count} open/claimed ticket{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("ticket_list"), "label": "View Tickets"},
+            "fail",
+            "No ticket categories configured",
+            {"type": "link", "url": reverse("admin_categories"), "label": "Configure Categories"},
         )
-    return ("pass", "No open tickets", None)
+    return ("pass", f"{count} ticket categor{'y' if count == 1 else 'ies'} configured", None)
 
 
 def _check_packets_distributed() -> CheckResult:
@@ -293,7 +293,7 @@ ALL_CHECKS: list[tuple[str, Callable[[], CheckResult]]] = [
     ("Group membership correct", _check_team_group_membership),
     ("App bindings configured", _check_blueteam_bindings),
     # Phase 2: Operational
-    ("No open tickets", _check_open_tickets),
+    ("Ticket categories configured", _check_tickets_exist),
     ("Packets distributed", _check_packets_distributed),
     ("Quotient metadata synced", _check_quotient_synced),
     ("Red team findings approved", _check_unapproved_red_scores),

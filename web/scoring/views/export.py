@@ -74,6 +74,17 @@ def export_final_scores(request: HttpRequest) -> HttpResponse:
 
 
 @require_permission("gold_team", error_message="Only Gold Team members can access this")
+def export_tickets(request: HttpRequest) -> HttpResponse:
+    """Export tickets (admin only)."""
+    from ..export import export_tickets_csv, export_tickets_json
+
+    export_format = request.GET.get("format", "csv").lower()
+    if export_format == "json":
+        return export_tickets_json()
+    return export_tickets_csv()
+
+
+@require_permission("gold_team", error_message="Only Gold Team members can access this")
 def export_all(request: HttpRequest) -> HttpResponse:
     """Export all scoring data as a zip file (admin only)."""
     from ..export import export_all_zip

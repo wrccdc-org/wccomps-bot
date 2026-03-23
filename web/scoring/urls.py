@@ -73,6 +73,7 @@ urlpatterns = [
     path("export/orange-adjustments/", views.export_orange_adjustments, name="export_orange_adjustments"),
     path("export/inject-grades/", views.export_inject_grades, name="export_inject_grades"),
     path("export/final-scores/", views.export_final_scores, name="export_final_scores"),
+    path("export/tickets/", views.export_tickets, name="export_tickets"),
     path("export/scorecards/", views.export_scorecards, name="export_scorecards"),
     # Email scorecards
     path("email-scorecards/", views.email_scorecards, name="email_scorecards"),

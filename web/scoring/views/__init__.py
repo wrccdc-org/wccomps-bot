@@ -13,6 +13,7 @@ from .export import (
     export_orange_adjustments,
     export_red_scores,
     export_scorecards,
+    export_tickets,
     stream_email_scorecards,
 )
 from .incidents import (
@@ -129,6 +130,7 @@ __all__ = [
     "export_inject_grades",
     "export_final_scores",
     "export_all",
+    "export_tickets",
     "export_scorecards",
     "email_scorecard",
     "email_scorecards",

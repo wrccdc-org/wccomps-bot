@@ -456,6 +456,121 @@ def export_final_scores_json() -> HttpResponse:
 
 
 # ---------------------------------------------------------------------------
+# Tickets
+# ---------------------------------------------------------------------------
+
+
+def _serialize_tickets_csv() -> str:
+    """Serialize tickets to a CSV string."""
+    from ticketing.models import Ticket
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "Ticket Number",
+            "Team",
+            "Team Number",
+            "Category",
+            "Title",
+            "Description",
+            "Status",
+            "Points Charged",
+            "Hostname",
+            "IP Address",
+            "Service Name",
+            "Assigned To",
+            "Assigned At",
+            "Resolved By",
+            "Resolved At",
+            "Resolution Notes",
+            "Approved",
+            "Approved By",
+            "Approved At",
+            "Created At",
+        ]
+    )
+    tickets = Ticket.objects.select_related(
+        "team", "category", "assigned_to", "resolved_by", "approved_by"
+    ).order_by("-created_at")
+    for ticket in tickets:
+        writer.writerow(
+            [
+                ticket.ticket_number,
+                ticket.team.team_name,
+                ticket.team.team_number,
+                ticket.category.display_name if ticket.category else "",
+                ticket.title,
+                ticket.description,
+                ticket.status,
+                ticket.points_charged,
+                ticket.hostname,
+                ticket.ip_address or "",
+                ticket.service_name,
+                ticket.assigned_to.username if ticket.assigned_to else "",
+                ticket.assigned_at.isoformat() if ticket.assigned_at else "",
+                ticket.resolved_by.username if ticket.resolved_by else "",
+                ticket.resolved_at.isoformat() if ticket.resolved_at else "",
+                ticket.resolution_notes,
+                ticket.is_approved,
+                ticket.approved_by.username if ticket.approved_by else "",
+                ticket.approved_at.isoformat() if ticket.approved_at else "",
+                ticket.created_at.isoformat(),
+            ]
+        )
+    return output.getvalue()
+
+
+def _serialize_tickets_json() -> str:
+    """Serialize tickets to a JSON string."""
+    from ticketing.models import Ticket
+
+    tickets = Ticket.objects.select_related(
+        "team", "category", "assigned_to", "resolved_by", "approved_by"
+    ).order_by("-created_at")
+    data = [
+        {
+            "ticket_number": ticket.ticket_number,
+            "team": ticket.team.team_name,
+            "team_number": ticket.team.team_number,
+            "category": ticket.category.display_name if ticket.category else None,
+            "title": ticket.title,
+            "description": ticket.description,
+            "status": ticket.status,
+            "points_charged": ticket.points_charged,
+            "hostname": ticket.hostname,
+            "ip_address": ticket.ip_address,
+            "service_name": ticket.service_name,
+            "assigned_to": ticket.assigned_to.username if ticket.assigned_to else None,
+            "assigned_at": ticket.assigned_at.isoformat() if ticket.assigned_at else None,
+            "resolved_by": ticket.resolved_by.username if ticket.resolved_by else None,
+            "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+            "resolution_notes": ticket.resolution_notes,
+            "is_approved": ticket.is_approved,
+            "approved_by": ticket.approved_by.username if ticket.approved_by else None,
+            "approved_at": ticket.approved_at.isoformat() if ticket.approved_at else None,
+            "created_at": ticket.created_at.isoformat(),
+        }
+        for ticket in tickets
+    ]
+    return json.dumps({"tickets": data}, indent=2)
+
+
+def export_tickets_csv() -> HttpResponse:
+    """Export tickets to CSV format."""
+    response = HttpResponse(_serialize_tickets_csv(), content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="tickets.csv"'
+    return response
+
+
+def export_tickets_json() -> HttpResponse:
+    """Export tickets to JSON format."""
+    response = HttpResponse(_serialize_tickets_json(), content_type="application/json")
+    response["Content-Disposition"] = 'attachment; filename="tickets.json"'
+    return response
+
+
+# ---------------------------------------------------------------------------
 # ZIP of all exports
 # ---------------------------------------------------------------------------
 
@@ -475,6 +590,8 @@ def export_all_zip() -> HttpResponse:
         zip_file.writestr("inject_grades.json", _serialize_inject_grades_json())
         zip_file.writestr("final_scores.csv", _serialize_final_scores_csv())
         zip_file.writestr("final_scores.json", _serialize_final_scores_json())
+        zip_file.writestr("tickets.csv", _serialize_tickets_csv())
+        zip_file.writestr("tickets.json", _serialize_tickets_json())
 
     zip_buffer.seek(0)
     timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
