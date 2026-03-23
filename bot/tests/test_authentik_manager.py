@@ -65,7 +65,7 @@ class TestAuthentikManager:
         mock_response.status_code = 401
         mock_response.url = "https://auth.test.local/api/v3/test"
         mock_response.text = "Unauthorized"
-        mock_response.json.side_effect = Exception("Not JSON")
+        mock_response.json.side_effect = ValueError("Not JSON")
 
         error = manager._handle_response_error(mock_response, "Test context")
 
@@ -92,7 +92,7 @@ class TestAuthentikManager:
         mock_response.status_code = 404
         mock_response.url = "https://auth.test.local/api/v3/test"
         mock_response.text = "Not found"
-        mock_response.json.side_effect = Exception("Not JSON")
+        mock_response.json.side_effect = ValueError("Not JSON")
 
         error = manager._handle_response_error(mock_response, "Find resource")
 
@@ -112,7 +112,7 @@ class TestAuthentikManager:
             mock_response.status_code = status_code
             mock_response.url = "https://auth.test.local/api/v3/test"
             mock_response.text = "Server error"
-            mock_response.json.side_effect = Exception("Not JSON")
+            mock_response.json.side_effect = ValueError("Not JSON")
 
             error = manager._handle_response_error(mock_response, "Server operation")
 
@@ -156,7 +156,7 @@ class TestAuthentikManager:
         mock_response.status_code = 500
         mock_response.url = "https://auth.test.local/api/v3/core/applications/"
         mock_response.text = "Internal server error"
-        mock_response.json.side_effect = Exception("Not JSON")
+        mock_response.json.side_effect = ValueError("Not JSON")
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "error", request=Mock(), response=mock_response
         )
