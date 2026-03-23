@@ -225,62 +225,60 @@ def _check_quotient_synced() -> CheckResult:
     return ("pass", f"Synced {cache.last_synced.strftime('%b %d %H:%M')}", None)
 
 
-def _check_unapproved_red_scores() -> CheckResult:
-    """Check for unapproved red team findings."""
+def _check_no_red_scores() -> CheckResult:
+    """Check that no red team findings exist yet (clean slate for competition)."""
     from scoring.models import RedTeamScore
 
-    count = RedTeamScore.objects.filter(is_approved=False).count()
+    count = RedTeamScore.objects.count()
     if count > 0:
         return (
             "warn",
-            f"{count} unapproved finding{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("scoring:red_team_portal"), "label": "Review"},
+            f"{count} finding{'s' if count != 1 else ''} already exist",
+            {"type": "link", "url": reverse("scoring:red_team_portal"), "label": "View Findings"},
         )
-    return ("pass", "All findings approved", None)
+    return ("pass", "No existing findings", None)
 
 
-def _check_unreviewed_incidents() -> CheckResult:
-    """Check for unreviewed incident reports."""
+def _check_no_incidents() -> CheckResult:
+    """Check that no incident reports exist yet (clean slate for competition)."""
     from scoring.models import IncidentReport
 
-    count = IncidentReport.objects.filter(is_approved=False).count()
+    count = IncidentReport.objects.count()
     if count > 0:
         return (
             "warn",
-            f"{count} unreviewed report{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("scoring:review_incidents"), "label": "Review"},
+            f"{count} report{'s' if count != 1 else ''} already exist",
+            {"type": "link", "url": reverse("scoring:review_incidents"), "label": "View Reports"},
         )
-    return ("pass", "All incidents reviewed", None)
+    return ("pass", "No existing incident reports", None)
 
 
-def _check_unapproved_inject_grades() -> CheckResult:
-    """Check for unapproved inject grades."""
+def _check_no_inject_grades() -> CheckResult:
+    """Check that no inject grades exist yet (clean slate for competition)."""
     from scoring.models import InjectScore
 
-    count = InjectScore.objects.filter(is_approved=False).count()
+    count = InjectScore.objects.count()
     if count > 0:
         return (
             "warn",
-            f"{count} unapproved grade{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("scoring:inject_grades_review"), "label": "Review"},
+            f"{count} grade{'s' if count != 1 else ''} already exist",
+            {"type": "link", "url": reverse("scoring:inject_grades_review"), "label": "View Grades"},
         )
-    return ("pass", "All inject grades approved", None)
+    return ("pass", "No existing inject grades", None)
 
 
-def _check_outstanding_orange() -> CheckResult:
-    """Check for outstanding orange team assignments."""
+def _check_no_orange_assignments() -> CheckResult:
+    """Check that no orange team assignments exist yet (clean slate for competition)."""
     from orange_team.models import OrangeAssignment
 
-    count = OrangeAssignment.objects.filter(
-        status__in=["pending", "in_progress", "submitted"],
-    ).count()
+    count = OrangeAssignment.objects.count()
     if count > 0:
         return (
             "warn",
-            f"{count} outstanding assignment{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("review_queue"), "label": "Review"},
+            f"{count} assignment{'s' if count != 1 else ''} already exist",
+            {"type": "link", "url": reverse("review_queue"), "label": "View Assignments"},
         )
-    return ("pass", "All assignments resolved", None)
+    return ("pass", "No existing orange assignments", None)
 
 
 # ---------------------------------------------------------------------------
@@ -296,10 +294,10 @@ ALL_CHECKS: list[tuple[str, Callable[[], CheckResult]]] = [
     ("No existing tickets", _check_no_tickets),
     ("Packets distributed", _check_packets_distributed),
     ("Quotient metadata synced", _check_quotient_synced),
-    ("Red team findings approved", _check_unapproved_red_scores),
-    ("Incident reports reviewed", _check_unreviewed_incidents),
-    ("Inject grades approved", _check_unapproved_inject_grades),
-    ("Orange assignments resolved", _check_outstanding_orange),
+    ("No existing red team findings", _check_no_red_scores),
+    ("No existing incident reports", _check_no_incidents),
+    ("No existing inject grades", _check_no_inject_grades),
+    ("No existing orange assignments", _check_no_orange_assignments),
 ]
 
 
