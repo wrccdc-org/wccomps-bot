@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Progress helper
 # ---------------------------------------------------------------------------
 
+
 def _progress(
     step: str,
     current: int,
@@ -38,15 +39,20 @@ def _progress(
     action: dict[str, str] | None = None,
 ) -> str:
     """Emit a readiness check progress line as NDJSON."""
-    return json.dumps({
-        "step": step,
-        "current": current,
-        "total": total,
-        "ok": severity != "fail",
-        "severity": severity,
-        "detail": detail,
-        "action": action,
-    }) + "\n"
+    return (
+        json.dumps(
+            {
+                "step": step,
+                "current": current,
+                "total": total,
+                "ok": severity != "fail",
+                "severity": severity,
+                "detail": detail,
+                "action": action,
+            }
+        )
+        + "\n"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +65,7 @@ type CheckResult = tuple[str, str, dict[str, str] | None]
 # ---------------------------------------------------------------------------
 # Phase 1 — Authentik checks
 # ---------------------------------------------------------------------------
+
 
 def _check_team_accounts_exist() -> CheckResult:
     """Verify all active team accounts exist in Authentik."""
@@ -146,6 +153,7 @@ def _check_blueteam_bindings() -> CheckResult:
 # ---------------------------------------------------------------------------
 # Phase 2 — Operational readiness checks
 # ---------------------------------------------------------------------------
+
 
 def _check_open_tickets() -> CheckResult:
     """Check for open or claimed tickets."""
@@ -299,6 +307,7 @@ ALL_CHECKS: list[tuple[str, Callable[[], CheckResult]]] = [
 # Streaming generator
 # ---------------------------------------------------------------------------
 
+
 def stream_readiness_checks() -> Iterator[str]:
     """Run all readiness checks and yield NDJSON progress lines."""
     total = len(ALL_CHECKS)
@@ -336,6 +345,7 @@ def stream_readiness_checks() -> Iterator[str]:
 # Fix handlers
 # ---------------------------------------------------------------------------
 
+
 def _fix_missing_accounts(request: HttpRequest) -> JsonResponse:
     """Create missing team accounts by resetting their passwords."""
     active_teams = Team.objects.filter(is_active=True)
@@ -368,12 +378,14 @@ def _fix_missing_accounts(request: HttpRequest) -> JsonResponse:
     for _num, username, password in password_list:
         writer.writerow([username, password])
 
-    return JsonResponse({
-        "success": True,
-        "message": f"Created {len(password_list)}/{len(missing_teams)} accounts",
-        "csv": csv_buffer.getvalue(),
-        "failed": failed,
-    })
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Created {len(password_list)}/{len(missing_teams)} accounts",
+            "csv": csv_buffer.getvalue(),
+            "failed": failed,
+        }
+    )
 
 
 def _fix_group_membership(request: HttpRequest) -> JsonResponse:
@@ -436,8 +448,11 @@ _FIX_HANDLERS: dict[str, Callable[[HttpRequest], JsonResponse]] = {
 # Action handlers (called from competition.py dispatcher)
 # ---------------------------------------------------------------------------
 
+
 def action_readiness_check(
-    request: HttpRequest, config: CompetitionConfig, authentik_username: str,
+    request: HttpRequest,
+    config: CompetitionConfig,
+    authentik_username: str,
 ) -> StreamingHttpResponse:
     """Handle readiness_check action — streams check results."""
     return StreamingHttpResponse(
@@ -447,7 +462,9 @@ def action_readiness_check(
 
 
 def action_readiness_fix(
-    request: HttpRequest, config: CompetitionConfig, authentik_username: str,
+    request: HttpRequest,
+    config: CompetitionConfig,
+    authentik_username: str,
 ) -> JsonResponse:
     """Handle readiness_fix action — dispatches to fix handlers."""
     form = ReadinessFixForm(request.POST)

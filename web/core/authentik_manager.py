@@ -98,7 +98,7 @@ class AuthentikManager:
         try:
             error_data = response.json()
             error_detail = error_data.get("detail", str(error_data))
-        except (ValueError, httpx.DecodingError):
+        except ValueError, httpx.DecodingError:
             error_detail = response.text
 
         # Map common status codes to readable messages

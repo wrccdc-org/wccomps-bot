@@ -391,6 +391,4 @@ class TestDiscordTaskTypeConsistency:
 
         choice_types = {t for t, _ in DiscordTask.TASK_TYPE_CHOICES}
         for handler_type in DiscordQueueProcessor._task_handlers:
-            assert handler_type in choice_types, (
-                f"Handler '{handler_type}' is not in TASK_TYPE_CHOICES"
-            )
+            assert handler_type in choice_types, f"Handler '{handler_type}' is not in TASK_TYPE_CHOICES"
