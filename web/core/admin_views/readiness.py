@@ -318,9 +318,7 @@ def _check_school_info() -> CheckResult:
     if not active_teams.exists():
         return ("warn", "No active teams", None)
 
-    teams_with_info = set(
-        SchoolInfo.objects.filter(team__is_active=True).values_list("team_id", flat=True)
-    )
+    teams_with_info = set(SchoolInfo.objects.filter(team__is_active=True).values_list("team_id", flat=True))
     missing = active_teams.exclude(id__in=teams_with_info)
     if missing.exists():
         names = ", ".join(f"Team {t.team_number}" for t in missing[:5])
