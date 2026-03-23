@@ -8,6 +8,18 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+def format_boxes_display(boxes: list[str] | str | None) -> str:
+    """Format an affected_boxes field value for display.
+
+    Used by both RedTeamScore and IncidentReport models.
+    """
+    if not boxes:
+        return ""
+    if isinstance(boxes, str):
+        return boxes
+    return ", ".join(boxes)
+
+
 def validate_file_size(file: UploadedFile) -> UploadedFile:
     """Validate that uploaded file is not larger than 50MB."""
     max_size_mb = 50
@@ -374,11 +386,7 @@ class RedTeamScore(models.Model):
     @property
     def affected_boxes_display(self) -> str:
         """Return display string for affected boxes."""
-        if not self.affected_boxes:
-            return ""
-        if isinstance(self.affected_boxes, str):
-            return self.affected_boxes
-        return ", ".join(self.affected_boxes)
+        return format_boxes_display(self.affected_boxes)
 
     def matches_source_ip(self, ip: str) -> bool:
         """Check if the given IP matches this finding's source (single or pool)."""
@@ -572,11 +580,7 @@ class IncidentReport(models.Model):
     @property
     def affected_boxes_display(self) -> str:
         """Return display string for affected boxes."""
-        if not self.affected_boxes:
-            return ""
-        if isinstance(self.affected_boxes, str):
-            return self.affected_boxes
-        return ", ".join(self.affected_boxes)
+        return format_boxes_display(self.affected_boxes)
 
 
 class IncidentScreenshot(models.Model):

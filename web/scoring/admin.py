@@ -16,6 +16,7 @@ from .models import (
     RedTeamScreenshot,
     ScoringTemplate,
     ServiceScore,
+    format_boxes_display,
 )
 
 
@@ -61,12 +62,7 @@ class RedTeamScoreAdmin(admin.ModelAdmin[RedTeamScore]):
 
     @admin.display(description="Boxes")
     def affected_boxes_display(self, obj: RedTeamScore) -> str:
-        if obj.affected_boxes:
-            items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
-            boxes = items[:3]
-            suffix = "..." if len(items) > 3 else ""
-            return ", ".join(boxes) + suffix
-        return "—"
+        return format_boxes_display(obj.affected_boxes) or "—"
 
     filter_horizontal = ["affected_teams", "contributors"]
     inlines = [RedTeamScreenshotInline]
@@ -179,12 +175,7 @@ class IncidentReportAdmin(admin.ModelAdmin[IncidentReport]):
 
     @admin.display(description="Affected Boxes")
     def affected_boxes_display(self, obj: IncidentReport) -> str:
-        if obj.affected_boxes:
-            items = obj.affected_boxes if isinstance(obj.affected_boxes, list) else [obj.affected_boxes]
-            boxes = items[:3]
-            suffix = "..." if len(items) > 3 else ""
-            return ", ".join(boxes) + suffix
-        return "—"
+        return format_boxes_display(obj.affected_boxes) or "—"
 
     @admin.display(description="Status")
     def reviewed_status(self, obj: IncidentReport) -> str:

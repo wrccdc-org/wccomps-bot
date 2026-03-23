@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import quote
 
+from django.conf import settings
 from django.db import connection
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
@@ -47,9 +48,9 @@ class SubdomainRedirectMiddleware:
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
-        self.subdomain_redirects = {
-            "register.wccomps.org": "/register/",
-        }
+        self.subdomain_redirects: dict[str, str] = getattr(
+            settings, "SUBDOMAIN_REDIRECTS", {"register.wccomps.org": "/register/"}
+        )
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         host = request.get_host().split(":")[0]

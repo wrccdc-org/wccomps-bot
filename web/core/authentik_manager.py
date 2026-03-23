@@ -57,16 +57,32 @@ class AuthentikAPIError(Exception):
 class AuthentikManager:
     """Manager for Authentik API operations."""
 
-    def __init__(self, *, base_url: str | None = None, api_token: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        base_url: str | None = None,
+        api_token: str | None = None,
+        client: httpx.Client | None = None,
+    ) -> None:
         self.base_url = base_url or getattr(settings, "AUTHENTIK_URL", "")
         self.token = api_token or getattr(settings, "AUTHENTIK_TOKEN", "")
-        self.client = httpx.Client(
+        self.client = client or httpx.Client(
             headers={
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
             },
             timeout=settings.HTTPX_DEFAULT_TIMEOUT,
         )
+
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+        self.client.close()
+
+    def __enter__(self) -> AuthentikManager:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
     def _log_request(self, method: str, url: str, **kwargs: object) -> None:
         """Log HTTP request details (without sensitive headers)."""
@@ -82,7 +98,7 @@ class AuthentikManager:
         try:
             error_data = response.json()
             error_detail = error_data.get("detail", str(error_data))
-        except Exception:
+        except (ValueError, httpx.DecodingError):
             error_detail = response.text
 
         # Map common status codes to readable messages
@@ -226,7 +242,7 @@ class AuthentikManager:
 
         Args:
             binding: The binding object to update
-            enabled: True to enable the binding (block access), False to disable (allow access)
+            enabled: True to enable the binding (allow group access), False to disable (deny group access)
         """
         try:
             binding_pk = binding["pk"]
@@ -246,14 +262,19 @@ class AuthentikManager:
             logger.exception(f"Failed to update binding {binding.get('pk')}: {e}")
             return False
 
-    def enable_application(self, app_slug: str) -> tuple[bool, str | None]:
-        """Enable application for blue teams by enabling the BlueTeam group binding.
+    def _toggle_application(self, app_slug: str, *, enable: bool) -> tuple[bool, str | None]:
+        """Enable or disable application for blue teams via the BlueTeam group binding.
+
+        Args:
+            app_slug: Authentik application slug
+            enable: True to enable (allow access), False to disable (deny access)
 
         Returns:
             tuple[bool, Optional[str]]: (success, error_message)
         """
+        action = "enable" if enable else "disable"
         try:
-            logger.info(f"Attempting to enable application '{app_slug}'")
+            logger.info(f"Attempting to {action} application '{app_slug}'")
 
             app = self.get_application_by_slug(app_slug)
             if not app:
@@ -264,7 +285,6 @@ class AuthentikManager:
             app_pk = app["pk"]
             logger.debug(f"Application '{app_slug}' has pk={app_pk}")
 
-            # Find the BlueTeam group binding
             binding, binding_error = self.get_blueteam_binding(app_pk)
             if not binding:
                 error_msg = f"Could not find BlueTeam group binding: {binding_error}"
@@ -273,62 +293,28 @@ class AuthentikManager:
 
             logger.debug(f"Using binding pk={binding['pk']}")
 
-            # Enable the binding to allow blue team access
-            success = self.update_binding_enabled(binding, enabled=True)
+            success = self.update_binding_enabled(binding, enabled=enable)
 
             if success:
-                logger.info(f"✓ Application '{app_slug}' enabled for blue teams")
+                state = "enabled" if enable else "disabled"
+                logger.info(f"Application '{app_slug}' {state} for blue teams")
                 return True, None
-            error_msg = f"Failed to enable binding for application '{app_slug}'"
+            error_msg = f"Failed to {action} binding for application '{app_slug}'"
             logger.error(error_msg)
             return False, error_msg
 
         except Exception as e:
-            error_msg = f"Unexpected error enabling application '{app_slug}': {e!s}"
+            error_msg = f"Unexpected error {action}ing application '{app_slug}': {e!s}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
+
+    def enable_application(self, app_slug: str) -> tuple[bool, str | None]:
+        """Enable application for blue teams by enabling the BlueTeam group binding."""
+        return self._toggle_application(app_slug, enable=True)
 
     def disable_application(self, app_slug: str) -> tuple[bool, str | None]:
-        """Disable application for blue teams by disabling the BlueTeam group binding.
-
-        Returns:
-            tuple[bool, Optional[str]]: (success, error_message)
-        """
-        try:
-            logger.info(f"Attempting to disable application '{app_slug}'")
-
-            app = self.get_application_by_slug(app_slug)
-            if not app:
-                error_msg = f"Application '{app_slug}' not found in Authentik"
-                logger.error(error_msg)
-                return False, error_msg
-
-            app_pk = app["pk"]
-            logger.debug(f"Application '{app_slug}' has pk={app_pk}")
-
-            # Find the BlueTeam group binding
-            binding, binding_error = self.get_blueteam_binding(app_pk)
-            if not binding:
-                error_msg = f"Could not find BlueTeam group binding: {binding_error}"
-                logger.error(error_msg)
-                return False, error_msg
-
-            logger.debug(f"Using binding pk={binding['pk']}")
-
-            # Disable the binding to block blue team access
-            success = self.update_binding_enabled(binding, enabled=False)
-
-            if success:
-                logger.info(f"✓ Application '{app_slug}' disabled for blue teams")
-                return True, None
-            error_msg = f"Failed to disable binding for application '{app_slug}'"
-            logger.error(error_msg)
-            return False, error_msg
-
-        except Exception as e:
-            error_msg = f"Unexpected error disabling application '{app_slug}': {e!s}"
-            logger.error(error_msg, exc_info=True)
-            return False, error_msg
+        """Disable application for blue teams by disabling the BlueTeam group binding."""
+        return self._toggle_application(app_slug, enable=False)
 
     def enable_applications(self, app_slugs: list[str]) -> dict[str, tuple[bool, str | None]]:
         """Enable multiple applications for blue teams.
@@ -570,3 +556,77 @@ class AuthentikManager:
         except Exception as e:
             logger.exception(f"Failed to reset password for {username}: {e}")
             return (False, "Password reset failed - check server logs")
+
+    def get_user_with_groups(self, username: str) -> dict[str, object] | None:
+        """Get an Authentik user with their group memberships.
+
+        Args:
+            username: Authentik username (e.g., "team01")
+
+        Returns:
+            User dict with groups_obj list, or None if not found.
+        """
+        try:
+            response = self.client.get(
+                f"{self.base_url}/api/v3/core/users/",
+                params={"username": username},
+            )
+            response.raise_for_status()
+            users = response.json().get("results", [])
+            if not users:
+                return None
+            result: dict[str, object] = users[0]
+            return result
+        except Exception as e:
+            logger.exception(f"Failed to get user {username}: {e}")
+            return None
+
+    def get_group_by_name(self, name: str) -> dict[str, object] | None:
+        """Look up an Authentik group by exact name.
+
+        Args:
+            name: Group name (e.g., "WCComps_BlueTeam01")
+
+        Returns:
+            Group dict with pk (UUID), or None if not found.
+        """
+        try:
+            response = self.client.get(
+                f"{self.base_url}/api/v3/core/groups/",
+                params={"name": name},
+            )
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            for group in results:
+                if group.get("name") == name:
+                    result: dict[str, object] = group
+                    return result
+            return None
+        except Exception as e:
+            logger.exception(f"Failed to look up group {name}: {e}")
+            return None
+
+    def add_user_to_group(self, user_pk: int, group_pk: str) -> tuple[bool, str]:
+        """Add a user to an Authentik group.
+
+        Args:
+            user_pk: User primary key (integer)
+            group_pk: Group primary key (UUID string)
+
+        Returns:
+            (success, error_message)
+        """
+        try:
+            response = self.client.post(
+                f"{self.base_url}/api/v3/core/groups/{group_pk}/add_user/",
+                json={"pk": user_pk},
+            )
+            response.raise_for_status()
+            return (True, "")
+        except httpx.HTTPStatusError as e:
+            error = self._handle_response_error(e.response, f"Add user {user_pk} to group {group_pk}")
+            logger.exception(str(error))
+            return (False, str(error))
+        except Exception as e:
+            logger.exception(f"Failed to add user {user_pk} to group {group_pk}: {e}")
+            return (False, f"Failed to add user to group: {e}")

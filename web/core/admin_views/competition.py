@@ -14,6 +14,7 @@ from django.utils import timezone
 from scoring.models import QuotientMetadataCache
 from scoring.quotient_sync import sync_quotient_metadata
 
+from core.admin_views.readiness import action_readiness_check, action_readiness_fix
 from core.authentik_manager import AuthentikManager
 from core.authentik_utils import (
     generate_blueteam_password,
@@ -505,6 +506,8 @@ _COMPETITION_ACTION_HANDLERS = {
     "wipe_competition": _action_wipe_competition,
     "reset_passwords": _action_reset_passwords,
     "sync_quotient": _action_sync_quotient,
+    "readiness_check": action_readiness_check,
+    "readiness_fix": action_readiness_fix,
 }
 
 

@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 import discord
@@ -26,6 +27,11 @@ class DiscordQueueProcessor:
     QUEUE_BATCH_SIZE = 10
     MAX_BACKOFF_SECONDS = 300
 
+    # Handler registry: maps task_type -> handler method.
+    # Adding a new task type? Also update DiscordTask in core/models.py
+    # (TASK_TYPE_CHOICES, required_keys, docstring, factory classmethod).
+    _task_handlers: dict[str, Callable[[DiscordQueueProcessor, DiscordTask], Awaitable[None]]] = {}
+
     def __init__(self, bot: discord.Client) -> None:
         self.bot = bot
         self.discord_manager: DiscordManager | None = None
@@ -34,12 +40,12 @@ class DiscordQueueProcessor:
 
     def start(self) -> None:
         """Start the queue processor as an async task."""
-        import os
+        from bot.config import DISCORD_GUILD_ID
 
         self.running = True
 
         # Initialize discord manager with the configured guild
-        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        guild_id = DISCORD_GUILD_ID
         if guild_id:
             guild = self.bot.get_guild(guild_id)
             if guild:
@@ -103,37 +109,15 @@ class DiscordQueueProcessor:
         await mark_processing()
 
         try:
-            # Execute task based on type
-            if task.task_type == "assign_role":
-                await self._handle_assign_role(task)
-            elif task.task_type == "assign_group_roles":
-                await self._handle_assign_group_roles(task)
-            elif task.task_type == "remove_role":
-                await self._handle_remove_role(task)
-            elif task.task_type == "setup_team_infrastructure":
-                await self._handle_setup_team_infrastructure(task)
-            elif task.task_type == "log_to_channel":
-                await self._handle_log_to_channel(task)
-            elif task.task_type == "ticket_created_web":
-                await self._handle_ticket_created_web(task)
-            elif task.task_type == "post_comment":
-                await self._handle_post_comment(task)
-            elif task.task_type == "add_user_to_thread":
-                await self._handle_add_user_to_thread(task)
-            elif task.task_type == "sync_roles":
-                await self._handle_sync_roles(task)
-            elif task.task_type == "assign_role_by_username":
-                await self._handle_assign_role_by_username(task)
-            elif task.task_type == "broadcast_message":
-                await self._handle_broadcast_message(task)
-            elif task.task_type == "post_ticket_update":
-                await self._handle_post_ticket_update(task)
-            else:
+            # Dispatch to handler by task type
+            handler = self._task_handlers.get(task.task_type)
+            if handler is None:
                 logger.warning(f"Unknown task type: {task.task_type}")
                 await sync_to_async(lambda: setattr(task, "status", "failed"))()
                 await sync_to_async(lambda: setattr(task, "error_message", f"Unknown task type: {task.task_type}"))()
                 await sync_to_async(task.save)()
                 return
+            await handler(self, task)
 
             # Mark as completed
             @sync_to_async
@@ -594,9 +578,9 @@ class DiscordQueueProcessor:
 
     async def _handle_assign_role_by_username(self, task: DiscordTask) -> None:
         """Assign a role to users by their Discord username."""
-        import os
+        from bot.config import DISCORD_GUILD_ID
 
-        guild_id = task.payload.get("guild_id") or int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        guild_id = task.payload.get("guild_id") or DISCORD_GUILD_ID
         role_id = task.payload.get("role_id")
         usernames = task.payload.get("usernames", [])
 
@@ -645,8 +629,7 @@ class DiscordQueueProcessor:
 
     async def _handle_broadcast_message(self, task: DiscordTask) -> None:
         """Broadcast a message to announcement channel or team channels."""
-        import os
-
+        from bot.config import BLUETEAM_ROLE_ID, DISCORD_ANNOUNCEMENT_CHANNEL_ID, DISCORD_GUILD_ID
         from bot.utils import log_to_ops_channel
         from core.authentik_utils import parse_team_range
 
@@ -657,8 +640,7 @@ class DiscordQueueProcessor:
         if not target or not message:
             raise ValueError("Missing target or message in payload")
 
-        guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
-        guild = self.bot.get_guild(guild_id)
+        guild = self.bot.get_guild(DISCORD_GUILD_ID)
         if not guild:
             raise RuntimeError("Guild not found")
 
@@ -669,13 +651,11 @@ class DiscordQueueProcessor:
 
         if target_lower == "announcements":
             # Broadcast to announcements channel with @Blueteam mention
-            announcement_channel_id = int(os.environ.get("DISCORD_ANNOUNCEMENT_CHANNEL_ID", "0"))
-            channel = guild.get_channel(announcement_channel_id)
+            channel = guild.get_channel(DISCORD_ANNOUNCEMENT_CHANNEL_ID)
             if not channel or not isinstance(channel, discord.TextChannel):
                 raise RuntimeError("Announcements channel not found")
 
-            blueteam_role_id = int(os.environ.get("BLUETEAM_ROLE_ID", "0"))
-            blueteam_role = guild.get_role(blueteam_role_id)
+            blueteam_role = guild.get_role(BLUETEAM_ROLE_ID)
             role_mention = blueteam_role.mention if blueteam_role else "@Blueteam"
 
             await channel.send(f"{role_mention}\n\n{message}")
@@ -766,3 +746,20 @@ class DiscordQueueProcessor:
         except Exception as e:
             logger.exception(f"Failed to send to team {team.team_number}: {e}")
             return "failed"
+
+
+# Populate handler registry — kept at module level so it's set once after class definition.
+DiscordQueueProcessor._task_handlers = {
+    "assign_role": DiscordQueueProcessor._handle_assign_role,
+    "assign_group_roles": DiscordQueueProcessor._handle_assign_group_roles,
+    "remove_role": DiscordQueueProcessor._handle_remove_role,
+    "setup_team_infrastructure": DiscordQueueProcessor._handle_setup_team_infrastructure,
+    "log_to_channel": DiscordQueueProcessor._handle_log_to_channel,
+    "ticket_created_web": DiscordQueueProcessor._handle_ticket_created_web,
+    "post_comment": DiscordQueueProcessor._handle_post_comment,
+    "post_ticket_update": DiscordQueueProcessor._handle_post_ticket_update,
+    "add_user_to_thread": DiscordQueueProcessor._handle_add_user_to_thread,
+    "sync_roles": DiscordQueueProcessor._handle_sync_roles,
+    "assign_role_by_username": DiscordQueueProcessor._handle_assign_role_by_username,
+    "broadcast_message": DiscordQueueProcessor._handle_broadcast_message,
+}

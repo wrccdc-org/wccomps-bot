@@ -115,9 +115,11 @@ class WCCompsBot(commands.Bot):
 
         # Sync commands to guilds
         # Competition guild gets all commands
-        competition_guild_id = int(os.environ.get("DISCORD_GUILD_ID", "0"))
+        from bot.config import DISCORD_GUILD_ID, VOLUNTEER_GUILD_ID
+
+        competition_guild_id = DISCORD_GUILD_ID
         # Volunteer guild gets only the /link command so staff can link their accounts there
-        volunteer_guild_id = int(os.environ.get("VOLUNTEER_GUILD_ID", "0"))
+        volunteer_guild_id = VOLUNTEER_GUILD_ID
 
         # Only sync if commands have changed (checked against database)
         if not await self._should_sync_commands():

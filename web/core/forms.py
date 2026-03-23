@@ -80,6 +80,12 @@ class ActionForm(forms.Form):
     action = forms.CharField()
 
 
+class ReadinessFixForm(forms.Form):
+    """Form for readiness fix dispatch."""
+
+    fix = forms.CharField()
+
+
 class TeamActionForm(forms.Form):
     action = forms.CharField()
     discord_id = forms.IntegerField(required=False)

@@ -734,9 +734,9 @@ class ScalingContextTests(TestCase):
         assert "service_raw" in result
         assert "inject_raw" in result
         assert "orange_raw" in result
-        assert "svc_modifier" in result
-        assert "inj_modifier" in result
-        assert "ora_modifier" in result
+        assert "service_modifier" in result
+        assert "inject_modifier" in result
+        assert "orange_modifier" in result
         assert "service_weight" in result
         assert "inject_weight" in result
         assert "orange_weight" in result

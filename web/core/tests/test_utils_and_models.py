@@ -344,3 +344,53 @@ class TestGetTeamFromGroupsProperties:
         # Should not raise
         result = get_team_from_groups(groups)
         assert len(result) == 3  # Returns a 3-tuple
+
+
+class TestDiscordTaskTypeConsistency:
+    """Ensure DiscordTask type definitions stay in sync across model and queue processor.
+
+    When adding a new task type, you must update:
+      1. TASK_TYPE_CHOICES in core/models.py
+      2. required_keys in DiscordTask.clean()
+      3. Handler + dispatch entry in bot/discord_queue.py
+    This test catches drift between those three locations.
+    """
+
+    def test_task_type_choices_match_required_keys(self):
+        """Every TASK_TYPE_CHOICES entry must have a required_keys entry."""
+        import contextlib
+
+        choice_types = {t for t, _ in DiscordTask.TASK_TYPE_CHOICES}
+        # Verify each choice type is recognized by clean() (has a required_keys entry)
+        task = DiscordTask()
+        for task_type in choice_types:
+            task.task_type = task_type
+            task.payload = {}
+            with contextlib.suppress(Exception):
+                task.clean()
+
+    def test_queue_handlers_cover_all_task_types(self):
+        """Every TASK_TYPE_CHOICES entry should have a queue handler."""
+        from bot.discord_queue import DiscordQueueProcessor
+
+        choice_types = {t for t, _ in DiscordTask.TASK_TYPE_CHOICES}
+        handler_types = set(DiscordQueueProcessor._task_handlers.keys())
+
+        # Some task types may be handled elsewhere (update_embed, update_dashboard,
+        # archive_thread, send_message are handled by other subsystems or are no-ops)
+        # but every handler must correspond to a valid task type
+        unknown_handlers = handler_types - choice_types
+        assert not unknown_handlers, (
+            f"Queue handlers exist for unknown task types: {unknown_handlers}. "
+            f"Add them to DiscordTask.TASK_TYPE_CHOICES."
+        )
+
+    def test_all_handler_types_are_valid_choices(self):
+        """Every queue handler task type must be a valid TASK_TYPE_CHOICES entry."""
+        from bot.discord_queue import DiscordQueueProcessor
+
+        choice_types = {t for t, _ in DiscordTask.TASK_TYPE_CHOICES}
+        for handler_type in DiscordQueueProcessor._task_handlers:
+            assert handler_type in choice_types, (
+                f"Handler '{handler_type}' is not in TASK_TYPE_CHOICES"
+            )

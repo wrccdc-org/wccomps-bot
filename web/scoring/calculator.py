@@ -39,9 +39,9 @@ class DetailedScoreBreakdown(ScoreBreakdown):
     service_raw: Decimal
     inject_raw: Decimal
     orange_raw: Decimal
-    svc_modifier: Decimal
-    inj_modifier: Decimal
-    ora_modifier: Decimal
+    service_modifier: Decimal
+    inject_modifier: Decimal
+    orange_modifier: Decimal
     service_weight: Decimal
     inject_weight: Decimal
     orange_weight: Decimal
@@ -140,7 +140,7 @@ def calculate_team_score(team: Team) -> ScoreBreakdown:
 def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
     """Like calculate_team_score but also returns raw scores, modifiers, and weights."""
     template = ScoringTemplate.objects.first() or ScoringTemplate()
-    svc_mod, inj_mod, ora_mod = _get_modifiers(template)
+    service_mod, inject_mod, orange_mod = _get_modifiers(template)
 
     service_score = ServiceScore.objects.filter(team=team).first()
     if service_score:
@@ -160,9 +160,9 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
         is_approved=True,
     ).aggregate(total=Sum("points_returned"))["total"] or Decimal("0")
 
-    scaled_service = service_raw * svc_mod
-    scaled_inject = inject_raw * inj_mod
-    scaled_orange = orange_raw * ora_mod
+    scaled_service = service_raw * service_mod
+    scaled_inject = inject_raw * inject_mod
+    scaled_orange = orange_raw * orange_mod
 
     total_score = (
         scaled_service + scaled_inject + scaled_orange + sla_raw + point_adj + red_raw + recovery_raw
@@ -183,9 +183,9 @@ def calculate_team_score_detailed(team: Team) -> DetailedScoreBreakdown:
         "inject_raw": inject_raw,
         "orange_raw": orange_raw,
         # Modifiers
-        "svc_modifier": svc_mod,
-        "inj_modifier": inj_mod,
-        "ora_modifier": ora_mod,
+        "service_modifier": service_mod,
+        "inject_modifier": inject_mod,
+        "orange_modifier": orange_mod,
         # Weights
         "service_weight": template.service_weight,
         "inject_weight": template.inject_weight,

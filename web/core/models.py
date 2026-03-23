@@ -85,6 +85,8 @@ class DiscordTask(models.Model):
                                   "title": str, "created_by": str}
         sync_roles:              {"requested_by": str, "dry_run": bool}
         add_user_to_thread:      {"discord_id": int, "thread_id": int}
+        assign_role_by_username: {"role_id": int, "usernames": list[str],
+                                  "guild_id": int (optional)}
     """
 
     STATUS_CHOICES = [
@@ -110,6 +112,8 @@ class DiscordTask(models.Model):
         ("post_ticket_update", "Post Ticket Update to Thread"),
         ("ticket_created_web", "Ticket Created via Web"),
         ("sync_roles", "Sync Roles Between Guilds"),
+        ("add_user_to_thread", "Add User to Thread"),
+        ("assign_role_by_username", "Assign Role by Username"),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPE_CHOICES)
@@ -154,6 +158,7 @@ class DiscordTask(models.Model):
             "ticket_created_web": {"ticket_id", "ticket_number", "team_number", "category", "title", "created_by"},
             "sync_roles": {"requested_by", "dry_run"},
             "add_user_to_thread": {"discord_id", "thread_id"},
+            "assign_role_by_username": {"role_id", "usernames"},
         }
         if self.task_type in required_keys:
             missing = required_keys[self.task_type] - set(self.payload.keys())
@@ -277,6 +282,20 @@ class DiscordTask(models.Model):
             task_type="add_user_to_thread",
             ticket=ticket,
             payload={"discord_id": discord_id, "thread_id": thread_id},
+            status="pending",
+        )
+
+    @classmethod
+    def create_assign_role_by_username(
+        cls, role_id: int, usernames: list[str], guild_id: int | None = None
+    ) -> DiscordTask:
+        """Create a task to assign a role to users by their Discord username."""
+        payload: dict[str, object] = {"role_id": role_id, "usernames": usernames}
+        if guild_id is not None:
+            payload["guild_id"] = guild_id
+        return cls.objects.create(
+            task_type="assign_role_by_username",
+            payload=payload,
             status="pending",
         )
 
