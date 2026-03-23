@@ -281,6 +281,68 @@ def _check_no_orange_assignments() -> CheckResult:
     return ("pass", "No existing orange assignments", None)
 
 
+def _check_no_final_scores() -> CheckResult:
+    """Check that no final scores exist yet (clean slate for competition)."""
+    from scoring.models import FinalScore
+
+    count = FinalScore.objects.count()
+    if count > 0:
+        return (
+            "warn",
+            f"{count} final score{'s' if count != 1 else ''} already exist",
+            {"type": "link", "url": reverse("scoring:leaderboard"), "label": "View Leaderboard"},
+        )
+    return ("pass", "No existing final scores", None)
+
+
+def _check_quotient_api() -> CheckResult:
+    """Check that Quotient scoring engine API is reachable."""
+    from quotient.client import QuotientClient
+
+    client = QuotientClient()
+    try:
+        infra = client.get_infrastructure(force_refresh=True)
+    except Exception as e:
+        return ("fail", f"API error: {e}", None)
+
+    if not infra:
+        return ("fail", "Could not reach Quotient API", None)
+    return ("pass", f"Connected — {len(infra.boxes)} boxes, {infra.team_count} teams", None)
+
+
+def _check_school_info() -> CheckResult:
+    """Check that all active teams have school info with contact emails."""
+    from team.models import SchoolInfo
+
+    active_teams = Team.objects.filter(is_active=True)
+    if not active_teams.exists():
+        return ("warn", "No active teams", None)
+
+    teams_with_info = set(
+        SchoolInfo.objects.filter(team__is_active=True).values_list("team_id", flat=True)
+    )
+    missing = active_teams.exclude(id__in=teams_with_info)
+    if missing.exists():
+        names = ", ".join(f"Team {t.team_number}" for t in missing[:5])
+        suffix = f"... (+{missing.count() - 5})" if missing.count() > 5 else ""
+        return (
+            "warn",
+            f"{missing.count()} team{'s' if missing.count() != 1 else ''} missing school info: {names}{suffix}",
+            {"type": "link", "url": reverse("school_info"), "label": "Manage Schools"},
+        )
+    return ("pass", f"All {active_teams.count()} teams have school info", None)
+
+
+def _check_multiple_teams() -> CheckResult:
+    """Check that more than one team is registered."""
+    active_count = Team.objects.filter(is_active=True).count()
+    if active_count == 0:
+        return ("fail", "No active teams registered", None)
+    if active_count == 1:
+        return ("warn", "Only 1 team registered", None)
+    return ("pass", f"{active_count} teams registered", None)
+
+
 # ---------------------------------------------------------------------------
 # Check registry
 # ---------------------------------------------------------------------------
@@ -290,14 +352,19 @@ ALL_CHECKS: list[tuple[str, Callable[[], CheckResult]]] = [
     ("Team accounts exist", _check_team_accounts_exist),
     ("Group membership correct", _check_team_group_membership),
     ("App bindings configured", _check_blueteam_bindings),
-    # Phase 2: Operational
-    ("No existing tickets", _check_no_tickets),
-    ("Packets distributed", _check_packets_distributed),
+    # Phase 2: Teams & infrastructure
+    ("Multiple teams registered", _check_multiple_teams),
+    ("School info configured", _check_school_info),
+    ("Quotient API reachable", _check_quotient_api),
     ("Quotient metadata synced", _check_quotient_synced),
+    ("Packets distributed", _check_packets_distributed),
+    # Phase 3: Clean slate
+    ("No existing tickets", _check_no_tickets),
     ("No existing red team findings", _check_no_red_scores),
     ("No existing incident reports", _check_no_incidents),
     ("No existing inject grades", _check_no_inject_grades),
     ("No existing orange assignments", _check_no_orange_assignments),
+    ("No existing final scores", _check_no_final_scores),
 ]
 
 
