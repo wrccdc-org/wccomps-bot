@@ -234,7 +234,7 @@ def _check_unapproved_red_scores() -> CheckResult:
         return (
             "warn",
             f"{count} unapproved finding{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("red_team_portal"), "label": "Review"},
+            {"type": "link", "url": reverse("scoring:red_team_portal"), "label": "Review"},
         )
     return ("pass", "All findings approved", None)
 
@@ -248,7 +248,7 @@ def _check_unreviewed_incidents() -> CheckResult:
         return (
             "warn",
             f"{count} unreviewed report{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("review_incidents"), "label": "Review"},
+            {"type": "link", "url": reverse("scoring:review_incidents"), "label": "Review"},
         )
     return ("pass", "All incidents reviewed", None)
 
@@ -262,7 +262,7 @@ def _check_unapproved_inject_grades() -> CheckResult:
         return (
             "warn",
             f"{count} unapproved grade{'s' if count != 1 else ''}",
-            {"type": "link", "url": reverse("inject_grades_review"), "label": "Review"},
+            {"type": "link", "url": reverse("scoring:inject_grades_review"), "label": "Review"},
         )
     return ("pass", "All inject grades approved", None)
 
