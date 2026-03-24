@@ -154,6 +154,50 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
         return JsonResponse({"error": "Invalid datetime format"}, status=400)
 
 
+def _action_set_schedule(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
+    """Handle set_schedule action — set start and/or end time in one request."""
+    start_dt = request.POST.get("start_datetime", "").strip()
+    start_tz = request.POST.get("start_timezone", "America/Los_Angeles")
+    end_dt = request.POST.get("end_datetime", "").strip()
+    end_tz = request.POST.get("end_timezone", "America/Los_Angeles")
+
+    if not start_dt and not end_dt:
+        return JsonResponse({"error": "Please set at least one time"}, status=400)
+
+    try:
+        details: dict[str, str] = {}
+
+        if start_dt:
+            start_time = parse_datetime_to_utc(start_dt, start_tz)
+            config.competition_start_time = start_time
+            config.applications_enabled = False
+            details["start_time"] = start_time.isoformat()
+
+        if end_dt:
+            end_time = parse_datetime_to_utc(end_dt, end_tz)
+            config.competition_end_time = end_time
+            details["end_time"] = end_time.isoformat()
+
+        if not config.controlled_applications:
+            config.ensure_controlled_applications()
+
+        config.save()
+
+        AuditLog.objects.create(
+            action="competition_schedule_set",
+            admin_user=authentik_username,
+            target_entity="competition_config",
+            target_id=config.pk,
+            details={**details, "controlled_apps": config.controlled_applications},
+        )
+
+        parts = [f"start={details['start_time']}" if "start_time" in details else "", f"end={details['end_time']}" if "end_time" in details else ""]
+        msg = "Schedule updated: " + ", ".join(p for p in parts if p)
+        return JsonResponse({"success": True, "message": msg})
+    except ValueError:
+        return JsonResponse({"error": "Invalid datetime format"}, status=400)
+
+
 def _stream_start_competition(config: CompetitionConfig, authentik_username: str) -> Iterator[str]:
     """Stream progress for starting the competition."""
     apps = config.controlled_applications
@@ -500,6 +544,7 @@ _COMPETITION_ACTION_HANDLERS = {
     "set_apps": _action_set_apps,
     "set_start_time": _action_set_start_time,
     "set_end_time": _action_set_end_time,
+    "set_schedule": _action_set_schedule,
     "start_competition": _action_start_competition,
     "stop_competition": _action_stop_competition,
     "cleanup_competition": _action_cleanup_competition,

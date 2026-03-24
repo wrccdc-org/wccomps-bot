@@ -67,102 +67,96 @@
         {% endif %}
         </c-detail_grid>
         </c-module>
-        <!-- Setup -->
+        <!-- Team Configuration -->
         <c-module class="mt-20">
-        <c-slot name="title">Setup</c-slot>
-        <div class="grid-2 mb-20">
-            <div>
-                <h3 class="mt-0 mb-10">Team Configuration</h3>
-                <form @submit.prevent="setMaxMembers" class="mb-15">
-                    <c-form_field label="Max Team Members" id="max_members">
-                    <input type="number"
-                           name="max_members"
-                           id="max_members"
-                           x-model="maxMembers"
-                           min="1"
-                           max="20"
-                           class="vTextField">
-                    </c-form_field>
-                    <c-button_row class="mt-10">
-                    <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
-                    </c-button_row>
-                </form>
-                <div class="mb-10">
-                    <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
-                    <p class="help">Authentik applications whose access will be toggled when starting/stopping the competition.</p>
-                    <div class="d-flex gap-10 flex-wrap mb-10">
-                        <template x-for="(app, index) in apps" :key="index">
-                            <c-badge variant="default" class="d-flex items-center gap-10">
-                            <span x-text="app"></span>
-                            <button type="button"
-                                    @click="removeApp"
-                                    :data-app="app"
-                                    aria-label="Remove app"
-                                    class="text-danger btn-reset text-md">×</button>
-                            </c-badge>
-                        </template>
-                        <template x-if="noApps">
-                            <span class="text-muted text-sm">No apps configured</span>
-                        </template>
-                    </div>
-                    <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
-                        <select x-model="newApp" class="vTextField w-150">
-                            <option value="">Select app...</option>
-                            {% for app in available_apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}
-                        </select>
-                        <c-button type="submit" variant="default" ::disabled="addDisabled">Add</c-button>
-                    </form>
-                </div>
+        <c-slot name="title">Team Configuration</c-slot>
+        <form @submit.prevent="setMaxMembers" class="d-flex gap-10 items-center mb-15">
+            <label for="max_members" class="font-semibold text-sm">Max Team Members</label>
+            <input type="number"
+                   name="max_members"
+                   id="max_members"
+                   x-model="maxMembers"
+                   min="1"
+                   max="20"
+                   class="vTextField"
+                   style="width: 80px;">
+            <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
+        </form>
+        <div>
+            <label class="font-semibold text-sm d-block mb-5">Controlled Apps</label>
+            <p class="help">Authentik applications whose access will be toggled when starting/stopping the competition.</p>
+            <div class="d-flex gap-10 flex-wrap mb-10">
+                <template x-for="(app, index) in apps" :key="index">
+                    <c-badge variant="default" class="d-flex items-center gap-10">
+                    <span x-text="app"></span>
+                    <button type="button"
+                            @click="removeApp"
+                            :data-app="app"
+                            aria-label="Remove app"
+                            class="text-danger btn-reset text-md">×</button>
+                    </c-badge>
+                </template>
+                <template x-if="noApps">
+                    <span class="text-muted text-sm">No apps configured</span>
+                </template>
             </div>
-            <div>
-                <h3 class="mt-0 mb-10">Schedule</h3>
-                <form @submit.prevent="setStartTime" class="mb-15">
-                    <div class="d-flex gap-10 items-end flex-wrap">
-                        <c-form_field label="Start Time" id="start_datetime" class="flex-1 min-w-200">
+            <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
+                <select x-model="newApp" class="vTextField w-150">
+                    <option value="">Select app...</option>
+                    {% for app in available_apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}
+                </select>
+                <c-button type="submit" variant="default" ::disabled="addDisabled">Add</c-button>
+            </form>
+        </div>
+        </c-module>
+        <!-- Schedule -->
+        <c-module class="mt-20">
+        <c-slot name="title">Schedule</c-slot>
+        <form @submit.prevent="setSchedule">
+            <div class="grid-2">
+                <div>
+                    <c-form_field label="Start Time" id="start_datetime">
+                    <div class="d-flex gap-10">
                         <input type="datetime-local"
                                name="start_datetime"
                                id="start_datetime"
                                x-model="startDatetime"
-                               class="vTextField">
-                        </c-form_field>
-                        <c-form_field label="TZ" id="start_timezone">
+                               class="vTextField flex-1">
                         <select name="start_timezone"
                                 id="start_timezone"
                                 x-model="startTimezone"
                                 class="vTextField">
                             {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                         </select>
-                        </c-form_field>
                     </div>
-                    <c-button_row class="mt-10">
-                    <c-button type="submit" variant="default" ::disabled="loading">Set Start Time</c-button>
-                    </c-button_row>
-                </form>
-                <form @submit.prevent="setEndTime">
-                    <div class="d-flex gap-10 items-end flex-wrap">
-                        <c-form_field label="End Time" id="end_datetime" class="flex-1 min-w-200">
+                    </c-form_field>
+                </div>
+                <div>
+                    <c-form_field label="End Time" id="end_datetime">
+                    <div class="d-flex gap-10">
                         <input type="datetime-local"
                                name="end_datetime"
                                id="end_datetime"
                                x-model="endDatetime"
-                               class="vTextField">
-                        </c-form_field>
-                        <c-form_field label="TZ" id="end_timezone">
+                               class="vTextField flex-1">
                         <select name="end_timezone"
                                 id="end_timezone"
                                 x-model="endTimezone"
                                 class="vTextField">
                             {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                         </select>
-                        </c-form_field>
                     </div>
-                    <c-button_row class="mt-10">
-                    <c-button type="submit" variant="default" ::disabled="loading">Set End Time</c-button>
-                    </c-button_row>
-                </form>
+                    </c-form_field>
+                </div>
             </div>
-        </div>
-        <h3 class="mt-0 mb-10">Quotient Integration</h3>
+            <c-button_row class="mt-10">
+            <c-button type="submit" variant="default" ::disabled="loading">Save Schedule</c-button>
+            </c-button_row>
+        </form>
+        </c-module>
+        <!-- Quotient Integration -->
+        <c-module class="mt-20">
+        <c-slot name="title">Quotient Integration</c-slot>
         {% if quotient_metadata %}
             <c-detail_grid class="mb-10">
             <c-detail_row label="Last Synced">{{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</c-detail_row>
@@ -174,7 +168,7 @@
             <p class="text-muted mb-10">Metadata not synced yet.</p>
         {% endif %}
         <c-button_row>
-        <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Quotient Metadata</c-button>
+        <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
         </c-button_row>
         </c-module>
         <!-- Readiness Check -->
@@ -369,22 +363,22 @@ document.addEventListener('alpine:init', () => {
             this.doAction('set_apps', { app_slugs: this.apps.join(',') });
         },
 
-        setStartTime() {
-            if (!this.startDatetime) {
-                this.message = 'Please select a start time';
+        setSchedule() {
+            const data = {};
+            if (this.startDatetime) {
+                data.start_datetime = this.startDatetime;
+                data.start_timezone = this.startTimezone;
+            }
+            if (this.endDatetime) {
+                data.end_datetime = this.endDatetime;
+                data.end_timezone = this.endTimezone;
+            }
+            if (!data.start_datetime && !data.end_datetime) {
+                this.message = 'Please set at least one time';
                 this.messageType = 'error';
                 return;
             }
-            this.doAction('set_start_time', { datetime: this.startDatetime, timezone: this.startTimezone });
-        },
-
-        setEndTime() {
-            if (!this.endDatetime) {
-                this.message = 'Please select an end time';
-                this.messageType = 'error';
-                return;
-            }
-            this.doAction('set_end_time', { datetime: this.endDatetime, timezone: this.endTimezone });
+            this.doAction('set_schedule', data);
         },
 
         resetPasswords() {
