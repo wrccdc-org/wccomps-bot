@@ -158,18 +158,19 @@
         <c-module class="mt-20">
         <c-slot name="title">Quotient Integration</c-slot>
         {% if quotient_metadata %}
-            <c-detail_grid class="mb-10">
-            <c-detail_row label="Last Synced">{{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</c-detail_row>
-            <c-detail_row label="Event">{{ quotient_metadata.event_name }}</c-detail_row>
-            <c-detail_row label="Teams">{{ quotient_metadata.team_count }}</c-detail_row>
-            <c-detail_row label="Boxes">{{ quotient_metadata.boxes|length }}</c-detail_row>
-            </c-detail_grid>
+            <div class="d-flex gap-20 items-center flex-wrap mb-10">
+                <span><strong>Last Synced:</strong> {{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</span>
+                {% if quotient_metadata.event_name %}<span><strong>Event:</strong> {{ quotient_metadata.event_name }}</span>{% endif %}
+                <span><strong>Teams:</strong> {{ quotient_metadata.team_count }}</span>
+                <span><strong>Boxes:</strong> {{ quotient_metadata.boxes|length }}</span>
+                <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
+            </div>
         {% else %}
-            <p class="text-muted mb-10">Metadata not synced yet.</p>
+            <div class="d-flex gap-10 items-center">
+                <span class="text-muted">Metadata not synced yet.</span>
+                <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
+            </div>
         {% endif %}
-        <c-button_row>
-        <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
-        </c-button_row>
         </c-module>
         <!-- Readiness Check -->
         <c-module class="mt-20">
