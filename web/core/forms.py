@@ -69,7 +69,8 @@ class SetScheduleForm(forms.Form):
 
     def clean(self) -> dict:
         cleaned = super().clean()
-        assert cleaned is not None
+        if cleaned is None:
+            return {}
         start = (cleaned.get("start_datetime") or "").strip()
         end = (cleaned.get("end_datetime") or "").strip()
         cleaned["start_datetime"] = start
