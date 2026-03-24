@@ -206,7 +206,7 @@ Groups form fields with optional heading.
 |------|------|---------|-------------|
 | `heading` | string | "" | Section title (h2) |
 | `class` | string | "" | Additional CSS classes |
-| `aligned` | string | "true" | Enables aligned form layout (default is true, not false) |
+| `aligned` | string | "false" | Enables aligned form layout for label-beside-input forms |
 
 ---
 
