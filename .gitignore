@@ -70,3 +70,4 @@ backups/
 !package.json
 !package-lock.json
 .superpowers/
+docs/superpowers/
