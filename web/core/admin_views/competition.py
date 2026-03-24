@@ -191,7 +191,10 @@ def _action_set_schedule(request: HttpRequest, config: CompetitionConfig, authen
             details={**details, "controlled_apps": config.controlled_applications},
         )
 
-        parts = [f"start={details['start_time']}" if "start_time" in details else "", f"end={details['end_time']}" if "end_time" in details else ""]
+        parts = [
+            f"start={details['start_time']}" if "start_time" in details else "",
+            f"end={details['end_time']}" if "end_time" in details else "",
+        ]
         msg = "Schedule updated: " + ", ".join(p for p in parts if p)
         return JsonResponse({"success": True, "message": msg})
     except ValueError:

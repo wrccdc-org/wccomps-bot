@@ -70,7 +70,8 @@
         <!-- Team Configuration -->
         <c-module class="mt-20">
         <c-slot name="title">Team Configuration</c-slot>
-        <form @submit.prevent="setMaxMembers" class="d-flex gap-10 items-center mb-15">
+        <form @submit.prevent="setMaxMembers"
+              class="d-flex gap-10 items-center mb-15">
             <label for="max_members" class="font-semibold text-sm">Max Team Members</label>
             <input type="number"
                    name="max_members"
@@ -79,7 +80,7 @@
                    min="1"
                    max="20"
                    class="vTextField"
-                   style="width: 80px;">
+                   style="width: 80px">
             <c-button type="submit" variant="default" ::disabled="loading">Update</c-button>
         </form>
         <div>
