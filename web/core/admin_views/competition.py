@@ -160,11 +160,8 @@ def _action_set_schedule(request: HttpRequest, config: CompetitionConfig, authen
 
     form = SetScheduleForm(request.POST)
     if not form.is_valid():
-        errors = form.errors.get("__all__") or list(form.errors.values())
-        msg = errors[0] if errors else "Invalid schedule data"
-        if isinstance(msg, list):
-            msg = msg[0]
-        return JsonResponse({"error": str(msg)}, status=400)
+        first_error = next(iter(form.errors.values()), ["Invalid schedule data"])
+        return JsonResponse({"error": str(first_error[0])}, status=400)
 
     start_dt = form.cleaned_data["start_datetime"]
     start_tz = form.cleaned_data.get("start_timezone") or "America/Los_Angeles"

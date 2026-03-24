@@ -67,7 +67,7 @@ class SetScheduleForm(forms.Form):
     end_datetime = forms.CharField(required=False)
     end_timezone = forms.CharField(required=False, initial="America/Los_Angeles")
 
-    def clean(self) -> dict:
+    def clean(self) -> dict[str, str]:
         cleaned = super().clean()
         if cleaned is None:
             return {}
