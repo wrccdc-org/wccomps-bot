@@ -325,6 +325,7 @@ nav[role="navigation"] {
 
 /* Widths */
 .w-40 { width: 40px; }
+.w-80 { width: 80px; }
 .w-150 { width: 150px; }
 .min-w-150 { min-width: 150px; }
 .min-w-200 { min-width: 200px; }
