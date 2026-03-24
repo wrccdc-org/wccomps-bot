@@ -156,13 +156,20 @@ def _action_set_end_time(request: HttpRequest, config: CompetitionConfig, authen
 
 def _action_set_schedule(request: HttpRequest, config: CompetitionConfig, authentik_username: str) -> JsonResponse:
     """Handle set_schedule action — set start and/or end time in one request."""
-    start_dt = request.POST.get("start_datetime", "").strip()
-    start_tz = request.POST.get("start_timezone", "America/Los_Angeles")
-    end_dt = request.POST.get("end_datetime", "").strip()
-    end_tz = request.POST.get("end_timezone", "America/Los_Angeles")
+    from core.forms import SetScheduleForm
 
-    if not start_dt and not end_dt:
-        return JsonResponse({"error": "Please set at least one time"}, status=400)
+    form = SetScheduleForm(request.POST)
+    if not form.is_valid():
+        errors = form.errors.get("__all__") or list(form.errors.values())
+        msg = errors[0] if errors else "Invalid schedule data"
+        if isinstance(msg, list):
+            msg = msg[0]
+        return JsonResponse({"error": str(msg)}, status=400)
+
+    start_dt = form.cleaned_data["start_datetime"]
+    start_tz = form.cleaned_data.get("start_timezone") or "America/Los_Angeles"
+    end_dt = form.cleaned_data["end_datetime"]
+    end_tz = form.cleaned_data.get("end_timezone") or "America/Los_Angeles"
 
     try:
         details: dict[str, str] = {}

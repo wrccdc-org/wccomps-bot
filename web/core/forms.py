@@ -61,6 +61,24 @@ class SetTimeForm(forms.Form):
     timezone = forms.CharField(initial="America/Los_Angeles")
 
 
+class SetScheduleForm(forms.Form):
+    start_datetime = forms.CharField(required=False)
+    start_timezone = forms.CharField(required=False, initial="America/Los_Angeles")
+    end_datetime = forms.CharField(required=False)
+    end_timezone = forms.CharField(required=False, initial="America/Los_Angeles")
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        assert cleaned is not None
+        start = (cleaned.get("start_datetime") or "").strip()
+        end = (cleaned.get("end_datetime") or "").strip()
+        cleaned["start_datetime"] = start
+        cleaned["end_datetime"] = end
+        if not start and not end:
+            raise forms.ValidationError("Please set at least one time")
+        return cleaned
+
+
 class ResetPasswordsForm(forms.Form):
     team_numbers = forms.CharField(required=False)
 
