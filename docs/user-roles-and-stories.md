@@ -457,12 +457,11 @@ System administrators have full access to system configuration.
 - Delete pools (if not in use by findings)
 - Select pool when submitting findings
 
-#### RT-4: Delete/Leave Finding
-> As a **Red Team member**, I want to **delete my own findings or leave merged findings** so that I can **correct mistakes before approval**.
+#### RT-4: Delete Finding
+> As a **Red Team member**, I want to **delete my own findings** so that I can **correct mistakes before approval**.
 
 **Acceptance Criteria**:
 - Delete own findings before approval
-- Leave merged findings (remove self as contributor)
 - Cannot modify after approval
 
 ---
@@ -895,7 +894,7 @@ Note: Ticket resolutions export not implemented as a separate endpoint.
 - Batch approval workflows for inject grades and red findings
 - Competition management UI at `/ops/admin/competition/` (Gold Team and Admin)
 - Red Team IP pool management
-- Red Team finding deduplication and merging
+- Red Team finding submission
 - Incident review accessible by White Team (in addition to Gold Team)
 - Discord role sync from Authentik groups
 - Discord account linking via OAuth (team accounts with membership limits)
@@ -913,7 +912,6 @@ Note: Ticket resolutions export not implemented as a separate endpoint.
 - Screenshot/evidence uploads for incidents and red findings
 - Black team adjustments via Django Admin
 - Red team finding outcome checkboxes (auto-calculated points)
-- Finding deduplication and contributor merging
 
 ---
 
