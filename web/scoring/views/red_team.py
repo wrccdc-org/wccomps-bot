@@ -256,8 +256,7 @@ def bulk_approve_red_scores(request: HttpRequest) -> HttpResponse:
 @require_permission("red_team", error_message="Only Red Team members can submit findings")
 @transaction.atomic
 def submit_red_score(request: HttpRequest) -> HttpResponse:
-    """Submit red team finding with deduplication."""
-    from ..deduplication import OutcomeData, process_red_team_submission
+    """Submit a red team finding."""
     from ..models import RedTeamIPPool
 
     user = cast(User, request.user)
@@ -271,86 +270,61 @@ def submit_red_score(request: HttpRequest) -> HttpResponse:
         form = RedTeamScoreForm(post_data, request.FILES, team_count=team_count, user=user)
 
         if form.is_valid():
-            # Extract form data for deduplication
-            attack_type = form.cleaned_data["attack_type"]
-            affected_boxes = form.cleaned_data.get("affected_boxes", [])
-            affected_teams = form.cleaned_data["affected_teams"]
-            source_ip = form.cleaned_data.get("source_ip")
-            source_ip_pool = form.cleaned_data.get("source_ip_pool")
-            notes = form.cleaned_data.get("notes", "")
-            affected_service = form.cleaned_data.get("affected_service", "")
-            destination_ip_template = form.cleaned_data.get("destination_ip_template", "")
-            universally_attempted = form.cleaned_data.get("universally_attempted", False)
-            persistence_established = form.cleaned_data.get("persistence_established", False)
+            cd = form.cleaned_data
 
-            # Extract outcome checkboxes
-            outcomes = OutcomeData(
-                root_access=form.cleaned_data.get("root_access", False),
-                user_access=form.cleaned_data.get("user_access", False),
-                privilege_escalation=form.cleaned_data.get("privilege_escalation", False),
-                credentials_recovered=form.cleaned_data.get("credentials_recovered", False),
-                sensitive_files_recovered=form.cleaned_data.get("sensitive_files_recovered", False),
-                credit_cards_recovered=form.cleaned_data.get("credit_cards_recovered", False),
-                pii_recovered=form.cleaned_data.get("pii_recovered", False),
-                encrypted_db_recovered=form.cleaned_data.get("encrypted_db_recovered", False),
-                db_decrypted=form.cleaned_data.get("db_decrypted", False),
+            finding = RedTeamScore.objects.create(
+                attack_type=cd["attack_type"],
+                affected_boxes=cd.get("affected_boxes", []),
+                source_ip=cd.get("source_ip") if not cd.get("source_ip_pool") else None,
+                source_ip_pool=cd.get("source_ip_pool"),
+                submitted_by=user,
+                notes=cd.get("notes", ""),
+                affected_service=cd.get("affected_service", ""),
+                destination_ip_template=cd.get("destination_ip_template", ""),
+                universally_attempted=cd.get("universally_attempted", False),
+                persistence_established=cd.get("persistence_established", False),
+                root_access=cd.get("root_access", False),
+                user_access=cd.get("user_access", False),
+                privilege_escalation=cd.get("privilege_escalation", False),
+                credentials_recovered=cd.get("credentials_recovered", False),
+                sensitive_files_recovered=cd.get("sensitive_files_recovered", False),
+                credit_cards_recovered=cd.get("credit_cards_recovered", False),
+                pii_recovered=cd.get("pii_recovered", False),
+                encrypted_db_recovered=cd.get("encrypted_db_recovered", False),
+                db_decrypted=cd.get("db_decrypted", False),
+                points_per_team=0,
             )
+            finding.points_per_team = finding.calculate_points()
+            finding.save(update_fields=["points_per_team"])
+            finding.affected_teams.set(cd["affected_teams"])
+            finding.contributors.add(user)
 
-            # Process with deduplication
-            result = process_red_team_submission(
-                attack_type=attack_type,
-                boxes=affected_boxes,
-                teams=affected_teams,
-                source_ip=source_ip,
-                source_ip_pool=source_ip_pool,
-                submitter=user,
-                notes=notes,
-                affected_service=affected_service,
-                destination_ip_template=destination_ip_template,
-                universally_attempted=universally_attempted,
-                persistence_established=persistence_established,
-                outcomes=outcomes,
-            )
+            # Handle screenshot uploads
+            screenshots = request.FILES.getlist("screenshots")
+            max_screenshots = 20
 
-            finding = result.finding
-
-            # Handle screenshot uploads for new findings only
-            if result.status == "created":
-                screenshots = request.FILES.getlist("screenshots")
-                max_screenshots = 20
-
-                screenshot_error = False
-                if len(screenshots) > max_screenshots:
-                    transaction.set_rollback(True)
-                    messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
-                    screenshot_error = True
-                else:
-                    try:
-                        for screenshot in screenshots:
-                            file_data = screenshot.read()
-                            RedTeamScreenshot.objects.create(
-                                finding=finding,
-                                file_data=file_data,
-                                filename=screenshot.name or "screenshot.png",
-                                mime_type=screenshot.content_type or "image/png",
-                            )
-                    except Exception as e:
-                        transaction.set_rollback(True)
-                        messages.error(request, f"File upload failed: {str(e)}")
-                        screenshot_error = True
-
-                if not screenshot_error:
-                    # Show appropriate message based on result
-                    if result.status == "created":
-                        messages.success(request, f"Finding #{finding.id} created successfully.")
-                    elif result.status in ("merged", "partial_merge"):
-                        messages.info(request, result.message)
-                    return redirect("scoring:red_team_scores")
-
+            screenshot_error = False
+            if len(screenshots) > max_screenshots:
+                transaction.set_rollback(True)
+                messages.error(request, f"Maximum {max_screenshots} screenshots allowed per submission")
+                screenshot_error = True
             else:
-                # Non-created results (merged, partial_merge) — no screenshots to handle
-                if result.status in ("merged", "partial_merge"):
-                    messages.info(request, result.message)
+                try:
+                    for screenshot in screenshots:
+                        file_data = screenshot.read()
+                        RedTeamScreenshot.objects.create(
+                            finding=finding,
+                            file_data=file_data,
+                            filename=screenshot.name or "screenshot.png",
+                            mime_type=screenshot.content_type or "image/png",
+                        )
+                except Exception as e:
+                    transaction.set_rollback(True)
+                    messages.error(request, f"File upload failed: {str(e)}")
+                    screenshot_error = True
+
+            if not screenshot_error:
+                messages.success(request, f"Finding #{finding.id} created successfully.")
                 return redirect("scoring:red_team_scores")
     else:
         form = RedTeamScoreForm(team_count=team_count, user=user)

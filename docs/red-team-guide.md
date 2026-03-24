@@ -60,7 +60,7 @@ Free text for additional context about the attack.
 
 The findings list supports filtering by status (pending/approved), team, attack type, and submitter.
 
-You can **delete** your own findings as long as they haven't been approved yet. If your submission was merged with someone else's, you can **leave** the finding to remove yourself as a contributor.
+You can **delete** your own findings as long as they haven't been approved yet.
 
 ## IP Pool Management
 
@@ -75,13 +75,9 @@ If you're rotating through multiple source IPs, you can save them as reusable po
 
 You can also create a new pool on the fly from the submission form using the "Create Pool" button.
 
-## Duplicate Detection
-
-If you submit a finding that matches an existing one (same attack type on the same box), the system may automatically merge your submission with the existing finding. You'll be added as a contributor and notified.
-
 ## What Happens After You Submit
 
-1. Your finding is created (or merged with an existing duplicate)
+1. Your finding is created
 2. Gold Team reviews the finding
 3. Once approved, the point deductions are applied to the affected teams' scores
 
