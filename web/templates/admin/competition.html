@@ -160,7 +160,9 @@
         {% if quotient_metadata %}
             <div class="d-flex gap-20 items-center flex-wrap mb-10">
                 <span><strong>Last Synced:</strong> {{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</span>
-                {% if quotient_metadata.event_name %}<span><strong>Event:</strong> {{ quotient_metadata.event_name }}</span>{% endif %}
+                {% if quotient_metadata.event_name %}
+                    <span><strong>Event:</strong> {{ quotient_metadata.event_name }}</span>
+                {% endif %}
                 <span><strong>Teams:</strong> {{ quotient_metadata.team_count }}</span>
                 <span><strong>Boxes:</strong> {{ quotient_metadata.boxes|length }}</span>
                 <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
