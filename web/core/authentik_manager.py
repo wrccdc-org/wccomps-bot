@@ -127,11 +127,20 @@ class AuthentikManager:
         url = f"{self.base_url}/api/v3/core/applications/"
         slugs: list[str] = []
         try:
-            self._log_request("GET", url)
-            response = self.client.get(url, params={"page_size": 100})
-            response.raise_for_status()
-            results = response.json().get("results", [])
-            slugs = sorted([app.get("slug", "") for app in results if app.get("slug")])
+            page = 1
+            while True:
+                params = {"page_size": 100, "page": page, "superuser_full_list": True}
+                self._log_request("GET", url, params=params)
+                response = self.client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                results = data.get("results", [])
+                slugs.extend([app.get("slug", "") for app in results if app.get("slug")])
+                pagination = data.get("pagination", {})
+                if not pagination.get("next"):
+                    break
+                page += 1
+            slugs = sorted(slugs)
             logger.info(f"Found {len(slugs)} applications in Authentik")
             return slugs
         except Exception as e:
