@@ -129,7 +129,7 @@ class AuthentikManager:
         try:
             page = 1
             while True:
-                params = {"page_size": 100, "page": page, "superuser_full_list": True}
+                params: dict[str, str | int] = {"page_size": 100, "page": page, "superuser_full_list": "true"}
                 self._log_request("GET", url, params=params)
                 response = self.client.get(url, params=params)
                 response.raise_for_status()
