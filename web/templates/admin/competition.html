@@ -158,21 +158,20 @@
         <c-module class="mt-20">
         <c-slot name="title">Quotient Integration</c-slot>
         {% if quotient_metadata %}
-            <div class="d-flex gap-20 items-center flex-wrap mb-10">
+            <div class="d-flex gap-20 items-center flex-wrap">
                 <span><strong>Last Synced:</strong> {{ quotient_metadata.last_synced|date:"Y-m-d H:i:s" }}</span>
                 {% if quotient_metadata.event_name %}
                     <span><strong>Event:</strong> {{ quotient_metadata.event_name }}</span>
                 {% endif %}
                 <span><strong>Teams:</strong> {{ quotient_metadata.team_count }}</span>
                 <span><strong>Boxes:</strong> {{ quotient_metadata.boxes|length }}</span>
-                <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
             </div>
         {% else %}
-            <div class="d-flex gap-10 items-center">
-                <span class="text-muted">Metadata not synced yet.</span>
-                <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
-            </div>
+            <p class="text-muted">Metadata not synced yet.</p>
         {% endif %}
+        <c-button_row>
+            <c-button variant="default" @click="syncQuotient" ::disabled="loading">Sync Metadata</c-button>
+        </c-button_row>
         </c-module>
         <!-- Readiness Check -->
         <c-module class="mt-20">
