@@ -177,12 +177,12 @@ class TestIncidentSubmissionPermissions:
         response = client.get(reverse("scoring:submit_incident_report"))
         assert response.status_code == 200
 
-    def test_white_team_denied_without_team(self, white_team_user):
-        """White Team should not submit incidents (not a blue team)."""
+    def test_white_team_allowed_without_team(self, white_team_user, mock_quotient_client):
+        """White Team can submit incidents as admin (team selection in form)."""
         client = Client()
         client.force_login(white_team_user)
         response = client.get(reverse("scoring:submit_incident_report"))
-        assert response.status_code == 302
+        assert response.status_code == 200
 
     def test_orange_team_denied_without_team(self, orange_team_user):
         """Orange Team should not submit incidents (not a blue team)."""

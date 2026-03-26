@@ -57,7 +57,10 @@
                            class="vTextField"
                            :id="criterion.labelId"
                            :name="criterion.labelName"
-                           x-model="criterion.label"
+                           :value="criterion.label"
+                           @input="setCriterionField"
+                           :data-index="index"
+                           data-prop="label"
                            required>
                 </div>
                 <div class="input-sm-wrap">
@@ -66,7 +69,10 @@
                            class="vTextField"
                            :id="criterion.pointsId"
                            :name="criterion.pointsName"
-                           x-model="criterion.points"
+                           :value="criterion.points"
+                           @input="setCriterionField"
+                           :data-index="index"
+                           data-prop="points"
                            min="1"
                            required>
                 </div>
@@ -118,6 +124,10 @@
                 }),
                 _nextId: _nextId,
                 get canRemove() { return this.criteria.length > 1; },
+                setCriterionField(e) {
+                    var idx = parseInt(e.target.dataset.index);
+                    this.criteria[idx][e.target.dataset.prop] = e.target.value;
+                },
                 onSubmit(e) {
                     if (this.submitting) { e.preventDefault(); return; }
                     this.submitting = true;
@@ -151,6 +161,10 @@
                 }],
                 _nextId: 1,
                 get canRemove() { return this.criteria.length > 1; },
+                setCriterionField(e) {
+                    var idx = parseInt(e.target.dataset.index);
+                    this.criteria[idx][e.target.dataset.prop] = e.target.value;
+                },
                 onSubmit(e) {
                     if (this.submitting) { e.preventDefault(); return; }
                     this.submitting = true;

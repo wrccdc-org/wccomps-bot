@@ -11,7 +11,9 @@
         <label for="team-search" class="assistive-text">Search</label>
         <input type="text"
                id="team-search"
-               x-model="search"
+               :value="search"
+               @input="setField"
+               data-field="search"
                placeholder="Search teams by number or name...">
         </c-slot>
         <c-table id="result_list" aria_label="Team group memberships">
@@ -113,6 +115,7 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('teamMappings', () => ({
                 search: '',
+                setField(e) { this[e.target.dataset.field] = e.target.value; },
                 matchesSearch(teamNum) {
                     if (!this.search) return true;
                     const q = this.search.toLowerCase();

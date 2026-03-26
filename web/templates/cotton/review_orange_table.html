@@ -37,7 +37,7 @@
                                            name="adjustment_ids"
                                            value="{{ check.id }}"
                                            data-check-id="{{ check.id }}"
-                                           x-model="selected">
+                                           @change="toggleItem">
                                 {% endif %}
                             </td>
                             <th class="field-id">

@@ -251,7 +251,38 @@ class TestAlpineCSPCompatibility:
 
 
 # ---------------------------------------------------------------------------
-# 5. Missing {{ attrs }} → silent attribute dropping
+# 5. No x-model → incompatible with Alpine CSP build
+# ---------------------------------------------------------------------------
+
+
+class TestNoXModel:
+    """x-model generates assignment expressions that fail silently in CSP mode.
+
+    Use :value/@input (or :checked/@change for checkboxes) with a setter
+    method defined in Alpine.data() instead.
+    """
+
+    X_MODEL_RE = re.compile(r'x-model="([^"]*)"')
+
+    def test_no_x_model_in_templates(self) -> None:
+        """x-model must not be used — it is incompatible with Alpine CSP build."""
+        violations: list[tuple[str, int, str]] = []
+        for path in get_all_template_files():
+            content = path.read_text()
+            rel = str(path.relative_to(TEMPLATES_DIR))
+            for match in self.X_MODEL_RE.finditer(content):
+                line = content[: match.start()].count("\n") + 1
+                violations.append((rel, line, match.group(1)))
+        if violations:
+            lines = [f'  - {p}:{ln} x-model="{v}"' for p, ln, v in sorted(violations)]
+            pytest.fail(
+                "x-model is incompatible with Alpine CSP build. "
+                "Use :value/@input (or :checked/@change) with a setField method:\n" + "\n".join(lines)
+            )
+
+
+# ---------------------------------------------------------------------------
+# 6. Missing {{ attrs }} → silent attribute dropping
 # ---------------------------------------------------------------------------
 
 

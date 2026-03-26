@@ -13,12 +13,18 @@
             <c-filter_field label="Team Numbers" id="bulk_team_numbers">
             <input type="text"
                    name="team_numbers"
-                   x-model="bulkTeamNumbers"
+                   :value="bulkTeamNumbers"
+                   @input="setField"
+                   data-field="bulkTeamNumbers"
                    class="vTextField"
                    placeholder="1,3,5-10,15">
             </c-filter_field>
             <c-filter_field label="Action" id="bulk_action">
-            <select name="action" x-model="bulkActionType" class="vTextField">
+            <select name="action"
+                    :value="bulkActionType"
+                    @change="setField"
+                    data-field="bulkActionType"
+                    class="vTextField">
                 <option value="activate">Activate</option>
                 <option value="deactivate">Deactivate</option>
                 <option value="recreate">Recreate Channels</option>
@@ -73,6 +79,8 @@
                 loading: false,
                 bulkTeamNumbers: '',
                 bulkActionType: 'activate',
+
+                setField(e) { this[e.target.dataset.field] = e.target.value; },
 
                 async bulkAction() {
                     if (!this.bulkTeamNumbers) {

@@ -37,7 +37,7 @@
                                            name="ticket_ids"
                                            value="{{ item.ticket.id }}"
                                            data-ticket-id="{{ item.ticket.id }}"
-                                           x-model="selected">
+                                           @change="toggleItem">
                                 {% endif %}
                             </td>
                             <th class="field-ticket_number">

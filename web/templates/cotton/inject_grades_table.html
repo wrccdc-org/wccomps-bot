@@ -50,7 +50,7 @@
                                            name="grade_ids"
                                            value="{{ grade.id }}"
                                            data-grade-id="{{ grade.id }}"
-                                           x-model="selected">
+                                           @change="toggleItem">
                                 {% endif %}
                             </td>
                             <th class="field-inject">

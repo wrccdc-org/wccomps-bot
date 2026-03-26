@@ -36,7 +36,7 @@
                                name="incident_ids"
                                value="{{ incident.id }}"
                                data-incident-id="{{ incident.id }}"
-                               x-model="selected">
+                               @change="toggleItem">
                     {% endif %}
                 </td>
                 <th class="field-id">

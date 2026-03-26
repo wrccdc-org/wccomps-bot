@@ -67,8 +67,8 @@
                               @submit="confirmChange">
                             {% csrf_token %}
                             <select name="new_category"
-                                    x-model="newCat"
-                                    @change="submitForm"
+                                    :value="newCat"
+                                    @change="onCatChange"
                                     aria-label="Change ticket category"
                                     class="py-5 px-10">
                                 {% for cat_id, cat_info in categories.items %}
@@ -375,7 +375,7 @@
                 this.submitting = true;
                 setTimeout(() => { this.submitting = false; }, 10000);
             },
-            submitForm() { this.$el.closest('form').requestSubmit(); }
+            onCatChange(e) { this.newCat = e.target.value; this.$el.closest('form').requestSubmit(); }
         }));
     });
     </script>

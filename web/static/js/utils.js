@@ -155,6 +155,18 @@ function bulkSelectMixin(dataAttr) {
         },
         toggleAll() {
             this.selected = this.allSelected ? [] : [...this.selectableIds];
+            this.syncCheckboxes();
+        },
+        toggleItem(e) {
+            const val = e.target.value;
+            const idx = this.selected.indexOf(val);
+            if (e.target.checked && idx === -1) this.selected.push(val);
+            else if (!e.target.checked && idx > -1) this.selected.splice(idx, 1);
+        },
+        syncCheckboxes() {
+            this.$el.querySelectorAll('input[type="checkbox"][value]').forEach(cb => {
+                cb.checked = this.selected.includes(cb.value);
+            });
         },
     };
 }

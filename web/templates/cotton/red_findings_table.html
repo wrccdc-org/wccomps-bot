@@ -61,7 +61,7 @@
                                                name="finding_ids"
                                                value="{{ finding.id }}"
                                                data-finding-id="{{ finding.id }}"
-                                               x-model="selected">
+                                               @change="toggleItem">
                                     {% endif %}
                                 </td>
                             {% endif %}

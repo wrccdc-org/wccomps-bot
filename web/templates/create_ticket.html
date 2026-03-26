@@ -43,7 +43,7 @@
             <select name="category"
                     id="category"
                     required
-                    x-model="selectedCategory"
+                    :value="selectedCategory"
                     @change="onCategoryChange">
                 <option value="">Select a category...</option>
                 {% for cat_key, cat_info in categories.items %}
@@ -87,7 +87,7 @@
                 <input type="hidden"
                        name="hostname"
                        id="hostname"
-                       x-model="selectedHostname"
+                       :value="selectedHostname"
                        :required="hostnameRequired">
                 </c-form_field>
             </div>
@@ -98,7 +98,9 @@
                        name="ip_address"
                        id="ip_address"
                        class="vTextField"
-                       x-model="ipAddress"
+                       :value="ipAddress"
+                       @input="setField"
+                       data-field="ipAddress"
                        :required="ipRequired"
                        maxlength="45"
                        placeholder="Select a hostname above">
@@ -112,7 +114,7 @@
                 <select name="service_name"
                         id="service_name"
                         x-ref="serviceSelect"
-                        x-model="selectedService"
+                        :value="selectedService"
                         @change="onServiceChange"
                         :required="serviceRequired">
                     <option value="">Select a service...</option>
@@ -166,6 +168,8 @@
                 get serviceRequired() { return this.requiredFields.includes('service_name'); },
                 get descriptionRequired() { return this.requiredFields.includes('description'); },
 
+                setField(e) { this[e.target.dataset.field] = e.target.value; },
+
                 selectHostname(e) {
                     const hostname = e.currentTarget.dataset.hostname;
                     this.selectedHostname = this.selectedHostname === hostname ? '' : hostname;
@@ -218,7 +222,8 @@
                     });
                 },
 
-                onCategoryChange() {
+                onCategoryChange(e) {
+                    if (e && e.target) this.selectedCategory = e.target.value;
                     const catData = categories[this.selectedCategory];
                     if (!catData) {
                         this.visibleFields = [];
@@ -245,7 +250,8 @@
                     this.rebuildServiceOptions();
                 },
 
-                onServiceChange() {
+                onServiceChange(e) {
+                    if (e && e.target) this.selectedService = e.target.value;
                     if (!this.selectedService) return;
                     const svc = allServiceChoices.find(s => s.value === this.selectedService);
                     if (svc) {

@@ -24,7 +24,7 @@ def submit_incident_report(request: HttpRequest) -> HttpResponse:
     """Submit incident report (blue team or admin)."""
 
     user = cast(User, request.user)
-    is_admin = has_permission(user, "gold_team")
+    is_admin = has_permission(user, "gold_team") or has_permission(user, "white_team")
     team: Team | None = None
 
     if not is_admin:
@@ -108,7 +108,7 @@ def incident_list(request: HttpRequest) -> HttpResponse:
     """List all incidents for the user's team (blue team view)."""
     user = cast(User, request.user)
 
-    if has_permission(user, "gold_team"):
+    if has_permission(user, "gold_team") or has_permission(user, "white_team"):
         incidents = IncidentReport.objects.all().select_related("team", "submitted_by").order_by("-created_at")
     else:
         user_team = _get_user_team(user)
@@ -136,7 +136,7 @@ def view_incident_report(request: HttpRequest, incident_id: int) -> HttpResponse
     incident = get_object_or_404(IncidentReport, id=incident_id)
 
     user = cast(User, request.user)
-    if not has_permission(user, "gold_team"):
+    if not has_permission(user, "gold_team") and not has_permission(user, "white_team"):
         user_team = _get_user_team(user)
         if not user_team or incident.team != user_team:
             messages.error(request, "You do not have permission to view this incident report")
@@ -183,7 +183,7 @@ def incident_screenshot_download(request: HttpRequest, screenshot_id: int) -> Ht
 
     # Check permission: must be gold_team/staff or the team that submitted it
     user = cast(User, request.user)
-    if not has_permission(user, "gold_team"):
+    if not has_permission(user, "gold_team") and not has_permission(user, "white_team"):
         user_team = _get_user_team(user)
         if not user_team or screenshot.incident.team != user_team:
             return HttpResponseForbidden("You do not have permission to view this file")

@@ -76,7 +76,9 @@
             <input type="number"
                    name="max_members"
                    id="max_members"
-                   x-model="maxMembers"
+                   :value="maxMembers"
+                   @input="setField"
+                   data-field="maxMembers"
                    min="1"
                    max="20"
                    class="vTextField w-80">
@@ -101,7 +103,10 @@
                 </template>
             </div>
             <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
-                <select :value="newApp" @change="setNewApp" class="vTextField w-150">
+                <select :value="newApp"
+                        @change="setField"
+                        data-field="newApp"
+                        class="vTextField w-150">
                     <option value="">Select app...</option>
                     {% for app in available_apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}
                 </select>
@@ -120,11 +125,15 @@
                         <input type="datetime-local"
                                name="start_datetime"
                                id="start_datetime"
-                               x-model="startDatetime"
+                               :value="startDatetime"
+                               @input="setField"
+                               data-field="startDatetime"
                                class="vTextField flex-1">
                         <select name="start_timezone"
                                 id="start_timezone"
-                                x-model="startTimezone"
+                                :value="startTimezone"
+                                @change="setField"
+                                data-field="startTimezone"
                                 class="vTextField">
                             {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                         </select>
@@ -137,11 +146,15 @@
                         <input type="datetime-local"
                                name="end_datetime"
                                id="end_datetime"
-                               x-model="endDatetime"
+                               :value="endDatetime"
+                               @input="setField"
+                               data-field="endDatetime"
                                class="vTextField flex-1">
                         <select name="end_timezone"
                                 id="end_timezone"
-                                x-model="endTimezone"
+                                :value="endTimezone"
+                                @change="setField"
+                                data-field="endTimezone"
                                 class="vTextField">
                             {% for value, label in timezone_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
                         </select>
@@ -233,7 +246,9 @@
             <input type="text"
                    name="team_numbers"
                    id="team_numbers"
-                   x-model="teamNumbers"
+                   :value="teamNumbers"
+                   @input="setField"
+                   data-field="teamNumbers"
                    placeholder="1,3,5-10 (empty = all)"
                    class="vTextField">
             </c-form_field>
@@ -342,8 +357,8 @@ document.addEventListener('alpine:init', () => {
             this.doAction('set_max_members', { max_members: this.maxMembers });
         },
 
-        setNewApp(e) {
-            this.newApp = e.target.value;
+        setField(e) {
+            this[e.target.dataset.field] = e.target.value;
         },
 
         addApp() {

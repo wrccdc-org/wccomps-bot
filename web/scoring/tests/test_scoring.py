@@ -798,6 +798,17 @@ class TestIncidentListView:
 
         assert response.status_code == 200
 
+    def test_white_team_can_access_incident_list(self) -> None:
+        """White team members can access incident list (sees all incidents)."""
+        user = User.objects.create_user(username="white_user", password="test123")
+        UserGroups.objects.create(user=user, authentik_id="white_user-uid", groups=["WCComps_WhiteTeam"])
+        client = Client()
+        client.force_login(user)
+
+        response = client.get(reverse("scoring:incident_list"))
+
+        assert response.status_code == 200
+
     def test_blue_team_sees_only_their_incidents(self, create_user_with_groups) -> None:
         """Blue team members see only their team's incidents."""
         user1 = create_user_with_groups("blue_user1", ["WCComps_BlueTeam01"])
