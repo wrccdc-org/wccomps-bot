@@ -53,10 +53,7 @@
                     <a href="{% url 'leaderboard_page' %}"
                        {% if nav_active == 'leaderboard' %}class="current"{% endif %}>Leaderboard</a>
                 {% endif %}
-                {% if is_gold_team or is_admin %}
-                    <a href="{% url 'scoring:red_team_portal' %}"
-                       {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring Review</a>
-                {% elif is_white_team %}
+                {% if is_gold_team or is_white_team or is_admin %}
                     <a href="{% url 'scoring:review_incidents' %}"
                        {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring Review</a>
                 {% endif %}
