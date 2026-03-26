@@ -50,6 +50,7 @@ NAV_CONDITIONS: dict[str, callable] = {
     "Django Admin": lambda c: c["is_admin"],
 }
 
+
 # ---------------------------------------------------------------------------
 # Scoring sub-nav conditions — must match templates/scoring/base.html
 # The outer wrapper requires: is_gold_team or is_white_team or is_admin
