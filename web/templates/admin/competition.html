@@ -101,7 +101,7 @@
                 </template>
             </div>
             <form @submit.prevent="addApp" class="d-flex gap-10 items-center">
-                <select x-model="newApp" class="vTextField w-150">
+                <select :value="newApp" @change="setNewApp" class="vTextField w-150">
                     <option value="">Select app...</option>
                     {% for app in available_apps %}<option value="{{ app }}">{{ app }}</option>{% endfor %}
                 </select>
@@ -340,6 +340,10 @@ document.addEventListener('alpine:init', () => {
 
         setMaxMembers() {
             this.doAction('set_max_members', { max_members: this.maxMembers });
+        },
+
+        setNewApp(e) {
+            this.newApp = e.target.value;
         },
 
         addApp() {
