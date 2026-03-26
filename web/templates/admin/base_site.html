@@ -37,7 +37,7 @@
                               x-cloak></span>
                     </a>
                 {% endif %}
-                {% if is_blue_team or is_admin %}
+                {% if is_blue_team or is_white_team or is_admin %}
                     <a href="{% url 'scoring:submit_incident_report' %}"
                        {% if nav_active == 'incident' %}class="current"{% endif %}>Incident Report</a>
                 {% endif %}
@@ -55,6 +55,9 @@
                 {% endif %}
                 {% if is_gold_team or is_admin %}
                     <a href="{% url 'scoring:red_team_portal' %}"
+                       {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring Review</a>
+                {% elif is_white_team %}
+                    <a href="{% url 'scoring:review_incidents' %}"
                        {% if nav_active == 'scoring' %}class="current"{% endif %}>Scoring Review</a>
                 {% endif %}
                 {% if is_white_team or is_gold_team or is_admin %}
