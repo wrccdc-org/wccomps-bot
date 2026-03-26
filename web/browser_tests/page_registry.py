@@ -148,7 +148,7 @@ PAGES: list[PageDef] = [
     # scoring:submit_incident_report removed — depends on Quotient API
     PageDef(
         url_name="scoring:incident_list",
-        allowed_roles=["blue_team", "admin"],
+        allowed_roles=["blue_team", "white_team", "gold_team", "admin"],
         denied_roles=["unauthenticated"],
     ),
     PageDef(
