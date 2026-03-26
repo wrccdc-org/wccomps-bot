@@ -40,7 +40,9 @@ NAV_CONDITIONS: dict[str, callable] = {
     "Red Team Findings": lambda c: c["is_red_team"] or c["is_admin"],
     "Orange Team": lambda c: c["is_orange_team"] or c["is_admin"],
     "Leaderboard": (
-        lambda c: c["is_gold_team"] or c["is_white_team"] or c["is_red_team"] or c["is_ticketing_admin"] or c["is_admin"]
+        lambda c: (
+            c["is_gold_team"] or c["is_white_team"] or c["is_red_team"] or c["is_ticketing_admin"] or c["is_admin"]
+        )
     ),
     "Scoring Review": lambda c: c["is_gold_team"] or c["is_white_team"] or c["is_admin"],
     "White Team": lambda c: c["is_white_team"] or c["is_gold_team"] or c["is_admin"],
@@ -52,15 +54,17 @@ NAV_CONDITIONS: dict[str, callable] = {
 # Scoring sub-nav conditions — must match templates/scoring/base.html
 # The outer wrapper requires: is_gold_team or is_white_team or is_admin
 # ---------------------------------------------------------------------------
-_SCORING_WRAPPER = lambda c: c["is_gold_team"] or c["is_white_team"] or c["is_admin"]
+def _scoring_wrapper(c: dict) -> bool:
+    return c["is_gold_team"] or c["is_white_team"] or c["is_admin"]
+
 
 SCORING_SUBNAV_CONDITIONS: dict[str, callable] = {
-    "Red Team Scores": lambda c: _SCORING_WRAPPER(c) and (c["is_gold_team"] or c["is_admin"]),
-    "Orange Checks": lambda c: _SCORING_WRAPPER(c) and (c["is_gold_team"] or c["is_admin"]),
-    "Incidents": _SCORING_WRAPPER,
-    "Inject Grades": _SCORING_WRAPPER,
+    "Red Team Scores": lambda c: _scoring_wrapper(c) and (c["is_gold_team"] or c["is_admin"]),
+    "Orange Checks": lambda c: _scoring_wrapper(c) and (c["is_gold_team"] or c["is_admin"]),
+    "Incidents": _scoring_wrapper,
+    "Inject Grades": _scoring_wrapper,
     "Ticket Points": (
-        lambda c: _SCORING_WRAPPER(c) and (c["is_ticketing_admin"] or c["is_gold_team"] or c["is_admin"])
+        lambda c: _scoring_wrapper(c) and (c["is_ticketing_admin"] or c["is_gold_team"] or c["is_admin"])
     ),
 }
 
